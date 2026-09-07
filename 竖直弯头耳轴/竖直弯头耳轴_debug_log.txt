@@ -1,0 +1,3 @@
+created DN200 R300.0 H1000.0, trunnion DN100, base=A 方形底板, ids=(4674, 4716, 4730)
+created DN800 R1200.0 H1000.0, trunnion DN400, base=A 方形底板, ids=(4744, 4786)
+created DN200 R300.0 H1000.0, trunnion DN100, base=B 圆形底板, ids=(4800, 4842, 4850)

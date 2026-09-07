@@ -1,0 +1,76 @@
+{
+  "itemTypeLibrary": "TankLadderComponents",
+  "recordCount": 6,
+  "records": [
+    {
+      "elementId": 5707,
+      "itemType": "TriangleBracketComponent_AngleBrace_L1343_503",
+      "componentName": "斜撑",
+      "specification": "L100×10",
+      "designLengthMm": 1343.5028842544402,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 5728,
+      "itemType": "TriangleBracketComponent_HBeam_L1157_071",
+      "componentName": "横担",
+      "specification": "H125×125×6.5×9",
+      "designLengthMm": 1157.0710678118655,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 5768,
+      "itemType": "TriangleBracketComponent_AngleBrace_L1343_503",
+      "componentName": "斜撑",
+      "specification": "L100×10",
+      "designLengthMm": 1343.5028842544402,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 5789,
+      "itemType": "TriangleBracketComponent_HBeam_L1157_071",
+      "componentName": "横担",
+      "specification": "H125×125×6.5×9",
+      "designLengthMm": 1157.0710678118655,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 5829,
+      "itemType": "TriangleBracketComponent_AngleBrace_L1343_503",
+      "componentName": "斜撑",
+      "specification": "L100×10",
+      "designLengthMm": 1343.5028842544402,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 5850,
+      "itemType": "TriangleBracketComponent_HBeam_L1157_071",
+      "componentName": "横担",
+      "specification": "H125×125×6.5×9",
+      "designLengthMm": 1157.0710678118655,
+      "quantity": 1,
+      "unit": "件"
+    }
+  ],
+  "summary": [
+    {
+      "componentName": "斜撑",
+      "specification": "L100×10",
+      "unit": "件",
+      "quantity": 3,
+      "totalDesignLengthMm": 4030.509
+    },
+    {
+      "componentName": "横担",
+      "specification": "H125×125×6.5×9",
+      "unit": "件",
+      "quantity": 3,
+      "totalDesignLengthMm": 3471.213
+    }
+  ]
+}

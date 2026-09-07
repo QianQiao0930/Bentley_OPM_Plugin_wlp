@@ -1,0 +1,6 @@
+__pycache__/
+*.py[cod]
+*.pyc
+.ruff_cache/
+*.log
+debug_log.txt

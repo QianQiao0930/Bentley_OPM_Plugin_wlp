@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="820" viewBox="0 0 1280 820">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+    <style>
+      .title { font: 700 30px 'Microsoft YaHei', Arial, sans-serif; fill:#0f172a; }
+      .sub { font: 18px 'Microsoft YaHei', Arial, sans-serif; fill:#475569; }
+      .label { font: 20px 'Microsoft YaHei', Arial, sans-serif; fill:#1e293b; }
+      .dim { font: 19px 'Microsoft YaHei', Arial, sans-serif; fill:#334155; }
+      .small { font: 16px 'Microsoft YaHei', Arial, sans-serif; fill:#64748b; }
+      .thin { stroke:#94a3b8; stroke-width:1.5; fill:none; }
+      .dimension { stroke:#475569; stroke-width:1.6; fill:none; marker-start:url(#arrow); marker-end:url(#arrow); }
+      .center { stroke:#0f766e; stroke-width:2.2; stroke-dasharray:10 7; fill:none; }
+    </style>
+  </defs>
+
+  <rect width="1280" height="820" fill="#f8fafc"/>
+  <text x="70" y="70" class="title">方形人孔盖板把手：曲线轮廓确认</text>
+  <text x="70" y="105" class="sub">假定尺寸均指钢管中心线；钢管外径 Ø16 mm。</text>
+
+  <!-- left: elevation/profile -->
+  <rect x="55" y="145" width="720" height="600" rx="16" fill="#ffffff" stroke="#dbe4ee" stroke-width="2"/>
+  <text x="90" y="192" class="label">把手侧视 / 放样路径</text>
+  <text x="90" y="222" class="small">倒 U 形（两端焊接/落在盖板顶面）</text>
+
+  <!-- cover top -->
+  <rect x="165" y="595" width="510" height="18" fill="#cbd5e1" stroke="#64748b" stroke-width="2"/>
+  <text x="688" y="611" class="small">盖板顶面</text>
+
+  <!-- pipe: scaled 4 px/mm -> ø 16 = 64 px; path total 140=560, h60=240, R32=128 -->
+  <path d="M 205 595 L 205 483 A 128 128 0 0 1 333 355 L 547 355 A 128 128 0 0 1 675 483 L 675 595"
+        fill="none" stroke="#334155" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 205 595 L 205 483 A 128 128 0 0 1 333 355 L 547 355 A 128 128 0 0 1 675 483 L 675 595"
+        class="center"/>
+
+  <!-- 140 dimension -->
+  <line x1="205" y1="635" x2="205" y2="690" class="thin"/>
+  <line x1="675" y1="635" x2="675" y2="690" class="thin"/>
+  <line x1="205" y1="675" x2="675" y2="675" class="dimension"/>
+  <text x="416" y="665" text-anchor="middle" class="dim">140 mm（中心线总长）</text>
+
+  <!-- 60 dimension -->
+  <line x1="160" y1="595" x2="108" y2="595" class="thin"/>
+  <line x1="333" y1="355" x2="108" y2="355" class="thin"/>
+  <line x1="125" y1="595" x2="125" y2="355" class="dimension"/>
+  <text x="111" y="480" text-anchor="middle" transform="rotate(-90 111 480)" class="dim">60 mm（中心线总高）</text>
+
+  <!-- radius callout -->
+  <line x1="333" y1="483" x2="273" y2="438" class="thin"/>
+  <line x1="273" y1="438" x2="230" y2="420" class="thin"/>
+  <text x="185" y="415" class="dim">R32</text>
+  <text x="185" y="442" class="small">中心线半径</text>
+
+  <!-- Pipe diameter -->
+  <line x1="720" y1="454" x2="688" y2="454" class="thin"/>
+  <line x1="720" y1="518" x2="688" y2="518" class="thin"/>
+  <line x1="705" y1="454" x2="705" y2="518" class="dimension"/>
+  <text x="734" y="491" class="dim">Ø16</text>
+
+  <!-- Formula -->
+  <rect x="105" y="260" width="560" height="62" rx="8" fill="#ecfeff" stroke="#99f6e4"/>
+  <text x="126" y="288" class="small">直段校核：顶部直段 = 140 − 2 × 32 = 76 mm；</text>
+  <text x="126" y="312" class="small">两侧竖直直段 = 60 − 32 = 28 mm。</text>
+
+  <!-- right: cover plan -->
+  <rect x="815" y="145" width="410" height="600" rx="16" fill="#ffffff" stroke="#dbe4ee" stroke-width="2"/>
+  <text x="850" y="192" class="label">盖板平面布置</text>
+  <text x="850" y="222" class="small">620 × 620 盖板（示意）</text>
+  <rect x="880" y="280" width="280" height="280" fill="#e2e8f0" stroke="#475569" stroke-width="2"/>
+  <line x1="1020" y1="258" x2="1020" y2="582" class="center"/>
+  <line x1="858" y1="420" x2="1182" y2="420" class="center"/>
+  <circle cx="1020" cy="420" r="4" fill="#0f766e"/>
+  <text x="1030" y="412" class="small">盖板中心</text>
+
+  <!-- handles as plan rectangles (handle's 140 direction x) -->
+  <rect x="988" y="347" width="64" height="8" rx="4" fill="#334155"/>
+  <rect x="988" y="485" width="64" height="8" rx="4" fill="#334155"/>
+  <line x1="1020" y1="351" x2="1020" y2="420" class="thin"/>
+  <line x1="1020" y1="489" x2="1020" y2="420" class="thin"/>
+  <text x="1060" y="356" class="small">把手 A</text>
+  <text x="1060" y="494" class="small">把手 B</text>
+
+  <!-- +/-150 spacing -->
+  <line x1="1172" y1="420" x2="1172" y2="351" class="dimension"/>
+  <line x1="1172" y1="420" x2="1172" y2="489" class="dimension"/>
+  <text x="1185" y="385" class="small">+150</text>
+  <text x="1185" y="463" class="small">−150</text>
+  <text x="850" y="625" class="small">按理解：两把手中心相对盖板中心</text>
+  <text x="850" y="650" class="small">沿 Y 轴分别偏移 +150 / −150 mm。</text>
+  <text x="850" y="695" class="small">请确认：</text>
+  <text x="850" y="720" class="small">1. “倒 C”是否就是图中的倒 U？</text>
+  <text x="850" y="744" class="small">2. 140、60、R32 是否均为中心线尺寸？</text>
+</svg>

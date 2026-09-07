@@ -1,0 +1,17 @@
+created cabinet Cell: preset=MF5_CO2, extinguisher=MF/ABC2, cell=3505
+created cabinet Cell: preset=SMALL, extinguisher=MF/ABC4, cell=5068
+created cabinet Cell: preset=XMDDG32, extinguisher=干粉灭火器 5kg, cell=5199
+created cabinet Cell: preset=XMDDG32, extinguisher=干粉灭火器 5kg, cell=5330
+created cabinet Cell: preset=XMDDG22, extinguisher=干粉灭火器 3kg, cell=5460
+created cabinet Cell: preset=XMDDG22, extinguisher=干粉灭火器 3kg, cell=5591
+created cabinet Cell: preset=XMDDG32, extinguisher=干粉灭火器 5kg, cell=5721
+created cabinet Cell: preset=XMDDG32, extinguisher=干粉灭火器 5kg, cell=5851
+created cabinet Cell: preset=XMDDG32, extinguisher=干粉灭火器 5kg, cell=5981
+created cabinet Cell: preset=XMDDG32, extinguisher=干粉灭火器 5kg, cell=6824
+created cabinet Cell: preset=XMDDG32, extinguisher=干粉灭火器 5kg, cell=6954
+created cabinet Cell: preset=XMDDG32, extinguisher=干粉灭火器 5kg, cell=7086
+created cabinet Cell: preset=XMDDG32, extinguisher=干粉灭火器 5kg, cell=7217
+created cabinet Cell: preset=XMDDG32, extinguisher=干粉灭火器 5kg, cell=7348
+created cabinet Cell: preset=XMDDG32, extinguisher=干粉灭火器 5kg, cell=1148
+created cabinet Cell: preset=XMDDG32, extinguisher=干粉灭火器 5kg, cell=1825
+created cabinet Cell: preset=XMDDG32, extinguisher=干粉灭火器 5kg, cell=1960

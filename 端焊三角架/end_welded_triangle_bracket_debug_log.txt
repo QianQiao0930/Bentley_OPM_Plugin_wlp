@@ -1,0 +1,28 @@
+triangle bracket created: L1=1000.0, braceProjection=950.000, offset=7.071, E=150.0, L2=1157.071, beamId=5367, braceId=5346
+triangle bracket created: L1=1000.0, braceProjection=950.000, offset=7.071, E=150.0, L2=1157.071, beamId=5536, braceId=5515
+triangle bracket created: L1=1000.0, braceProjection=950.000, offset=7.071, E=150.0, L2=1157.071, beamId=5597, braceId=5576
+item type: attach exception for 斜撑: TypeError('Unable to convert function return value to a Python type! The signature was\n\t(self: MSPyDgnPlatform.CustomItemHost, itemType: MSPyDgnPlatform.ItemType) -> Bentley::DgnPlatform::DgnECInstance')
+brace: failed to attach component item
+item type: ApplyCustomItem return conversion unavailable; using EC query fallback
+item type: setup exception: NameError("name 'ECValue' is not defined")
+brace: failed to attach component item
+triangle bracket created: L1=1000.0, braceProjection=950.000, offset=7.071, E=150.0, L2=1157.071, beamId=5728, braceId=5707
+triangle bracket created: L1=1000.0, braceProjection=950.000, offset=7.071, E=150.0, L2=1157.071, beamId=5789, braceId=5768
+triangle bracket created: L1=1000.0, braceProjection=950.000, offset=7.071, E=150.0, L2=1157.071, beamId=5850, braceId=5829
+triangle bracket created: L1=1000.0, braceProjection=929.289, offset=7.071, E=150.0, L2=1157.071, beamId=5911, braceId=5890
+triangle bracket created: L1=1000.0, braceProjection=929.289, offset=7.071, E=150.0, L2=1157.071, beamId=5975, braceId=5954
+triangle bracket created: L1=1000.0, braceProjection=929.289, offset=7.071, E=150.0, L2=1157.071, beamId=6037, braceId=6016
+triangle bracket created: L1=1000.0, braceProjection=929.289, topCenterX=7582.395, topOuterEndX=7589.466, beamEndX=7739.466, offset=7.071, E=150.0, ECheck=150.000, L2=1157.071, beamId=6099, braceId=6078
+triangle bracket created: L1=1000.0, braceProjection=929.289, topCenterX=3531.483, topOuterEndX=3602.193, beamEndX=3752.193, offset=70.711, E=150.0, ECheck=150.000, L2=1220.711, beamId=6161, braceId=6140
+triangle bracket created: L1=1000.0, braceProjection=929.289, topCenterX=6613.008, topOuterEndX=6683.719, beamEndX=6834.008, offset=70.711, E=150.0, EActual=150.289, L2Theory=1220.711, L2=1221, beamId=6223, braceId=6202
+triangle bracket created: L1=1000.0, braceProjection=929.289, topCenterX=70936.221, topOuterEndX=71006.931, beamEndX=71157.221, offset=70.711, E=150.0, EActual=150.289, L2Theory=1220.711, L2=1221, beamId=10218, braceId=10193
+triangle bracket created: L1=1000.0, braceProjection=886.863, topCenterX=107328.053, topOuterEndX=107441.190, beamEndX=107592.053, offset=113.137, E=150.0, EActual=150.863, L2Theory=1263.137, L2=1264, beamId=11995, braceId=11974
+triangle bracket created: L1=1000.0, braceProjection=929.289, topCenterX=108612.671, topOuterEndX=108683.381, beamEndX=108833.671, offset=70.711, E=150.0, EActual=150.289, L2Theory=1220.711, L2=1221, beamId=12057, braceId=12036
+triangle bracket created: L1=1000.0, braceProjection=929.289, topCenterX=109115.244, topOuterEndX=109185.954, beamEndX=109336.244, offset=70.711, E=150.0, EActual=150.289, L2Theory=1220.711, L2=1221, beamId=12119, braceId=12098
+triangle bracket created: L1=1000.0, braceProjection=929.289, topCenterX=10379.170, topOuterEndX=10449.881, beamEndX=10629.170, offset=70.711, E=179.0, EActual=179.289, L2Theory=1249.711, L2=1250, beamId=6520, braceId=6495
+triangle bracket created: L1=1000.0, braceProjection=886.863, topCenterX=9788.304, topOuterEndX=9901.441, beamEndX=10088.304, offset=113.137, E=186.0, EActual=186.863, L2Theory=1299.137, L2=1300, beamId=6582, braceId=6561
+triangle bracket created: L1=1000.0, braceProjection=929.289, topCenterX=9498.242, topOuterEndX=9568.953, beamEndX=9719.242, offset=70.711, E=150.0, EActual=150.289, L2Theory=1220.711, L2=1221, beamId=6136, braceId=6114
+triangle bracket created: L1=1000.0, braceProjection=929.289, topCenterX=2635.147, topOuterEndX=2705.858, beamEndX=2856.147, offset=70.711, E=150.0, EActual=150.289, L2Theory=1220.711, L2=1221, beamId=1308, braceId=1286
+triangle bracket created: L1=1000.0, braceProjection=929.289, topCenterX=4774.163, topOuterEndX=4844.874, beamEndX=4995.163, offset=70.711, E=150.0, EActual=150.289, L2Theory=1220.711, L2=1221, beamId=2116, braceId=2094
+triangle bracket created: L1=1000.0, braceProjection=929.289, topCenterX=5311.762, topOuterEndX=5382.473, beamEndX=5532.762, offset=70.711, E=150.0, EActual=150.289, L2Theory=1220.711, L2=1221, beamId=2178, braceId=2157
+triangle bracket created: L1=1000.0, braceProjection=929.289, topCenterX=7336.547, topOuterEndX=7407.257, beamEndX=7557.547, offset=70.711, E=150.0, EActual=150.289, L2Theory=1220.711, L2=1221, beamId=2240, braceId=2219
