@@ -39,7 +39,6 @@ from PyQt5.QtWidgets import (
     QFormLayout,
     QFrame,
     QGroupBox,
-    QHBoxLayout,
     QLabel,
     QMessageBox,
     QVBoxLayout,
@@ -657,12 +656,8 @@ class TrunnionDialog(QDialog):
         ok_button.setText("确定")
         cancel_button = buttons.button(QDialogButtonBox.Cancel)
         cancel_button.setText("取消")
-        button_row = QHBoxLayout()
-        button_row.setSpacing(10)
-        button_row.addStretch(1)
-        button_row.addWidget(cancel_button)
-        button_row.addWidget(ok_button)
-        layout.addLayout(button_row)
+        # 按钮必须保留在按钮盒内，否则重新设置父对象后会失去 accepted/rejected 信号。
+        layout.addWidget(buttons)
 
         self.dn.currentTextChanged.connect(self._dn_changed)
         self.radius_mode.currentTextChanged.connect(self._radius_mode_changed)

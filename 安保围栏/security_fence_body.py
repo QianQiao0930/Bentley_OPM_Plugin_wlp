@@ -10,7 +10,7 @@
 
 from __future__ import print_function
 
-from math import cos, hypot, radians, sin, sqrt
+from math import ceil, cos, hypot, radians, sin, sqrt
 import tkinter as tk
 
 import tkinter
@@ -40,11 +40,19 @@ BARB_DIAMETER = 1.2
 BARB_LENGTH = 28.0
 BARB_SPACING = 500.0
 
+# GS-M16：转角/门/张紧柱为 φ100 × 2mm、管长 2.6m；中间柱为 φ50 × 2mm、
+# 管长 2.4m。两者地上高度都与网片顶齐平（FENCE_HEIGHT），管长与围栏高度
+# 之差即为埋深（粗柱 800、细柱 600）。
 INTERMEDIATE_POST_OD = 50.0
-INTERMEDIATE_POST_EMBEDMENT = 600.0
+INTERMEDIATE_POST_LENGTH = 2400.0
 TERMINAL_POST_OD = 100.0
-TERMINAL_POST_EMBEDMENT = 800.0
+TERMINAL_POST_LENGTH = 2600.0
 STEEL_TUBE_WALL = 4.0
+
+# GS-M16 B 级混凝土基础块（宽 × 宽 × 深），顶面与地面齐平；
+# 只有在界面勾选“增加混凝土基础”时才会生成。
+FOUNDATION_TERMINAL = (400.0, 400.0, 600.0)
+FOUNDATION_INTERMEDIATE = (300.0, 300.0, 450.0)
 
 
 # MicroStation 颜色表编号及线宽（0-31）。
@@ -52,12 +60,18 @@ COLOR_POST = 7
 COLOR_MESH = 9
 COLOR_TENSION = 4
 COLOR_BARBED = 2
+COLOR_FOUNDATION = 3
 
 CELL_NAME = "SECURITY_FENCE"
 POST_SPACING = 4000.0
-HEAVY_POST_SPACING = 8000.0
+# GS-M16：张紧柱间距不超过 50m；实际落位从上一根粗柱起算，对齐到不超过
+# 50m 的 4m 分柱网格点，避免出现零碎的短跨网片。
+HEAVY_POST_SPACING = 50000.0
 PATH_TOLERANCE_MM = 0.01
 HORIZONTAL_TOLERANCE_MM = 1.0
+
+# 选项变化后延迟重建的毫秒数：连点几下只重建一次。
+REGENERATE_DELAY_MS = 150
 
 
 def _point_mm(origin, x_mm, y_mm, z_mm, uor_per_mm):
@@ -95,13 +109,31 @@ class _FenceCellBuilder(object):
             raise RuntimeError("无法将围栏子元素加入单元。")
         self.child_count += 1
 
-    def write_to_model(self):
+    def build(self):
+        """完成单元构造（仍在内存中，尚未写入模型）。"""
         status = NormalCellHeaderHandler.AddChildComplete(self.cell)
         if status != BentleyStatus.eSUCCESS:
             raise RuntimeError("无法完成围栏单元。")
+        return self.child_count
+
+    def commit(self):
+        """把已构建好的单元写入活动模型，返回单元句柄。"""
         if self.cell.AddToModel() != BentleyStatus.eSUCCESS:
             raise RuntimeError("无法将围栏单元写入活动模型。")
-        return self.child_count
+        return self.cell
+
+
+def _delete_preview(handle):
+    """删除上一版预览单元；句柄失效或删除失败都不影响后续生成。"""
+    if handle is None:
+        return False
+    try:
+        if not handle.IsValid():
+            return False
+        handle.DeleteFromModel()
+        return True
+    except Exception:
+        return False
 
 
 def _create_line_element(dgn_model, origin, uor_per_mm, start_mm, end_mm, color, diameter_mm):
@@ -170,6 +202,58 @@ def _create_hollow_difference(dgn_model, outer, inner, color):
     return finished
 
 
+def _create_box_element(
+    dgn_model, origin, uor_per_mm, center_mm, width_mm, breadth_mm, depth_mm, color
+):
+    """创建一个尚未写入模型的矩形实体块，顶面位于 center_mm 标高、向下延伸。
+
+    先画出底面的矩形轮廓，再用 SolidUtil.Modify.ThickenSheet 沿面法向
+    （+Z）拉伸出实体，因此轮廓画在 -depth 处、拉伸 depth 即可得到
+    从 -depth 到 0 的混凝土块。
+    """
+    if width_mm <= 0.0 or breadth_mm <= 0.0 or depth_mm <= 0.0:
+        raise ValueError("基础块尺寸必须大于零。")
+
+    half_width = width_mm / 2.0
+    half_breadth = breadth_mm / 2.0
+    base_z = center_mm[2] - depth_mm
+    corners = (
+        (center_mm[0] - half_width, center_mm[1] - half_breadth, base_z),
+        (center_mm[0] + half_width, center_mm[1] - half_breadth, base_z),
+        (center_mm[0] + half_width, center_mm[1] + half_breadth, base_z),
+        (center_mm[0] - half_width, center_mm[1] + half_breadth, base_z),
+        (center_mm[0] - half_width, center_mm[1] - half_breadth, base_z),
+    )
+
+    points = DPoint3dArray()
+    for x_mm, y_mm, z_mm in corners:
+        points.append(_point_mm(origin, x_mm, y_mm, z_mm, uor_per_mm))
+
+    # ShapeHandler / ThickenSheet 的调用形式与 方形人孔 插件保持一致
+    # （那里已被验证可用）：轮廓用活动模型引用创建，不写入模型。
+    model_ref = ISessionMgr.ActiveDgnModelRef
+    profile = EditElementHandle()
+    status = ShapeHandler.CreateShapeElement(
+        profile, None, points, model_ref.Is3d(), model_ref
+    )
+    if status != BentleyStatus.eSUCCESS:
+        return None
+
+    body_status, body = SolidUtil.Convert.ElementToBody(profile, True, True, False)
+    if body_status != BentleyStatus.eSUCCESS:
+        return None
+    if SolidUtil.Modify.ThickenSheet(body, depth_mm * uor_per_mm, 0.0) != BentleyStatus.eSUCCESS:
+        return None
+
+    finished = EditElementHandle()
+    if SolidUtil.Convert.BodyToElement(finished, body, profile, dgn_model) != BentleyStatus.eSUCCESS:
+        return None
+    properties = ElementPropertiesSetter()
+    properties.SetColor(color)
+    properties.Apply(finished)
+    return finished
+
+
 def _create_hollow_tube(
     dgn_model, origin, uor_per_mm, start_mm, end_mm, outside_diameter_mm, wall_mm, color
 ):
@@ -215,6 +299,26 @@ def _create_hollow_tube(
     return _create_hollow_difference(dgn_model, outer, inner, color)
 
 
+def _elbow_inner_frame(nx, ny, radius):
+    """返回内弧的向量基和两端额外扫掠的角度（弧度）。
+
+    外弧的向量基是 vx = (-nx, -ny, 0)、vy = (0, 0, 1)，所在平面的法向为
+    (vx × vy) = (-ny, nx, 0)。把这一组基绕该法向旋转 -e（e = 2mm / 半径），
+    即得到同一平面内、起点和终点各向外延伸 e 的内弧向量基：
+
+        vx' = vx·cos e - vy·sin e = (-nx·cos e, -ny·cos e, -sin e)
+        vy' = vy·cos e + vx·sin e = (-nx·sin e, -ny·sin e,  cos e)
+
+    这样内弧永远与外弧共面，与路径走向 / 防攀侧无关。
+    """
+    extension = 2.0 / radius
+    cos_extension = cos(extension)
+    sin_extension = sin(extension)
+    vector_x = DVec3d.From(-nx * cos_extension, -ny * cos_extension, -sin_extension)
+    vector_y = DVec3d.From(-nx * sin_extension, -ny * sin_extension, cos_extension)
+    return vector_x, vector_y, extension
+
+
 def _create_hollow_elbow(
     dgn_model,
     origin,
@@ -252,10 +356,10 @@ def _create_hollow_elbow(
         sweep,
     )
 
-    # 内弧两端各超出 2 mm，避免内外弯头端面共面。
-    end_extension_angle = 2.0 / radius
-    inner_vector_x = DVec3d.From(0.0, -cos(end_extension_angle), -sin(end_extension_angle))
-    inner_vector_y = DVec3d.From(0.0, sin(end_extension_angle), cos(end_extension_angle))
+    # 内弧两端各超出 2 mm，避免内外弯头端面共面；向量基必须与外弧共面。
+    inner_vector_x, inner_vector_y, end_extension_angle = _elbow_inner_frame(
+        nx, ny, radius
+    )
     inner = _create_torus_pipe_element(
         dgn_model,
         center,
@@ -485,31 +589,45 @@ def _merge_stations(stations):
     return merged
 
 
-def _is_near_any(value, candidates):
-    return any(abs(value - candidate) <= PATH_TOLERANCE_MM for candidate in candidates)
-
-
 def _build_post_layout(total_length, corner_stations):
-    """合并 4 m 分柱点、8 m 粗柱点、始末端和所有折点。"""
-    candidates = list(corner_stations)
-    station = POST_SPACING
-    while station < total_length - PATH_TOLERANCE_MM:
-        candidates.append(station)
-        station += POST_SPACING
-    candidates.extend((0.0, total_length))
+    """先定粗柱锚点，再在相邻锚点之间等分布置细柱。
 
-    heavy_stations = [0.0, total_length]
-    station = HEAVY_POST_SPACING
-    while station < total_length - PATH_TOLERANCE_MM:
+    1. 锚点 = 起点 + 所有折点 + 终点；若相邻锚点间距超过 50 m，再按 50 m
+       补入张紧柱。所有这些锚点都是粗柱。
+    2. 每两个相邻粗柱之间为一个区间，把区间等分成不超过 4 m 的若干跨，
+       在分点处放细柱。
+
+    细柱间距是从每根粗柱 / 转角柱**重新起算**的，因此不会再出现旧的
+    “全局 4 m 网格点正好落在转角柱旁边、两根柱子重叠”的情况；区间长度
+    不是 4 m 整数倍时改为等分，也避免了 0.1 m 这种零碎末跨。
+    """
+    anchor_stations = _merge_stations([0.0, total_length] + list(corner_stations))
+
+    heavy_stations = []
+    previous = None
+    for station in anchor_stations:
+        if previous is None:
+            heavy_stations.append(station)
+            previous = station
+            continue
+        while station - previous > HEAVY_POST_SPACING + PATH_TOLERANCE_MM:
+            previous += HEAVY_POST_SPACING
+            heavy_stations.append(previous)
         heavy_stations.append(station)
-        station += HEAVY_POST_SPACING
+        previous = station
 
     layout = []
-    for station in _merge_stations(candidates):
-        is_heavy = _is_near_any(station, heavy_stations) or _is_near_any(
-            station, corner_stations
-        )
-        layout.append({"station": station, "is_heavy": is_heavy})
+    for index, station in enumerate(heavy_stations):
+        layout.append({"station": station, "is_heavy": True})
+        if index + 1 >= len(heavy_stations):
+            break
+        span = heavy_stations[index + 1] - station
+        if span <= POST_SPACING + PATH_TOLERANCE_MM:
+            continue
+        panel_count = ceil(span / POST_SPACING - 1.0e-9)
+        step = span / panel_count
+        for panel in range(1, panel_count):
+            layout.append({"station": station + step * panel, "is_heavy": False})
     return layout
 
 
@@ -579,14 +697,22 @@ def _offset_point(base, normal, offset, z):
     )
 
 
-def _add_post_and_arm(builder, origin, uor_per_mm, base_mm, arm_normal, is_heavy):
-    """向围栏单元加入一根粗/细立柱及其防攀悬臂。"""
+def _add_post_and_arm(
+    builder, origin, uor_per_mm, base_mm, arm_normal, is_heavy, include_foundation
+):
+    """向围栏单元加入一根粗/细立柱、防攀悬臂以及可选的混凝土基础。"""
     if is_heavy:
         diameter = TERMINAL_POST_OD
-        embedment = TERMINAL_POST_EMBEDMENT
+        post_length = TERMINAL_POST_LENGTH
+        foundation = FOUNDATION_TERMINAL
     else:
         diameter = INTERMEDIATE_POST_OD
-        embedment = INTERMEDIATE_POST_EMBEDMENT
+        post_length = INTERMEDIATE_POST_LENGTH
+        foundation = FOUNDATION_INTERMEDIATE
+
+    embedment = post_length - FENCE_HEIGHT
+    if embedment <= 0.0:
+        raise ValueError("立柱管长必须大于围栏高度。")
 
     builder.add(
         _create_hollow_tube(
@@ -600,6 +726,21 @@ def _add_post_and_arm(builder, origin, uor_per_mm, base_mm, arm_normal, is_heavy
             COLOR_POST,
         )
     )
+
+    if include_foundation:
+        width_mm, breadth_mm, block_depth_mm = foundation
+        builder.add(
+            _create_box_element(
+                builder.dgn_model,
+                origin,
+                uor_per_mm,
+                base_mm,
+                width_mm,
+                breadth_mm,
+                block_depth_mm,
+                COLOR_FOUNDATION,
+            )
+        )
 
     angle = radians(OVERHANG_ANGLE_DEG)
     elbow_length = ELBOW_CENTERLINE_RADIUS * angle
@@ -757,8 +898,10 @@ def _add_fence_panel(
             x += BARB_SPACING
 
 
-def draw_security_fence_along_path(vertices, side="left", reverse=False):
-    """沿选定的水平直线/折线路径创建一个整体围栏单元。"""
+def _build_security_fence_cell(
+    vertices, side="left", reverse=False, include_foundation=True
+):
+    """构建围栏单元但**不写入模型**，返回 (builder, 统计字典)。"""
     active_model_ref = ISessionMgr.ActiveDgnModelRef
     dgn_model = active_model_ref.GetDgnModel()
     if not dgn_model.Is3d():
@@ -792,6 +935,7 @@ def draw_security_fence_along_path(vertices, side="left", reverse=False):
             item["point"],
             item["normal"],
             item["is_heavy"],
+            include_foundation,
         )
 
     for index in range(len(post_layout) - 1):
@@ -812,18 +956,51 @@ def draw_security_fence_along_path(vertices, side="left", reverse=False):
             panel_length,
         )
 
-    child_count = builder.write_to_model()
+    builder.build()
     heavy_count = sum(1 for item in post_layout if item["is_heavy"])
-    return {
-        "child_count": child_count,
+    result = {
+        "child_count": builder.child_count,
         "length_mm": total_length,
         "heavy_posts": heavy_count,
         "light_posts": len(post_layout) - heavy_count,
         "corners": len(corner_stations),
+        "foundation": bool(include_foundation),
     }
+    return builder, result
 
 
-def draw_security_fence(total_length=DEFAULT_FENCE_LENGTH, placement_point=None):
+def draw_security_fence_along_path(
+    vertices, side="left", reverse=False, include_foundation=True
+):
+    """沿选定的水平直线/折线路径创建一个整体围栏单元。"""
+    builder, result = _build_security_fence_cell(
+        vertices, side, reverse, include_foundation
+    )
+    builder.commit()
+    return result
+
+
+def replace_security_fence(
+    vertices, side, reverse, include_foundation, previous_handle
+):
+    """重建围栏：先构建并写入新的一版，成功后再删除上一版预览。
+
+    新的一版构建失败时旧预览保持不动，因此改选项不会把模型里的围栏改没了。
+    返回 (新单元句柄, 统计字典, 是否删掉了旧预览)。
+    """
+    builder, result = _build_security_fence_cell(
+        vertices, side, reverse, include_foundation
+    )
+    new_handle = builder.commit()
+    deleted = _delete_preview(previous_handle)
+    return new_handle, result, deleted
+
+
+def draw_security_fence(
+    total_length=DEFAULT_FENCE_LENGTH,
+    placement_point=None,
+    include_foundation=True,
+):
     """兼容原调用方式：从指定起点沿模型 +X 方向生成直线围栏。"""
     total_length = float(total_length)
     if total_length <= 0.0:
@@ -839,7 +1016,9 @@ def draw_security_fence(total_length=DEFAULT_FENCE_LENGTH, placement_point=None)
         start.y,
         start.z,
     )
-    return draw_security_fence_along_path([start, end])["child_count"]
+    return draw_security_fence_along_path(
+        [start, end], include_foundation=include_foundation
+    )["child_count"]
 
 
 class _MicroStationTk(tk.Tk):
@@ -867,13 +1046,21 @@ class _MicroStationTk(tk.Tk):
 
 
 class _FencePathSettingsDialog(_MicroStationTk):
-    """SmartLine 路径选择、方向和生成结果界面。"""
+    """路径选择、选项调整、预览 / 确定 / 取消界面。"""
 
     def __init__(self):
         _MicroStationTk.__init__(self)
         self.title("安保围栏—沿路径生成")
         self.resizable(False, False)
-        self.protocol("WM_DELETE_WINDOW", self.finish_tool)
+        self.protocol("WM_DELETE_WINDOW", self.cancel_tool)
+
+        # 预览状态挂在面板上：工具实例在每次选完路径后都会重启，而面板
+        # 对象是跨实例传递的，所以状态放这里才不会丢。
+        self.path_vertices = None
+        self.preview_handle = None
+        self.preview_result = None
+        self.confirmed = False
+        self._pending_regeneration = None
 
         body = tk.Frame(self, padx=12, pady=10)
         body.grid(row=0, column=0, sticky="nsew")
@@ -887,19 +1074,47 @@ class _FencePathSettingsDialog(_MicroStationTk):
 
         tk.Label(body, text="防攀侧：").grid(row=1, column=0, pady=(10, 0), sticky="w")
         self.side_var = tk.StringVar(value="left")
-        tk.Radiobutton(body, text="路径左侧", variable=self.side_var, value="left").grid(
-            row=1, column=1, pady=(10, 0), sticky="w"
+        left_radio = tk.Radiobutton(
+            body,
+            text="路径左侧",
+            variable=self.side_var,
+            value="left",
+            command=self.on_options_changed,
         )
-        tk.Radiobutton(body, text="路径右侧", variable=self.side_var, value="right").grid(
-            row=1, column=2, pady=(10, 0), sticky="w"
+        left_radio.grid(row=1, column=1, pady=(10, 0), sticky="w")
+        right_radio = tk.Radiobutton(
+            body,
+            text="路径右侧",
+            variable=self.side_var,
+            value="right",
+            command=self.on_options_changed,
         )
+        right_radio.grid(row=1, column=2, pady=(10, 0), sticky="w")
 
         self.reverse_var = tk.BooleanVar(value=False)
-        tk.Checkbutton(
+        reverse_check = tk.Checkbutton(
             body,
-            text="反转路径方向（会改变起点及 8 m 粗柱里程）",
+            text="反转路径方向（会改变起点及 50 m 粗柱里程）",
             variable=self.reverse_var,
-        ).grid(row=2, column=0, columnspan=3, pady=(4, 0), sticky="w")
+            command=self.on_options_changed,
+        )
+        reverse_check.grid(row=2, column=0, columnspan=3, pady=(4, 0), sticky="w")
+
+        self.foundation_var = tk.BooleanVar(value=True)
+        foundation_check = tk.Checkbutton(
+            body,
+            text="增加混凝土基础（粗柱 400×400×600，细柱 300×300×450）",
+            variable=self.foundation_var,
+            command=self.on_options_changed,
+        )
+        foundation_check.grid(row=3, column=0, columnspan=3, pady=(4, 0), sticky="w")
+
+        self.option_widgets = [
+            left_radio,
+            right_radio,
+            reverse_check,
+            foundation_check,
+        ]
 
         self.path_info_label = tk.Label(
             body,
@@ -907,34 +1122,45 @@ class _FencePathSettingsDialog(_MicroStationTk):
             justify="left",
             fg="#333333",
         )
-        self.path_info_label.grid(row=3, column=0, columnspan=3, pady=(10, 0), sticky="w")
+        self.path_info_label.grid(row=4, column=0, columnspan=3, pady=(10, 0), sticky="w")
 
         self.post_info_label = tk.Label(
             body,
-            text="立柱：—",
+            text="预览：—",
             justify="left",
             fg="#333333",
         )
-        self.post_info_label.grid(row=4, column=0, columnspan=3, sticky="w")
+        self.post_info_label.grid(row=5, column=0, columnspan=3, sticky="w")
 
         self.status_label = tk.Label(
             body,
-            text="请在模型中点选路径；选择后立即生成。",
+            text="请在模型中点选路径；选择后立即生成预览。",
             justify="left",
             fg="#1f5f99",
             wraplength=390,
         )
-        self.status_label.grid(row=5, column=0, columnspan=3, pady=(10, 0), sticky="w")
+        self.status_label.grid(row=6, column=0, columnspan=3, pady=(10, 0), sticky="w")
 
-        tk.Button(body, text="结束", width=10, command=self.finish_tool).grid(
-            row=6, column=0, columnspan=3, pady=(10, 0), sticky="e"
+        button_row = tk.Frame(body)
+        button_row.grid(row=7, column=0, columnspan=3, pady=(10, 0), sticky="e")
+        confirm_button = tk.Button(
+            button_row, text="确定", width=10, command=self.confirm_tool
         )
+        confirm_button.pack(side="right")
+        cancel_button = tk.Button(
+            button_row, text="取消", width=10, command=self.cancel_tool
+        )
+        cancel_button.pack(side="right", padx=(0, 6))
+        self.action_widgets = [confirm_button, cancel_button]
 
     def get_side(self):
         return self.side_var.get()
 
     def get_reverse(self):
         return bool(self.reverse_var.get())
+
+    def get_foundation(self):
+        return bool(self.foundation_var.get())
 
     def set_status(self, message, is_error=False):
         self.status_label.configure(
@@ -951,11 +1177,111 @@ class _FencePathSettingsDialog(_MicroStationTk):
             )
         )
         self.post_info_label.configure(
-            text="立柱：粗柱 %d 根，细柱 %d 根" % (
+            text="预览：粗柱 %d 根，细柱 %d 根；基础：%s" % (
                 result["heavy_posts"],
                 result["light_posts"],
+                "已生成" if result.get("foundation") else "未生成",
             )
         )
+
+    def _set_busy(self, busy):
+        """生成期间禁用所有控件，避免重复触发或中途点确定/取消。"""
+        state = tk.DISABLED if busy else tk.NORMAL
+        for widget in self.option_widgets + self.action_widgets:
+            widget.configure(state=state)
+        self.update_idletasks()
+
+    def on_options_changed(self):
+        """选项变化后延迟重建，连点几下也只重建一次。"""
+        if not self.path_vertices:
+            return
+        self._cancel_pending_regeneration()
+        self._pending_regeneration = self.after(
+            REGENERATE_DELAY_MS, self._run_pending_regeneration
+        )
+
+    def _cancel_pending_regeneration(self):
+        pending = self._pending_regeneration
+        self._pending_regeneration = None
+        if pending is None:
+            return
+        try:
+            self.after_cancel(pending)
+        except tk.TclError:
+            # 定时器可能已经触发过，忽略即可。
+            return
+
+    def _run_pending_regeneration(self):
+        self._pending_regeneration = None
+        self.regenerate()
+
+    def regenerate(self, vertices=None):
+        """按当前选项重建预览：先建新的一版，成功后再删掉旧的。"""
+        # 直接调用（例如刚点选了新路径）时，取消掉排队中的那次重建。
+        self._cancel_pending_regeneration()
+        if vertices is not None:
+            self.path_vertices = [_copy_dpoint(point) for point in vertices]
+        if not self.path_vertices:
+            return None
+
+        self._set_busy(True)
+        self.set_status("正在生成围栏预览，请稍候……")
+        try:
+            handle, result, deleted = replace_security_fence(
+                self.path_vertices,
+                self.get_side(),
+                self.get_reverse(),
+                self.get_foundation(),
+                self.preview_handle,
+            )
+        except Exception as error:
+            # 新的一版没建起来，旧预览保持不动。
+            message = "围栏生成失败：%s" % error
+            self.set_status(message, True)
+            NotificationManager.OutputPrompt(message)
+            print(message)
+            return None
+        finally:
+            self._set_busy(False)
+
+        self.preview_handle = handle
+        self.preview_result = result
+        self.set_result(result)
+        message = (
+            "预览已更新（%.3f m）：粗柱 %d 根，细柱 %d 根，%s，共 %d 个子元素。%s"
+            "改选项会自动重建；点【确定】保留，点【取消】放弃。"
+            % (
+                result["length_mm"] / 1000.0,
+                result["heavy_posts"],
+                result["light_posts"],
+                "含混凝土基础" if result["foundation"] else "不含混凝土基础",
+                result["child_count"],
+                "已替换上一版预览。" if deleted else "",
+            )
+        )
+        self.set_status(message)
+        NotificationManager.OutputPrompt(message)
+        return result
+
+    def discard_preview(self):
+        """删除当前预览，返回是否真的删掉了。"""
+        handle = self.preview_handle
+        self.preview_handle = None
+        self.preview_result = None
+        return _delete_preview(handle)
+
+    def confirm_tool(self):
+        """保留当前预览并结束工具。"""
+        self._cancel_pending_regeneration()
+        self.confirmed = True
+        self.finish_tool()
+
+    def cancel_tool(self):
+        """删除预览并结束工具。"""
+        self._cancel_pending_regeneration()
+        self.confirmed = False
+        self.discard_preview()
+        self.finish_tool()
 
     def finish_tool(self):
         PyCommandState.StartDefaultCommand()
@@ -985,7 +1311,8 @@ class SecurityFencePathTool(DgnElementSetTool):
         AccuSnap.GetInstance().EnableSnap(True)
         DgnElementSetTool._OnPostInstall(self)
         NotificationManager.OutputPrompt(
-            "请选择水平直线、折线或仅由直线组成的复杂链。"
+            "请选择水平直线、折线或仅由直线组成的复杂链；"
+            "改动选项会自动重建预览，点【确定】保留，点【取消】放弃。"
         )
 
     def _OnPostLocate(self, path, cant_accept_reason):
@@ -1010,28 +1337,16 @@ class SecurityFencePathTool(DgnElementSetTool):
             return BentleyStatus.eERROR
 
         try:
-            self.tool_settings.set_status("正在读取路径并生成围栏，请稍候……")
+            self.tool_settings.set_status("正在读取路径并生成围栏预览，请稍候……")
             dgn_model = ISessionMgr.ActiveDgnModelRef.GetDgnModel()
             uor_per_mm = dgn_model.GetModelInfo().GetUorPerMeter() / 1000.0
             vertices = _extract_linear_vertices(eeh, uor_per_mm)
-            result = draw_security_fence_along_path(
-                vertices,
-                self.tool_settings.get_side(),
-                self.tool_settings.get_reverse(),
+            # regenerate() 内部会先建新的一版、成功后再删掉上一版预览，
+            # 失败时保留旧预览并给出提示。
+            result = self.tool_settings.regenerate(vertices)
+            return (
+                BentleyStatus.eSUCCESS if result is not None else BentleyStatus.eERROR
             )
-            self.tool_settings.set_result(result)
-            message = (
-                "已生成 %.3f m 围栏：粗柱 %d 根，细柱 %d 根，整体含 %d 个子元素。"
-                % (
-                    result["length_mm"] / 1000.0,
-                    result["heavy_posts"],
-                    result["light_posts"],
-                    result["child_count"],
-                )
-            )
-            self.tool_settings.set_status(message)
-            NotificationManager.OutputPrompt(message + " 可继续选择下一条路径，右键结束。")
-            return BentleyStatus.eSUCCESS
         except Exception as error:
             message = "围栏生成失败：%s" % error
             self.tool_settings.set_status(message, True)
@@ -1049,12 +1364,19 @@ class SecurityFencePathTool(DgnElementSetTool):
         return WString("SecurityFencePathTool")
 
     def _OnCleanup(self):
-        if self.tool_settings is not None:
-            try:
-                if self.tool_settings.winfo_exists():
-                    self.tool_settings.destroy()
-            except tk.TclError:
-                pass
+        # tool_settings 为 None 表示这是"重启工具"而不是真正退出，
+        # 此时不能动面板，更不能删掉刚生成的预览。
+        settings = self.tool_settings
+        if settings is None:
+            return
+        self.tool_settings = None
+        try:
+            if not settings.confirmed:
+                settings.discard_preview()
+            if settings.winfo_exists():
+                settings.destroy()
+        except tk.TclError:
+            pass
 
     @staticmethod
     def InstallNewInstance(tool_id=0, tool_settings=None, start_ui_loop=True):

@@ -6,16 +6,17 @@
 端点（切点）即可生成：
 
 * 90 度弯头（可选保留），竖直段在上方、水平段沿选定方向；
-* 按标准表选取管径的水平耳轴，与水平段同轴线；
+* 按标准表选取管径的水平耳轴，与水平段同轴线，从弯头背面向外伸出；
 * 用弯头外包络真实布尔切出的耳轴鞍口；
 * 耳轴下部直径 6 mm 的横向通气孔。
 
 坐标约定：点取点是弯头水平段中心线的端点（切点）；L 是该点至耳轴
-端部的长度；界面中的方向是水平段自弯头指向耳轴端部的方向。
+背面耳轴端部的距离；界面中的方向是水平开口朝向，耳轴向其反方向伸出。
 """
 
 from __future__ import division
 
+import math
 import os
 import tempfile
 
@@ -37,7 +38,6 @@ from PyQt5.QtWidgets import (
     QFormLayout,
     QFrame,
     QGroupBox,
-    QHBoxLayout,
     QLabel,
     QMessageBox,
     QVBoxLayout,
@@ -234,10 +234,21 @@ class HorizontalElbowTrunnionBuilder(object):
             raise ValueError("弯曲半径必须大于弯头外半径 %.1f mm。" % (main_od / 2.0))
         if self.elbow_wall_mm <= 0.0 or self.elbow_wall_mm * 2.0 >= main_od:
             raise ValueError("弯头壁厚必须大于 0 且小于外径的一半。")
-        if self.length_l_mm <= main_od / 2.0:
-            raise ValueError("耳轴长度 L 过小，应大于弯头外半径 %.1f mm。" % (main_od / 2.0))
+        minimum_l = self._back_extent_mm() + 6.0
+        if self.length_l_mm <= minimum_l:
+            raise ValueError(
+                "长度 L 过小：为使耳轴端部及 Ø6 通气孔位于弯头背面外侧，"
+                "L 必须大于 %.1f mm（从水平端切点量起）。" % minimum_l
+            )
         if self.direction not in DIRECTION_VECTORS:
             raise ValueError("未知水平段方向。")
+
+    def _back_extent_mm(self):
+        """耳轴截面范围内，弯头背面距水平切点的最远水平距离。"""
+        elbow_r = PIPE_DATA[self.main_dn][0] / 2.0
+        trunnion_r = support_dimensions(self.main_dn)["trunnion_od"] / 2.0
+        radius = self.bend_radius_mm
+        return math.sqrt((radius + elbow_r) ** 2 - (radius - trunnion_r) ** 2)
 
     def create_at(self, base_point):
         self._validate()
@@ -251,12 +262,8 @@ class HorizontalElbowTrunnionBuilder(object):
         trunnion_od = dims["trunnion_od"]
         trunnion_wall = dims["trunnion_wall"]
         radius = self.bend_radius_mm
-        # 耳轴内端伸入弯头外包络的深度，保证整个端面被包络吞没，
-        # 切出与竖直耳轴一致的完整弧面鞍口。
-        penetration = main_od / 2.0
-
         # 弯头：竖直段在上方，自 S 点下行经 90 度圆弧到水平切点
-        # E（即点取点），水平段沿选定方向指向耳轴。
+        # E（即点取点），水平开口朝向局部 +X，背面耳轴伸向局部 -X。
         start = _point(base_point, -radius, 0.0, radius,
                        self.direction, scale)
         center = _point(base_point, 0.0, 0.0, radius,
@@ -269,11 +276,11 @@ class HorizontalElbowTrunnionBuilder(object):
             model_ref, start, center, end, tangent, main_od * scale / 2.0
         )
 
-        # 2. 耳轴与水平段同轴线，内端伸入弯头，再由外包络切除，
-        #    留下吻合的凹形鞍口。
-        trunnion_inner = _point(base_point, -penetration, 0.0, 0.0,
+        # 2. 从水平切点沿 -X 穿过弯头至背面，外包络切除内部段，
+        #    仅留下背面支撑及吻合的鞍口；轴线保持 y=z=0。
+        trunnion_inner = _point(base_point, 0.0, 0.0, 0.0,
                                 self.direction, scale)
-        trunnion_outer = _point(base_point, self.length_l_mm, 0.0, 0.0,
+        trunnion_outer = _point(base_point, -self.length_l_mm, 0.0, 0.0,
                                 self.direction, scale)
         trunnion_body = _cylinder_body(
             model_ref, trunnion_inner, trunnion_outer,
@@ -285,17 +292,17 @@ class HorizontalElbowTrunnionBuilder(object):
             inner_radius = (trunnion_od / 2.0 - trunnion_wall) * scale
             if inner_radius <= 0.0:
                 raise ValueError("耳轴壁厚数据无效。")
-            bore_inner = _point(base_point, -penetration - 1.0, 0.0, 0.0,
+            bore_inner = _point(base_point, 1.0, 0.0, 0.0,
                                 self.direction, scale)
-            bore_outer = _point(base_point, self.length_l_mm + 1.0, 0.0, 0.0,
+            bore_outer = _point(base_point, -self.length_l_mm - 1.0, 0.0, 0.0,
                                 self.direction, scale)
             _subtract(trunnion_body, _cylinder_body(
                 model_ref, bore_inner, bore_outer, inner_radius
             ))
 
-        # 3. 图示 Ø6 横向通气孔，孔中心位于耳轴端部内侧 20 mm。
-        hole_offset = min(20.0, max(8.0, self.length_l_mm * 0.08))
-        hole_x = self.length_l_mm - hole_offset
+        # 3. Ø6 横向通气孔通常距外端 20 mm；短耳轴放在外露段中部。
+        hole_offset = min(20.0, (self.length_l_mm - self._back_extent_mm()) / 2.0)
+        hole_x = -self.length_l_mm + hole_offset
         hole_start = _point(base_point, hole_x, -trunnion_od, 0.0,
                             self.direction, scale)
         hole_end = _point(base_point, hole_x, trunnion_od, 0.0,
@@ -539,7 +546,8 @@ class TrunnionDialog(QDialog):
 
         note = QLabel(
             "选择参数后点“确定”，再在三维模型中点取弯头水平段中心线端点（切点）。\n"
-            "L = 弯头切点至耳轴端部；所有尺寸单位均为 mm。"
+            "耳轴与水平端同轴，从弯头背面伸出，与水平开口朝向相反。\n"
+            "L = 水平端切点至背面耳轴端部的距离；所有尺寸单位均为 mm。"
         )
         note.setObjectName("noteLabel")
         note.setWordWrap(True)
@@ -593,7 +601,7 @@ class TrunnionDialog(QDialog):
         form.addRow("中心线弯曲半径", self.radius)
         form.addRow("弯头壁厚", self.wall)
         form.addRow("耳轴长度 L", self.length_l)
-        form.addRow("水平段方向", self.direction)
+        form.addRow("水平开口朝向", self.direction)
         form.addRow("", self.keep_elbow)
         form.addRow("", self.hollow_trunnion)
         layout.addWidget(group)
@@ -607,12 +615,8 @@ class TrunnionDialog(QDialog):
         ok_button.setText("确定")
         cancel_button = buttons.button(QDialogButtonBox.Cancel)
         cancel_button.setText("取消")
-        button_row = QHBoxLayout()
-        button_row.setSpacing(10)
-        button_row.addStretch(1)
-        button_row.addWidget(cancel_button)
-        button_row.addWidget(ok_button)
-        layout.addLayout(button_row)
+        # 按钮必须保留在按钮盒内，否则重新设置父对象后会失去 accepted/rejected 信号。
+        layout.addWidget(buttons)
 
         self.dn.currentTextChanged.connect(self._dn_changed)
         self.radius_mode.currentTextChanged.connect(self._radius_mode_changed)
