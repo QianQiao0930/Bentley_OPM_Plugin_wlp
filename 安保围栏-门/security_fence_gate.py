@@ -3,10 +3,11 @@
 
 尺寸依据 GS-M16《Specification for 1.83m Security Fence》"Double and Single
 Gates" 一节：门扇用 φ42.8 × 2 钢管制作、四角斜接，斜撑用 φ21.4 钢管，镀锌
-菱形网 64 × 2.5 覆盖门框，门顶配与围栏一致的 450 mm @ 45° 防攀悬臂；
+菱形网 64 × 2.5 覆盖门框；门扇顶部防攀悬臂为竖直段（450 mm），门柱与围栏
+一致为 45° 斜挑；门扇经 3 个简化活页（竖直销轴 + 上下连接板）与门柱连接。
 门柱与围栏的转角 / 拉紧柱同规格（φ100 × 2 mm、长 2.6 m、400 × 400 × 600
-B 级混凝土基础）。单扇门宽 1.2 m、双扇门宽 4.270 m（均为门洞净宽，可在面板
-中修改）。
+B 级混凝土基础），可用面板开关选择是否建模。单扇门宽 1.2 m、双扇门宽
+4.270 m（均为门洞净宽，可在面板中修改）。
 
 工作方式与 `安保围栏/security_fence_body.py` 一致：在面板里选门型与朝向，
 在模型中点取门洞中心的地面点后立即生成一版**预览**；改动选项会自动重建
@@ -38,6 +39,8 @@ GATE_FRAME_OD = 42.8
 GATE_FRAME_WALL = 2.0
 GATE_BRACE_OD = 21.4
 GATE_BRACE_WALL = 2.0
+# 斜撑端头沿管轴缩进门框的深度：避免平口端面从门框斜接面的内孔处穿出。
+BRACE_END_RECESS = GATE_FRAME_OD / 2.0
 
 GATE_HEIGHT = 1800.0          # 门扇顶标高，与围栏网片顶（及悬臂起点）齐平
 GATE_BOTTOM_CLEARANCE = 50.0  # 门扇下缘离地间隙，便于开启
@@ -64,12 +67,25 @@ BARB_DIAMETER = 1.2
 BARB_LENGTH = 28.0
 BARB_SPACING = 500.0
 
+# 门扇顶部防攀悬臂为竖直段（0°），门柱仍与围栏一致为 45° 斜挑。
+LEAF_OVERHANG_ANGLE_DEG = 0.0
+
+# 活页（合页）：简化成"竖直销轴 + 上下两块连接板"，尺寸为经验值，无规范依据。
+HINGE_PIN_DIAMETER = 16.0       # 销轴直径
+HINGE_PIN_LENGTH = 90.0         # 销轴长度（竖直）
+HINGE_PLATE_WIDTH = 40.0        # 连接板宽度（沿门扇法向 y）
+HINGE_PLATE_THICKNESS = 6.0     # 连接板厚度（竖直）
+HINGE_PLATE_OFFSET = 25.0       # 上下两块连接板到销轴中心的距离
+HINGE_HEIGHT_FRACTIONS = (0.25, 0.5, 0.75)  # 每扇门 3 个，沿门扇高度均布
+
 MESH_OPENING = 64.0
 MESH_WIRE_DIAMETER = 2.5
 
 # 斜接切刀：贴在 45° 切平面上的方块，尺寸只需盖住管径。
 MITRE_CUTTER_SIZE = 300.0
 MITRE_CUTTER_DEPTH = 300.0
+# 门框构件两端沿轴线外伸量：让 45° 切平面切出完整端面（外伸部分会被切掉）。
+MITRE_END_EXTENSION = GATE_FRAME_OD
 
 # MicroStation 颜色表编号及线宽（0-31），与安保围栏主体一致。
 COLOR_FRAME = 7
@@ -77,6 +93,7 @@ COLOR_MESH = 9
 COLOR_BRACE = 4
 COLOR_BARBED = 2
 COLOR_FOUNDATION = 3
+COLOR_HINGE = 1
 
 CELL_NAME = "SECURITY_GATE"
 
@@ -254,6 +271,17 @@ def _create_cylinder_element(dgn_model, start_point, end_point, radius):
     status = DraftingElementSchema.ToElement(eeh, primitive, None, dgn_model)
     if status != BentleyStatus.eSUCCESS:
         return None
+    return eeh
+
+
+def _create_solid_cylinder(dgn_model, start_point, end_point, radius, color):
+    """创建一个实心圆柱并设置颜色（用于活页销轴）。"""
+    eeh = _create_cylinder_element(dgn_model, start_point, end_point, radius)
+    if eeh is None:
+        return None
+    properties = ElementPropertiesSetter()
+    properties.SetColor(color)
+    properties.Apply(eeh)
     return eeh
 
 
@@ -577,13 +605,15 @@ def _add_mitred_member(builder, frame, start_xz, end_xz, other_start, other_end)
     start_xz / end_xz 是构件中心线端点的本地 (x, z)；other_start / other_end
     是该端另一根构件**朝向自身管身**的方向。
 
-    斜接面过角落的中心线交点，外法向取两根构件朝向管身方向之和的反方向：
+    斜接面过角落的中心线交点，外法向指向"另一根构件"一侧（即切掉会与对方重叠
+    的那半），两根构件的法向相反：
 
-        外法向 n = -( 本构件朝向管身的方向 + 另一根构件朝向管身的方向 )
+        外法向 n = 另一根构件朝向管身的方向 − 本构件朝向管身的方向
 
-    例如左下角：下横杆朝向管身是 +x、左立柱朝向管身是 +z，于是 n = (-1,-1)/√2
-    指向门框外下方。切刀只切掉 n 一侧的楔形，管身其余部分完整保留，两根构件
-    的 45° 端面正好拼成斜接角。
+    例如左下角：下横杆朝向管身是 +x、左立柱朝向管身是 +z，于是下横杆
+    n = (0,1)-(1,0) = (-1,1)/√2，左立柱 n = (1,0)-(0,1) = (1,-1)/√2，两者
+    相反。管身两端各沿轴线外伸 MITRE_END_EXTENSION 再切，切出的 45° 端面是
+    完整椭圆，两根构件在角点处完整拼合、外角不留缺口。
     """
     dgn_model = builder.dgn_model
     uor_per_mm = frame.uor_per_mm
@@ -600,8 +630,8 @@ def _add_mitred_member(builder, frame, start_xz, end_xz, other_start, other_end)
         (start_xz, other_start, (ax, az)),
         (end_xz, other_end, (-ax, -az)),
     ):
-        nx = -(own[0] + other[0])
-        nz = -(own[1] + other[1])
+        nx = other[0] - own[0]
+        nz = other[1] - own[1]
         normal_length = hypot(nx, nz)
         if normal_length <= 1.0e-9:
             cutters.append(None)
@@ -617,11 +647,17 @@ def _add_mitred_member(builder, frame, start_xz, end_xz, other_start, other_end)
             )
         )
 
+    # 管身两端各沿轴线外伸，让切平面切出完整端面；外伸部分会被切刀全部切掉，
+    # 最终端面仍落在过角点的 45° 斜接面上。
+    tube_start = (start_xz[0] - ax * MITRE_END_EXTENSION,
+                  start_xz[1] - az * MITRE_END_EXTENSION)
+    tube_end = (end_xz[0] + ax * MITRE_END_EXTENSION,
+                end_xz[1] + az * MITRE_END_EXTENSION)
     builder.add(
         _create_hollow_tube(
             dgn_model,
-            frame.point(start_xz[0], 0.0, start_xz[1]),
-            frame.point(end_xz[0], 0.0, end_xz[1]),
+            frame.point(tube_start[0], 0.0, tube_start[1]),
+            frame.point(tube_end[0], 0.0, tube_end[1]),
             GATE_FRAME_OD,
             GATE_FRAME_WALL,
             uor_per_mm,
@@ -632,16 +668,18 @@ def _add_mitred_member(builder, frame, start_xz, end_xz, other_start, other_end)
     )
 
 
-def _add_overhang(builder, frame, x_start, x_end, outside_diameter_mm, wall_mm, color):
-    """在两根立柱之间加入 450 mm @ 45° 防攀悬臂，并沿悬臂直段加 3 道刺钢丝。
+def _add_overhang(builder, frame, x_start, x_end, outside_diameter_mm, wall_mm, color,
+                  angle_deg=OVERHANG_ANGLE_DEG):
+    """在两根立柱之间加入 450 mm 防攀悬臂，并沿悬臂直段加 3 道刺钢丝。
 
-    悬臂弯头与直段的算法、刺钢丝的 1/3、2/3、3/3 分档和每 500 mm 一对 V 形
-    刺，都与安保围栏主体一致。x_start 与 x_end 重合时只生成悬臂、不拉刺丝
-    （门柱悬臂不跨门洞，跨门洞的刺丝在门扇上）。
+    angle_deg 为悬臂相对竖直方向的倾角：45° 是围栏主体的斜挑，0° 则是垂直
+    向上的门扇悬臂（无弯头，直段直接向上 450 mm）。刺钢丝的 1/3、2/3、3/3
+    分档和每 500 mm 一对 V 形刺，都与安保围栏主体一致。x_start 与 x_end 重合
+    时只生成悬臂、不拉刺丝（门柱悬臂不跨门洞，跨门洞的刺丝在门扇上）。
     """
     dgn_model = builder.dgn_model
     uor_per_mm = frame.uor_per_mm
-    angle = radians(OVERHANG_ANGLE_DEG)
+    angle = radians(angle_deg)
     elbow_length = ELBOW_CENTERLINE_RADIUS * angle
     straight_length = OVERHANG_LENGTH - elbow_length
     if straight_length <= 0.0:
@@ -655,20 +693,21 @@ def _add_overhang(builder, frame, x_start, x_end, outside_diameter_mm, wall_mm, 
     # 单点悬臂（门柱）只生成一组；x_start 与 x_end 不同时才是门扇两端各一组。
     arm_positions = (x_start,) if span <= MIN_STRAND_LENGTH else (x_start, x_end)
     for x in arm_positions:
-        builder.add(
-            _create_hollow_elbow(
-                dgn_model,
-                frame.point(x, ELBOW_CENTERLINE_RADIUS, GATE_HEIGHT),
-                vector_x,
-                vector_y,
-                ELBOW_CENTERLINE_RADIUS * uor_per_mm,
-                outside_diameter_mm,
-                wall_mm,
-                uor_per_mm,
-                color,
-                angle,
+        if elbow_length > 1.0e-9:
+            builder.add(
+                _create_hollow_elbow(
+                    dgn_model,
+                    frame.point(x, ELBOW_CENTERLINE_RADIUS, GATE_HEIGHT),
+                    vector_x,
+                    vector_y,
+                    ELBOW_CENTERLINE_RADIUS * uor_per_mm,
+                    outside_diameter_mm,
+                    wall_mm,
+                    uor_per_mm,
+                    color,
+                    angle,
+                )
             )
-        )
         builder.add(
             _create_hollow_tube(
                 dgn_model,
@@ -723,6 +762,50 @@ def _add_overhang(builder, frame, x_start, x_end, outside_diameter_mm, wall_mm, 
             position += BARB_SPACING
 
 
+def _add_hinge(builder, frame, hinge_x, post_x, hinge_side, hinge_z):
+    """加入一个简化活页：竖直销轴 + 上下两块连接板。
+
+    销轴位于门扇外缘与门柱内表面之间的缝隙中点；两块连接板沿 x 方向从门扇
+    立柱中心线跨到门柱中心线（因此立柱不建模时，连接板仍伸到预埋柱位置）。
+    尺寸为经验值，见 HINGE_* 常量。
+    """
+    dgn_model = builder.dgn_model
+    uor_per_mm = frame.uor_per_mm
+    half_width = HINGE_PLATE_WIDTH / 2.0
+    leaf_edge = hinge_x + hinge_side * GATE_FRAME_OD / 2.0
+    post_face = post_x - hinge_side * GATE_POST_OD / 2.0
+    axis_x = (leaf_edge + post_face) / 2.0
+
+    builder.add(
+        _create_solid_cylinder(
+            dgn_model,
+            frame.point(axis_x, 0.0, hinge_z - HINGE_PIN_LENGTH / 2.0),
+            frame.point(axis_x, 0.0, hinge_z + HINGE_PIN_LENGTH / 2.0),
+            HINGE_PIN_DIAMETER / 2.0 * uor_per_mm,
+            COLOR_HINGE,
+        )
+    )
+
+    # 连接板轮廓按逆时针排列（法向 +z），ThickenSheet 便沿 +z 拉伸出厚度。
+    if post_x >= hinge_x:
+        corners = ((hinge_x, -half_width), (post_x, -half_width),
+                   (post_x, half_width), (hinge_x, half_width))
+    else:
+        corners = ((post_x, -half_width), (hinge_x, -half_width),
+                   (hinge_x, half_width), (post_x, half_width))
+    for plate_z in (hinge_z + HINGE_PLATE_OFFSET, hinge_z - HINGE_PLATE_OFFSET):
+        points = DPoint3dArray()
+        for px, py in corners:
+            points.append(
+                frame.point(px, py, plate_z - HINGE_PLATE_THICKNESS / 2.0)
+            )
+        builder.add(
+            _create_prism_from_corners(
+                dgn_model, points, HINGE_PLATE_THICKNESS * uor_per_mm, COLOR_HINGE
+            )
+        )
+
+
 def _add_gate_post(builder, frame, x_mm, include_foundation, include_overhang):
     """加入一根 φ100 门柱、可选混凝土基础与防攀悬臂。"""
     dgn_model = builder.dgn_model
@@ -768,11 +851,13 @@ def _add_gate_post(builder, frame, x_mm, include_foundation, include_overhang):
         )
 
 
-def _add_gate_leaf(builder, frame, leaf_center_x, leaf_width, hinge_side, include_overhang):
-    """加入一扇门扇：斜接门框 + 斜撑 + 菱形网（+ 门顶防攀悬臂与刺钢丝）。
+def _add_gate_leaf(builder, frame, leaf_center_x, leaf_width, hinge_side, include_overhang,
+                   post_x):
+    """加入一扇门扇：斜接门框 + 斜撑 + 菱形网 + 活页（+ 门顶防攀悬臂与刺钢丝）。
 
     hinge_side 为 -1 / +1，表示合页在门扇的哪一侧；斜撑按常规从合页面下端
-    沿对角线升到自由端（中缝侧）上端。
+    沿对角线升到自由端（中缝侧）上端。post_x 是该侧门柱的中心线位置，活页
+    连接到该位置（门柱不建模时活页仍按预埋柱位置生成）。
     """
     dgn_model = builder.dgn_model
     uor_per_mm = frame.uor_per_mm
@@ -805,11 +890,20 @@ def _add_gate_leaf(builder, frame, leaf_center_x, leaf_width, hinge_side, includ
 
     hinge_x = left if hinge_side < 0.0 else right
     latch_x = right if hinge_side < 0.0 else left
+    brace_dx = latch_x - hinge_x
+    brace_dz = top - bottom
+    brace_span = hypot(brace_dx, brace_dz)
+    brace_ux = brace_dx / brace_span
+    brace_uz = brace_dz / brace_span
+    # 斜撑两端沿管轴各缩进门框 BRACE_END_RECESS，平口端面藏在门框管内，
+    # 避免从门框斜接面的内孔处穿出。
     builder.add(
         _create_hollow_tube(
             dgn_model,
-            frame.point(hinge_x, 0.0, bottom),
-            frame.point(latch_x, 0.0, top),
+            frame.point(hinge_x + brace_ux * BRACE_END_RECESS, 0.0,
+                        bottom + brace_uz * BRACE_END_RECESS),
+            frame.point(latch_x - brace_ux * BRACE_END_RECESS, 0.0,
+                        top - brace_uz * BRACE_END_RECESS),
             GATE_BRACE_OD,
             GATE_BRACE_WALL,
             uor_per_mm,
@@ -840,6 +934,18 @@ def _add_gate_leaf(builder, frame, leaf_center_x, leaf_width, hinge_side, includ
             GATE_FRAME_OD,
             GATE_FRAME_WALL,
             COLOR_FRAME,
+            angle_deg=LEAF_OVERHANG_ANGLE_DEG,
+        )
+
+    # 活页：3 个沿门扇高度均布，连接合页侧立柱与门柱（或预埋柱位置）。
+    for fraction in HINGE_HEIGHT_FRACTIONS:
+        _add_hinge(
+            builder,
+            frame,
+            hinge_x,
+            post_x,
+            hinge_side,
+            bottom + (top - bottom) * fraction,
         )
 
 
@@ -878,6 +984,7 @@ def _build_security_gate_cell(placement_point, options=None):
             layout["leaf_width"],
             hinge_side,
             resolved["include_overhang"],
+            hinge_side * layout["post_offset"],
         )
 
     builder.build()
@@ -1035,7 +1142,7 @@ class _GateSettingsDialog(_MicroStationTk):
         self.overhang_var = tk.BooleanVar(value=True)
         overhang_check = tk.Checkbutton(
             body,
-            text="生成防攀悬臂与刺钢丝（450 @ 45°，与围栏一致）",
+            text="生成防攀悬臂与刺钢丝（门扇垂直 450、门柱 45°）",
             variable=self.overhang_var,
             command=self.on_options_changed,
         )
