@@ -22,6 +22,9 @@ FUNCTIONS = {
     "_build_post_stations",
     "_offset_kickplate_pieces",
     "_type2_connection_geometry",
+    "_type1_connection_geometry",
+    "_type1_inner_sections",
+    "_type3_connection_geometry",
 }
 CONSTANTS = {
     "PATH_TOLERANCE_MM",
@@ -32,11 +35,21 @@ CONSTANTS = {
     "TOP_RAIL_Z",
     "KNEE_RAIL_Z",
     "STANCHION_OD",
+    "STANCHION_WALL",
     "KICKPLATE_THICKNESS",
     "KICKPLATE_BOTTOM_Z",
     "KICKPLATE_CLEARANCE",
     "END_CLOSURE_REACH",
     "TYPE2_BEND_RADIUS",
+    "TYPE1_PLATE_CENTER_DROP",
+    "TYPE1_FLAT_MAJOR",
+    "TYPE1_FLAT_MINOR",
+    "TYPE1_TRANSITION_LENGTH",
+    "TYPE3_PLATE_LENGTH",
+    "TYPE3_PLATE_WIDTH",
+    "TYPE3_PLATE_THICKNESS",
+    "TYPE2_PLATE_HORIZONTAL",
+    "TYPE2_PLATE_VERTICAL",
     "TYPE2_PLATE_THICKNESS",
     "TYPE2_TUBE_PLATE_OVERLAP",
 }
@@ -74,6 +87,77 @@ def _near(actual, expected, tolerance=1.0e-6):
 
 def main():
     geometry = _load_geometry_namespace()
+    # 底板长宽、居中、水平放置和向上拉伸方向；覆盖反向及坡段。
+    for tangent in ((1.0, 0.0, 0.0), (-1.0, 0.0, 0.0), (3.0, 4.0, 2.0), (3.0, 4.0, -2.0)):
+        point = (100.0, 200.0, 500.0)
+        node = geometry["_type3_connection_geometry"](point, tangent)
+        corners = node["corners"]
+        assert node["post_bottom"] == (100.0, 200.0, 510.0)
+        for i in range(3):
+            _near(sum(c[i] for c in corners) / 4.0, point[i])
+        assert all(c[2] == point[2] for c in corners)
+        along = tuple(corners[1][i] - corners[0][i] for i in range(3))
+        across = tuple(corners[2][i] - corners[1][i] for i in range(3))
+        _near(hypot(*along[:2]), 145.0)
+        _near(hypot(*across[:2]), 75.0)
+        _near(sum(along[i] * across[i] for i in range(3)), 0.0)
+        _near(along[0] * tangent[1] - along[1] * tangent[0], 0.0)
+        assert along[0] * across[1] - along[1] * across[0] > 0.0
+    # 左右侧、反向和坡段：放样全程保持靠板侧相切，管底落在板边界上。
+    for tangent in ((1.0, 0.0, 0.0), (-1.0, 0.0, 0.0), (3.0, 4.0, 2.0), (3.0, 4.0, -2.0)):
+        for side in (1.0, -1.0):
+            point = (100.0, 200.0, 500.0)
+            node = geometry["_type1_connection_geometry"](point, tangent, side)
+            normal = node["normal"]
+            center = node["plate_center"]
+            _near(center[2], 424.0)
+            near_face = tuple(center[i] - normal[i] * 5.0 for i in range(3))
+            _near(sum((near_face[i] - point[i]) * normal[i] for i in range(3)), 24.15)
+            for axis in (node["plate_long"], node["plate_short"]):
+                _near(sum(value * value for value in axis), 1.0)
+                _near(sum(axis[i] * normal[i] for i in range(3)), 0.0)
+            bottom = node["post_bottom"]
+            _near(sum((bottom[i] - point[i]) * normal[i] for i in range(3)), 16.1)
+            sections = node["sections"]
+            assert sections[0] == (point, 24.15, 24.15)
+            _near(sections[1][1], 35.0)
+            _near(sections[1][2], 8.05)
+            _near(sections[1][0][2], point[2] - 38.5)
+            assert sections[0][0][2] > sections[1][0][2] > sections[2][0][2]
+            # 直纹插值的每个截面都应贴在同一平面上，无穿板或间隙。
+            for start, end in zip(sections, sections[1:]):
+                for fraction in (0.0, 0.25, 0.5, 0.75, 1.0):
+                    section_center = tuple(start[0][i] + fraction * (end[0][i] - start[0][i]) for i in range(3))
+                    minor = start[2] + fraction * (end[2] - start[2])
+                    _near(sum((section_center[i] - point[i]) * normal[i] for i in range(3)) + minor, 24.15)
+            inner = geometry["_type1_inner_sections"](sections)
+            assert len(inner) == len(sections) + 2
+            assert inner[0][0][2] > sections[0][0][2]
+            assert inner[-1][0][2] < sections[-1][0][2]
+            for outer_section, inner_section in zip(sections, inner[1:-1]):
+                assert outer_section[0] == inner_section[0]
+                for outer_axis, inner_axis in zip(outer_section[1:], inner_section[1:]):
+                    assert inner_axis > 0.0
+                    _near(outer_axis - inner_axis, 3.2)
+            dz = bottom[2] - center[2]
+            edge_ratios = (
+                abs(dz * node["plate_long"][2]) / 73.0,
+                abs(dz * node["plate_short"][2]) / 37.5,
+            )
+            _near(max(edge_ratios), 1.0)
+            if tangent[2] == 0.0:
+                _near(bottom[2], 386.5)
+    for parameter, bad_value in (("TYPE1_FLAT_MINOR", 6.4), ("TYPE1_TRANSITION_LENGTH", 0.0), ("TYPE1_TRANSITION_LENGTH", 200.0)):
+        original = geometry[parameter]
+        geometry[parameter] = bad_value
+        try:
+            geometry["_type1_connection_geometry"]((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), 1.0)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("Invalid type1 parameter accepted: " + parameter)
+        finally:
+            geometry[parameter] = original
     build = geometry["_build_fillet_path"]
     posts = geometry["_build_post_stations"]
     at = geometry["_point_tangent_at_station"]

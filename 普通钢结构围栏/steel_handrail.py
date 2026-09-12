@@ -53,17 +53,25 @@ TYPE2_PLATE_HORIZONTAL = 146.0
 TYPE2_PLATE_VERTICAL = 75.0
 TYPE2_PLATE_THICKNESS = 10.0
 TYPE2_TUBE_PLATE_OVERLAP = 2.0
+TYPE1_PLATE_CENTER_DROP = 76.0
+# 压扁端暂定尺寸，可按节点详图调整；长轴沿路径水平切向。
+TYPE1_FLAT_MAJOR = 70.0
+TYPE1_FLAT_MINOR = STANCHION_OD / 3.0
+TYPE1_TRANSITION_LENGTH = 38.5
+TYPE3_PLATE_LENGTH = 145.0
+TYPE3_PLATE_WIDTH = 75.0
+TYPE3_PLATE_THICKNESS = 10.0
 CONNECTION_TYPE_DEFAULT = "type2"
 CONNECTION_TYPE_LABELS = (
-    "类型1（预留）",
+    "类型1（直柱贴板侧装）",
     "类型2（侧装钢结构）",
-    "类型3（预留）",
+    "类型3（底板顶装）",
     "类型4（预留）",
 )
 CONNECTION_LABEL_TO_VALUE = {
-    "类型1（预留）": "type1",
+    "类型1（直柱贴板侧装）": "type1",
     "类型2（侧装钢结构）": "type2",
-    "类型3（预留）": "type3",
+    "类型3（底板顶装）": "type3",
     "类型4（预留）": "type4",
 }
 
@@ -813,7 +821,110 @@ def _type2_connection_geometry(point, tangent, side_sign, structure_offset):
     }
 
 
-def _create_type2_connection_plate(
+def _type1_connection_geometry(point, tangent, side_sign):
+    """圆管至椭圆压扁端的放样截面；靠板侧外轮廓始终与板近面相切。"""
+    if not (2.0 * STANCHION_WALL < TYPE1_FLAT_MINOR < STANCHION_OD <= TYPE1_FLAT_MAJOR):
+        raise ValueError("压扁端须满足：两倍壁厚 < 短轴 < 管外径 <= 长轴。")
+    if TYPE1_TRANSITION_LENGTH <= PATH_TOLERANCE_MM:
+        raise ValueError("类型1压扁过渡长度必须大于零。")
+    tangent_length = hypot(hypot(tangent[0], tangent[1]), tangent[2])
+    if tangent_length <= 1.0e-12:
+        raise ValueError("立柱所在位置的路径切向长度为零。")
+    plate_long = tuple(value / tangent_length for value in tangent)
+    nx, ny, _ = _horizontal_normal(tangent, side_sign)
+    plate_short = (
+        ny * plate_long[2],
+        -nx * plate_long[2],
+        nx * plate_long[1] - ny * plate_long[0],
+    )
+    offset = STANCHION_OD / 2.0 + TYPE2_PLATE_THICKNESS / 2.0
+    center = (
+        point[0] + nx * offset,
+        point[1] + ny * offset,
+        point[2] - TYPE1_PLATE_CENTER_DROP,
+    )
+    # 管底对齐连接板在立柱相切线处的下缘；坡段仍保持立柱竖直。
+    vertical_half_height = min(
+        half_size / abs(axis[2])
+        for half_size, axis in (
+            (TYPE2_PLATE_HORIZONTAL / 2.0, plate_long),
+            (TYPE2_PLATE_VERTICAL / 2.0, plate_short),
+        )
+        if abs(axis[2]) > 1.0e-12
+    )
+    bottom_z = center[2] - vertical_half_height
+    transition_z = point[2] - TYPE1_TRANSITION_LENGTH
+    if transition_z <= bottom_z + PATH_TOLERANCE_MM:
+        raise ValueError("类型1压扁过渡必须在连接板下缘上方结束。")
+    # 压扁时向板侧偏移中心，防止短轴缩小后与板面出现间隙。
+    shift = (STANCHION_OD - TYPE1_FLAT_MINOR) / 2.0
+    flat_xy = (point[0] + nx * shift, point[1] + ny * shift)
+    sections = [
+        (tuple(point), STANCHION_OD / 2.0, STANCHION_OD / 2.0),
+        ((flat_xy[0], flat_xy[1], transition_z), TYPE1_FLAT_MAJOR / 2.0, TYPE1_FLAT_MINOR / 2.0),
+        ((flat_xy[0], flat_xy[1], bottom_z), TYPE1_FLAT_MAJOR / 2.0, TYPE1_FLAT_MINOR / 2.0),
+    ]
+    return {
+        "normal": (nx, ny, 0.0),
+        "plate_long": plate_long,
+        "plate_short": plate_short,
+        "plate_center": center,
+        "post_bottom": sections[-1][0],
+        "section_long": _horizontal_unit(tangent),
+        "sections": sections,
+    }
+
+
+def _type1_inner_sections(sections):
+    """内腔用半轴减壁厚的椭圆近似，两端延长以避免布尔运算共面。"""
+    inner = [(center, major - STANCHION_WALL, minor - STANCHION_WALL)
+             for center, major, minor in sections]
+    first, major, minor = inner[0]
+    last, last_major, last_minor = inner[-1]
+    return ([( (first[0], first[1], first[2] + 2.0), major, minor)]
+            + inner
+            + [((last[0], last[1], last[2] - 2.0), last_major, last_minor)])
+
+
+def _create_elliptic_loft(dgn_model, origin, uor_per_mm, sections, long_axis, normal):
+    """由同向、同起点的解析椭圆截面生成封闭直纹放样实体。"""
+    profiles = CurveVectorPtrArray()
+    for center_mm, major, minor in sections:
+        center = _point_uor(origin, center_mm, uor_per_mm)
+        point0 = _point_uor(origin, tuple(
+            center_mm[i] + major * long_axis[i] for i in range(3)
+        ), uor_per_mm)
+        point90 = _point_uor(origin, tuple(
+            center_mm[i] + minor * normal[i] for i in range(3)
+        ), uor_per_mm)
+        profile = CurveVector(CurveVector.eBOUNDARY_TYPE_Outer)
+        profile.Add(ICurvePrimitive.CreateArc(
+            DEllipse3d.FromPoints(center, point0, point90, 0.0, 2.0 * pi)
+        ))
+        profiles.append(profile)
+    detail = DgnRuledSweepDetail(profiles, True)
+    return _primitive_to_element(
+        dgn_model, ISolidPrimitive.CreateDgnRuledSweep(detail), None
+    )
+
+
+def _create_type1_flattened_end(dgn_model, origin, uor_per_mm, geometry, color):
+    sections = geometry["sections"]
+    outer = _create_elliptic_loft(
+        dgn_model, origin, uor_per_mm, sections,
+        geometry["section_long"], geometry["normal"],
+    )
+    inner = _create_elliptic_loft(
+        dgn_model, origin, uor_per_mm, _type1_inner_sections(sections),
+        geometry["section_long"], geometry["normal"],
+    )
+    result = _boolean_hollow(dgn_model, outer, inner, color)
+    if result is None:
+        raise RuntimeError("类型1圆管至椭圆压扁端放样或内腔扣除失败。")
+    return result
+
+
+def _create_connection_plate(
     dgn_model, origin, uor_per_mm, geometry, color
 ):
     """创建长边跟随路径三维切向的 146×75×10 连接板。"""
@@ -824,8 +935,7 @@ def _create_type2_connection_plate(
     half_long = TYPE2_PLATE_HORIZONTAL / 2.0
     half_short = TYPE2_PLATE_VERTICAL / 2.0
     half_thickness = TYPE2_PLATE_THICKNESS / 2.0
-    # 板面垂直于水平连接管，中心和管中心重合。轮廓放在靠立柱的一面，
-    # 再沿水平连接管方向向内侧拉伸 10 mm。
+    # 轮廓放在靠立柱的一面，再沿水平内侧法向拉伸 10 mm。
     base = (
         center[0] - normal[0] * half_thickness,
         center[1] - normal[1] * half_thickness,
@@ -892,7 +1002,7 @@ def _add_type2_structure_connection(
         STANCHION_WALL,
         color,
     ))
-    builder.add(_create_type2_connection_plate(
+    builder.add(_create_connection_plate(
         builder.dgn_model,
         origin,
         uor_per_mm,
@@ -901,15 +1011,43 @@ def _add_type2_structure_connection(
     ))
 
 
+def _type3_connection_geometry(point, tangent):
+    """水平底板底面位于安装面，立柱居中；长边沿路径水平投影。"""
+    long_axis = _horizontal_unit(tangent)
+    short_axis = _horizontal_normal(tangent, 1.0)
+    corners = [
+        tuple(point[i] + along * long_axis[i] + across * short_axis[i]
+              for i in range(3))
+        for along, across in (
+            (-TYPE3_PLATE_LENGTH / 2.0, -TYPE3_PLATE_WIDTH / 2.0),
+            (TYPE3_PLATE_LENGTH / 2.0, -TYPE3_PLATE_WIDTH / 2.0),
+            (TYPE3_PLATE_LENGTH / 2.0, TYPE3_PLATE_WIDTH / 2.0),
+            (-TYPE3_PLATE_LENGTH / 2.0, TYPE3_PLATE_WIDTH / 2.0),
+        )
+    ]
+    return {
+        "corners": corners,
+        "post_bottom": (point[0], point[1], point[2] + TYPE3_PLATE_THICKNESS),
+    }
+
+
 def _add_posts_balls_and_brackets(
     builder, origin, uor_per_mm, pieces, stations, side_sign,
     connection_type, structure_offset, color
 ):
     for station in stations:
         point, tangent = _point_tangent_at_station(pieces, station)
+        type1_geometry = (
+            _type1_connection_geometry(point, tangent, side_sign)
+            if connection_type == "type1" else None
+        )
+        type3_geometry = (
+            _type3_connection_geometry(point, tangent)
+            if connection_type == "type3" else None
+        )
         builder.add(_create_hollow_tube(
             builder.dgn_model, origin, uor_per_mm,
-            (point[0], point[1], point[2]),
+            type3_geometry["post_bottom"] if type3_geometry else point,
             (point[0], point[1], point[2] + TOP_RAIL_Z),
             STANCHION_OD, STANCHION_WALL, color
         ))
@@ -924,7 +1062,22 @@ def _add_posts_balls_and_brackets(
             builder.dgn_model, origin, uor_per_mm,
             point, tangent, side_sign, color
         ))
-        if connection_type == "type2":
+        if type1_geometry is not None:
+            builder.add(_create_type1_flattened_end(
+                builder.dgn_model, origin, uor_per_mm, type1_geometry, color
+            ))
+            builder.add(_create_connection_plate(
+                builder.dgn_model, origin, uor_per_mm, type1_geometry, color
+            ))
+        elif type3_geometry is not None:
+            builder.add(_create_prism_from_corners(
+                builder.dgn_model,
+                [_point_uor(origin, corner, uor_per_mm)
+                 for corner in type3_geometry["corners"]],
+                TYPE3_PLATE_THICKNESS * uor_per_mm,
+                color,
+            ))
+        elif connection_type == "type2":
             _add_type2_structure_connection(
                 builder,
                 origin,
@@ -1257,7 +1410,7 @@ def _build_handrail_cell(
         "balls": len(stations) * 2,
         "brackets": len(stations),
         "connection_type": connection_type,
-        "structure_connections": len(stations) if connection_type == "type2" else 0,
+        "structure_connections": len(stations) if connection_type in ("type1", "type2", "type3") else 0,
         "structure_offset": structure_offset,
         "corners": sum(corner.get("kind") == "fillet" for corner in corners),
         "grade_breaks": sum(corner.get("kind") == "grade_break" for corner in corners),

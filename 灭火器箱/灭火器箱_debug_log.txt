@@ -15,3 +15,4 @@ created cabinet Cell: preset=XMDDG32, extinguisher=干粉灭火器 5kg, cell=734
 created cabinet Cell: preset=XMDDG32, extinguisher=干粉灭火器 5kg, cell=1148
 created cabinet Cell: preset=XMDDG32, extinguisher=干粉灭火器 5kg, cell=1825
 created cabinet Cell: preset=XMDDG32, extinguisher=干粉灭火器 5kg, cell=1960
+created cabinet Cell: preset=XMDDG32, extinguisher=干粉灭火器 5kg, cell=3697
