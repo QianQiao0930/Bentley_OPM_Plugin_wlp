@@ -26,3 +26,4 @@ triangle bracket created: L1=1000.0, braceProjection=929.289, topCenterX=2635.14
 triangle bracket created: L1=1000.0, braceProjection=929.289, topCenterX=4774.163, topOuterEndX=4844.874, beamEndX=4995.163, offset=70.711, E=150.0, EActual=150.289, L2Theory=1220.711, L2=1221, beamId=2116, braceId=2094
 triangle bracket created: L1=1000.0, braceProjection=929.289, topCenterX=5311.762, topOuterEndX=5382.473, beamEndX=5532.762, offset=70.711, E=150.0, EActual=150.289, L2Theory=1220.711, L2=1221, beamId=2178, braceId=2157
 triangle bracket created: L1=1000.0, braceProjection=929.289, topCenterX=7336.547, topOuterEndX=7407.257, beamEndX=7557.547, offset=70.711, E=150.0, EActual=150.289, L2Theory=1220.711, L2=1221, beamId=2240, braceId=2219
+triangle bracket created: L1=1000.0, braceProjection=858.579, topCenterX=19001.001, topOuterEndX=19142.422, beamEndX=19293.001, offset=141.421, E=150.0, EActual=150.579, L2Theory=1291.421, L2=1292, beamId=7013, braceId=6992
