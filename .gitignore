@@ -2,3 +2,5 @@ __pycache__/
 *.pyc
 preview.png
 *_debug_log.txt
+debug_log.txt
+*.bak
