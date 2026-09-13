@@ -1,0 +1,9 @@
+{
+  "width": 550.0,
+  "depth": 160.0,
+  "height": 1200.0,
+  "lowerHeight": 550.0,
+  "withEquipment": true,
+  "extinguisherModel": "MF/ABC4",
+  "extinguisherQuantity": 2
+}
