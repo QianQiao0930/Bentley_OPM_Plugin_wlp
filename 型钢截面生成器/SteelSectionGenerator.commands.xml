@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<KeyinTree xmlns="http://www.bentley.com/schemas/1.0/MicroStation/AddIn/KeyinTree.xsd">
+  <RootKeyinTable ID="root">
+    <Keyword SubtableRef="PYSTEEL" CommandClass="MacroCommand" CommandWord="PYSTEEL">
+      <Options Required="true" />
+    </Keyword>
+  </RootKeyinTable>
+  <SubKeyinTables>
+    <KeyinTable ID="PYSTEEL">
+      <Keyword CommandWord="PLACE" />
+      <Keyword CommandWord="DEFAULT" />
+    </KeyinTable>
+  </SubKeyinTables>
+  <KeyinHandlers>
+    <KeyinHandler Keyin="PYSTEEL PLACE" Function="OpenSteelSectionGenerator" />
+    <KeyinHandler Keyin="PYSTEEL DEFAULT" Function="PlaceDefaultSteelSection" />
+  </KeyinHandlers>
+</KeyinTree>
