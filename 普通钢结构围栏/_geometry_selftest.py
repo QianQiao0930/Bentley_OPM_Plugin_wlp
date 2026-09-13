@@ -25,6 +25,9 @@ FUNCTIONS = {
     "_type1_connection_geometry",
     "_type1_inner_sections",
     "_type3_connection_geometry",
+    "_normalize_close_ends",
+    "_steel_inventory",
+    '_offset_path_points',
 }
 CONSTANTS = {
     "PATH_TOLERANCE_MM",
@@ -39,6 +42,8 @@ CONSTANTS = {
     "KICKPLATE_THICKNESS",
     "KICKPLATE_BOTTOM_Z",
     "KICKPLATE_CLEARANCE",
+    "KICKPLATE_BRACKET_WIDTH",
+    "KICKPLATE_BRACKET_HEIGHT",
     "END_CLOSURE_REACH",
     "TYPE2_BEND_RADIUS",
     "TYPE1_PLATE_CENTER_DROP",
@@ -87,6 +92,24 @@ def _near(actual, expected, tolerance=1.0e-6):
 
 def main():
     geometry = _load_geometry_namespace()
+    offset_path = geometry['_offset_path_points']
+    left = offset_path(
+        [(0.0, 0.0, 0.0), (3000.0, 0.0, 0.0), (3000.0, 3000.0, 0.0)],
+        1.0, 34.2,
+    )
+    for actual, expected in zip(left, (
+        (0.0, 34.2, 0.0),
+        (2965.8, 34.2, 0.0),
+        (2965.8, 3000.0, 0.0),
+    )):
+        for value, target in zip(actual, expected):
+            _near(value, target)
+    right = offset_path([(0.0, 0.0, 0.0), (1000.0, 0.0, 0.0)], -1.0, 34.2)
+    _near(right[0][1], -34.2)
+    _near(right[1][1], -34.2)
+    negative = offset_path([(0.0, 0.0, 0.0), (1000.0, 0.0, 0.0)], 1.0, -34.2)
+    _near(negative[0][1], -34.2)
+    _near(negative[1][1], -34.2)
     # 底板长宽、居中、水平放置和向上拉伸方向；覆盖反向及坡段。
     for tangent in ((1.0, 0.0, 0.0), (-1.0, 0.0, 0.0), (3.0, 4.0, 2.0), (3.0, 4.0, -2.0)):
         point = (100.0, 200.0, 500.0)
@@ -161,6 +184,7 @@ def main():
     build = geometry["_build_fillet_path"]
     posts = geometry["_build_post_stations"]
     at = geometry["_point_tangent_at_station"]
+    steel = geometry["_steel_inventory"]
 
     _near(geometry["END_CLOSURE_REACH"] - geometry["CORNER_RADIUS"], 160.0)
     _near(
@@ -174,6 +198,22 @@ def main():
         geometry["STANCHION_OD"] / 2.0 + geometry["KICKPLATE_CLEARANCE"],
         34.15,
     )
+
+    # 端部闭合方式：布尔兼容 + 四个字符串模式 + 非法值拒绝。
+    normalize = geometry["_normalize_close_ends"]
+    assert normalize(True) == "both"
+    assert normalize(False) == "none"
+    assert normalize("none") == "none"
+    assert normalize("start") == "start"
+    assert normalize("end") == "end"
+    assert normalize("both") == "both"
+    assert normalize(" START ") == "start"
+    try:
+        normalize("middle")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("非法端部闭合方式应被拒绝")
 
     pieces, corners, length = build([(0.0, 0.0, 0.0), (5000.0, 0.0, 0.0)])
     _near(length, 5000.0)
@@ -295,6 +335,37 @@ def main():
         pass
     else:
         raise AssertionError("过短转角路径应被拒绝")
+
+    # 钢材清单：横杆按实长、立柱按标高、连接球按根数×2，端部闭合按端计。
+    straight_pieces, straight_corners, straight_length = build(
+        [(0.0, 0.0, 0.0), (5000.0, 0.0, 0.0)])
+    post_values = posts(straight_length, straight_corners)
+    inventory = steel(straight_pieces, len(post_values), straight_length,
+                      "type2", 250.0, "none")
+    balls = [item for item in inventory if item["code"] == "Ball"]
+    assert len(balls) == 1
+    assert balls[0]["quantity"] == len(post_values) * 2
+    _near(balls[0]["length"], 0.0)
+    stanchion = [item for item in inventory if item["code"] == "Stanchion"][0]
+    _near(stanchion["length"], geometry["TOP_RAIL_Z"])
+    assert stanchion["quantity"] == len(post_values)
+    top_rails = [item for item in inventory if item["code"] == "TopRail"]
+    assert len(top_rails) == 1
+    _near(top_rails[0]["length"], straight_length)
+    closed = steel(straight_pieces, len(post_values), straight_length,
+                   "type2", 250.0, "both")
+    closures = [item for item in closed if item["code"] == "EndClosure"]
+    assert len(closures) == 1
+    assert closures[0]["quantity"] == 2
+    one_end = steel(straight_pieces, len(post_values), straight_length,
+                    "type2", 250.0, "start")
+    assert [item["quantity"] for item in one_end
+            if item["code"] == "EndClosure"] == [1]
+    type3 = steel(straight_pieces, len(post_values), straight_length,
+                  "type3", 250.0, "none")
+    type3_stanchion = [item for item in type3 if item["code"] == "Stanchion"][0]
+    _near(type3_stanchion["length"],
+          geometry["TOP_RAIL_Z"] - geometry["TYPE3_PLATE_THICKNESS"])
 
     print("steel_handrail geometry self-test: OK")
 

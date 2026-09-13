@@ -17,6 +17,8 @@ STEEL_HANDRAIL。脚本面向 Bentley Power Platform Python (MSPy)。
 from __future__ import print_function
 
 from math import acos, ceil, cos, floor, hypot, pi, sin, tan
+import json
+import os
 import tkinter as tk
 import tkinter
 from tkinter import ttk
@@ -24,43 +26,47 @@ import win32gui
 
 from MSPyBentley import *
 from MSPyBentleyGeom import *
+from MSPyECObjects import *
 from MSPyDgnPlatform import *
 from MSPyDgnView import *
 from MSPyMstnPlatform import *
 
 
 # --- 图纸参数（mm）----------------------------------------------------------
-TOP_RAIL_Z = 1017.0
-KNEE_RAIL_Z = 560.0
-TOP_RAIL_OD = 42.4
-TOP_RAIL_WALL = 3.2
-KNEE_RAIL_OD = 33.7
-KNEE_RAIL_WALL = 3.2
-STANCHION_OD = 48.3
-STANCHION_WALL = 3.2
-BALL_DIAMETER = 76.0
-KICKPLATE_HEIGHT = 130.0
-KICKPLATE_THICKNESS = 6.0
-KICKPLATE_BOTTOM_Z = 10.0
-KICKPLATE_CLEARANCE = 10.0
-KICKPLATE_BRACKET_WIDTH = 6.0
-KICKPLATE_BRACKET_HEIGHT = 50.0
+TOP_RAIL_Z = 1017.0              # 顶部扶手管中心相对路径标高的高度。
+KNEE_RAIL_Z = 560.0              # 中间横杆管中心相对路径标高的高度。
+TOP_RAIL_OD = 42.4               # 顶部扶手钢管外径。
+TOP_RAIL_WALL = 3.2              # 顶部扶手钢管壁厚。
+KNEE_RAIL_OD = 33.7              # 中间横杆钢管外径。
+KNEE_RAIL_WALL = 3.2             # 中间横杆钢管壁厚。
+STANCHION_OD = 48.3              # 立柱钢管外径。
+STANCHION_WALL = 3.2             # 立柱钢管壁厚。
+BALL_DIAMETER = 76.0             # 横杆与立柱交点处连接球直径。
+KICKPLATE_HEIGHT = 130.0         # 踢脚板竖向高度。
+KICKPLATE_THICKNESS = 6.0        # 踢脚板厚度。
+KICKPLATE_BOTTOM_Z = 10.0        # 踢脚板底边相对路径标高的净高。
+KICKPLATE_CLEARANCE = 10.0       # 立柱外壁至踢脚板近侧表面的净距。
+KICKPLATE_BRACKET_WIDTH = 6.0    # 踢脚板连接支架沿路径方向的宽度。
+KICKPLATE_BRACKET_HEIGHT = 50.0  # 踢脚板连接支架的竖向高度。
 
 # 类型2：立柱下弯后侧装在钢结构腹板上的典型节点。
-TYPE2_BEND_RADIUS = 76.0
-TYPE2_STRUCTURE_OFFSET_DEFAULT = 250.0
-TYPE2_PLATE_HORIZONTAL = 146.0
-TYPE2_PLATE_VERTICAL = 75.0
-TYPE2_PLATE_THICKNESS = 10.0
-TYPE2_TUBE_PLATE_OVERLAP = 2.0
-TYPE1_PLATE_CENTER_DROP = 76.0
+TYPE2_BEND_RADIUS = 76.0                 # 类型2立柱下弯段的管中心线半径。
+TYPE2_STRUCTURE_OFFSET_DEFAULT = 120.0  # 类型2立柱中心至结构连接板中心的默认距离。
+TYPE2_PLATE_HORIZONTAL = 146.0          # 类型1/2竖向连接板的水平边长度。
+TYPE2_PLATE_VERTICAL = 75.0             # 类型1/2竖向连接板的竖向边长度。
+TYPE2_PLATE_THICKNESS = 10.0            # 类型1/2竖向连接板厚度。
+TYPE2_TUBE_PLATE_OVERLAP = 2.0          # 类型2水平管端伸入连接板的搭接量。
+TYPE1_PLATE_CENTER_DROP = 76.0          # 类型1连接板中心相对立柱起点的下落高度。
 # 压扁端暂定尺寸，可按节点详图调整；长轴沿路径水平切向。
-TYPE1_FLAT_MAJOR = 70.0
-TYPE1_FLAT_MINOR = STANCHION_OD / 3.0
-TYPE1_TRANSITION_LENGTH = 38.5
-TYPE3_PLATE_LENGTH = 145.0
-TYPE3_PLATE_WIDTH = 75.0
-TYPE3_PLATE_THICKNESS = 10.0
+TYPE1_FLAT_MAJOR = 70.0                 # 类型1压扁端椭圆截面的长轴全长。
+TYPE1_FLAT_MINOR = STANCHION_OD / 3.0  # 类型1压扁端椭圆截面的短轴全长。
+TYPE1_TRANSITION_LENGTH = 38.5         # 类型1圆管过渡至压扁截面的竖向长度。
+TYPE3_PLATE_LENGTH = 145.0             # 类型3水平底板沿路径方向的长度。
+TYPE3_PLATE_WIDTH = 75.0               # 类型3水平底板横向宽度。
+TYPE3_PLATE_THICKNESS = 10.0           # 类型3水平底板厚度。
+# CONNECTION_TYPE_DEFAULT：未由调用方指定时采用的立柱连接形式。
+# CONNECTION_TYPE_LABELS：设置界面中显示的立柱连接形式选项。
+# CONNECTION_LABEL_TO_VALUE：把界面中文选项映射为内部连接类型代码。
 CONNECTION_TYPE_DEFAULT = "type2"
 CONNECTION_TYPE_LABELS = (
     "类型1（直柱贴板侧装）",
@@ -75,16 +81,48 @@ CONNECTION_LABEL_TO_VALUE = {
     "类型4（预留）": "type4",
 }
 
-POST_SPACING_MAX = 2000.0
-MODULE = 50.0
-CORNER_POST_NOMINAL = 300.0
-CORNER_RADIUS = 140.0
-END_CLOSURE_REACH = 300.0
+POST_SPACING_MAX = 2000.0       # 相邻立柱沿栏杆路径允许的最大中心距。
+MODULE = 50.0                   # 立柱跨距优先采用的尺寸模数。
+CORNER_POST_NOMINAL = 300.0     # 转角顶点至两侧邻近立柱的目标距离。
+CORNER_RADIUS = 140.0           # 水平转角处横杆中心线的圆弧半径。
+PATH_LATERAL_OFFSET = -34.2      # 有符号横向偏移；正值向所选侧，负值向所选侧的反方向。
+END_CLOSURE_REACH = 300.0       # 端部闭合回弯沿路径方向伸出的总距离。
 
-COLOR_RGB = (255, 204, 0)
+# 端部闭合：不闭合 / 仅始端 / 仅末端 / 两端。
+# END_CLOSURE_DEFAULT：未指定时采用的端部闭合模式。
+# END_CLOSURE_LABELS：设置界面中显示的端部闭合选项。
+# END_CLOSURE_LABEL_TO_VALUE：把界面中文选项映射为内部闭合模式代码。
+END_CLOSURE_DEFAULT = "none"
+END_CLOSURE_LABELS = (
+    "不闭合",
+    "仅始端",
+    "仅末端",
+    "两端",
+)
+END_CLOSURE_LABEL_TO_VALUE = {
+    "不闭合": "none",
+    "仅始端": "start",
+    "仅末端": "end",
+    "两端": "both",
+}
+
+COLOR_RGB = (255, 204, 0)  # 新生成围栏元素采用的RGB显示颜色。
+# CELL_NAME：生成的普通单元名称。
 CELL_NAME = "STEEL_HANDRAIL"
-PATH_TOLERANCE_MM = 0.01
-REGENERATE_DELAY_MS = 150
+PATH_TOLERANCE_MM = 0.01   # 路径清理、重合判断和几何连续性检查容差。
+REGENERATE_DELAY_MS = 150  # 界面选项改变后延迟刷新预览的时间（毫秒）。
+
+# --- 钢材清单 ItemType（属性名保持英文，值可为中文）---------------------------
+ITEM_LIBRARY_NAME = "SteelHandrailComponents"
+ITEM_TYPE_PREFIX = "SteelHandrailComponent"
+ITEM_PROPERTY_DEFINITIONS = (
+    ("ComponentName", CustomProperty.Type1.eString),
+    ("Specification", CustomProperty.Type1.eString),
+    ("DesignLengthMm", CustomProperty.Type1.eDouble),
+    ("Quantity", CustomProperty.Type1.eInteger),
+    ("Unit", CustomProperty.Type1.eString),
+)
+BOM_JSON_NAME = "普通钢结构围栏_bom.json"
 
 
 def _succeeded(status):
@@ -427,6 +465,41 @@ def _horizontal_unit(tangent):
 def _horizontal_normal(tangent, side_sign):
     tx, ty, _ = _horizontal_unit(tangent)
     return (-ty * side_sign, tx * side_sign, 0.0)
+
+def _offset_path_points(points, side_sign, offset):
+    '''将辅助线路径向所选内侧平移，折点取相邻偏移直线的交点。'''
+    points = _clean_and_validate_points(points)
+    tangents = []
+    for start, end in zip(points, points[1:]):
+        dx, dy = end[0] - start[0], end[1] - start[1]
+        length = hypot(dx, dy)
+        tangents.append((dx / length, dy / length, (end[2] - start[2]) / length))
+
+    def shifted(point, tangent):
+        normal = _horizontal_normal(tangent, side_sign)
+        return (point[0] + normal[0] * offset,
+                point[1] + normal[1] * offset, point[2])
+
+    result = [shifted(points[0], tangents[0])]
+    for index in range(1, len(points) - 1):
+        incoming, outgoing = tangents[index - 1], tangents[index]
+        turn = incoming[0] * outgoing[1] - incoming[1] * outgoing[0]
+        dot = incoming[0] * outgoing[0] + incoming[1] * outgoing[1]
+        first = shifted(points[index], incoming)
+        if abs(turn) <= 1.0e-12:
+            if dot < 0.0:
+                raise ValueError('路径包含 180° 折返，无法计算横向偏移。')
+            result.append(first)
+            continue
+        if abs(incoming[2]) > 1.0e-9 or abs(outgoing[2]) > 1.0e-9:
+            raise ValueError('同一折点同时存在平面转向和坡度，无法计算横向偏移。')
+        second = shifted(points[index], outgoing)
+        dx, dy = second[0] - first[0], second[1] - first[1]
+        advance = (dx * outgoing[1] - dy * outgoing[0]) / turn
+        result.append((first[0] + incoming[0] * advance,
+                       first[1] + incoming[1] * advance, points[index][2]))
+    result.append(shifted(points[-1], tangents[-1]))
+    return result
 
 
 def _cross(a, b, c):
@@ -1292,6 +1365,98 @@ def _add_kickplate(builder, origin, uor_per_mm, pieces, side_sign, color):
     ))
 
 
+def _normalize_close_ends(close_ends):
+    """把布尔或字符串统一为 none / start / end / both。"""
+    if isinstance(close_ends, bool):
+        return "both" if close_ends else "none"
+    mode = str(close_ends).strip().lower()
+    if mode not in ("none", "start", "end", "both"):
+        raise ValueError("未知的端部闭合方式：%s" % close_ends)
+    return mode
+
+
+def _steel_inventory(
+    pieces, station_count, total_length, connection_type,
+    structure_offset, close_mode,
+):
+    """本道围栏所用钢材清单（纯几何，长度 mm）。
+
+    管类按中心线长度计，球 / 板 / 支架按件计（DesignLengthMm 记其代表性
+    长度或 0）。压扁端与类型2下弯段按水平路径的代表长度计，坡段为近似。
+    """
+    items = []
+    for piece in pieces:
+        items.append({"code": "TopRail", "name": "顶部扶手",
+                      "spec": "钢管 φ42.4×3.2", "length": piece["length"],
+                      "quantity": 1})
+    for piece in pieces:
+        items.append({"code": "KneeRail", "name": "中间横杆",
+                      "spec": "钢管 φ33.7×3.2", "length": piece["length"],
+                      "quantity": 1})
+    stanchion_length = (
+        TOP_RAIL_Z - TYPE3_PLATE_THICKNESS
+        if connection_type == "type3" else TOP_RAIL_Z
+    )
+    items.append({"code": "Stanchion", "name": "立柱",
+                  "spec": "钢管 φ48.3×3.2", "length": stanchion_length,
+                  "quantity": station_count})
+    # 连接球：每根立柱上、下横杆交点各一个。
+    items.append({"code": "Ball", "name": "连接球",
+                  "spec": "实心球 φ76", "length": 0.0,
+                  "quantity": station_count * 2})
+    items.append({"code": "Kickplate", "name": "踢脚板",
+                  "spec": "钢板 130×6", "length": total_length, "quantity": 1})
+    items.append({"code": "Bracket", "name": "踢脚板支架",
+                  "spec": "钢板 %d×%d" % (KICKPLATE_BRACKET_WIDTH,
+                                         KICKPLATE_BRACKET_HEIGHT),
+                  "length": KICKPLATE_BRACKET_HEIGHT, "quantity": station_count})
+    if connection_type in ("type1", "type2"):
+        items.append({"code": "BasePlate", "name": "底部连接板",
+                      "spec": "钢板 146×75×10", "length": 0.0,
+                      "quantity": station_count})
+    elif connection_type == "type3":
+        items.append({"code": "BasePlate", "name": "底部连接板",
+                      "spec": "钢板 145×75×10", "length": 0.0,
+                      "quantity": station_count})
+    if connection_type == "type1":
+        # 压扁端长度：板中心下落 + 竖板半高（水平路径的代表值）。
+        items.append({"code": "FlattenEnd", "name": "压扁端",
+                      "spec": "钢管 φ48.3×3.2",
+                      "length": TYPE1_PLATE_CENTER_DROP + TYPE2_PLATE_VERTICAL / 2.0,
+                      "quantity": station_count})
+    if connection_type == "type2":
+        elbow_length = (pi / 2.0) * TYPE2_BEND_RADIUS
+        horizontal = (
+            structure_offset - TYPE2_PLATE_THICKNESS / 2.0
+            + TYPE2_TUBE_PLATE_OVERLAP - TYPE2_BEND_RADIUS
+        )
+        items.append({"code": "DownBend", "name": "立柱下弯段",
+                      "spec": "钢管 φ48.3×3.2",
+                      "length": elbow_length + max(0.0, horizontal),
+                      "quantity": station_count})
+    closure_length = (
+        2.0 * (END_CLOSURE_REACH - CORNER_RADIUS)
+        + max(0.0, TOP_RAIL_Z - KNEE_RAIL_Z - 2.0 * CORNER_RADIUS)
+        + 2.0 * (pi / 2.0) * CORNER_RADIUS
+    )
+    for end_mode in ("start", "end"):
+        if close_mode in (end_mode, "both"):
+            items.append({"code": "EndClosure", "name": "端部闭合回弯",
+                          "spec": "钢管 φ42.4×3.2", "length": closure_length,
+                          "quantity": 1})
+    # 同一（代号 / 规格 / 长度）合并为一项，每个 ItemType 只附加一次。
+    merged = {}
+    order = []
+    for item in items:
+        key = (item["code"], item["spec"], item["length"])
+        if key not in merged:
+            merged[key] = dict(item)
+            order.append(key)
+        else:
+            merged[key]["quantity"] += item["quantity"]
+    return [merged[key] for key in order]
+
+
 def _add_end_closure(builder, origin, uor_per_mm, endpoint, tangent, direction, color):
     """沿端点水平切向，以两个 R140 弯头把顶部扶手接回中间横杆。
 
@@ -1357,7 +1522,7 @@ def _build_handrail_cell(
     vertices,
     side="left",
     reverse=False,
-    close_ends=False,
+    close_ends=END_CLOSURE_DEFAULT,
     connection_type=CONNECTION_TYPE_DEFAULT,
     structure_offset=TYPE2_STRUCTURE_OFFSET_DEFAULT,
 ):
@@ -1369,6 +1534,7 @@ def _build_handrail_cell(
         raise ValueError("踢脚板侧向必须为 left 或 right。")
     if connection_type not in ("type1", "type2", "type3", "type4"):
         raise ValueError("未知的立柱连接形式：%s" % connection_type)
+    close_mode = _normalize_close_ends(close_ends)
     try:
         structure_offset = float(structure_offset)
     except (TypeError, ValueError):
@@ -1378,6 +1544,8 @@ def _build_handrail_cell(
         path_vertices.reverse()
     uor_per_mm = dgn_model.GetModelInfo().GetUorPerMeter() / 1000.0
     origin, points = _to_local_path(path_vertices, uor_per_mm)
+    side_sign = 1.0 if side == 'left' else -1.0
+    points = _offset_path_points(points, side_sign, PATH_LATERAL_OFFSET)
     pieces, corners, total_length = _build_fillet_path(points)
     stations = _build_post_stations(total_length, corners)
     color = _element_color()
@@ -1397,10 +1565,11 @@ def _build_handrail_cell(
         color,
     )
     _add_kickplate(builder, origin, uor_per_mm, pieces, side_sign, color)
-    if close_ends:
+    if close_mode in ("start", "both"):
         start_point, start_tangent = _point_tangent_at_station(pieces, 0.0)
-        end_point, end_tangent = _point_tangent_at_station(pieces, total_length)
         _add_end_closure(builder, origin, uor_per_mm, start_point, start_tangent, -1.0, color)
+    if close_mode in ("end", "both"):
+        end_point, end_tangent = _point_tangent_at_station(pieces, total_length)
         _add_end_closure(builder, origin, uor_per_mm, end_point, end_tangent, 1.0, color)
     builder.build()
     return builder, {
@@ -1414,8 +1583,14 @@ def _build_handrail_cell(
         "structure_offset": structure_offset,
         "corners": sum(corner.get("kind") == "fillet" for corner in corners),
         "grade_breaks": sum(corner.get("kind") == "grade_break" for corner in corners),
-        "close_ends": bool(close_ends),
+        "close_ends": close_mode,
+        "close_start": close_mode in ("start", "both"),
+        "close_end": close_mode in ("end", "both"),
         "color_rgb": COLOR_RGB,
+        "steel_items": _steel_inventory(
+            pieces, len(stations), total_length, connection_type,
+            structure_offset, close_mode,
+        ),
     }
 
 
@@ -1423,7 +1598,7 @@ def draw_steel_handrail_along_path(
     vertices,
     side="left",
     reverse=False,
-    close_ends=False,
+    close_ends=END_CLOSURE_DEFAULT,
     connection_type=CONNECTION_TYPE_DEFAULT,
     structure_offset=TYPE2_STRUCTURE_OFFSET_DEFAULT,
 ):
@@ -1435,7 +1610,8 @@ def draw_steel_handrail_along_path(
         connection_type,
         structure_offset,
     )
-    builder.commit()
+    cell = builder.commit()
+    _attach_steel_items(cell, result["steel_items"])
     return result
 
 
@@ -1457,8 +1633,288 @@ def replace_steel_handrail(
         structure_offset,
     )
     new_handle = builder.commit()
+    _attach_steel_items(new_handle, result["steel_items"])
     deleted = _delete_preview(previous_handle)
     return new_handle, result, deleted
+
+
+# --- 钢材清单 ItemType 与 JSON 导出（沿用端焊三角架的构件项做法）-------------
+
+def _new_ec_value(value):
+    ec_value = ECValue()
+    if isinstance(value, str):
+        ec_value.SetString(value)
+    elif isinstance(value, float):
+        ec_value.SetDouble(value)
+    else:
+        ec_value.SetInteger(value)
+    return ec_value
+
+
+def _component_item_type_name(component_code, design_length_mm):
+    length_key = ("%.3f" % design_length_mm).replace(".", "_").replace("-", "N")
+    return "%s_%s_L%s" % (ITEM_TYPE_PREFIX, component_code, length_key)
+
+
+def _get_or_create_component_item_type(component_code, component_name,
+                                       specification, design_length_mm, quantity):
+    """获取或创建带本构件清单默认值的 ItemType。"""
+    dgn_file = ISessionMgr.GetActiveDgnFile()
+    item_type_name = _component_item_type_name(component_code, design_length_mm)
+    default_values = {
+        "ComponentName": component_name,
+        "Specification": specification,
+        "DesignLengthMm": float(design_length_mm),
+        "Quantity": int(quantity),
+        "Unit": "件",
+    }
+    try:
+        library = ItemTypeLibrary.FindByName(ITEM_LIBRARY_NAME, dgn_file)
+        changed = False
+        if library is None:
+            library = ItemTypeLibrary(ITEM_LIBRARY_NAME, dgn_file, False)
+            changed = True
+        item_type = library.GetItemTypeByName(item_type_name)
+        if item_type is None:
+            item_type = library.AddItemType(item_type_name, False)
+            changed = True
+        if item_type is None:
+            return None
+        for property_name, property_type in ITEM_PROPERTY_DEFINITIONS:
+            item_property = item_type.GetPropertyByName(property_name)
+            if item_property is None:
+                item_property = item_type.AddProperty(property_name, False)
+                if item_property is None or not item_property.SetType(property_type):
+                    return None
+                if not item_property.SetDefaultValue(
+                    _new_ec_value(default_values[property_name])
+                ):
+                    return None
+                changed = True
+        if changed and not library.Write():
+            return None
+        library = ItemTypeLibrary.FindByName(ITEM_LIBRARY_NAME, dgn_file)
+        return library.GetItemTypeByName(item_type_name)
+    except Exception:
+        return None
+
+
+def _attach_component_item(element, component_code, component_name,
+                           specification, design_length_mm, quantity=1):
+    item_type = _get_or_create_component_item_type(
+        component_code, component_name, specification, design_length_mm, quantity
+    )
+    if item_type is None:
+        return False
+    try:
+        item_host = CustomItemHost(element, False)
+        try:
+            instance = item_host.ApplyCustomItem(item_type)
+        except TypeError as error:
+            if "Unable to convert function return value" in str(error):
+                return True
+            raise
+        if instance is None:
+            return False
+        instance.WriteChanges()
+        return True
+    except Exception:
+        return False
+
+
+def _get_item_property_value(item, property_name, value_kind):
+    ec_value = ECValue()
+    status = item.GetValue(ec_value, property_name)
+    if ECObjectsStatus.eECOBJECTS_STATUS_Success != status or ec_value.IsNull():
+        return None
+    if value_kind == "double":
+        return ec_value.GetDouble()
+    if value_kind == "integer":
+        return ec_value.GetInteger()
+    return ec_value.GetString()
+
+
+def _attach_steel_items(element, items):
+    attached = 0
+    for item in items:
+        if _attach_component_item(element, item["code"], item["name"],
+                                  item["spec"], item["length"], item["quantity"]):
+            attached += 1
+    return attached
+
+
+def export_steel_handrail_bom_json(output_path=None):
+    """扫描当前 DGN 中本插件的构件项，按规格汇总后写 JSON，返回文件路径。"""
+    dgn_file = ISessionMgr.GetActiveDgnFile()
+    library = ItemTypeLibrary.FindByName(ITEM_LIBRARY_NAME, dgn_file)
+    if library is None:
+        return None
+    scope = FindInstancesScope.CreateScope(
+        dgn_file, FindInstancesScopeOption(DgnECHostType.eElement, False)
+    )
+    query = ECQuery.CreateQuery(ECQueryProcessFlags.eECQUERY_PROCESS_SearchAllClasses)
+    schema_name = str(library.GetInternalName())
+    records = []
+    summary_map = {}
+    for item in DgnECManager.GetManager().FindInstances(scope, query)[0]:
+        item_class = item.GetClass()
+        if (
+            str(item_class.GetSchema().GetName()) != schema_name
+            or not str(item_class.GetName()).startswith(ITEM_TYPE_PREFIX + "_")
+        ):
+            continue
+        element_instance = item.GetAsElementInstance()
+        if element_instance is None:
+            continue
+        record = {
+            "elementId": int(element_instance.ElementHandle.ElementId),
+            "itemType": str(item_class.GetName()),
+            "componentName": _get_item_property_value(item, "ComponentName", "string"),
+            "specification": _get_item_property_value(item, "Specification", "string"),
+            "designLengthMm": _get_item_property_value(item, "DesignLengthMm", "double"),
+            "quantity": _get_item_property_value(item, "Quantity", "integer"),
+            "unit": _get_item_property_value(item, "Unit", "string"),
+        }
+        if None in (
+            record["componentName"], record["specification"],
+            record["designLengthMm"], record["quantity"], record["unit"],
+        ):
+            continue
+        records.append(record)
+        key = (record["componentName"], record["specification"], record["unit"])
+        if key not in summary_map:
+            summary_map[key] = {
+                "componentName": record["componentName"],
+                "specification": record["specification"],
+                "unit": record["unit"],
+                "quantity": 0,
+                "totalLengthMm": 0.0,
+            }
+        summary_map[key]["quantity"] += record["quantity"]
+        summary_map[key]["totalLengthMm"] += (
+            record["designLengthMm"] * record["quantity"]
+        )
+    if not records:
+        return None
+    summary = list(summary_map.values())
+    for entry in summary:
+        entry["totalLengthMm"] = round(entry["totalLengthMm"], 3)
+    summary.sort(key=lambda entry: (entry["componentName"], entry["specification"]))
+    records.sort(key=lambda entry: entry["elementId"])
+    if output_path is None:
+        output_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), BOM_JSON_NAME
+        )
+    with open(output_path, "w", encoding="utf-8") as output:
+        json.dump(
+            {
+                "itemTypeLibrary": ITEM_LIBRARY_NAME,
+                "recordCount": len(records),
+                "records": records,
+                "summary": summary,
+            },
+            output, ensure_ascii=False, indent=2,
+        )
+    return output_path
+
+
+def _mix_color(source, target, ratio):
+    """在两个 '#RRGGBB' 之间线性插值；ratio 0 取 source，1 取 target。"""
+    source = source.lstrip("#")
+    target = target.lstrip("#")
+    blended = []
+    for offset in (0, 2, 4):
+        first = int(source[offset:offset + 2], 16)
+        second = int(target[offset:offset + 2], 16)
+        blended.append(max(0, min(255, int(round(first + (second - first) * ratio)))))
+    return "#%02X%02X%02X" % tuple(blended)
+
+
+class _RoundButton(tk.Canvas):
+    """圆角画布按钮，带悬停渐变；可整体启用 / 禁用。"""
+
+    def __init__(self, parent, text, command, primary=False, bg="#FFFFFF",
+                 font=("Microsoft YaHei UI", 10), font_bold=None):
+        self._command = command
+        self._enabled = True
+        self._ratio = 0.0
+        self._target = 0.0
+        self._job = None
+        self._primary = primary
+        self._text = text
+        self._font = font_bold if (primary and font_bold) else font
+        text_width = sum(14 if ord(char) > 127 else 7 for char in text)
+        width = text_width + 44
+        height = 36
+        self._width = width
+        self._height = height
+        self._radius = 10
+        self._idle = (
+            "#2A3644" if primary else bg,
+            "#2A3644" if primary else "#D8E0EA",
+            "#FFFFFF" if primary else "#33415C",
+        )
+        self._hover = (
+            "#3D4C5E" if primary else "#F0F5FA",
+            "#3D4C5E" if primary else "#B9C6D6",
+            "#FFFFFF" if primary else "#33415C",
+        )
+        tk.Canvas.__init__(self, parent, width=width, height=height, bg=bg,
+                           highlightthickness=0, bd=0, cursor="hand2")
+        self.bind("<Enter>", lambda event: self._set_target(1.0))
+        self.bind("<Leave>", lambda event: self._set_target(0.0))
+        self.bind("<Button-1>", self._on_click)
+        self._paint()
+
+    def _palette(self):
+        if not self._enabled:
+            return "#E7EBF1", "#E7EBF1", "#A9B3C2"
+        return (
+            _mix_color(self._idle[0], self._hover[0], self._ratio),
+            _mix_color(self._idle[1], self._hover[1], self._ratio),
+            _mix_color(self._idle[2], self._hover[2], self._ratio),
+        )
+
+    def _paint(self):
+        self.delete("all")
+        fill, edge, text_fill = self._palette()
+        width, height, radius = self._width, self._height, self._radius
+        x1, y1, x2, y2 = 1, 1, width - 1, height - 1
+        points = (
+            x1 + radius, y1, x2 - radius, y1, x2, y1, x2, y1 + radius,
+            x2, y2 - radius, x2, y2, x2 - radius, y2, x1 + radius, y2,
+            x1, y2, x1, y2 - radius, x1, y1 + radius, x1, y1,
+        )
+        self.create_polygon(points, smooth=True, fill=fill, outline=edge)
+        self.create_text(width / 2.0, height / 2.0, text=self._text,
+                         fill=text_fill, font=self._font)
+
+    def _step(self):
+        if abs(self._target - self._ratio) < 0.04:
+            self._ratio = self._target
+            self._job = None
+        else:
+            self._ratio += (self._target - self._ratio) * 0.32
+            self._job = self.after(16, self._step)
+        self._paint()
+
+    def _set_target(self, target):
+        if not self._enabled:
+            return
+        self._target = target
+        if self._job is None:
+            self._step()
+
+    def _on_click(self, event):
+        if self._enabled and self._command is not None:
+            self._command()
+
+    def set_enabled(self, enabled):
+        self._enabled = bool(enabled)
+        if not self._enabled:
+            self._target = 0.0
+        self.configure(cursor="hand2" if self._enabled else "arrow")
+        self._paint()
 
 
 class _MicroStationTk(tk.Tk):
@@ -1482,7 +1938,7 @@ class _MicroStationTk(tk.Tk):
 class _HandrailSettingsDialog(_MicroStationTk):
     def __init__(self):
         _MicroStationTk.__init__(self)
-        self.title("普通钢结构围栏—沿智能线生成")
+        self.title("普通钢结构围栏")
         self.resizable(False, False)
         self.protocol("WM_DELETE_WINDOW", self.cancel_tool)
         self.path_vertices = None
@@ -1493,86 +1949,198 @@ class _HandrailSettingsDialog(_MicroStationTk):
         self._busy = False
         self._closing = False
 
-        body = tk.Frame(self, padx=12, pady=10)
-        body.grid(row=0, column=0, sticky="nsew")
-        tk.Label(body, text="请选择水平或带单一坡度的直线、折线或纯直线复杂链。", justify="left").grid(
-            row=0, column=0, columnspan=3, sticky="w"
-        )
-        tk.Label(body, text="围栏内侧（踢脚板侧）：").grid(
-            row=1, column=0, pady=(10, 0), sticky="w"
-        )
+        bg = "#EEF2F7"
+        card = "#FFFFFF"
+        card_soft = "#F4F7FB"
+        border = "#E3E9F1"
+        ink = "#1F2A3D"
+        muted = "#8C97A8"
+        accent = "#E0A800"
+        field = "#FBFCFE"
+        ui_font = ("Microsoft YaHei UI", 10)
+        ui_font_small = ("Microsoft YaHei UI", 9)
+        ui_font_bold = ("Microsoft YaHei UI", 10, "bold")
+
+        self.configure(bg=bg)
+        style = ttk.Style(self)
+        try:
+            style.theme_use("clam")
+        except Exception:
+            pass
+        style.configure("Card.TFrame", background=card)
+        style.configure("Glass.TLabel", background=card, foreground=ink, font=ui_font)
+        style.configure("GlassMuted.TLabel", background=card, foreground=muted,
+                        font=ui_font)
+        style.configure("TSeparator", background=border)
+        style.configure("TCombobox", font=ui_font, padding=(10, 7),
+                        fieldbackground=field, background="#FFFFFF",
+                        foreground=ink, bordercolor=border, lightcolor=field,
+                        darkcolor="#CBD5E1", arrowsize=15)
+        style.map("TCombobox",
+                  fieldbackground=[("readonly", field), ("active", "#FFFFFF")],
+                  bordercolor=[("active", "#9FB4CC"), ("focus", "#9FB4CC")],
+                  lightcolor=[("active", "#9FB4CC")],
+                  arrowcolor=[("active", ink), ("!active", "#93A1B5")],
+                  selectbackground=[("readonly", "#F0F5FA")],
+                  selectforeground=[("readonly", ink)])
+
+        shell = tk.Frame(self, bg=bg, padx=20, pady=18)
+        shell.pack(fill="both", expand=True)
+
+        header = tk.Frame(shell, bg=bg)
+        header.pack(fill="x", pady=(0, 12))
+        title_row = tk.Frame(header, bg=bg)
+        title_row.pack(anchor="w")
+        dot = tk.Canvas(title_row, width=10, height=10, bg=bg,
+                        highlightthickness=0, bd=0)
+        dot.create_oval(1, 1, 9, 9, fill=accent, outline="")
+        dot.pack(side="left", pady=(8, 0), padx=(0, 8))
+        tk.Label(title_row, text="普通钢结构围栏", bg=bg, fg=ink,
+                 font=("Microsoft YaHei UI", 16, "bold")).pack(side="left")
+        tk.Label(header, text="立柱 φ48.3×3.2 · 顶/中横杆 + 踢脚板 · 沿智能线生成",
+                 bg=bg, fg=muted, font=ui_font_small).pack(
+                     anchor="w", pady=(4, 0), padx=(18, 0))
+
+        card_frame = tk.Frame(shell, bg=card, highlightbackground=border,
+                              highlightthickness=1)
+        card_frame.pack(fill="both", expand=True)
+        form = ttk.Frame(card_frame, style="Card.TFrame", padding=20)
+        form.pack(fill="both", expand=True)
+        form.columnconfigure(1, weight=1)
+
+        ttk.Label(form, text="布置参数", style="GlassMuted.TLabel",
+                  font=ui_font_small).grid(row=0, column=0, columnspan=3, sticky="w")
+
+        ttk.Label(form, text="围栏内侧（踢脚板侧）", style="GlassMuted.TLabel").grid(
+            row=1, column=0, sticky="w", pady=7)
+        side_row = tk.Frame(form, bg=card)
+        side_row.grid(row=1, column=1, columnspan=2, sticky="w",
+                      padx=(12, 0), pady=7)
         self.side_var = tk.StringVar(value="left")
-        left = tk.Radiobutton(body, text="路径左侧", variable=self.side_var,
-                              value="left", command=self.on_options_changed)
-        right = tk.Radiobutton(body, text="路径右侧", variable=self.side_var,
-                               value="right", command=self.on_options_changed)
-        left.grid(row=1, column=1, pady=(10, 0), sticky="w")
-        right.grid(row=1, column=2, pady=(10, 0), sticky="w")
+        left = tk.Radiobutton(side_row, text="路径左侧", variable=self.side_var,
+                              value="left", command=self.on_options_changed,
+                              bg=card, fg=ink, activebackground=card,
+                              selectcolor=card, font=ui_font,
+                              highlightthickness=0, bd=0)
+        right = tk.Radiobutton(side_row, text="路径右侧", variable=self.side_var,
+                               value="right", command=self.on_options_changed,
+                               bg=card, fg=ink, activebackground=card,
+                               selectcolor=card, font=ui_font,
+                               highlightthickness=0, bd=0)
+        left.pack(side="left")
+        right.pack(side="left", padx=(14, 0))
+
         self.reverse_var = tk.BooleanVar(value=False)
-        reverse = tk.Checkbutton(body, text="反转路径方向", variable=self.reverse_var,
-                                 command=self.on_options_changed)
-        reverse.grid(row=2, column=0, columnspan=3, pady=(4, 0), sticky="w")
-        self.close_var = tk.BooleanVar(value=False)
-        closure = tk.Checkbutton(body, text="两端生成 300 mm 闭合回弯",
-                                 variable=self.close_var, command=self.on_options_changed)
-        closure.grid(row=3, column=0, columnspan=3, pady=(4, 0), sticky="w")
+        reverse = tk.Checkbutton(form, text="反转路径方向", variable=self.reverse_var,
+                                 command=self.on_options_changed,
+                                 bg=card, fg=ink, activebackground=card,
+                                 selectcolor=card, font=ui_font,
+                                 highlightthickness=0, bd=0)
+        reverse.grid(row=2, column=1, columnspan=2, sticky="w",
+                     padx=(12, 0), pady=7)
 
-        tk.Label(body, text="立柱连接形式：").grid(
-            row=4, column=0, pady=(8, 0), sticky="w"
-        )
-        self.connection_type_var = tk.StringVar(
-            value="类型2（侧装钢结构）"
-        )
+        ttk.Label(form, text="端部闭合回弯", style="GlassMuted.TLabel").grid(
+            row=3, column=0, sticky="w", pady=7)
+        self.close_mode_var = tk.StringVar(value=END_CLOSURE_LABELS[0])
+        self.close_combo = ttk.Combobox(
+            form, textvariable=self.close_mode_var,
+            values=END_CLOSURE_LABELS, state="readonly", width=24)
+        self.close_combo.grid(row=3, column=1, columnspan=2, sticky="w",
+                              padx=(12, 0), pady=7)
+        self.close_combo.bind("<<ComboboxSelected>>", self.on_options_changed)
+
+        ttk.Label(form, text="立柱连接形式", style="GlassMuted.TLabel").grid(
+            row=4, column=0, sticky="w", pady=7)
+        self.connection_type_var = tk.StringVar(value="类型2（侧装钢结构）")
         self.connection_combo = ttk.Combobox(
-            body,
-            textvariable=self.connection_type_var,
-            values=CONNECTION_TYPE_LABELS,
-            state="readonly",
-            width=24,
-        )
-        self.connection_combo.grid(
-            row=4, column=1, columnspan=2, pady=(8, 0), sticky="w"
-        )
+            form, textvariable=self.connection_type_var,
+            values=CONNECTION_TYPE_LABELS, state="readonly", width=24)
+        self.connection_combo.grid(row=4, column=1, columnspan=2, sticky="w",
+                                   padx=(12, 0), pady=7)
         self.connection_combo.bind(
-            "<<ComboboxSelected>>", self.on_connection_type_changed
-        )
+            "<<ComboboxSelected>>", self.on_connection_type_changed)
 
-        tk.Label(body, text="立柱中心至连接板：").grid(
-            row=5, column=0, pady=(4, 0), sticky="w"
-        )
+        ttk.Label(form, text="立柱中心至连接板", style="GlassMuted.TLabel").grid(
+            row=5, column=0, sticky="w", pady=7)
+        offset_row = tk.Frame(form, bg=card)
+        offset_row.grid(row=5, column=1, columnspan=2, sticky="w",
+                        padx=(12, 0), pady=7)
         self.structure_offset_var = tk.StringVar(
-            value=str(int(TYPE2_STRUCTURE_OFFSET_DEFAULT))
-        )
+            value=str(int(TYPE2_STRUCTURE_OFFSET_DEFAULT)))
         self.structure_offset_entry = tk.Entry(
-            body, textvariable=self.structure_offset_var, width=12
-        )
-        self.structure_offset_entry.grid(
-            row=5, column=1, pady=(4, 0), sticky="w"
-        )
-        tk.Label(body, text="mm").grid(row=5, column=2, pady=(4, 0), sticky="w")
-        self.structure_offset_entry.bind(
-            "<Return>", self.on_structure_offset_changed
-        )
-        self.apply_offset_button = tk.Button(
-            body, text="更新", width=7, command=self.on_structure_offset_changed
-        )
-        self.apply_offset_button.grid(
-            row=5, column=2, pady=(4, 0), sticky="w"
-        )
+            offset_row, textvariable=self.structure_offset_var, width=10,
+            font=ui_font, fg=ink, bg=field, relief="flat",
+            highlightthickness=1, highlightbackground=border,
+            highlightcolor="#9FB4CC", insertbackground=ink, justify="center")
+        self.structure_offset_entry.pack(side="left", ipady=4)
+        self.structure_offset_entry.bind("<Return>", self.on_structure_offset_changed)
+        tk.Label(offset_row, text="mm", bg=card, fg=muted,
+                 font=ui_font_small).pack(side="left", padx=(8, 0))
+        self.apply_offset_button = _RoundButton(
+            offset_row, "更新", self.on_structure_offset_changed, bg=card,
+            font=ui_font, font_bold=ui_font_bold)
+        self.apply_offset_button.pack(side="left", padx=(10, 0))
 
-        self.option_widgets = [left, right, reverse, closure]
-        self.info_label = tk.Label(body, text="预览：—", justify="left")
-        self.info_label.grid(row=6, column=0, columnspan=3, pady=(10, 0), sticky="w")
-        self.status_label = tk.Label(body, text="请在模型中点选路径。", justify="left",
-                                     fg="#1f5f99", wraplength=430)
-        self.status_label.grid(row=7, column=0, columnspan=3, pady=(8, 0), sticky="w")
-        buttons = tk.Frame(body)
-        buttons.grid(row=8, column=0, columnspan=3, pady=(10, 0), sticky="e")
-        confirm = tk.Button(buttons, text="确定", width=10, command=self.confirm_tool)
-        cancel = tk.Button(buttons, text="取消", width=10, command=self.cancel_tool)
-        confirm.pack(side="right")
-        cancel.pack(side="right", padx=(0, 6))
-        self.action_widgets = [confirm, cancel]
+        ttk.Separator(form, orient="horizontal").grid(
+            row=6, column=0, columnspan=3, sticky="ew", pady=12)
+
+        ttk.Label(form, text="预览", style="GlassMuted.TLabel").grid(
+            row=7, column=0, sticky="nw", pady=3)
+        self.info_label = ttk.Label(form, text="—", style="Glass.TLabel",
+                                    justify="left", wraplength=340)
+        self.info_label.grid(row=7, column=1, columnspan=2, sticky="w",
+                             padx=(12, 0), pady=3)
+
+        ttk.Label(form, text="操作", style="GlassMuted.TLabel").grid(
+            row=8, column=0, sticky="nw", pady=3)
+        ttk.Label(form, text="点选水平或带单一坡度智能线，可即时预览",
+                  style="Glass.TLabel", justify="left", wraplength=340).grid(
+                      row=8, column=1, columnspan=2, sticky="w",
+                      padx=(12, 0), pady=3)
+
+        status_chip = tk.Frame(form, bg=card_soft, highlightbackground=border,
+                               highlightthickness=1)
+        status_chip.grid(row=9, column=0, columnspan=3, sticky="ew", pady=(12, 0))
+        self.status_label = tk.Label(status_chip, text="请在模型中点选路径。",
+                                     bg=card_soft, fg="#1f5f99",
+                                     font=ui_font_small, wraplength=340,
+                                     justify="left")
+        self.status_label.pack(anchor="w", padx=12, pady=8)
+
+        button_bar = tk.Frame(form, bg=card)
+        button_bar.grid(row=10, column=0, columnspan=3, sticky="ew", pady=(14, 0))
+        self.export_button = _RoundButton(
+            button_bar, "导出 JSON 清单", self.export_bom, bg=card,
+            font=ui_font, font_bold=ui_font_bold)
+        self.confirm_button = _RoundButton(
+            button_bar, "确定", self.confirm_tool, primary=True, bg=card,
+            font=ui_font, font_bold=ui_font_bold)
+        self.cancel_button = _RoundButton(
+            button_bar, "取消", self.cancel_tool, bg=card,
+            font=ui_font, font_bold=ui_font_bold)
+        self.export_button.pack(side="left")
+        self.confirm_button.pack(side="right")
+        self.cancel_button.pack(side="right", padx=(0, 8))
+
+        self.option_widgets = [left, right, reverse]
+        self.action_buttons = [
+            self.export_button, self.confirm_button, self.cancel_button
+        ]
+
+    def export_bom(self):
+        if self._busy or self._closing:
+            return
+        try:
+            output_path = export_steel_handrail_bom_json()
+        except Exception as error:
+            self.set_status("导出清单失败：%s" % error, True)
+            return
+        if output_path:
+            message = "钢材清单已导出：%s" % output_path
+            self.set_status(message)
+            NotificationManager.OutputPrompt(message)
+        else:
+            self.set_status("当前模型中没有带钢材清单的围栏，未导出。", True)
 
     def set_status(self, message, is_error=False):
         self.status_label.configure(text=message, fg="#b42318" if is_error else "#1f5f99")
@@ -1581,19 +2149,23 @@ class _HandrailSettingsDialog(_MicroStationTk):
     def _set_busy(self, busy):
         self._busy = bool(busy)
         state = tk.DISABLED if busy else tk.NORMAL
-        for widget in self.option_widgets + self.action_widgets:
+        for widget in self.option_widgets:
             widget.configure(state=state)
+        for button in self.action_buttons:
+            button.set_enabled(not busy)
         self.connection_combo.configure(state="disabled" if busy else "readonly")
-        if busy:
-            self.structure_offset_entry.configure(state=tk.DISABLED)
-            self.apply_offset_button.configure(state=tk.DISABLED)
-        else:
-            self._update_connection_controls()
+        self.close_combo.configure(state="disabled" if busy else "readonly")
+        self._update_connection_controls()
         self.update_idletasks()
 
     def get_connection_type(self):
         return CONNECTION_LABEL_TO_VALUE.get(
             self.connection_type_var.get(), CONNECTION_TYPE_DEFAULT
+        )
+
+    def get_close_mode(self):
+        return END_CLOSURE_LABEL_TO_VALUE.get(
+            self.close_mode_var.get(), END_CLOSURE_DEFAULT
         )
 
     def get_structure_offset(self):
@@ -1603,9 +2175,10 @@ class _HandrailSettingsDialog(_MicroStationTk):
             raise ValueError("立柱中心至连接板距离必须是数字。")
 
     def _update_connection_controls(self):
-        state = tk.NORMAL if self.get_connection_type() == "type2" else tk.DISABLED
-        self.structure_offset_entry.configure(state=state)
-        self.apply_offset_button.configure(state=state)
+        enabled = (self.get_connection_type() == "type2") and not self._busy
+        self.structure_offset_entry.configure(
+            state=tk.NORMAL if enabled else tk.DISABLED)
+        self.apply_offset_button.set_enabled(enabled)
 
     def on_connection_type_changed(self, event=None):
         self._update_connection_controls()
@@ -1623,7 +2196,7 @@ class _HandrailSettingsDialog(_MicroStationTk):
             except tk.TclError:
                 pass
 
-    def on_options_changed(self):
+    def on_options_changed(self, event=None):
         if self._busy or self._closing:
             return
         if self.path_vertices:
@@ -1647,7 +2220,7 @@ class _HandrailSettingsDialog(_MicroStationTk):
         try:
             handle, result, deleted = replace_steel_handrail(
                 self.path_vertices, self.side_var.get(), bool(self.reverse_var.get()),
-                bool(self.close_var.get()), self.get_connection_type(),
+                self.get_close_mode(), self.get_connection_type(),
                 self.get_structure_offset(), self.preview_handle
             )
         except Exception as error:

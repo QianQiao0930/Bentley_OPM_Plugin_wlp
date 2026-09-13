@@ -1,0 +1,224 @@
+{
+  "itemTypeLibrary": "SteelHandrailComponents",
+  "recordCount": 17,
+  "records": [
+    {
+      "elementId": 101407,
+      "itemType": "SteelHandrailComponent_TopRail_L2147_364",
+      "componentName": "顶部扶手",
+      "specification": "钢管 φ42.4×3.2",
+      "designLengthMm": 2147.3644677935986,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 101407,
+      "itemType": "SteelHandrailComponent_TopRail_L219_911",
+      "componentName": "顶部扶手",
+      "specification": "钢管 φ42.4×3.2",
+      "designLengthMm": 219.9114857512855,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 101407,
+      "itemType": "SteelHandrailComponent_TopRail_L1897_037",
+      "componentName": "顶部扶手",
+      "specification": "钢管 φ42.4×3.2",
+      "designLengthMm": 1897.0370185170275,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 101407,
+      "itemType": "SteelHandrailComponent_TopRail_L116_679",
+      "componentName": "顶部扶手",
+      "specification": "钢管 φ42.4×3.2",
+      "designLengthMm": 116.67911345973532,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 101407,
+      "itemType": "SteelHandrailComponent_TopRail_L2217_366",
+      "componentName": "顶部扶手",
+      "specification": "钢管 φ42.4×3.2",
+      "designLengthMm": 2217.36617901973,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 101407,
+      "itemType": "SteelHandrailComponent_KneeRail_L2147_364",
+      "componentName": "中间横杆",
+      "specification": "钢管 φ33.7×3.2",
+      "designLengthMm": 2147.3644677935986,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 101407,
+      "itemType": "SteelHandrailComponent_KneeRail_L219_911",
+      "componentName": "中间横杆",
+      "specification": "钢管 φ33.7×3.2",
+      "designLengthMm": 219.9114857512855,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 101407,
+      "itemType": "SteelHandrailComponent_KneeRail_L1897_037",
+      "componentName": "中间横杆",
+      "specification": "钢管 φ33.7×3.2",
+      "designLengthMm": 1897.0370185170275,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 101407,
+      "itemType": "SteelHandrailComponent_KneeRail_L116_679",
+      "componentName": "中间横杆",
+      "specification": "钢管 φ33.7×3.2",
+      "designLengthMm": 116.67911345973532,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 101407,
+      "itemType": "SteelHandrailComponent_KneeRail_L2217_366",
+      "componentName": "中间横杆",
+      "specification": "钢管 φ33.7×3.2",
+      "designLengthMm": 2217.36617901973,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 101407,
+      "itemType": "SteelHandrailComponent_Stanchion_L1017_000",
+      "componentName": "立柱",
+      "specification": "钢管 φ48.3×3.2",
+      "designLengthMm": 1017.0,
+      "quantity": 6,
+      "unit": "件"
+    },
+    {
+      "elementId": 101407,
+      "itemType": "SteelHandrailComponent_Ball_L0_000",
+      "componentName": "连接球",
+      "specification": "实心球 φ76",
+      "designLengthMm": 0.0,
+      "quantity": 12,
+      "unit": "件"
+    },
+    {
+      "elementId": 101407,
+      "itemType": "SteelHandrailComponent_Kickplate_L6598_358",
+      "componentName": "踢脚板",
+      "specification": "钢板 130×6",
+      "designLengthMm": 6598.358264541377,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 101407,
+      "itemType": "SteelHandrailComponent_Bracket_L50_000",
+      "componentName": "踢脚板支架",
+      "specification": "钢板 6×50",
+      "designLengthMm": 50.0,
+      "quantity": 6,
+      "unit": "件"
+    },
+    {
+      "elementId": 101407,
+      "itemType": "SteelHandrailComponent_BasePlate_L0_000",
+      "componentName": "底部连接板",
+      "specification": "钢板 146×75×10",
+      "designLengthMm": 0.0,
+      "quantity": 6,
+      "unit": "件"
+    },
+    {
+      "elementId": 101407,
+      "itemType": "SteelHandrailComponent_DownBend_L160_381",
+      "componentName": "立柱下弯段",
+      "specification": "钢管 φ48.3×3.2",
+      "designLengthMm": 160.38052083641213,
+      "quantity": 6,
+      "unit": "件"
+    },
+    {
+      "elementId": 101407,
+      "itemType": "SteelHandrailComponent_EndClosure_L936_823",
+      "componentName": "端部闭合回弯",
+      "specification": "钢管 φ42.4×3.2",
+      "designLengthMm": 936.822971502571,
+      "quantity": 2,
+      "unit": "件"
+    }
+  ],
+  "summary": [
+    {
+      "componentName": "中间横杆",
+      "specification": "钢管 φ33.7×3.2",
+      "unit": "件",
+      "quantity": 5,
+      "totalLengthMm": 6598.358
+    },
+    {
+      "componentName": "底部连接板",
+      "specification": "钢板 146×75×10",
+      "unit": "件",
+      "quantity": 6,
+      "totalLengthMm": 0.0
+    },
+    {
+      "componentName": "立柱",
+      "specification": "钢管 φ48.3×3.2",
+      "unit": "件",
+      "quantity": 6,
+      "totalLengthMm": 6102.0
+    },
+    {
+      "componentName": "立柱下弯段",
+      "specification": "钢管 φ48.3×3.2",
+      "unit": "件",
+      "quantity": 6,
+      "totalLengthMm": 962.283
+    },
+    {
+      "componentName": "端部闭合回弯",
+      "specification": "钢管 φ42.4×3.2",
+      "unit": "件",
+      "quantity": 2,
+      "totalLengthMm": 1873.646
+    },
+    {
+      "componentName": "踢脚板",
+      "specification": "钢板 130×6",
+      "unit": "件",
+      "quantity": 1,
+      "totalLengthMm": 6598.358
+    },
+    {
+      "componentName": "踢脚板支架",
+      "specification": "钢板 6×50",
+      "unit": "件",
+      "quantity": 6,
+      "totalLengthMm": 300.0
+    },
+    {
+      "componentName": "连接球",
+      "specification": "实心球 φ76",
+      "unit": "件",
+      "quantity": 12,
+      "totalLengthMm": 0.0
+    },
+    {
+      "componentName": "顶部扶手",
+      "specification": "钢管 φ42.4×3.2",
+      "unit": "件",
+      "quantity": 5,
+      "totalLengthMm": 6598.358
+    }
+  ]
+}
