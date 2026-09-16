@@ -1,0 +1,94 @@
+{
+  "itemTypeLibrary": "TankLadderComponents",
+  "recordCount": 8,
+  "records": [
+    {
+      "elementId": 131754,
+      "itemType": "EndWeldedTriangleBracketByLineComponent_HBeam_L800_000",
+      "componentName": "构件A（横担）",
+      "specification": "H125×125×6.5×9",
+      "designLengthMm": 800.0,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 131754,
+      "itemType": "EndWeldedTriangleBracketByLineComponent_AngleBrace_L719_239",
+      "componentName": "构件B（斜撑）",
+      "specification": "∠100×10",
+      "designLengthMm": 719.2388155425118,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 131819,
+      "itemType": "EndWeldedTriangleBracketByLineComponent_HBeam_L1545_567",
+      "componentName": "构件A（横担）",
+      "specification": "H125×125×6.5×9",
+      "designLengthMm": 1545.5669020536243,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 131819,
+      "itemType": "EndWeldedTriangleBracketByLineComponent_AngleBrace_L1765_710",
+      "componentName": "构件B（斜撑）",
+      "specification": "∠100×10",
+      "designLengthMm": 1765.710044133951,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 132958,
+      "itemType": "EndWeldedTriangleBracketByLineComponent_HBeam_L465_394",
+      "componentName": "构件A（横担）",
+      "specification": "H125×125×6.5×9",
+      "designLengthMm": 465.3938138273209,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 132958,
+      "itemType": "EndWeldedTriangleBracketByLineComponent_AngleBrace_L246_034",
+      "componentName": "构件B（斜撑）",
+      "specification": "∠100×10",
+      "designLengthMm": 246.03420900317224,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 133949,
+      "itemType": "EndWeldedTriangleBracketByLineComponent_HBeam_L1108_144",
+      "componentName": "构件A（横担）",
+      "specification": "H125×125×6.5×9",
+      "designLengthMm": 1108.1439482861458,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 133949,
+      "itemType": "EndWeldedTriangleBracketByLineComponent_AngleBrace_L1155_020",
+      "componentName": "构件B（斜撑）",
+      "specification": "∠100×10",
+      "designLengthMm": 1155.020166371973,
+      "quantity": 1,
+      "unit": "件"
+    }
+  ],
+  "summary": [
+    {
+      "componentName": "构件A（横担）",
+      "specification": "H125×125×6.5×9",
+      "unit": "件",
+      "quantity": 4,
+      "totalDesignLengthMm": 3919.105
+    },
+    {
+      "componentName": "构件B（斜撑）",
+      "specification": "∠100×10",
+      "unit": "件",
+      "quantity": 4,
+      "totalDesignLengthMm": 3886.003
+    }
+  ]
+}
