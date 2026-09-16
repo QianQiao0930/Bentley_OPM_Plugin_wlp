@@ -6,7 +6,7 @@
     python _geometry_selftest.py
 
 覆盖：吊杆直径表、选项校验、各站位/半径、螺栓圆均布、圆弧中点、两个把手
-（±175 / 高 150 / Ø20 / 下端 180° 卷钩 / 上端外弯）、铰链销轴与 40×22 长圆孔、
+（±175 / 高 150 / Ø20 / 上下对称 90° 弯头 / 两端焊在盖板）、铰链销轴与 40×22 长圆孔、
 吊杆立柱与 R220 弯头、扁头（100×120×D/2、孔在正中）、圆→矩形放样、盖板顶部
 法兰吊耳 + 水平销 + M20 调节吊环螺栓（照 eye_bolt_only.py）+ 双螺母、
 单位换算（毫米 / 大 UOR 主单位）、反向、螺栓开关。
@@ -410,6 +410,15 @@ def _install_stub_modules():
         sys.modules[name] = module
         return module
 
+    class _QtStub(object):
+        """占位 Qt 类：构造接受任意参数，也可被继承（面板基类）。"""
+
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __getattr__(self, name):
+            return _QtStub
+
     runtime = {'AccuSnap': _Any(), 'PyCadInputQueue': _Any(),
                'PyCommandState': _Any(), 'NotificationManager': _Any(),
                'MessageCenter': _Any()}
@@ -437,6 +446,18 @@ def _install_stub_modules():
     make('MSPyMstnPlatform',
          dict(common, **platform, **runtime, DgnPrimitiveTool=DgnPrimitiveTool))
     make('win32gui', {})
+    if importlib.util.find_spec('PyQt5') is None:
+        # 面板已改用 PyQt5；没有装 PyQt5 的纯几何环境用占位类挡住导入。
+        make('PyQt5', {})
+        make('PyQt5.QtCore', {name: _QtStub for name in (
+            'QEventLoop', 'QRectF', 'QSize', 'Qt', 'QTimer')})
+        make('PyQt5.QtGui', {name: _QtStub for name in (
+            'QColor', 'QLinearGradient', 'QPainter', 'QPainterPath',
+            'QPalette', 'QPen', 'QRegion')})
+        make('PyQt5.QtWidgets', {name: _QtStub for name in (
+            'QApplication', 'QCheckBox', 'QGridLayout', 'QHBoxLayout',
+            'QLabel', 'QLineEdit', 'QMessageBox', 'QPushButton',
+            'QRadioButton', 'QSizePolicy', 'QVBoxLayout', 'QWidget')})
 
 
 def load_plugin():
@@ -631,6 +652,51 @@ if slot_elements:
     check('铰链：长圆孔宽 22（y = ∓11）',
           close(min(us), -11.0) and close(max(us), 11.0), (min(us), max(us)))
 
+# 不依赖内核拓扑的几何回归检查，吊杆实机检查跳过时仍然执行。
+segments, start, _ = module._handle_path(175.0, 150.0)
+check('把手：五段路径、两端回到盖板',
+      [v[0] for v in segments] == ['line', 'arc', 'line', 'arc', 'line']
+      and start == (0.0, 75.0) and segments[-1][-1] == (0.0, -75.0))
+check('把手：上下弯头对称、握持段平行盖板',
+      segments[1][-1][0] == segments[3][1][0]
+      and segments[1][-1][1] == -segments[3][1][1]
+      and segments[0][-1][0] == segments[-1][1][0])
+for size in (18, 20, 24):
+    for rating in (150, 300, 600):
+        opts = module._resolve_options({'nominal_size': size, 'rating': rating})
+        dims = opts['dims']
+        stations = module._manway_layout(dims)
+        spec, anchor, direction = module._davit_support_placement(
+            dims['davit_dia'], dims['flange_t'], stations)
+        hx = anchor[0] + spec['hole_sx'] * direction[0]
+        hy = anchor[1] + spec['hole_sx'] * direction[1]
+        check('支架 %s/%s：双孔位置与吊杆同轴，背板朝外' % (size, rating),
+              close(hx, stations['x_davit_pivot']) and close(hy, stations['y_post'])
+              and close(direction[0], 0.0) and close(direction[1], 1.0)
+              and spec['length'] > spec['hole_sx'] + spec['hole_dia'] / 2.0)
+        for heading in (0.0, 37.0, 180.0):
+            frame = module._ManholeFrame(DPoint3d.From(12, 34, 56), 12.0, heading)
+            arm, reach = module._davit_arm_frame(frame, stations)
+            start = arm.point(0, reach, -module.DAVIT_BEND_RADIUS)
+            expected = frame.point(stations['x_davit_pivot'], stations['y_post'],
+                                   stations['z_post_top'])
+            tip = arm.point(0, 0, 0)
+            target = frame.point(stations['x_davit'], 0, stations['z_arm'])
+            check('弯臂 %s/%s 朝向%s：斜向吊点、弯头接竖直转轴' % (size, rating, heading),
+                  point_close(start, (expected.x, expected.y, expected.z))
+                  and point_close(tip, (target.x, target.y, target.z))
+                  and reach > stations['y_post']
+                  and close(arm.u[0]*arm.v[0] + arm.u[1]*arm.v[1], 0.0))
+        zmax = module.DAVIT_SUPPORT_CLEAR_HEIGHT / 2 + module.DAVIT_SUPPORT_THICKNESS
+        ends_inside = True
+        for side in (-1, 1):
+            sy = side * dims['flange_t'] / 2
+            x = anchor[0] - sy * direction[1]
+            y = anchor[1] + sy * direction[0]
+            ends_inside &= (stations['x_flange_back'] <= x <= stations['x_flange_front']
+                            and y*y + zmax*zmax < stations['flange_r']**2)
+        check('支架 %s/%s：上下开口端接入后法兰实体范围' % (size, rating), ends_inside)
+
 davit_builder = None
 davit_result = None
 try:
@@ -689,9 +755,9 @@ if davit_builder is not None:
         check('把手：总高 150（z = -75..+75，中面在盖板中心高度）',
               close(min(zs), -75.0) and close(max(zs), 75.0),
               'z=%.1f..%.1f' % (min(zs), max(zs)))
-        tip_x = layout['x_cover_front'] + 100.0 - 2.0 * module.HANDLE_CURL_RADIUS
-        check('把手：下端 180° 卷钩收回盖板一侧（钩尖在盖板外面 56 处）',
-              any(close(x, tip_x) for x in xs), tip_x)
+        check('把手：下端回到盖板',
+              close(points[-1][0], layout['x_cover_front'])
+              and close(points[-1][2], -75.0))
 
     # 8.2 立柱 / R220 弯头 / 水平臂
     z_arm = layout['z_arm']

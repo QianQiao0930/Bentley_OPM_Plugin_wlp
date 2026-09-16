@@ -22,18 +22,26 @@ from __future__ import print_function
 
 from math import atan2, cos, hypot, pi, radians, sin, sqrt
 import os
+import sys
 import traceback
-
-import tkinter as tk
-import tkinter
-
-import win32gui
 
 from MSPyBentley import *
 from MSPyBentleyGeom import *
 from MSPyDgnPlatform import *
 from MSPyDgnView import *
 from MSPyMstnPlatform import *
+
+# PyQt5 必须放在 MSPy 的 import * **之后**：MSPy 通配导入会带进同名符号，
+# 放在前面会被覆盖，导致面板基本控件类丢失、插件直接起不来。
+from PyQt5.QtCore import QEventLoop, QRectF, QSize, Qt, QTimer
+from PyQt5.QtGui import (QColor, QLinearGradient, QPainter, QPainterPath,
+                         QPalette, QPen, QRegion)
+from PyQt5.QtWidgets import (QApplication, QCheckBox, QGridLayout,
+                             QHBoxLayout, QLabel, QLineEdit, QMessageBox,
+                             QPushButton, QRadioButton, QSizePolicy,
+                             QVBoxLayout, QWidget)
+
+import win32gui
 
 
 # ---------------------------------------------------------------------------
@@ -158,7 +166,6 @@ HANDLE_OFFSET = 175.0         # 把手中心到竖直中心线（图中 175 | 17
 HANDLE_LENGTH = 150.0         # 把手竖直总高（图中 150）
 HANDLE_PROJECTION = 60.0      # 从盖板外面垂直伸出的长度
 HANDLE_TOP_BEND_RADIUS = 40.0  # 上端 90° 下弯中心线半径
-HANDLE_CURL_RADIUS = 22.0     # 下端 180° 卷钩中心线半径
 
 NUT_ACROSS_FLATS_FACTOR = 1.5   # 六角对边距 ≈ 1.5 × 螺纹直径
 NUT_HEIGHT_FACTOR = 0.8
@@ -182,7 +189,8 @@ COLOR_LOFT = 4
 CELL_NAME = "TANK_WALL_MANHOLE"
 
 # 选项变化后延迟重建的毫秒数：连点几下只重建一次。
-REGENERATE_DELAY_MS = 150
+REGENERATE_DELAY_MS = 150        # 选择框（尺寸 / 压力等级 / 形式 / 开关）的防抖
+TEXT_REGENERATE_DELAY_MS = 750   # 文本框（朝向 / 筒节长度）的防抖，避免打到一半就重建
 
 DEFAULT_OPTIONS = {
     "nominal_size": 20,       # 18 / 20 / 24（英寸）
@@ -307,7 +315,8 @@ def _manway_layout(dims):
         "cover_r": cover_r,
         "bolt_circle_r": dims["bolt_circle"] / 2.0,
         "bolt_hole_r": (dims["bolt_dia"] + BOLT_HOLE_CLEARANCE) / 2.0,
-        "x_davit": x_cover_front + DAVIT_PLANE_OFFSET,
+        "x_davit": x_cover_front + DAVIT_PLANE_OFFSET,  # 盖板顶部吊点
+        "x_davit_pivot": (x_flange_back + x_flange_front) / 2.0,
         "y_post": flange_r + DAVIT_POST_MARGIN,
         "z_arm": z_arm,
         "z_post_top": z_arm - DAVIT_BEND_RADIUS,
@@ -905,41 +914,28 @@ def _add_bolts(builder, frame, dims, layout):
 
 
 def _handle_path(y_center, length):
-    """一只把手在 (x, z) 平面内的路径：垂直伸出 → 90° 下弯 → 竖直段 → 180° 卷钩。
-
-    把手平面垂直于盖板法兰（含人孔轴线与竖直方向）；卷钩朝回盖板一侧。
-    返回 (二维点段列表, 起点, 起点切向)。
-    """
+    """盖板法向 (x, z) 平面内的匚形把手，两端均落在盖板上。"""
     half = length / 2.0
-    curl_r = HANDLE_CURL_RADIUS
-    bend_r = HANDLE_TOP_BEND_RADIUS
+    radius = HANDLE_TOP_BEND_RADIUS
     projection = HANDLE_PROJECTION
-
-    z_top = half
-    z_bottom = -half + curl_r
-    x_out = projection                      # 伸出段末端
-    x_leg = x_out + bend_r                  # 竖直段所在 x
-    if z_top - bend_r <= z_bottom:
-        raise RuntimeError("把手尺寸不成立：请检查总高、伸出量、弯头与卷钩半径的关系。")
-
-    bend_center = (x_out, z_top - bend_r)
-    bend_end = (x_leg, z_top - bend_r)
-    curl_center = (x_leg - curl_r, z_bottom)
-    curl_mid = (x_leg - curl_r, z_bottom - curl_r)
-    curl_tip = (x_leg - 2.0 * curl_r, z_bottom)
-
+    if radius <= 0.0 or projection <= 0.0 or length <= 2.0 * radius:
+        raise ValueError("把手总高必须大于两倍弯曲半径。")
+    top = (projection, half)
+    upper = (projection + radius, half - radius)
+    lower = (projection + radius, -half + radius)
+    bottom = (projection, -half)
     segments = [
-        ("line", (0.0, z_top), (x_out, z_top)),
-        ("arc", (x_out, z_top),
-         _arc_midpoint(bend_center, (x_out, z_top), bend_end), bend_end),
-        ("line", bend_end, (x_leg, z_bottom)),
-        ("arc", (x_leg, z_bottom), curl_mid, curl_tip),
+        ("line", (0.0, half), top),
+        ("arc", top, _arc_midpoint((projection, half - radius), top, upper), upper),
+        ("line", upper, lower),
+        ("arc", lower, _arc_midpoint((projection, -half + radius), lower, bottom), bottom),
+        ("line", bottom, (0.0, -half)),
     ]
-    return segments, (0.0, z_top), None
+    return segments, (0.0, half), None
 
 
 def _add_handles(builder, frame, layout):
-    """盖板外面两个 Ø20 卷钩把手：各距竖直中心线 175、垂直于盖板法兰。"""
+    """盖板外面两个 Ø20 匚形把手：上下两端焊在盖板上，各距中心线 175。"""
     dgn_model = builder.dgn_model
     x_face = layout["x_cover_front"]
 
@@ -1377,25 +1373,54 @@ def _support_chamfer_polygons(spec):
     return polygons
 
 
+def _davit_support_placement(diameter, flange_thickness, layout):
+    """支架沿法兰径向正装，开口端焊在后法兰，转轴保持竖直。"""
+    spec = _davit_support_layout(diameter, flange_thickness)
+    z_outer = DAVIT_SUPPORT_CLEAR_HEIGHT / 2.0 + DAVIT_SUPPORT_THICKNESS
+    chord = sqrt(layout["flange_r"] ** 2 - z_outer ** 2)
+    anchor_x = layout["x_davit_pivot"]
+    anchor_y = chord - 2.0
+    distance = layout["y_post"] - anchor_y
+    spec["hole_sx"] = distance
+    spec["length"] = distance + diameter / 2.0 + 20.0
+    return spec, (anchor_x, anchor_y), (0.0, 1.0)
+
+
+def _davit_arm_frame(frame, layout):
+    """弯臂竖直平面在俯视中斜向吊点；局部 +y 从吊点指向转轴。"""
+    dx = layout["x_davit_pivot"] - layout["x_davit"]
+    dy = layout["y_post"]
+    reach = hypot(dx, dy)
+    vx, vy = dx / reach, dy / reach
+    arm = frame.offset(layout["x_davit"], 0.0, layout["z_arm"])
+    arm.u = (vy * frame.u[0] - vx * frame.v[0],
+             vy * frame.u[1] - vx * frame.v[1])
+    arm.v = (vx * frame.u[0] + vy * frame.v[0],
+             vx * frame.u[1] + vy * frame.v[1])
+    return arm, reach
+
+
 def _add_davit_pivot_support(builder, frame, resolved, layout):
     """矩形截面沿 ] 路径扫掠、钻双孔、R20/R10 圆角及30度端部倒角。"""
     dgn_model = builder.dgn_model
     model_ref = ISessionMgr.ActiveDgnModelRef
     diameter = resolved["dims"]["davit_dia"]
-    spec = _davit_support_layout(diameter, resolved["dims"]["flange_t"])
+    spec, anchor, outward = _davit_support_placement(
+        diameter, resolved["dims"]["flange_t"], layout)
     width = spec["width"]
     length = spec["length"]
     thick = DAVIT_SUPPORT_THICKNESS
     height = DAVIT_SUPPORT_CLEAR_HEIGHT
-    x_post = layout["x_davit"]
+    x_post = layout["x_davit_pivot"]
     y_post = layout["y_post"]
     z_start = -height / 2.0
-    # sx=hole_sx 落在吊杆轴线上；+sx 从自由端走向法兰/背板。
-    y_start = y_post + spec["hole_sx"]
+    # sx=0 为法兰焊接端，sx=hole_sx 为吊杆轴线，背板在更外侧。
 
     def point(local):
         sx, sy, sz = local
-        return frame.point(x_post + sy, y_start - sx, z_start + sz)
+        return frame.point(anchor[0] + sx * outward[0] - sy * outward[1],
+                           anchor[1] + sx * outward[1] + sy * outward[0],
+                           z_start + sz)
 
     profile_points = DPoint3dArray()
     for local in ((0.0, -width / 2.0, -thick),
@@ -1489,7 +1514,7 @@ def _add_davit(builder, frame, resolved, layout):
     dgn_model = builder.dgn_model
     davit_dia = resolved["dims"]["davit_dia"]
     hole_r = (davit_dia + DAVIT_HOLE_CLEARANCE) / 2.0
-    x_bar = layout["x_davit"]
+    x_bar = layout["x_davit_pivot"]
     y_post = layout["y_post"]
     z_arm = layout["z_arm"]
     z_top = layout["z_post_top"]
@@ -1520,18 +1545,18 @@ def _add_davit(builder, frame, resolved, layout):
                             DAVIT_COTTER_DIA))
 
     # 3) R220 弯头：竖直 → 水平（真圆弧）。
-    bend_y = y_post - DAVIT_BEND_RADIUS
+    head_frame, arm_reach = _davit_arm_frame(frame, layout)
+    bend_y = arm_reach - DAVIT_BEND_RADIUS
     bend = _torus_element(
-        dgn_model, frame.point(x_bar, bend_y, z_arm - DAVIT_BEND_RADIUS),
-        DVec3d.From(frame.v[0], frame.v[1], 0.0), DVec3d.From(0.0, 0.0, 1.0),
+        dgn_model, head_frame.point(0.0, bend_y, -DAVIT_BEND_RADIUS),
+        DVec3d.From(head_frame.v[0], head_frame.v[1], 0.0), DVec3d.From(0.0, 0.0, 1.0),
         frame.uor(DAVIT_BEND_RADIUS), frame.uor(davit_dia / 2.0), pi / 2.0,
     )
     if bend is not None:
         _apply_color(bend, COLOR_DAVIT)
         builder.add(bend)
 
-    # 4) 扁头 + 圆→矩形放样 + 水平臂（在平移后的子坐标系里建，落到盖板顶部）。
-    head_frame = frame.offset(x_bar, 0.0, z_arm)
+    # 4) 扁头 + 圆→矩形放样 + 水平臂（在旋转后的子坐标系里建，斜向盖板顶部）。
     _add_flat_head(builder, head_frame, FLAT_HEAD_WIDTH, flat_length, thickness)
     loft_mode = _add_loft(builder, head_frame, davit_dia, FLAT_HEAD_WIDTH,
                           thickness, y_rect, y_round)
@@ -1678,180 +1703,693 @@ def describe_spec(nominal_size, rating, mode):
 
 
 # ---------------------------------------------------------------------------
-# MicroStation 工具面板
+# 面板外观：浅色柔面（PyQt5 自绘圆角 / 柔影，不依赖任何图片资源）
 # ---------------------------------------------------------------------------
 
+UI_BG = QColor(238, 241, 246)         # 面板底色
+UI_CARD = QColor(255, 255, 255)       # 卡片底
+UI_WELL = QColor(231, 235, 242)       # 凹槽 / 输入框底
+UI_TEXT = QColor(57, 67, 90)
+UI_MUTED = QColor(125, 138, 160)
+UI_RING = QColor(186, 196, 212)       # 未选中指示器描边
+UI_SHADOW = QColor(163, 177, 198)
+UI_ACCENT = QColor(74, 102, 224)      # 主按钮 / 选中态
+UI_ACCENT_TOP = QColor(116, 148, 248)
+UI_ACCENT_BOTTOM = QColor(70, 98, 224)
+UI_ACCENT_SHADOW = QColor(76, 106, 208)
+UI_INFO = QColor(47, 111, 181)        # 状态文字（正常）
+UI_ERROR = QColor(180, 35, 24)        # 状态文字（出错）
+UI_FONT = "Microsoft YaHei UI"
+UI_TITLE = "罐壁人孔"
+UI_RADIUS = 12
 
-class _MicroStationTk(tk.Tk):
-    """可挂接到 MicroStation 工具设置区的 Tk 根窗口。"""
+# QApplication 必须由 Python 侧一直持有引用：一旦没有引用，Qt 会把它连同
+# 底层对象一起回收，后续建控件就会直接闪退（且没有任何 Python 报错）。
+_QT_APP = [None]
 
-    def __init__(self):
-        tk.Tk.__init__(self)
-        self._attached_to_mstn = False
 
-    def microstation_mainloop(self):
-        while tkinter._default_root is not None:
+def ensure_qt_app():
+    """确保存在 QApplication，并把引用留在模块级。"""
+    app = QApplication.instance()
+    if app is None:
+        app = QApplication(sys.argv)
+    _QT_APP[0] = app
+    return app
+
+
+def rounded_rect(rect, radius):
+    path = QPainterPath()
+    path.addRoundedRect(QRectF(rect), radius, radius)
+    return path
+
+
+def layer_alpha(color, steps):
+    """单层透明度：让 steps 层叠加后正好达到 color 的 alpha。"""
+    peak = max(0.0, min(1.0, color.alpha()/255.0))
+    if peak <= 0.0:
+        return 0
+    return max(1, int(round((1.0-(1.0-peak)**(1.0/steps))*255)))
+
+
+def paint_soft_shadow(painter, rect, radius, color, dx, dy, spread, steps=24):
+    """逐层填充叠加出真渐变的外阴影；描边法会在末端留下可见的一圈硬边。"""
+    alpha = layer_alpha(color, steps)
+    if not alpha:
+        return
+    painter.setPen(Qt.NoPen)
+    painter.setBrush(QColor(color.red(), color.green(), color.blue(), alpha))
+    for step in range(steps):
+        grow = spread*(1.0-step/float(steps))
+        frame = QRectF(rect).translated(dx, dy)
+        frame.adjust(-grow, -grow, grow, grow)
+        painter.drawRoundedRect(frame, radius+grow, radius+grow)
+
+
+def paint_inner_shadow(painter, rect, radius, color, dx, dy, depth, steps=24):
+    """凹槽内影：把同一形状朝 (dx,dy) 平移后叠填，越靠边越深。"""
+    alpha = layer_alpha(color, steps)
+    if not alpha:
+        return
+    painter.setPen(Qt.NoPen)
+    painter.setBrush(QColor(color.red(), color.green(), color.blue(), alpha))
+    for step in range(steps):
+        shift = 1.0-step/float(steps)
+        painter.drawRoundedRect(QRectF(rect).translated(dx*shift, dy*shift),
+                                radius, radius)
+
+
+def paint_raised(painter, rect, radius, surface, spread=12.0, dark=118,
+                 light=205, gradient=None, shadow=UI_SHADOW):
+    """gradient 传 (顶色, 底色) 时改用纵向渐变填充，否则用纯色 surface。"""
+    painter.save()
+    painter.setRenderHint(QPainter.Antialiasing, True)
+    paint_soft_shadow(painter, rect, radius, QColor(255, 255, 255, light),
+                      -2.5, -2.5, spread)
+    paint_soft_shadow(painter, rect, radius,
+                      QColor(shadow.red(), shadow.green(), shadow.blue(), dark),
+                      3.0, 4.0, spread)
+    painter.setPen(Qt.NoPen)
+    if gradient is None:
+        painter.setBrush(surface)
+    else:
+        ramp = QLinearGradient(rect.topLeft(), rect.bottomLeft())
+        ramp.setColorAt(0.0, gradient[0])
+        ramp.setColorAt(1.0, gradient[1])
+        painter.setBrush(ramp)
+    painter.drawRoundedRect(QRectF(rect), radius, radius)
+    painter.restore()
+
+
+def paint_inset(painter, rect, radius, surface=UI_WELL, depth=10.0, steps=24):
+    painter.save()
+    painter.setRenderHint(QPainter.Antialiasing, True)
+    painter.setPen(Qt.NoPen)
+    painter.setBrush(surface)
+    painter.drawRoundedRect(QRectF(rect), radius, radius)
+    painter.setClipPath(rounded_rect(rect, radius))
+    paint_inner_shadow(painter, rect, radius,
+                       QColor(UI_SHADOW.red(), UI_SHADOW.green(),
+                              UI_SHADOW.blue(), 150),
+                       depth, depth, depth, steps)
+    paint_inner_shadow(painter, rect, radius, QColor(255, 255, 255, 230),
+                       -depth, -depth, depth, steps)
+    painter.restore()
+
+
+class NeuButton(QPushButton):
+    """新拟态按钮：静止凸起，按下转为凹槽；accent 为主操作。"""
+
+    def __init__(self, text, parent=None, accent=False, radius=None,
+                 margin_x=15, margin_y=13):
+        super().__init__(text, parent)
+        self.accent = accent
+        self.radius = radius
+        self.margin_x = margin_x
+        self.margin_y = margin_y
+        self.setCursor(Qt.PointingHandCursor)
+        self.setAttribute(Qt.WA_Hover, True)
+        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.setMinimumHeight(44+2*margin_y)
+        self.setStyleSheet('QPushButton {border: none; background: transparent;'
+                           ' font-size: 14px;}')
+
+    def enterEvent(self, event):
+        self.update()
+
+    def leaveEvent(self, event):
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing, True)
+        rect = QRectF(self.rect()).adjusted(self.margin_x, self.margin_y,
+                                            -self.margin_x, -self.margin_y)
+        radius = self.radius if self.radius else rect.height()/2.0
+        hovered = self.underMouse() and self.isEnabled()
+        if self.accent:
+            if self.isDown():
+                top, bottom, spread = (UI_ACCENT_BOTTOM,
+                                       UI_ACCENT_BOTTOM.darker(107), 7.0)
+            elif hovered:
+                top = UI_ACCENT_TOP.lighter(105)
+                bottom = UI_ACCENT_BOTTOM.lighter(105)
+                spread = 10.0
+            else:
+                top, bottom, spread = UI_ACCENT_TOP, UI_ACCENT_BOTTOM, 9.0
+            paint_raised(painter, rect, radius, UI_CARD, spread=spread, dark=100,
+                         light=95, gradient=(top, bottom),
+                         shadow=UI_ACCENT_SHADOW)
+            painter.setPen(QColor(255, 255, 255))
+        elif self.isDown():
+            paint_inset(painter, rect, radius, UI_WELL, depth=7.0)
+            painter.setPen(UI_TEXT)
+        else:
+            surface = QColor(247, 249, 253) if hovered else UI_CARD
+            paint_raised(painter, rect, radius, surface, spread=9.0, dark=100,
+                         gradient=(surface, surface.darker(103)))
+            painter.setPen(UI_TEXT)
+        font = self.font()
+        font.setBold(self.accent)
+        painter.setFont(font)
+        painter.drawText(rect, Qt.AlignCenter, self.text())
+
+
+class NeuIconButton(QWidget):
+    """标题栏小图标钮：悬停浮出圆形底，关闭钮悬停为红色。"""
+
+    def __init__(self, parent, kind, callback, danger=False):
+        super().__init__(parent)
+        self.kind = kind
+        self.danger = danger
+        self._callback = callback
+        self._pressed = False
+        self.setFixedSize(32, 32)
+        self.setCursor(Qt.PointingHandCursor)
+        self.setAttribute(Qt.WA_Hover, True)
+
+    def enterEvent(self, event):
+        self.update()
+
+    def leaveEvent(self, event):
+        self.update()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self._pressed = True
             self.update()
-            if tkinter._default_root is None:
-                break
-            if not win32gui.IsWindow(self.winfo_id()):
-                break
+            event.accept()
+            return
+        super().mousePressEvent(event)
 
-            if not self._attached_to_mstn:
-                frame_handle = win32gui.GetParent(self.winfo_id())
-                if frame_handle != 0:
-                    PyCadInputQueue.AttachTkinterToolSetting(frame_handle)
-                    self._attached_to_mstn = True
+    def mouseReleaseEvent(self, event):
+        released = self._pressed and self.rect().contains(event.pos())
+        self._pressed = False
+        self.update()
+        if event.button() == Qt.LeftButton and released:
+            self._callback()
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
 
-            PyCadInputQueue.PythonMainLoop()
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing, True)
+        active = self.underMouse() or self._pressed
+        if active:
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(UI_ERROR if self.danger else QColor(255, 255, 255, 235))
+            painter.drawEllipse(QRectF(self.rect()).adjusted(1.0, 1.0,
+                                                             -1.0, -1.0))
+        if self.danger:
+            color = QColor(255, 255, 255) if active else QColor(122, 134, 154)
+        else:
+            color = UI_MUTED
+        pen = QPen(color, 1.8)
+        pen.setCapStyle(Qt.RoundCap)
+        painter.setPen(pen)
+        center = self.rect().center()
+        cx, cy = center.x(), center.y()
+        if self.kind == 'close':
+            painter.drawLine(cx-4, cy-4, cx+4, cy+4)
+            painter.drawLine(cx-4, cy+4, cx+4, cy-4)
+        else:
+            painter.drawLine(cx-5, cy, cx+5, cy)
 
 
-class _ManholeSettingsDialog(_MicroStationTk):
-    """尺寸/形式选择、预览 / 确定 / 取消界面。"""
+class NeuTitleBar(QWidget):
+    """无边框窗口的自绘标题栏，空白处按住可拖动整个窗口。"""
+
+    def __init__(self, title, on_minimize, on_close, parent=None):
+        super().__init__(parent)
+        self.setFixedHeight(46)
+        self._drag_offset = None
+        row = QHBoxLayout(self)
+        row.setContentsMargins(18, 0, 10, 0)
+        row.setSpacing(9)
+        dot = QLabel(self)
+        dot.setFixedSize(9, 9)
+        dot.setStyleSheet('background: #4A66E0; border-radius: 4px;')
+        dot.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        caption = QLabel(title, self)
+        caption.setStyleSheet('font-size: 14px; font-weight: 600;'
+                              ' color: #39435A;')
+        caption.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        row.addWidget(dot)
+        row.addWidget(caption)
+        row.addStretch(1)
+        row.addWidget(NeuIconButton(self, 'minimize', on_minimize))
+        row.addWidget(NeuIconButton(self, 'close', on_close, danger=True))
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self._drag_offset = (event.globalPos()
+                                 - self.window().frameGeometry().topLeft())
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if self._drag_offset is not None and event.buttons() & Qt.LeftButton:
+            self.window().move(event.globalPos() - self._drag_offset)
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        self._drag_offset = None
+        super().mouseReleaseEvent(event)
+
+
+class NeuCard(QWidget):
+    """白色圆角卡片：柔和外影 + 分组标题，content 为内部栅格。"""
+
+    def __init__(self, title, parent=None, radius=15, margin_x=15, margin_y=5,
+                 padding=8):
+        super().__init__(parent)
+        self.radius = radius
+        self.margin_x = margin_x
+        self.margin_y = margin_y
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(margin_x+padding, margin_y+padding,
+                                 margin_x+padding, margin_y+padding)
+        outer.setSpacing(5)
+        caption = QLabel(title, self)
+        caption.setStyleSheet('color: #7D8AA0; font-size: 12px;'
+                              ' font-weight: 600;')
+        outer.addWidget(caption)
+        self.content = QGridLayout()
+        self.content.setContentsMargins(0, 0, 0, 0)
+        self.content.setHorizontalSpacing(10)
+        self.content.setVerticalSpacing(6)
+        outer.addLayout(self.content)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing, True)
+        rect = QRectF(self.rect()).adjusted(self.margin_x, self.margin_y,
+                                            -self.margin_x, -self.margin_y)
+        paint_raised(painter, rect, self.radius, UI_CARD, spread=7.0,
+                     dark=92, light=225)
+
+
+class NeuPanel(QWidget):
+    """凹槽信息面板（规格 / 预览 / 状态）。"""
+
+    def __init__(self, parent=None, radius=14, margin=3, padding=9):
+        super().__init__(parent)
+        self.radius = radius
+        self.margin = margin
+        self.content = QVBoxLayout(self)
+        self.content.setContentsMargins(margin+padding, margin+padding,
+                                        margin+padding, margin+padding)
+        self.content.setSpacing(3)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing, True)
+        rect = QRectF(self.rect()).adjusted(self.margin, self.margin,
+                                            -self.margin, -self.margin)
+        paint_inset(painter, rect, self.radius, UI_WELL, depth=8.0)
+
+
+class NeuEdit(QWidget):
+    """凹槽输入框：内嵌无边框 QLineEdit，凹槽与留白由自绘完成。"""
+
+    def __init__(self, text='', parent=None, width=84, radius=13, margin=2):
+        super().__init__(parent)
+        self.radius = radius
+        self.margin = margin
+        self.edit = QLineEdit(text, self)
+        self.edit.setFrame(False)
+        self.edit.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.edit.setFixedWidth(width)
+        self.edit.setStyleSheet(
+            'QLineEdit {border: none; background: transparent;'
+            ' color: #39435A; font-size: 15px; font-weight: 600;'
+            ' selection-background-color: #4A66E0; selection-color: #FFFFFF;}')
+        row = QHBoxLayout(self)
+        row.setContentsMargins(margin+11, margin+4, margin+11, margin+4)
+        row.addWidget(self.edit)
+        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+
+    def value(self):
+        return self.edit.text()
+
+    def set_value(self, text):
+        self.edit.setText(text)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing, True)
+        rect = QRectF(self.rect()).adjusted(self.margin, self.margin,
+                                            -self.margin, -self.margin)
+        paint_inset(painter, rect, self.radius, UI_WELL, depth=8.0)
+
+
+class NeuChoice(QRadioButton):
+    """自绘单选项：圆环指示器 + 文字，选中为实心主色。"""
+
+    def __init__(self, text, parent=None):
+        super().__init__(text, parent)
+        self.setCursor(Qt.PointingHandCursor)
+        self.setAttribute(Qt.WA_Hover, True)
+        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+
+    def enterEvent(self, event):
+        self.update()
+
+    def leaveEvent(self, event):
+        self.update()
+
+    def sizeHint(self):
+        metrics = self.fontMetrics()
+        return QSize(metrics.horizontalAdvance(self.text())+30, 22)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing, True)
+        enabled = self.isEnabled()
+        checked = self.isChecked()
+        size = 16.0
+        top = (self.height()-size)/2.0
+        circle = QRectF(4.0, top, size, size)
+        if checked:
+            painter.setPen(QPen(UI_ACCENT if enabled else UI_MUTED, 2.0))
+            painter.setBrush(QColor(255, 255, 255))
+        else:
+            pen = QPen(UI_ACCENT if (enabled and self.underMouse()) else UI_RING,
+                       2.0)
+            painter.setPen(pen)
+            painter.setBrush(QColor(255, 255, 255) if enabled else UI_WELL)
+        painter.drawEllipse(circle)
+        if checked:
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(UI_ACCENT if enabled else UI_MUTED)
+            painter.drawEllipse(circle.adjusted(4.6, 4.6, -4.6, -4.6))
+        painter.setPen(UI_TEXT if enabled else UI_MUTED)
+        painter.drawText(QRectF(4.0+size+8.0, 0.0, self.width()-(12.0+size),
+                                float(self.height())),
+                         Qt.AlignLeft | Qt.AlignVCenter, self.text())
+
+
+class NeuToggle(QCheckBox):
+    """自绘复选项：圆角方格指示器，选中时画白色对勾。"""
+
+    def __init__(self, text, parent=None):
+        super().__init__(text, parent)
+        self.setCursor(Qt.PointingHandCursor)
+        self.setAttribute(Qt.WA_Hover, True)
+        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+
+    def enterEvent(self, event):
+        self.update()
+
+    def leaveEvent(self, event):
+        self.update()
+
+    def sizeHint(self):
+        metrics = self.fontMetrics()
+        return QSize(metrics.horizontalAdvance(self.text())+32, 22)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing, True)
+        enabled = self.isEnabled()
+        checked = self.isChecked()
+        size = 16.0
+        top = (self.height()-size)/2.0
+        box = QRectF(4.0, top, size, size)
+        if checked:
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(UI_ACCENT if enabled else UI_MUTED)
+            painter.drawRoundedRect(box, 5.0, 5.0)
+            pen = QPen(QColor(255, 255, 255), 2.0)
+            pen.setCapStyle(Qt.RoundCap)
+            pen.setJoinStyle(Qt.RoundJoin)
+            painter.setPen(pen)
+            mark = QPainterPath()
+            mark.moveTo(box.left()+4.0, box.center().y())
+            mark.lineTo(box.center().x()-0.6, box.bottom()-4.2)
+            mark.lineTo(box.right()-3.4, box.top()+4.0)
+            painter.drawPath(mark)
+        else:
+            pen = QPen(UI_ACCENT if (enabled and self.underMouse()) else UI_RING,
+                       2.0)
+            painter.setPen(pen)
+            painter.setBrush(QColor(255, 255, 255) if enabled else UI_WELL)
+            painter.drawRoundedRect(box, 5.0, 5.0)
+        painter.setPen(UI_TEXT if enabled else UI_MUTED)
+        painter.drawText(QRectF(4.0+size+9.0, 0.0, self.width()-(13.0+size),
+                                float(self.height())),
+                         Qt.AlignLeft | Qt.AlignVCenter, self.text())
+
+
+class _ManholeSettingsDialog(QWidget):
+    """尺寸/形式选择、预览 / 确定 / 取消面板。"""
+
+    RADIUS = UI_RADIUS
 
     def __init__(self):
-        _MicroStationTk.__init__(self)
-        self.title("罐壁人孔")
-        self.resizable(False, False)
-        self.protocol("WM_DELETE_WINDOW", self.cancel_tool)
+        self._app = ensure_qt_app()
+        super().__init__()
+        self.setWindowTitle(UI_TITLE)
+        # 无边框：标题栏与最小化/关闭钮自绘，便于与卡片风格统一。
+        self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint
+                            | Qt.WindowSystemMenuHint
+                            | Qt.WindowMinimizeButtonHint)
+        self.setAutoFillBackground(True)
+        palette = self.palette()
+        palette.setColor(QPalette.Window, UI_BG)
+        self.setPalette(palette)
+        self.setStyleSheet('QWidget {font-family: "Microsoft YaHei UI";}')
 
         self.placement_point = None
         self.preview_handle = None
         self.preview_result = None
         self.confirmed = False
-        self._pending_regeneration = None
-
-        body = tk.Frame(self, padx=12, pady=10)
-        body.grid(row=0, column=0, sticky="nsew")
-
-        tk.Label(
-            body,
-            text="在模型中点取罐壁外表面上的人孔中心点；点取位置的 Z 即该点标高。",
-            justify="left", fg="#333333", wraplength=400,
-        ).grid(row=0, column=0, columnspan=4, sticky="w")
-
-        tk.Label(body, text="公称尺寸：").grid(row=1, column=0, pady=(10, 0), sticky="w")
-        self.size_var = tk.StringVar(value="20")
-        for index, size in enumerate(("18", "20", "24")):
-            tk.Radiobutton(
-                body, text='%s"' % size, variable=self.size_var, value=size,
-                command=self.on_options_changed,
-            ).grid(row=1, column=1 + index, pady=(10, 0), sticky="w")
-
-        tk.Label(body, text="压力等级：").grid(row=2, column=0, pady=(6, 0), sticky="w")
-        self.rating_var = tk.StringVar(value="150")
-        for index, rating in enumerate(("150", "300", "600")):
-            tk.Radiobutton(
-                body, text="ASA %s" % rating, variable=self.rating_var,
-                value=rating, command=self.on_options_changed,
-            ).grid(row=2, column=1 + index, pady=(6, 0), sticky="w")
-
-        tk.Label(body, text="连接形式：").grid(row=3, column=0, pady=(6, 0), sticky="w")
-        self.mode_var = tk.StringVar(value="davit")
-        tk.Radiobutton(
-            body, text="吊杆 davit", variable=self.mode_var, value="davit",
-            command=self.on_options_changed,
-        ).grid(row=3, column=1, pady=(6, 0), sticky="w")
-        tk.Radiobutton(
-            body, text="铰链 hinge", variable=self.mode_var, value="hinge",
-            command=self.on_options_changed,
-        ).grid(row=3, column=2, pady=(6, 0), sticky="w")
-
-        tk.Label(body, text="朝向：").grid(row=4, column=0, pady=(6, 0), sticky="w")
-        self.heading_var = tk.StringVar(value="0")
-        tk.Entry(body, textvariable=self.heading_var, width=10).grid(
-            row=4, column=1, pady=(6, 0), sticky="w")
-        tk.Label(body, text="°（0° 沿 +X，逆时针为正）").grid(
-            row=4, column=2, columnspan=2, pady=(6, 0), sticky="w")
-        self.heading_var.trace_add("write", self.on_entry_changed)
-
-        tk.Label(body, text="筒节长度：").grid(row=5, column=0, pady=(6, 0), sticky="w")
-        self.neck_var = tk.StringVar(value="%.0f" % NECK_LENGTH_DEFAULT)
-        tk.Entry(body, textvariable=self.neck_var, width=10).grid(
-            row=5, column=1, pady=(6, 0), sticky="w")
-        tk.Label(body, text="mm（罐壁外表面到法兰背面）").grid(
-            row=5, column=2, columnspan=2, pady=(6, 0), sticky="w")
-        self.neck_var.trace_add("write", self.on_entry_changed)
-
-        self.mirror_var = tk.BooleanVar(value=False)
-        tk.Checkbutton(
-            body, text="反向（人孔轴线转 180°）", variable=self.mirror_var,
-            command=self.on_options_changed,
-        ).grid(row=6, column=0, columnspan=4, pady=(6, 0), sticky="w")
-
-        self.bolts_var = tk.BooleanVar(value=True)
-        tk.Checkbutton(
-            body, text="生成法兰螺栓与螺母", variable=self.bolts_var,
-            command=self.on_options_changed,
-        ).grid(row=7, column=0, columnspan=4, pady=(2, 0), sticky="w")
-
-        self.lifting_var = tk.BooleanVar(value=True)
-        tk.Checkbutton(
-            body, text="生成铰链 / 吊杆及盖板吊耳、吊环螺栓",
-            variable=self.lifting_var, command=self.on_options_changed,
-        ).grid(row=8, column=0, columnspan=4, pady=(2, 0), sticky="w")
-
-        self.spec_label = tk.Label(
-            body, text=describe_spec(20, 150, "davit"),
-            justify="left", fg="#333333", wraplength=400,
-        )
-        self.spec_label.grid(row=9, column=0, columnspan=4, pady=(10, 0), sticky="w")
-
-        self.preview_info_label = tk.Label(
-            body, text="预览：—", justify="left", fg="#333333", wraplength=400,
-        )
-        self.preview_info_label.grid(row=10, column=0, columnspan=4, sticky="w")
-
-        self.status_label = tk.Label(
-            body, text="请在模型中点取人孔中心点；点取后可改选项，预览会自动重建。",
-            justify="left", fg="#1f5f99", wraplength=400,
-        )
-        self.status_label.grid(row=11, column=0, columnspan=4, pady=(10, 0), sticky="w")
-
-        button_row = tk.Frame(body)
-        button_row.grid(row=12, column=0, columnspan=4, pady=(10, 0), sticky="e")
-        confirm_button = tk.Button(button_row, text="确定", width=10,
-                                   command=self.confirm_tool)
-        confirm_button.pack(side="right")
-        cancel_button = tk.Button(button_row, text="取消", width=10,
-                                  command=self.cancel_tool)
-        cancel_button.pack(side="right", padx=(0, 6))
-
+        # 选项控件按创建顺序登记，供 _set_busy 统一切换可用状态。
         self.option_widgets = []
-        for child in body.winfo_children():
-            if isinstance(child, (tk.Radiobutton, tk.Checkbutton, tk.Entry)):
-                self.option_widgets.append(child)
-        self.action_widgets = [confirm_button, cancel_button]
+        self._running = True
+        self._allow_close = False
+        self._finish_requested = False
+        self._event_loop = QEventLoop()
+
+        # 两个防抖定时器：选择框用短间隔求跟手，文本框用长间隔避免半途重建。
+        self._regen_timer = QTimer(self)
+        self._regen_timer.setSingleShot(True)
+        self._regen_timer.setInterval(REGENERATE_DELAY_MS)
+        self._regen_timer.timeout.connect(self._run_pending_regeneration)
+        self._text_timer = QTimer(self)
+        self._text_timer.setSingleShot(True)
+        self._text_timer.setInterval(TEXT_REGENERATE_DELAY_MS)
+        self._text_timer.timeout.connect(self._run_pending_regeneration)
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+        outer.addWidget(NeuTitleBar(UI_TITLE, self._minimize,
+                                    self.cancel_tool))
+
+        body = QVBoxLayout()
+        body.setContentsMargins(3, 0, 3, 3)
+        body.setSpacing(0)
+        outer.addLayout(body)
+
+        hint_row = QVBoxLayout()
+        hint_row.setContentsMargins(15, 0, 15, 0)
+        hint = QLabel("点取罐壁外表面上的人孔中心点，点取处的 Z 即该点标高。")
+        hint.setWordWrap(True)
+        hint.setStyleSheet('color: #7D8AA0; font-size: 12px;')
+        hint_row.addWidget(hint)
+        body.addLayout(hint_row)
+        body.addSpacing(6)
+
+        card = NeuCard("规格")
+        self._size_choices = self._radio_row(
+            card.content, 0, "公称尺寸：",
+            (("18", '18"（DN450）'), ("20", '20"（DN500）'),
+             ("24", '24"（DN600）')), "24")
+        self._rating_choices = self._radio_row(
+            card.content, 1, "压力等级：",
+            (("150", "ASA 150"), ("300", "ASA 300"), ("600", "ASA 600")), "150")
+        self._mode_choices = self._radio_row(
+            card.content, 2, "连接形式：",
+            (("davit", "吊杆 davit"), ("hinge", "铰链 hinge")), "davit")
+        body.addWidget(card)
+
+        card = NeuCard("放置参数")
+        self.heading_edit = self._edit_row(
+            card.content, 0, "朝向：", "0", "°　0° 沿 +X，逆时针为正")
+        self.neck_edit = self._edit_row(
+            card.content, 1, "筒节长度：", "%.0f" % NECK_LENGTH_DEFAULT,
+            "mm　罐壁外表面到法兰背面")
+        self.mirror_toggle = NeuToggle("反向（人孔轴线转 180°）")
+        self._register(self.mirror_toggle)
+        self.mirror_toggle.clicked.connect(self.on_options_changed)
+        self._row(card.content, 2, "方向：", [self.mirror_toggle], 8)
+        body.addWidget(card)
+
+        card = NeuCard("生成内容")
+        self.bolts_toggle = NeuToggle("生成法兰螺栓与螺母")
+        self._register(self.bolts_toggle)
+        self.bolts_toggle.setChecked(True)
+        self.bolts_toggle.clicked.connect(self.on_options_changed)
+        card.content.addWidget(self.bolts_toggle, 0, 0, 1, 2)
+        self.lifting_toggle = NeuToggle("生成铰链 / 吊杆及盖板吊耳、吊环螺栓")
+        self._register(self.lifting_toggle)
+        self.lifting_toggle.setChecked(True)
+        self.lifting_toggle.clicked.connect(self.on_options_changed)
+        card.content.addWidget(self.lifting_toggle, 1, 0, 1, 2)
+        body.addWidget(card)
+
+        summary = NeuPanel()
+        self.spec_label = self._info("", UI_TEXT)
+        self.refresh_spec()          # 按当前选中项填规格摘要（默认 24"）
+        summary.content.addWidget(self.spec_label)
+        self.preview_info_label = self._info("预览：—", UI_TEXT)
+        summary.content.addWidget(self.preview_info_label)
+        self.status_label = self._info(
+            "请在模型中点取人孔中心点；改选项会自动重建预览。", UI_INFO)
+        summary.content.addWidget(self.status_label)
+        body.addWidget(summary)
+
+        button_row = QHBoxLayout()
+        button_row.setContentsMargins(3, 0, 3, 0)
+        button_row.setSpacing(0)
+        self.cancel_button = NeuButton("取消")
+        self.cancel_button.setFixedWidth(126)
+        self.cancel_button.clicked.connect(self.cancel_tool)
+        self.confirm_button = NeuButton("确定", accent=True)
+        self.confirm_button.setFixedWidth(126)
+        self.confirm_button.clicked.connect(self.confirm_tool)
+        button_row.addStretch(1)
+        button_row.addWidget(self.cancel_button)
+        button_row.addWidget(self.confirm_button)
+        body.addLayout(button_row)
+        self.action_widgets = [self.confirm_button, self.cancel_button]
+
+        self.setMinimumWidth(470)
+        self.adjustSize()
+        self.setFixedSize(self.sizeHint().expandedTo(self.minimumSizeHint()))
+        _write_debug_log("面板", "已构建 %dx%d" % (self.width(), self.height()))
+        self.hwnd = int(self.winId())
+        _write_debug_log("面板", "hwnd=%s，调用 AttachQtToolSetting" % self.hwnd)
+        PyCadInputQueue.AttachQtToolSetting(self.hwnd)
+        _write_debug_log("面板", "AttachQtToolSetting 返回")
+
+    # -- 控件构造 ----------------------------------------------------------
+
+    def _register(self, widget):
+        self.option_widgets.append(widget)
+        return widget
+
+    def _row(self, grid, row, name, widgets, spacing=18):
+        """卡片内一行：左标签 +（横向排列的）控件。"""
+        label = QLabel(name, self)
+        label.setStyleSheet('color: #39435A; font-size: 13px;')
+        grid.addWidget(label, row, 0, Qt.AlignLeft | Qt.AlignVCenter)
+        holder = QWidget(self)
+        line = QHBoxLayout(holder)
+        line.setContentsMargins(0, 0, 0, 0)
+        line.setSpacing(spacing)
+        for widget in widgets:
+            line.addWidget(widget)
+        line.addStretch(1)
+        grid.addWidget(holder, row, 1)
+        grid.setColumnStretch(1, 1)
+        return holder
+
+    def _radio_row(self, grid, row, name, entries, default):
+        choices = []
+        widgets = []
+        for value, text in entries:
+            choice = self._register(NeuChoice(text))
+            choice.clicked.connect(self.on_options_changed)
+            choices.append((choice, value))
+            widgets.append(choice)
+        self._row(grid, row, name, widgets, 16)
+        for choice, value in choices:
+            if value == default:
+                choice.setChecked(True)
+                break
+        return choices
+
+    def _edit_row(self, grid, row, name, value, note):
+        field = NeuEdit(value)
+        self._register(field.edit)
+        # 文本框用更长的防抖，避免"输入 30 时刚敲 3 就重建"。
+        field.edit.textChanged.connect(self.on_text_changed)
+        label = QLabel(note, self)
+        label.setStyleSheet('color: #7D8AA0; font-size: 12px;')
+        self._row(grid, row, name, [field, label], 8)
+        return field
+
+    def _info(self, text, color):
+        label = QLabel(text, self)
+        label.setWordWrap(True)
+        label.setStyleSheet('color: %s; font-size: 11px;' % color.name())
+        return label
+
+    def _checked(self, choices):
+        for widget, value in choices:
+            if widget.isChecked():
+                return value
+        return None
+
+    # -- 选项 --------------------------------------------------------------
 
     def current_options(self):
         try:
-            heading = float(self.heading_var.get())
+            heading = float(self.heading_edit.value())
         except (TypeError, ValueError):
             raise ValueError("朝向必须是数字（度）。")
         try:
-            neck_length = float(self.neck_var.get())
+            neck_length = float(self.neck_edit.value())
         except (TypeError, ValueError):
             raise ValueError("筒节长度必须是数字（mm）。")
         return {
-            "nominal_size": int(self.size_var.get()),
-            "rating": int(self.rating_var.get()),
-            "mode": self.mode_var.get(),
+            "nominal_size": int(self._checked(self._size_choices)),
+            "rating": int(self._checked(self._rating_choices)),
+            "mode": self._checked(self._mode_choices),
             "heading_deg": heading,
             "neck_length": neck_length,
-            "mirrored": bool(self.mirror_var.get()),
-            "include_bolts": bool(self.bolts_var.get()),
-            "include_lifting": bool(self.lifting_var.get()),
+            "mirrored": bool(self.mirror_toggle.isChecked()),
+            "include_bolts": bool(self.bolts_toggle.isChecked()),
+            "include_lifting": bool(self.lifting_toggle.isChecked()),
         }
 
     def set_status(self, message, is_error=False):
-        self.status_label.configure(
-            text=message, fg="#b42318" if is_error else "#1f5f99"
-        )
-        self.update_idletasks()
+        self.status_label.setStyleSheet(
+            'color: %s; font-size: 11px;'
+            % (UI_ERROR if is_error else UI_INFO).name())
+        self.status_label.setText(message)
+        QApplication.processEvents()
 
     def set_result(self, result):
-        self.preview_info_label.configure(
-            text="预览：%d\" / ASA %d lbs，%s（φ%.0f），螺栓 %d 颗，共 %d 个子元素" % (
+        self.preview_info_label.setText(
+            "预览：%d\" / ASA %d lbs，%s（φ%.0f），螺栓 %d 颗，共 %d 个子元素" % (
                 result["nominal_size"], result["rating"],
                 "吊杆" if result["mode"] == "davit" else "铰链",
                 result["davit_dia"], result["bolt_count"], result["child_count"],
@@ -1860,44 +2398,43 @@ class _ManholeSettingsDialog(_MicroStationTk):
 
     def refresh_spec(self):
         try:
-            self.spec_label.configure(text=describe_spec(
-                int(self.size_var.get()), int(self.rating_var.get()),
-                self.mode_var.get(),
+            self.spec_label.setText(describe_spec(
+                int(self._checked(self._size_choices)),
+                int(self._checked(self._rating_choices)),
+                self._checked(self._mode_choices),
             ))
         except (TypeError, ValueError):
-            self.spec_label.configure(text="规格有误。")
+            self.spec_label.setText("规格有误。")
 
     def _set_busy(self, busy):
-        state = tk.DISABLED if busy else tk.NORMAL
         for widget in self.option_widgets + self.action_widgets:
-            widget.configure(state=state)
-        self.update_idletasks()
+            widget.setEnabled(not busy)
+        QApplication.processEvents()
 
-    def on_entry_changed(self, *_unused):
-        self.on_options_changed()
-
-    def on_options_changed(self):
+    def on_options_changed(self, *_unused):
+        """选择框 / 开关变化：刷新摘要，并按短防抖重建预览。"""
         self.refresh_spec()
+        self._schedule_regeneration(self._regen_timer)
+
+    def on_text_changed(self, *_unused):
+        """文本框输入：刷新摘要，按长防抖重建，避免数字只打了一半。"""
+        self.refresh_spec()
+        self._schedule_regeneration(self._text_timer)
+
+    def _schedule_regeneration(self, timer):
+        self._cancel_pending_regeneration()
         if self.placement_point is None:
             return
-        self._cancel_pending_regeneration()
-        self._pending_regeneration = self.after(
-            REGENERATE_DELAY_MS, self._run_pending_regeneration
-        )
+        timer.start()
 
     def _cancel_pending_regeneration(self):
-        pending = self._pending_regeneration
-        self._pending_regeneration = None
-        if pending is None:
-            return
-        try:
-            self.after_cancel(pending)
-        except tk.TclError:
-            return
+        self._regen_timer.stop()
+        self._text_timer.stop()
 
     def _run_pending_regeneration(self):
-        self._pending_regeneration = None
         self.regenerate()
+
+    # -- 预览 --------------------------------------------------------------
 
     def regenerate(self, placement_point=None):
         """按当前选项重建预览：先建新的一版，成功后再删掉旧的。"""
@@ -1954,19 +2491,77 @@ class _ManholeSettingsDialog(_MicroStationTk):
         self.preview_result = None
         return _delete_preview(handle)
 
+    # -- 收尾 --------------------------------------------------------------
+
     def confirm_tool(self):
         self._cancel_pending_regeneration()
         self.confirmed = True
-        self.finish_tool()
+        self._finish_requested = True
 
     def cancel_tool(self):
         self._cancel_pending_regeneration()
         self.confirmed = False
         self.discard_preview()
-        self.finish_tool()
+        self._finish_requested = True
 
     def finish_tool(self):
         PyCommandState.StartDefaultCommand()
+
+    def shutdown(self):
+        """由工具的 _OnCleanup 调用：收起窗口并结束事件泵。"""
+        _write_debug_log("面板", "shutdown")
+        try:
+            self._running = False
+            self._allow_close = True
+            self.close()
+        except RuntimeError:
+            pass
+
+    # -- 窗口 --------------------------------------------------------------
+
+    def _minimize(self):
+        self.showMinimized()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing, True)
+        frame = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
+        painter.setPen(QPen(QColor(210, 218, 231), 1.0))
+        painter.setBrush(UI_BG)
+        painter.drawRoundedRect(frame, self.RADIUS, self.RADIUS)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        path = QPainterPath()
+        path.addRoundedRect(QRectF(self.rect()), self.RADIUS, self.RADIUS)
+        self.setMask(QRegion(path.toFillPolygon().toPolygon()))
+
+    def closeEvent(self, event):
+        if self._allow_close:
+            event.accept()
+            return
+        # 关窗口等同于取消：先撤掉预览，再由主循环退出原生工具。
+        event.ignore()
+        self.cancel_tool()
+
+    def run_dialog_loop(self):
+        """Qt 事件泵与 Bentley 主循环交替，直到面板收起。"""
+        screen = QApplication.primaryScreen()
+        if screen is not None:
+            area = screen.availableGeometry()
+            self.move(area.center().x()-self.width()//2,
+                      area.center().y()-self.height()//2)
+        self.show()
+        self.raise_()
+        self.activateWindow()
+        _write_debug_log("面板", "窗口已显示，进入事件泵")
+        while self._running:
+            self._event_loop.processEvents()
+            if self._finish_requested:
+                self._finish_requested = False
+                self.finish_tool()
+                continue
+            PyCadInputQueue.PythonMainLoop()
 
 
 class TankWallManholePlacementTool(DgnPrimitiveTool):
@@ -1997,7 +2592,7 @@ class TankWallManholePlacementTool(DgnPrimitiveTool):
     def _OnResetButton(self, event):
         settings = self.tool_settings
         if settings is not None:
-            settings.after_idle(settings.cancel_tool)
+            QTimer.singleShot(0, settings.cancel_tool)
         return True
 
     def _OnCleanup(self):
@@ -2008,10 +2603,9 @@ class TankWallManholePlacementTool(DgnPrimitiveTool):
         try:
             if not settings.confirmed:
                 settings.discard_preview()
-            if settings.winfo_exists():
-                settings.destroy()
-        except tk.TclError:
+        except Exception:
             pass
+        settings.shutdown()
 
     @staticmethod
     def InstallNewInstance(tool_id=0, tool_settings=None, start_ui_loop=True):
@@ -2022,13 +2616,25 @@ class TankWallManholePlacementTool(DgnPrimitiveTool):
         tool.tool_settings = settings
         tool.InstallTool()
         if start_ui_loop:
-            settings.microstation_mainloop()
+            settings.run_dialog_loop()
         return tool
 
 
 def PyMain():
     """供 MicroStation Python 管理器调用的入口。"""
-    TankWallManholePlacementTool.InstallNewInstance(0)
+    try:
+        TankWallManholePlacementTool.InstallNewInstance(0)
+    except Exception as error:
+        detail = traceback.format_exc()
+        _write_debug_log("罐壁人孔工具启动失败", detail)
+        print("罐壁人孔工具启动失败：%s\n%s" % (error, detail))
+        try:
+            QMessageBox.critical(
+                None, UI_TITLE,
+                "工具启动失败：%s\n\n详见 tank_wall_manhole_debug_log.txt"
+                % error)
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
