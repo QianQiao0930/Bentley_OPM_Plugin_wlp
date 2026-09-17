@@ -89,7 +89,7 @@ ITEM_PROPERTY_DEFINITIONS = (
 
 DEBUG_LOG = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
-    'end_welded_triangle_bracket_debug_log.txt')
+    '端焊三角架_基础_debug_log.txt')
 
 
 def _log(message):

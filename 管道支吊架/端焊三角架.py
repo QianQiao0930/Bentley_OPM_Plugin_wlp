@@ -7,7 +7,7 @@
 （ItemType）附加在单元上。
 
 改参数会自动重建预览并替换上一版，点【确定】保留，点【取消】或右键放弃。
-面板沿用 end_welded_triangle_bracket.py 中的 PyQt5 自绘风格。
+面板沿用 端焊三角架_基础.py 中的 PyQt5 自绘风格。
 
 variant A 的规格即类型 1 端焊三角架（H125×125×6.5×9 + ∠100×10），因此
 两个脚本生成的单元完全一致；本文件只负责在导入后覆盖子项表和 ItemType
@@ -21,14 +21,14 @@ import math
 import os
 import sys
 
-import end_welded_triangle_bracket as base
+import 端焊三角架_基础 as base
 
 
 def _reload_base(module):
     """每次运行都强制重新读取基础模块。
 
     MicroStation 的 Python 会话会把已导入的模块留在 sys.modules 里：改完
-    end_welded_triangle_bracket.py 后只重跑本文件，拿到的仍是上一次的模块，
+    端焊三角架_基础.py 后只重跑本文件，拿到的仍是上一次的模块，
     面板不会更新，必须重启 MicroStation。这里显式重载，规避该缓存。
     """
     name = module.__name__

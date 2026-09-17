@@ -6,7 +6,7 @@
 
     * 面板上「创建端板」勾选项与端板子项（A~D）下拉；
     * 勾选后在所选直线**起点处**放端板（板面垂直于横担轴线，即焊接端面），
-      端板 + 4 根膨胀锚栓的绘制逻辑复用 G2-混凝土锚板/concrete_anchor_plate.py；
+      端板 + 4 根膨胀锚栓的绘制逻辑复用同目录的 混凝土锚板.py；
     * 端板的孔距 S 按横担截面自动选取：严格大于截面最大边长（高 / 宽），
       再按 25 mm 向上取整，且不小于该子项的 MIN.S；板边长 = S + 100；
     * 端板占用直线起点的 plate_t 厚度，横担相应缩短为 L2 − plate_t
@@ -48,14 +48,13 @@ from PyQt5.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMessageBox,
 
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-REPO_ROOT = os.path.dirname(HERE)
-ANCHOR_DIR = os.path.join(REPO_ROOT, 'G2-混凝土锚板')
-for _path in (HERE, ANCHOR_DIR):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
+# base / 选线版 / 混凝土锚板 / 公共支吊架模块均在 管道支吊架/ 本目录下。
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
 
-import end_welded_triangle_bracket as base
-import concrete_anchor_plate as anchor
+import 端焊三角架_基础 as base
+import 混凝土锚板 as anchor
+import 支吊架公共库 as psb
 
 
 def _load_module(name, file_path):
@@ -89,6 +88,10 @@ UI_REVISION = 'line-select-endplate-1'
 
 # 与其它端焊三角架工具区分开的 ItemType 前缀。
 ITEM_TYPE_PREFIX = 'EndWeldedTriangleBracketWithPlateByLineComponent'
+
+# 共享支吊架清单模块所需的类型标识。
+SUPPORT_TYPE = '端焊三角架'
+SUPPORT_CODE = 'TRIANGLE_BRACKET'
 
 # 直线两端 Z 的最大允许差值（mm）。超出即判定不水平并提示不合规。
 HORIZONTAL_TOLERANCE_MM = linebase.HORIZONTAL_TOLERANCE_MM
@@ -134,7 +137,19 @@ _create_angle_brace_element = linebase._create_angle_brace_element
 resolve_l1 = linebase.resolve_l1
 _validate = linebase._validate
 _build_pipe_rack_number = linebase.build_pipe_rack_number
-_attach_result_items = linebase._attach_result_items
+
+
+def _attach_result_items(cell, result):
+    """把整组三角架写入共享支吊架库（整组记录 + 横担/斜撑/端板/锚栓构件记录）。"""
+    return psb.attach_components(
+        cell,
+        support_type=SUPPORT_TYPE,
+        support_code=SUPPORT_CODE,
+        assembly_tag=result.get('pipe_rack_number', ''),
+        assembly_spec='%s + %s' % (result.get('h_beam_specification', ''),
+                                   result.get('angle_specification', '')),
+        components=result.get('bom_items', ()),
+    )
 
 
 def _variant_label(variant_key):
@@ -168,7 +183,7 @@ def describe_plate(resolved):
 
 
 # ---------------------------------------------------------------------------
-# 端板几何：复用 concrete_anchor_plate.py 的板 + 锚栓
+    # 端板几何：复用 混凝土锚板.py 的板 + 锚栓
 # ---------------------------------------------------------------------------
 
 
@@ -339,20 +354,24 @@ def _build_triangle_bracket_cell(line, end_overhang,
         bom_items.append({
             'code': 'EndPlate', 'name': COMPONENT_PLATE_NAME,
             'specification': plate_spec, 'length': resolved_plate['plate_t'],
+            'quantity': 1, 'unit': '件',
         })
         bom_items.append({
             'code': 'BraceEndPlate', 'name': COMPONENT_BRACE_PLATE_NAME,
             'specification': plate_spec, 'length': resolved_plate['plate_t'],
+            'quantity': 1, 'unit': '件',
         })
         bom_items.append({
             'code': 'AnchorBolt', 'name': COMPONENT_BOLT_NAME,
             'specification': bolt_spec,
             'length': resolved_plate['bolt_length'],
+            'quantity': 4, 'unit': '件',
         })
         bom_items.append({
             'code': 'BraceAnchorBolt', 'name': COMPONENT_BRACE_BOLT_NAME,
             'specification': bolt_spec,
             'length': resolved_plate['bolt_length'],
+            'quantity': 4, 'unit': '件',
         })
 
     result = {
@@ -415,11 +434,14 @@ def draw_end_welded_triangle_bracket(line, end_overhang,
 
 
 def export_bom_json(output_path=None):
-    """只导出本插件的 ItemType，写 JSON 并返回文件路径。"""
+    """导出**全部**管道支吊架的统一清单（共享库），返回文件路径。
+
+    清单里会同时包含端焊三角架、L 型管架以及今后接入的其它支吊架。
+    """
     if output_path is None:
         output_path = os.path.join(
             HERE, '端焊三角架_选线版_端板_bom.json')
-    return base.export_triangle_bracket_bom_json(output_path)
+    return psb.export_combined_bom(output_path)
 
 
 # ---------------------------------------------------------------------------

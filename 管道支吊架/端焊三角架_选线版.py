@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """端焊三角架（选线版）放置工具。
 
-与 端焊三角架.py / end_welded_triangle_bracket.py 的区别：**不输入横担长度**，
+与 端焊三角架.py / 端焊三角架_基础.py 的区别：**不输入横担长度**，
 而是在模型中点选一条用户绘制的**水平直线段**，该直线即横担**上翼缘上表面**
 （也就是整组支架的最高点，横担整体向下展开）：
 
@@ -19,7 +19,7 @@ E 值仍需输入（默认 150 mm）：横担最远端至斜撑上端外侧斜�
 清单属性；用户可选择创建后是否保留所选直线。
 
 几何做法、单元封装、ItemType 与 PyQt5 面板全部沿用
-end_welded_triangle_bracket.py（本文件只读引用，不修改它）。
+端焊三角架_基础.py（本文件只读引用，不修改它）。
 """
 
 from __future__ import division
@@ -44,14 +44,14 @@ from PyQt5.QtGui import QColor, QPainter, QPainterPath, QPalette, QPen, QRegion
 from PyQt5.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMessageBox,
                              QVBoxLayout, QWidget)
 
-import end_welded_triangle_bracket as base
+import 端焊三角架_基础 as base
 
 
 def _reload_base(module):
     """每次运行都强制重新读取基础模块。
 
     MicroStation 的 Python 会话会把已导入的模块留在 sys.modules 里：改完
-    end_welded_triangle_bracket.py 后只重跑本文件，拿到的仍是上一次的模块。
+    端焊三角架_基础.py 后只重跑本文件，拿到的仍是上一次的模块。
     这里显式重载，规避该缓存。
     """
     name = module.__name__

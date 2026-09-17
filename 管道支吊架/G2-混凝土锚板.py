@@ -9,14 +9,13 @@
       构成，不做布尔融合（允许实体重合），只保证外形可辨认。
     * 锚栓朝向沿所选点的混凝土外法向，可用「朝向」绕 Z 旋转。
 
-建模逻辑全部在 ``concrete_anchor_plate.py`` 中，不含任何界面依赖，其它插件可
-直接 ``import concrete_anchor_plate`` 调用：
+建模逻辑全部在 ``混凝土锚板.py`` 中，不含任何界面依赖，其它插件可直接
+``import 混凝土锚板`` 调用：
 
-    import concrete_anchor_plate as anchor
+    import 混凝土锚板 as anchor
     cell, result = anchor.draw_anchor_plate(placement_point, options)
 
-本文件只负责 PyQt5 面板与交互工具，面板沿用 end_welded_triangle_bracket.py 的
-自绘风格。
+本文件只负责 PyQt5 面板与交互工具，面板沿用 端焊三角架_基础.py 的自绘风格。
 """
 
 from __future__ import division
@@ -39,7 +38,7 @@ from PyQt5.QtWidgets import (QApplication, QCheckBox, QGridLayout, QHBoxLayout,
                              QLabel, QLineEdit, QMessageBox, QPushButton,
                              QRadioButton, QSizePolicy, QVBoxLayout, QWidget)
 
-import concrete_anchor_plate as geometry
+import 混凝土锚板 as geometry
 
 
 DEBUG_LOG = os.path.join(

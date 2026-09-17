@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<KeyinTree xmlns="http://www.bentley.com/schemas/1.0/MicroStation/AddIn/KeyinTree.xsd">
+  <RootKeyinTable ID="root">
+    <Keyword SubtableRef="PYLPIPERACK" CommandClass="MacroCommand" CommandWord="PYLPIPERACK">
+      <Options Required="true" />
+    </Keyword>
+  </RootKeyinTable>
+  <SubKeyinTables>
+    <KeyinTable ID="PYLPIPERACK">
+      <Keyword CommandWord="PLACE" />
+      <Keyword CommandWord="EXPORT" />
+    </KeyinTable>
+  </SubKeyinTables>
+  <KeyinHandlers>
+    <KeyinHandler Keyin="PYLPIPERACK PLACE" Function="OpenLPipeRack" />
+    <KeyinHandler Keyin="PYLPIPERACK EXPORT" Function="ExportLPipeRackBom" />
+  </KeyinHandlers>
+</KeyinTree>

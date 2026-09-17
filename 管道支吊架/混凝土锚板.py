@@ -25,7 +25,7 @@
 
 主要接口::
 
-    import concrete_anchor_plate as anchor
+    import 混凝土锚板 as anchor
     options = {'subtype': 'B', 'spacing': 120.0, 'heading_deg': 0.0}
     cell, result = anchor.draw_anchor_plate(placement_point, options)
 

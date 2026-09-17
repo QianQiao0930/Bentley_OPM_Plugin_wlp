@@ -4,3 +4,5 @@ preview.png
 *_debug_log.txt
 debug_log.txt
 *.bak
+~$*
+管道支吊架/*.xlsx
