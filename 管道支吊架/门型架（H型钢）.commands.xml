@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<KeyinTree xmlns="http://www.bentley.com/schemas/1.0/MicroStation/AddIn/KeyinTree.xsd">
+  <RootKeyinTable ID="root">
+    <Keyword SubtableRef="PYPORTALFRAMEH" CommandClass="MacroCommand" CommandWord="PYPORTALFRAMEH">
+      <Options Required="true" />
+    </Keyword>
+  </RootKeyinTable>
+  <SubKeyinTables>
+    <KeyinTable ID="PYPORTALFRAMEH">
+      <Keyword CommandWord="PLACE" />
+      <Keyword CommandWord="EXPORT" />
+    </KeyinTable>
+  </SubKeyinTables>
+  <KeyinHandlers>
+    <KeyinHandler Keyin="PYPORTALFRAMEH PLACE" Function="OpenPortalFrame" />
+    <KeyinHandler Keyin="PYPORTALFRAMEH EXPORT" Function="ExportPortalFrameBom" />
+  </KeyinHandlers>
+</KeyinTree>
