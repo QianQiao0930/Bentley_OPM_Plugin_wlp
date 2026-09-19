@@ -32,7 +32,7 @@ from . import steel_sweep_geometry
 
 
 # The log stays in the plug-in root (one level above this package) so it is
-# easy to find next to steel_main.py.
+# easy to find next to 型钢截面生成器.py.
 SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEBUG_LOG = os.path.join(SCRIPT_DIR, "型钢截面生成器_debug_log.txt")
 

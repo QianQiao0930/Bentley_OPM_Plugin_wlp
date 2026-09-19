@@ -19,7 +19,7 @@
 ## 使用
 
 1. 完全关闭并重新打开 OPM（清除旧插件可能留下的 Python 缓存）。
-2. 在 OPM Python 脚本管理器运行 `steel_main.py`。
+2. 在 OPM Python 脚本管理器运行 `型钢截面生成器.py`。
 3. 在窗口中依次选择型钢型式、规格和插入基准。
 4. 在“放置方式”中选择：
    - **放置截面（只生成二维截面）**：在模型中连续点取插入点放置闭合二维截面，右键 Reset 退出；不会再调用 Bentley 拉伸命令。
@@ -47,11 +47,11 @@ PYSTEEL DEFAULT
 
 ## 目录结构
 
-插件根目录只保留唯一入口 `steel_main.py` 与键入命令表，其余依赖模块全部放在 `steel_sections/` 包内：
+插件根目录只保留唯一入口 `型钢截面生成器.py` 与键入命令表，其余依赖模块全部放在 `steel_sections/` 包内：
 
 ```text
 型钢截面生成器/
-├── steel_main.py                       # 唯一入口 + PYSTEEL 命令注册
+├── 型钢截面生成器.py                    # 唯一入口 + PYSTEEL 命令注册
 ├── SteelSectionGenerator.commands.xml  # 键入命令表
 ├── README.md
 ├── 型钢截面生成器_debug_log.txt         # 运行日志（自动生成）
@@ -67,7 +67,7 @@ PYSTEEL DEFAULT
 
 ## 文件说明
 
-- `steel_main.py`：唯一入口与 `PYSTEEL` 键入命令注册；负责把插件根目录加入 `sys.path` 并导入 `steel_sections` 包。
+- `型钢截面生成器.py`：唯一入口与 `PYSTEEL` 键入命令注册；负责把插件根目录加入 `sys.path` 并导入 `steel_sections` 包。
 - `steel_sections/steel_ui.py`：两级选择框、放置方式（放置截面 / 沿路径扫掠）与参数表。
 - `steel_sections/steel_tool.py`：截面自由放置工具与沿路径扫掠工具（`SolidUtil.Create.BodyFromSweep`）；日志写在插件根目录。
 - `steel_sections/steel_sweep_geometry.py`：扫掠坐标架与截面圆弧采样的纯几何计算（可脱离 Bentley 单元测试）。

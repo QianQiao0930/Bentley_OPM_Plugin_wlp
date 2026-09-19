@@ -33,7 +33,7 @@ from MSPyDgnPlatform import *
 from MSPyDgnView import *
 from MSPyMstnPlatform import *
 
-# 通配导入不一定导出这两个符号，显式再导入一次（与 steel_main.py 一致）。
+# 通配导入不一定导出这两个符号，显式再导入一次（与 型钢截面生成器.py 一致）。
 from MSPyBentley import WString  # noqa: E402,F811
 from MSPyMstnPlatform import PythonKeyinManager  # noqa: E402,F811
 
