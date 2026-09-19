@@ -144,27 +144,66 @@ class LayoutTests(unittest.TestCase):
         self.assertFalse(self._layout(length=600.0).has_middle_rib)
         self.assertTrue(self._layout(length=601.0).has_middle_rib)
 
-    def test_clamp_half_points_lie_between_the_radii(self):
-        layout = self._layout(dn=300)
-        r_in = layout.insulation_radius
-        r_out = r_in + layout.t3
-        for upper in (True, False):
-            points = geom.clamp_half_points(layout, upper)
-            self.assertGreater(len(points), 4)
-            for y, z in points:
-                radius = math.hypot(y, z)
-                self.assertGreaterEqual(radius + 1.0e-6, r_in)
-                self.assertLessEqual(radius - 1.0e-6, r_out)
+    def test_boolean_layout_ear_groups(self):
+        """管夹环取 L；耳板沿轴均布 2 组（L≤600），每组 4 块、2 套螺栓。"""
+        layout = self._layout(length=500.0)
+        bl = geom.build_boolean_layout(layout)
+        self.assertEqual(len(bl.ear_center_x), 2)
+        self.assertEqual(len(bl.ear_bounds), 4)
+        self.assertEqual(len(bl.ear_hole_a), 4)
+        self.assertAlmostEqual(
+            layout.shoe_length_mm / 2.0 - bl.ear_center_x[-1],
+            geom.EAR_END_OFFSET_MM, places=6)
+        self.assertAlmostEqual(bl.clamp_length_mm, layout.shoe_length_mm,
+                               places=6)
 
-    def test_shoe_section_points(self):
+    def test_boolean_layout_middle_support(self):
+        """L＞600：耳板与横向支撑都加中间一组。"""
+        three = geom.build_boolean_layout(self._layout(length=700.0))
+        self.assertEqual(len(three.support_center_x), 3)
+        self.assertEqual(len(three.ear_center_x), 3)
+        two = geom.build_boolean_layout(self._layout(length=600.0))
+        self.assertEqual(len(two.support_center_x), 2)
+        self.assertEqual(len(two.ear_center_x), 2)
+
+    def test_boolean_layout_hole_matches_bolt(self):
+        """通孔 = 螺杆 + 余量；同一分口两孔同轴（a 相同、正负各一）。"""
         layout = self._layout(dn=200)
-        points = geom.shoe_section_points(layout)
-        ys = [y for y, _z in points]
-        zs = [z for _y, z in points]
-        self.assertAlmostEqual(min(ys), -layout.base_width / 2.0, places=6)
-        self.assertAlmostEqual(max(ys), layout.base_width / 2.0, places=6)
-        self.assertAlmostEqual(min(zs), layout.shoe_bottom_z, places=6)
-        self.assertAlmostEqual(max(zs), layout.top_plate_top_z, places=6)
+        bl = geom.build_boolean_layout(layout)
+        self.assertAlmostEqual(bl.hole_dia,
+                               layout.bolt_dia_mm + geom.HOLE_CLEARANCE_MM,
+                               places=6)
+        self.assertAlmostEqual(bl.ear_hole_a[0], bl.ear_hole_a[1], places=9)
+        self.assertAlmostEqual(bl.ear_hole_a[2], bl.ear_hole_a[3], places=9)
+        self.assertLess(bl.ear_hole_a[0], 0.0)
+        self.assertGreater(bl.ear_hole_a[2], 0.0)
+
+    def test_boolean_layout_radii_and_support(self):
+        layout = self._layout(dn=300)
+        bl = geom.build_boolean_layout(layout)
+        self.assertAlmostEqual(bl.outer_radius, layout.clamp_outer_radius,
+                               places=6)
+        self.assertAlmostEqual(bl.inner_radius, layout.insulation_radius,
+                               places=6)
+        self.assertLess(bl.base_top_z, -bl.outer_radius)
+        self.assertAlmostEqual(bl.trim_radius,
+                               bl.outer_radius - geom.SUPPORT_OVERLAP_MM,
+                               places=6)
+
+    def test_boolean_layout_rejects_bad_group_count(self):
+        with self.assertRaises(ValueError):
+            geom.build_boolean_layout(self._layout(), ear_group_count=1)
+
+    def test_boolean_layout_ear_bounds_clear_the_cut(self):
+        """耳板内侧面在切口之外，且根部不穿入保温层。"""
+        layout = self._layout(dn=250)
+        bl = geom.build_boolean_layout(layout)
+        b_near = bl.gap_j / 2.0 + bl.ear_setback
+        for (_a0, _a1, b0, b1) in bl.ear_bounds:
+            self.assertGreaterEqual(abs(b0), b_near - 1.0e-9)
+            self.assertGreaterEqual(abs(b1), b_near - 1.0e-9)
+            self.assertAlmostEqual(abs(b1 - b0), bl.ear_thickness,
+                                   places=6)
 
     def test_table_values_reach_the_layout(self):
         layout = self._layout(dn=450)
@@ -193,6 +232,28 @@ class LoadTableTests(unittest.TestCase):
         }
         for dn, loads in expected.items():
             self.assertEqual(geom.allowable_loads(dn), loads, 'DN%d' % dn)
+
+
+class InsulationHeightTests(unittest.TestCase):
+    """H 由保温厚度 B 查表决定。"""
+
+    def test_table_bounds(self):
+        expected = ((50.0, 150.0), (75.0, 150.0), (76.0, 200.0),
+                    (125.0, 200.0), (126.0, 250.0), (175.0, 250.0),
+                    (176.0, 300.0), (225.0, 300.0), (226.0, 350.0),
+                    (275.0, 350.0))
+        for insulation, height in expected:
+            self.assertAlmostEqual(geom.height_for_insulation(insulation),
+                                   height, places=6,
+                                   msg='B=%.0f' % insulation)
+
+    def test_out_of_range_is_rejected(self):
+        with self.assertRaises(ValueError):
+            geom.height_for_insulation(275.1)
+
+    def test_defaults_use_the_table(self):
+        self.assertAlmostEqual(geom.height_for_insulation(50.0), 150.0,
+                               places=6)
 
 
 class NumberingTests(unittest.TestCase):

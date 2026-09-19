@@ -25,7 +25,7 @@ from MSPyDgnView import *  # noqa: F401,F403
 from MSPyMstnPlatform import *  # noqa: F401,F403
 
 # PyQt5 必须放在 MSPy 的 import * 之后。
-from PyQt5.QtCore import QEventLoop, QRectF, Qt
+from PyQt5.QtCore import QEvent, QEventLoop, QRectF, Qt
 from PyQt5.QtGui import QColor, QPainter, QPainterPath, QPalette, QPen, QRegion
 from PyQt5.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMessageBox,
                              QVBoxLayout, QWidget)
@@ -304,12 +304,49 @@ class _SupportReportDialog(QWidget):
         while self._running:
             self._event_loop.processEvents()
             PyCadInputQueue.PythonMainLoop()
+        self._teardown_window()
+
+    def _teardown_window(self):
+        """退出事件泵后收尾：关闭窗口、冲刷重绘并延迟销毁，避免 UI 残留。
+
+        无边框 + setMask 的自绘窗口若只 ``close()`` 不重绘，容易在屏幕上留下
+        残影；顶层窗口不 ``deleteLater()`` 会一直驻留。这里显式处理。
+        """
+        try:
+            self._running = False
+            self._allow_close = True
+            self.close()
+        except RuntimeError:
+            return
+        QApplication.processEvents()
+        try:
+            self.deleteLater()
+            QApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+        except (RuntimeError, TypeError):
+            pass
+        QApplication.processEvents()
+
+
+_active_settings = None
 
 
 def show_support_report():
+    global _active_settings
+    if _active_settings is not None:
+        try:
+            if _active_settings._running:
+                _active_settings.raise_()
+                _active_settings.activateWindow()
+                return None
+        except RuntimeError:
+            pass
     dialog = _SupportReportDialog()
-    dialog.run_dialog_loop()
-    return dialog
+    _active_settings = dialog
+    try:
+        dialog.run_dialog_loop()
+        return dialog
+    finally:
+        _active_settings = None
 
 
 def PyMain():

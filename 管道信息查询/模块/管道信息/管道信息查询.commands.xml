@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<KeyinTree xmlns="http://www.bentley.com/schemas/1.0/MicroStation/AddIn/KeyinTree.xsd">
+  <RootKeyinTable ID="root">
+    <Keyword SubtableRef="PYPIPEINFO" CommandClass="MacroCommand" CommandWord="PYPIPEINFO">
+      <Options Required="true" />
+    </Keyword>
+  </RootKeyinTable>
+  <SubKeyinTables>
+    <KeyinTable ID="PYPIPEINFO">
+      <Keyword CommandWord="PICK" />
+      <Keyword CommandWord="REPORT" />
+    </KeyinTable>
+  </SubKeyinTables>
+  <KeyinHandlers>
+    <KeyinHandler Keyin="PYPIPEINFO PICK" Function="OpenPipeInfoPanel" />
+    <KeyinHandler Keyin="PYPIPEINFO REPORT" Function="ReportSelectedPipe" />
+  </KeyinHandlers>
+</KeyinTree>

@@ -48,7 +48,7 @@ from MSPyMstnPlatform import PythonKeyinManager  # noqa: E402,F811
 
 # PyQt5 必须放在 MSPy 的 import * **之后**：MSPy 通配导入会带进同名符号，
 # 放在前面会被覆盖，导致面板基本控件类丢失、插件直接起不来。
-from PyQt5.QtCore import QEventLoop, QRectF, Qt, QTimer
+from PyQt5.QtCore import QEvent, QEventLoop, QRectF, Qt, QTimer
 from PyQt5.QtGui import QColor, QPainter, QPainterPath, QPalette, QPen, QRegion
 from PyQt5.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMessageBox,
                              QVBoxLayout, QWidget)
@@ -1124,6 +1124,27 @@ class _PortalFrameSettingsDialog(QWidget):
                 self.finish_tool()
                 continue
             PyCadInputQueue.PythonMainLoop()
+        self._teardown_window()
+
+    def _teardown_window(self):
+        """退出事件泵后收尾：关闭窗口、冲刷重绘并延迟销毁，避免 UI 残留。
+
+        无边框 + setMask 的自绘窗口若只 ``close()`` 不重绘，容易在屏幕上留下
+        残影；顶层窗口不 ``deleteLater()`` 会一直驻留。这里显式处理。
+        """
+        try:
+            self._running = False
+            self._allow_close = True
+            self.close()
+        except RuntimeError:
+            return
+        QApplication.processEvents()
+        try:
+            self.deleteLater()
+            QApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+        except (RuntimeError, TypeError):
+            pass
+        QApplication.processEvents()
 
 
 def _family_description(variant_key):
@@ -1224,13 +1245,30 @@ class PortalFrameByLineTool(DgnElementSetTool):
 
     @staticmethod
     def InstallNewInstance(tool_id=0, tool_settings=None, start_ui_loop=True):
+        owner = tool_settings is None
+        if owner:
+            active = getattr(PortalFrameByLineTool, '_active_settings', None)
+            if active is not None:
+                try:
+                    if active._running:
+                        active.raise_()
+                        active.activateWindow()
+                        return None
+                except RuntimeError:
+                    pass
         settings = (tool_settings if tool_settings is not None
                     else _PortalFrameSettingsDialog())
+        if owner:
+            PortalFrameByLineTool._active_settings = settings
         tool = PortalFrameByLineTool(tool_id)
         tool.tool_settings = settings
         tool.InstallTool()
-        if start_ui_loop:
-            settings.run_dialog_loop()
+        try:
+            if start_ui_loop:
+                settings.run_dialog_loop()
+        finally:
+            if owner:
+                PortalFrameByLineTool._active_settings = None
         return tool
 
 

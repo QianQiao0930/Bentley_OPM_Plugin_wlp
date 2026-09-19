@@ -5,21 +5,24 @@
 位置投影到轴线；取不到时用线中点）放置一组保温管夹：
 
     坐标系：原点 = 管道中线（管托 L 中心），X 沿管轴，Z 竖直向上
-    承重板（上/下半）= 包在保温层外的弧形板（板厚 T3），对开 45°、两端留
-                        间隙 J，用耳板 + 4 颗螺栓（带碟簧垫圈）连接
-    管夹底座         = 截面 A-A 工字形（顶部承重板 + 腹板 T2 + 底部承重板 T1）
-                        沿管轴拉伸 L；L＞600 时加中间肋板；底板宽 W 查表 2
-    H                = 管道（不含保温层）底部 → 管托底面
-    L                = 管托沿管轴总长（不含止推件），≥ 300
+    承重板（上/下半）= 包在保温层外的筒形板（板厚 T3），对开 45°、两端留
+                        间隙 J，用耳板 + 螺栓（带碟簧垫圈）连接
+    管夹底座         = 底板 + 两道（L＞600 时三道）横向弧顶支撑 + 中央纵向腹板；
+                        底板宽 W 查表 2
+    H                = 管道（不含保温层）底部 → 管托底面；由保温厚度 B 查表
+                        （≤75→150，76~125→200，126~175→250，176~225→300，
+                        226~275→350）
+    L                = 管托沿管轴总长（不含止推件），≥ 300（管夹环与底座同长）
 
 ``OD / 螺栓 / 耳板 / C / k / J / T1 T2 T3 / 允许荷载`` 来自表 1（DN80~600），
-底板宽 ``W`` 由保温层外径 ``D = OD + 2B`` 查表 2；``B / H / L`` 由面板输入。
-**管道本体 / 保温层可选**（默认都不建），限位块 / 止推件本次不建。
+底板宽 ``W`` 由保温层外径 ``D = OD + 2B`` 查表 2；``H`` 由 ``B`` 查表，
+``B / L`` 由面板输入。**管道本体 / 保温层可选**（默认都不建），限位块 /
+止推件本次不建。
 
-三维建模：板件用矩形轮廓沿轴拉伸、圆件用正多边形近似的圆柱拉伸，切半 / 螺栓孔 /
-鞍座扇区用布尔差、板件合并用布尔并（与仓库其它插件同做法）；所有构件先在本地方位
-系内造好再按所选管道轴线定位，最后装进一个普通单元。清单写入公共库
-``SupportType='保温管夹'``。
+三维建模：管夹本体 = 外圆柱 − 内圆柱 − 45° 矩形贯穿体（真圆柱布尔，得到对开
+两片）；耳板开螺栓通孔后与管夹布尔并；底座弧顶支撑用圆柱布尔剪切后与底板并；
+紧固件为独立实体。所有构件先在本地方位系内造好再按所选管道轴线定位，最后装进
+一个普通单元。清单写入公共库 ``SupportType='保温管夹'``。
 
 运行环境：Bentley Power Platform Python（MSPy）。
 """
@@ -42,7 +45,7 @@ from MSPyMstnPlatform import *
 from MSPyBentley import WString  # noqa: E402,F811
 from MSPyMstnPlatform import PythonKeyinManager  # noqa: E402,F811
 
-from PyQt5.QtCore import QEventLoop, QRectF, Qt, QTimer
+from PyQt5.QtCore import QEvent, QEventLoop, QRectF, Qt, QTimer
 from PyQt5.QtGui import QColor, QPainter, QPainterPath, QPalette, QPen, QRegion
 from PyQt5.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMessageBox,
                              QVBoxLayout, QWidget)
@@ -65,8 +68,28 @@ SUPPORT_TYPE = '保温管夹'
 SUPPORT_CODE = 'INSULATED_PIPE_CLAMP'
 CELL_NAME = 'INSULATED_PIPE_CLAMP'
 
-# 圆柱用正多边形近似的边数。
+# 圆柱用正多边形近似的边数（管道 / 保温层 / 紧固件）。
 CIRCLE_SEGMENTS = 64
+
+# --- 布尔建模常量（对齐「剪切测试」版） ------------------------------------
+EAR_END_OFFSET_MM = 75.0      # 首 / 尾耳板中心到管夹轴向端部的距离。
+EAR_GROUP_COUNT = 0           # 0=自动（L≤600 两组，L＞600 三组）。
+SUPPORT_END_OFFSET_MM = 75.0  # 横向支撑中心到管夹轴向端部的距离。
+SUPPORT_SIDE_INSET_MM = 10.0  # 横向支撑两侧距底板边缘。
+SUPPORT_OVERLAP_MM = 1.0      # 支撑与承重板 / 底板的布尔搭接量。
+EAR_SETBACK_MM = 10.0         # 耳板内侧面距承重板切口端面的退让距离。
+EAR_ROOT_OVERLAP_MM = 1.0     # 耳板根部与承重板的搭接量。
+HOLE_CLEARANCE_MM = 2.0       # 螺栓通孔相对螺杆直径的单边余量（M20→22）。
+CUT_EXTRA_LENGTH_MM = 20.0    # 45° 贯穿切割体两端伸出外圆之外的余量。
+THROUGH_MARGIN_MM = 5.0       # 布尔贯穿余量，避免共面失败。
+# 简化紧固件比例；M20 时与「剪切测试」版一致（对边 30 / 头高 12.5 / 螺母高 16 /
+# 垫圈外径 37）。
+HEX_ACROSS_FLATS_RATIO = 1.5
+BOLT_HEAD_HEIGHT_RATIO = 0.625
+NUT_HEIGHT_RATIO = 0.8
+WASHER_OD_RATIO = 1.85
+WASHER_THICKNESS_MM = 3.0
+BOLT_TIP_EXTRA_MM = 4.0
 
 DEBUG_LOG = os.path.join(HERE, '模块', '日志', '保温管夹_debug_log.txt')
 UI_TITLE = '保温管夹（高温隔热限位管托）'
@@ -74,8 +97,8 @@ UI_REVISION = 'point-select-1'
 
 DEFAULT_DN = 200
 DEFAULT_INSULATION_MM = 50.0
-DEFAULT_HEIGHT_MM = 400.0
-DEFAULT_LENGTH_MM = 500.0
+DEFAULT_HEIGHT_MM = geom.height_for_insulation(DEFAULT_INSULATION_MM)
+DEFAULT_LENGTH_MM = 300.0
 
 base.DEBUG_LOG = DEBUG_LOG
 _log = base._log
@@ -218,28 +241,6 @@ def _prism_body(frame, base_local, axis_local, radius, length, segments,
     return _profile_body(points, sweep, dgn_model, uor_per_mm)
 
 
-def _hex_prism_body(frame, base_local, axis_local, across_flats, thickness,
-                    dgn_model, uor_per_mm):
-    """六棱柱（螺栓头 / 螺母）。"""
-    center = _world(frame, *base_local)
-    axis = _normalize(_world_dir(frame, *axis_local))
-    ref = (0.0, 0.0, 1.0) if abs(_dot(axis, (0.0, 0.0, 1.0))) < 0.9 \
-        else (1.0, 0.0, 0.0)
-    u = _normalize(_cross(axis, ref))
-    v = _cross(axis, u)
-    radius = across_flats / math.cos(math.pi / 6.0)
-    points = []
-    for index in range(6):
-        angle = math.pi / 6.0 + 2.0 * math.pi * index / 6.0
-        c = math.cos(angle) * radius
-        s = math.sin(angle) * radius
-        points.append((center[0] + c * u[0] + s * v[0],
-                       center[1] + c * u[1] + s * v[1],
-                       center[2] + c * u[2] + s * v[2]))
-    sweep = (axis[0] * thickness, axis[1] * thickness, axis[2] * thickness)
-    return _profile_body(points, sweep, dgn_model, uor_per_mm)
-
-
 def _boolean(target, tools, subtract):
     array = ISolidKernelEntityPtrArray()
     for tool in tools:
@@ -281,6 +282,203 @@ def _body_to_element(body, dgn_model, name):
         _log('%s: BodyToElement failed' % name)
         return None
     return solid
+
+
+# ---------------------------------------------------------------------------
+# 布尔建模（管夹本体 / 耳板 / 底座 / 紧固件）
+# ---------------------------------------------------------------------------
+
+
+def _cut_frame(split_angle_deg):
+    """返回切口坐标系方向余弦 ``(c, s)``：a 沿径向、b 沿切口法向。
+
+    本地坐标点 = ``(x, a * c - b * s, a * s + b * c)``（X=管轴，Z 向上）。
+    """
+    angle = math.radians(float(split_angle_deg))
+    return math.sin(angle), math.cos(angle)
+
+
+def _mm_point(frame, uor_per_mm, x, y, z):
+    world = _world(frame, x, y, z)
+    return DPoint3d(world[0] * uor_per_mm, world[1] * uor_per_mm,
+                    world[2] * uor_per_mm)
+
+
+def _cone_body(frame, uor_per_mm, start, end, radius, dgn_model):
+    """真正的圆柱实体；起点、终点为本地坐标（mm）。失败返回 None。"""
+    p0 = _mm_point(frame, uor_per_mm, *start)
+    p1 = _mm_point(frame, uor_per_mm, *end)
+    r = radius * uor_per_mm
+    detail = DgnConeDetail(p0, p1, r, r, True)
+    primitive = ISolidPrimitive.CreateDgnCone(detail)
+    element = EditElementHandle()
+    if BentleyStatus.eSUCCESS != DraftingElementSchema.ToElement(
+            element, primitive, None, dgn_model):
+        return None
+    result = SolidUtil.Convert.ElementToBody(element, True, True, False)
+    if result is None or not _succeeded(result[0]):
+        return None
+    return result[1]
+
+
+def _sweep_profile(frame, uor_per_mm, local_points, local_sweep, dgn_model):
+    points = [_world(frame, *point) for point in local_points]
+    sweep = _world_dir(frame, *local_sweep)
+    return _profile_body(points, sweep, dgn_model, uor_per_mm)
+
+
+def _require_boolean(target, tools, subtract, label):
+    if not _boolean(target, tools, subtract):
+        raise RuntimeError('布尔运算失败：%s' % label)
+
+
+def _ear_body(frame, uor, split, center_x, a0, a1, b0, b1, width, dgn_model):
+    c, s = _cut_frame(split)
+    local = []
+    for a, b in ((a0, b0), (a1, b0), (a1, b1), (a0, b1)):
+        local.append((center_x - width / 2.0, a * c - b * s, a * s + b * c))
+    body = _sweep_profile(frame, uor, local, (width, 0.0, 0.0), dgn_model)
+    if body is None:
+        raise RuntimeError('创建耳板失败。')
+    return body
+
+
+def _rectangle_cutter(frame, uor, split, length, outer_radius, gap_j,
+                      dgn_model):
+    c, s = _cut_frame(split)
+    half_length = outer_radius + CUT_EXTRA_LENGTH_MM / 2.0
+    half_gap = gap_j / 2.0
+    x0 = -length / 2.0 - THROUGH_MARGIN_MM
+    corners = ((-half_length, -half_gap), (half_length, -half_gap),
+               (half_length, half_gap), (-half_length, half_gap))
+    local = [(x0, a * c - b * s, a * s + b * c) for a, b in corners]
+    sweep = (length + 2.0 * THROUGH_MARGIN_MM, 0.0, 0.0)
+    body = _sweep_profile(frame, uor, local, sweep, dgn_model)
+    if body is None:
+        raise RuntimeError('创建 45 度贯穿切割体失败。')
+    return body
+
+
+def _build_ring(frame, uor, bl, layout, dgn_model):
+    """外圆柱 − 内圆柱 − 45° 矩形贯穿体，再逐块布尔并入开孔耳板。"""
+    half_l = bl.clamp_length_mm / 2.0
+    ring = _cone_body(frame, uor, (-half_l, 0.0, 0.0), (half_l, 0.0, 0.0),
+                      bl.outer_radius, dgn_model)
+    if ring is None:
+        raise RuntimeError('创建管夹外圆柱失败。')
+    bore = _cone_body(frame, uor,
+                      (-half_l - THROUGH_MARGIN_MM, 0.0, 0.0),
+                      (half_l + THROUGH_MARGIN_MM, 0.0, 0.0),
+                      bl.inner_radius, dgn_model)
+    _require_boolean(ring, [bore], True, '外圆柱减去管道及保温层圆柱')
+    cutter = _rectangle_cutter(frame, uor, bl.cut_angle_deg,
+                               bl.clamp_length_mm, bl.outer_radius,
+                               bl.gap_j, dgn_model)
+    _require_boolean(ring, [cutter], True, '圆环减去 45 度矩形贯穿体')
+
+    c, s = _cut_frame(bl.cut_angle_deg)
+    for center_x in bl.ear_center_x:
+        for index, (a0, a1, b0, b1) in enumerate(bl.ear_bounds, 1):
+            ear = _ear_body(frame, uor, bl.cut_angle_deg, center_x,
+                            a0, a1, b0, b1, bl.ear_width, dgn_model)
+            a = bl.ear_hole_a[index - 1]
+            start_b = b0 - THROUGH_MARGIN_MM
+            end_b = b1 + THROUGH_MARGIN_MM
+            hole = _cone_body(
+                frame, uor,
+                (center_x, a * c - start_b * s, a * s + start_b * c),
+                (center_x, a * c - end_b * s, a * s + end_b * c),
+                bl.hole_dia / 2.0, dgn_model)
+            _require_boolean(ear, [hole], True, '耳板%d开螺栓通孔' % index)
+            _require_boolean(ring, [ear], False, '耳板%d与管夹布尔并' % index)
+    return ring
+
+
+def _build_support(frame, uor, bl, layout, ring, dgn_model):
+    """底板 + 横向弧顶支撑 + 中央纵向腹板，弧顶减圆柱成形后并入管夹。"""
+    length = bl.clamp_length_mm
+    half_l = length / 2.0
+    half_w = layout.base_width / 2.0
+    base = _box_body(frame, (-half_l, -half_w, bl.base_bottom_z),
+                     (half_l, half_w, bl.base_top_z), dgn_model, uor)
+    if base is None:
+        raise RuntimeError('创建底板失败。')
+    half_t = layout.t2 / 2.0
+    plates = [(x - half_t, x + half_t, -bl.support_half_span,
+               bl.support_half_span) for x in bl.support_center_x]
+    plates.append((bl.support_center_x[0], bl.support_center_x[-1],
+                   -half_t, half_t))
+    c, s = _cut_frame(bl.cut_angle_deg)
+    for index, (x0, x1, y0, y1) in enumerate(plates, 1):
+        plate = _box_body(frame, (x0, y0, bl.base_top_z - SUPPORT_OVERLAP_MM),
+                          (x1, y1, bl.support_top_z), dgn_model, uor)
+        if plate is None:
+            raise RuntimeError('创建支撑%d失败。' % index)
+        cutter = _cone_body(frame, uor,
+                            (x0 - THROUGH_MARGIN_MM, 0.0, 0.0),
+                            (x1 + THROUGH_MARGIN_MM, 0.0, 0.0),
+                            bl.trim_radius, dgn_model)
+        _require_boolean(plate, [cutter], True, '支撑%d剪切贴合圆弧' % index)
+        max_b = max(-s * y + c * bl.support_top_z for y in (y0, y1))
+        if max_b > -bl.gap_j / 2.0:
+            slit = _rectangle_cutter(frame, uor, bl.cut_angle_deg, length,
+                                     bl.outer_radius, bl.gap_j, dgn_model)
+            _require_boolean(plate, [slit], True,
+                             '支撑%d避让管夹对开间隙' % index)
+        _require_boolean(base, [plate], False, '支撑%d连接底板' % index)
+    _require_boolean(ring, [base], False, '支腿与下半承重板连接')
+
+
+def _hex_body(frame, uor, split, center_x, a, b0, b1, across_flats, dgn_model):
+    c, s = _cut_frame(split)
+    radius = across_flats / (2.0 * math.cos(math.pi / 6.0))
+    local = []
+    for index in range(6):
+        theta = math.pi / 6.0 + index * math.pi / 3.0
+        x = center_x + radius * math.cos(theta)
+        radial = a + radius * math.sin(theta)
+        local.append((x, radial * c - b0 * s, radial * s + b0 * c))
+    distance = b1 - b0
+    body = _sweep_profile(frame, uor, local,
+                          (0.0, -s * distance, c * distance), dgn_model)
+    if body is None:
+        raise RuntimeError('创建六角头 / 螺母失败。')
+    return body
+
+
+def _fastener_bodies(frame, uor, bl, layout, center_x, a, dgn_model):
+    """一套：贯穿两耳板的光杆、六角头、六角螺母、两只圆环垫圈。"""
+    c, s = _cut_frame(bl.cut_angle_deg)
+    d = layout.bolt_dia_mm
+
+    def cylinder(b0, b1, radius):
+        return _cone_body(frame, uor,
+                          (center_x, a * c - b0 * s, a * s + b0 * c),
+                          (center_x, a * c - b1 * s, a * s + b1 * c),
+                          radius, dgn_model)
+
+    far = bl.gap_j / 2.0 + bl.ear_setback + layout.ear_thickness
+    seat = far + WASHER_THICKNESS_MM
+    across = d * HEX_ACROSS_FLATS_RATIO
+    head_h = d * BOLT_HEAD_HEIGHT_RATIO
+    nut_h = d * NUT_HEIGHT_RATIO
+    shank = cylinder(-seat, seat + nut_h + BOLT_TIP_EXTRA_MM, d / 2.0)
+    head = _hex_body(frame, uor, bl.cut_angle_deg, center_x, a,
+                     -seat - head_h, -seat, across, dgn_model)
+    nut = _hex_body(frame, uor, bl.cut_angle_deg, center_x, a,
+                    seat, seat + nut_h, across, dgn_model)
+    _require_boolean(nut, [cylinder(seat - THROUGH_MARGIN_MM,
+                                    seat + nut_h + THROUGH_MARGIN_MM,
+                                    bl.hole_dia / 2.0)], True, '螺母中心孔')
+    bodies = [('M%s螺杆' % int(d), shank), ('六角螺栓头', head), ('六角螺母', nut)]
+    for b0, b1 in ((-seat, -far), (far, seat)):
+        washer = cylinder(b0, b1, d * WASHER_OD_RATIO / 2.0)
+        _require_boolean(washer, [cylinder(b0 - THROUGH_MARGIN_MM,
+                                           b1 + THROUGH_MARGIN_MM,
+                                           bl.hole_dia / 2.0)], True,
+                         '垫圈中心孔')
+        bodies.append(('垫圈', washer))
+    return bodies
 
 
 # ---------------------------------------------------------------------------
@@ -332,84 +530,48 @@ class _ClampCellBuilder(object):
 # ---------------------------------------------------------------------------
 
 
-def _extrude_section(frame, x0, section_yz, length_mm, dgn_model, uor_per_mm):
-    """把 ``(y, z)`` 截面点列在 x = x0 平面上成面，再沿 +X 拉伸 ``length``。"""
-    points = [_world(frame, x0, y, z) for (y, z) in section_yz]
-    sweep = _world_dir(frame, length_mm, 0.0, 0.0)
-    return _profile_body(points, sweep, dgn_model, uor_per_mm)
-
-
 def _build_components(layout, frame, dgn_model, uor_per_mm):
-    """按「画截面 → 沿管轴拉伸」建模。
+    """布尔建模：管夹本体 + 耳板 + 弧顶支撑底座，返回 ``(构件列表, 布尔布局)``。
 
-    承重板（管夹上 / 下半）= 弧形截面拉伸；管夹底座 = 截面 A-A（工字形）拉伸；
-    再补耳板与螺栓。坐标原点为管道中线。
+    坐标原点为管道中线；X=管轴，Z 竖直向上。管夹环、耳板、底座经布尔并合并为
+    一个实体；紧固件为独立实体。
     """
-    results = []
-    W = layout.clamp_width_mm
-    L = layout.shoe_length_mm
+    bl = geom.build_boolean_layout(
+        layout,
+        ear_end_offset=EAR_END_OFFSET_MM,
+        ear_group_count=EAR_GROUP_COUNT,
+        support_end_offset=SUPPORT_END_OFFSET_MM,
+        support_side_inset=SUPPORT_SIDE_INSET_MM,
+        support_overlap=SUPPORT_OVERLAP_MM,
+        ear_setback=EAR_SETBACK_MM,
+        ear_root_overlap=EAR_ROOT_OVERLAP_MM,
+        hole_clearance=HOLE_CLEARANCE_MM)
 
-    # 1) 承重板（上 / 下半）：弧形截面沿管轴拉伸 W。
-    results.append(('承重板（上半）', _extrude_section(
-        frame, -W / 2.0, geom.clamp_half_points(layout, True), W,
-        dgn_model, uor_per_mm)))
-    results.append(('承重板（下半）', _extrude_section(
-        frame, -W / 2.0, geom.clamp_half_points(layout, False), W,
-        dgn_model, uor_per_mm)))
+    ring = _build_ring(frame, uor_per_mm, bl, layout, dgn_model)
+    _build_support(frame, uor_per_mm, bl, layout, ring, dgn_model)
 
-    # 2) 管夹底座：截面 A-A（工字形，含 L＞600 中间肋板）沿管轴拉伸 L。
-    results.append(('管夹底座', _extrude_section(
-        frame, -L / 2.0, geom.shoe_section_points(layout), L,
-        dgn_model, uor_per_mm)))
-
-    # 3) 耳板 + 螺栓：两处对开（split 角及其对侧），各处 2 颗。
-    Rco = layout.clamp_outer_radius
-    ear_w = layout.ear_width
-    ear_h = layout.ear_height
-    ear_t = layout.ear_thickness
-    split = math.radians(layout.split_angle_deg)
-    for joint in (split, split + math.pi):
-        r_dir = _world_dir(frame, 0.0, math.sin(joint), math.cos(joint))
-        t_dir = _world_dir(frame, 0.0, math.cos(joint), -math.sin(joint))
-        joint_frame = (frame[0], r_dir, t_dir, frame[3])
-        r_mid = Rco - 2.0 + ear_h / 2.0
-        ear = _box_body(joint_frame, (-ear_w / 2.0, Rco - 2.0, -ear_t / 2.0),
-                        (ear_w / 2.0, Rco - 2.0 + ear_h, ear_t / 2.0),
-                        dgn_model, uor_per_mm)
-        results.append(('耳板', ear))
-        for xb in (-layout.bolt_center_c / 2.0, layout.bolt_center_c / 2.0):
-            bolt = _prism_body(joint_frame, (xb, r_mid, -ear_t / 2.0 - 6.0),
-                               (0.0, 0.0, 1.0), layout.bolt_dia_mm / 2.0,
-                               ear_t + 12.0, 24, dgn_model, uor_per_mm)
-            if bolt is not None:
-                head = _hex_prism_body(
-                    joint_frame, (xb, r_mid, -ear_t / 2.0 - 6.0 - 8.0),
-                    (0.0, 0.0, 1.0), layout.bolt_dia_mm * 1.6, 8.0,
-                    dgn_model, uor_per_mm)
-                nut = _hex_prism_body(
-                    joint_frame, (xb, r_mid, ear_t / 2.0 + 6.0),
-                    (0.0, 0.0, 1.0), layout.bolt_dia_mm * 1.6, 8.0,
-                    dgn_model, uor_per_mm)
-                if head is not None:
-                    _boolean(bolt, [head], False)
-                if nut is not None:
-                    _boolean(bolt, [nut], False)
-            results.append(('螺栓', bolt))
-    return results
+    results = [('管夹和支腿', ring)]
+    for center_x in bl.ear_center_x:
+        # 每个轴向位置有两处分口，各穿一套紧固件（孔心 a 取正、负各一）。
+        for a in (bl.ear_hole_a[2], bl.ear_hole_a[0]):
+            results.extend(
+                _fastener_bodies(frame, uor_per_mm, bl, layout,
+                                 center_x, a, dgn_model))
+    return results, bl
 
 
 def _build_clamp_cell(layout, frame, build_pipe, build_insulation, dgn_model):
     uor_per_mm = _uor_per_mm(dgn_model)
-    components = _build_components(layout, frame, dgn_model, uor_per_mm)
+    components, bl = _build_components(layout, frame, dgn_model, uor_per_mm)
+    length = bl.clamp_length_mm
 
     builder = _ClampCellBuilder(dgn_model)
     built = {'pipe': 0, 'insulation': 0}
     if build_pipe:
-        axis_center_x = -layout.shoe_length_mm / 2.0
         wall = max(3.0, layout.od_mm * 0.04)
-        pipe = _tube_body(frame, (axis_center_x, 0.0, 0.0), (1.0, 0.0, 0.0),
+        pipe = _tube_body(frame, (-length / 2.0, 0.0, 0.0), (1.0, 0.0, 0.0),
                           layout.pipe_radius, layout.pipe_radius - wall,
-                          layout.shoe_length_mm + 40.0, dgn_model, uor_per_mm)
+                          length + 40.0, dgn_model, uor_per_mm)
         element = _body_to_element(pipe, dgn_model, '管道') \
             if pipe is not None else None
         if element is not None:
@@ -419,10 +581,10 @@ def _build_clamp_cell(layout, frame, build_pipe, build_insulation, dgn_model):
             builder.note('管道本体创建失败，已跳过。')
 
     if build_insulation:
-        insulation = _tube_body(
-            frame, (-layout.clamp_width_mm / 2.0, 0.0, 0.0), (1.0, 0.0, 0.0),
-            layout.insulation_radius, layout.pipe_radius,
-            layout.clamp_width_mm, dgn_model, uor_per_mm)
+        insulation = _tube_body(frame, (-length / 2.0, 0.0, 0.0),
+                                (1.0, 0.0, 0.0), layout.insulation_radius,
+                                layout.pipe_radius, length, dgn_model,
+                                uor_per_mm)
         element = _body_to_element(insulation, dgn_model, '保温层') \
             if insulation is not None else None
         if element is not None:
@@ -442,7 +604,7 @@ def _build_clamp_cell(layout, frame, build_pipe, build_insulation, dgn_model):
         builder.add(element)
 
     builder.build()
-    return builder, built
+    return builder, built, bl
 
 
 def _attach_items(cell, result):
@@ -459,42 +621,45 @@ def _attach_items(cell, result):
 def replace_clamp(layout, frame, build_pipe, build_insulation,
                   previous_handle):
     dgn_model = ISessionMgr.GetActiveDgnModel()
-    builder, built = _build_clamp_cell(layout, frame, build_pipe,
-                                       build_insulation, dgn_model)
+    builder, built, bl = _build_clamp_cell(layout, frame, build_pipe,
+                                           build_insulation, dgn_model)
     new_handle = builder.commit()
-    result = _build_result(layout, builder, built)
+    result = _build_result(layout, builder, built, bl)
     _attach_items(new_handle, result)
     deleted = _delete_preview(previous_handle)
     return new_handle, result, deleted
 
 
-def _build_result(layout, builder, built):
+def _build_result(layout, builder, built, bl):
     loads = geom.allowable_loads(layout.dn)
     ear = '%.0f×%.0f×%.0f' % (layout.ear_width, layout.ear_height,
                               layout.ear_thickness)
+    group_count = len(bl.ear_center_x)
+    clamp_length = bl.clamp_length_mm
     post_items = []
     if built.get('pipe'):
         post_items.append({'code': 'Pipe', 'name': '管道',
                            'specification': 'OD%.1f' % layout.od_mm,
-                           'length': layout.shoe_length_mm})
+                           'length': clamp_length})
     if built.get('insulation'):
         post_items.append({'code': 'Insulation', 'name': '保温层',
                            'specification': 'B=%.0f' % layout.insulation_mm,
-                           'length': layout.clamp_width_mm})
+                           'length': clamp_length})
     post_items += [
         {'code': 'ClampUpper', 'name': '承重板（上半）',
          'specification': 'T3=%.0f' % layout.t3,
-         'length': layout.clamp_width_mm},
+         'length': clamp_length},
         {'code': 'ClampLower', 'name': '承重板（下半）',
          'specification': 'T3=%.0f' % layout.t3,
-         'length': layout.clamp_width_mm},
+         'length': clamp_length},
         {'code': 'Base', 'name': '管夹底座',
          'specification': 'W=%.0f / T2=%.0f' % (layout.base_width, layout.t2),
-         'length': layout.shoe_length_mm},
-        {'code': 'Ear', 'name': '耳板', 'specification': ear, 'quantity': 4},
+         'length': clamp_length},
+        {'code': 'Ear', 'name': '耳板', 'specification': ear,
+         'quantity': 4 * group_count},
         {'code': 'Bolt', 'name': '螺栓',
          'specification': layout.bolt_dia, 'length': layout.bolt_length_mm,
-         'quantity': layout.bolt_count},
+         'quantity': 2 * group_count},
     ]
     return {
         'dn': layout.dn, 'nps': layout.nps, 'od_mm': layout.od_mm,
@@ -682,12 +847,13 @@ class _ClampSettingsDialog(QWidget):
         hint_row = QVBoxLayout()
         hint_row.setContentsMargins(15, 0, 15, 0)
         hint = QLabel("在模型中点选一条管道轴线取方向，再在轴上点取放置点（= 管托 L "
-                      "的中心；未点取时用线中点）。DN80~600：承重板（管夹上/下半）"
-                      "包保温层外径、对开 45°、留间隙 J、耳板 + 4 颗螺栓；管夹底座"
-                      "按截面 A-A（顶板/腹板/底板）拉伸，L>600 加中间肋板；底板宽 W "
-                      "由保温层外径查表 2。H = 管道（不含保温）底部到管托底面，L = "
-                      "管托沿管轴总长（≥300）。管道本体 / 保温层可选（默认不建），"
-                      "限位块/止推件不建。"
+                      "的中心；未点取时用线中点）。DN80~600：管夹本体 = 外圆柱 − "
+                      "内圆柱 − 45° 矩形贯穿体（对开两片），耳板沿轴均布 2 组"
+                      "（L＞600 为 3 组）、开孔后与管夹布尔并，配带碟簧垫圈的螺栓；"
+                      "底座 = 底板 + 横向弧顶支撑 + 中央纵向腹板，弧顶减圆柱成形，"
+                      "底板宽 W 由保温层外径查表 2。H 由保温厚度 B 查表，L = 管托"
+                      "沿管轴总长（≥300，管夹环同长）。管道本体 / 保温层可选"
+                      "（默认不建），限位块/止推件不建。"
                       "点取后可改参数、预览自动重建；点【确定】保留，点【取消】放弃。")
         hint.setWordWrap(True)
         hint.setStyleSheet('color: #7D8AA0; font-size: 12px;')
@@ -714,15 +880,15 @@ class _ClampSettingsDialog(QWidget):
         self.insulation_edit = self._edit_row(
             card.content, 0, "隔热层厚度 B：", '%.0f' % DEFAULT_INSULATION_MM,
             "mm　用户输入（管夹夹保温层外径）")
-        self.height_edit = self._edit_row(
-            card.content, 1, "H：", '%.0f' % DEFAULT_HEIGHT_MM,
-            "mm　管道（不含保温）底部 → 管托底面")
+        self.height_label = self._value()
+        self._row(card.content, 1, "H：",
+                  [self.height_label, self._note("mm　由保温厚度 B 查表")], 8)
         self.length_edit = self._edit_row(
             card.content, 2, "L：", '%.0f' % DEFAULT_LENGTH_MM,
             "mm　管托沿管轴总长（≥300，不含止推件）")
         self.width_edit = self._edit_row(
             card.content, 3, "管夹宽度：", '%.0f' % geom.DEFAULT_CLAMP_WIDTH_MM,
-            "mm　沿管轴方向（图上 75）")
+            "mm　旧参数；本版管夹环沿轴长改用 L，此项不再参与建模")
         self.clamp_od_label = self._value()
         self._row(card.content, 4, "管夹外径：",
                   [self.clamp_od_label, self._note("mm　= OD + 2B + 2×板厚")], 8)
@@ -853,7 +1019,8 @@ class _ClampSettingsDialog(QWidget):
         return self._float(self.insulation_edit, DEFAULT_INSULATION_MM)
 
     def current_height(self):
-        return self._float(self.height_edit, DEFAULT_HEIGHT_MM)
+        # H 由保温厚度 B 查表决定，不作为独立输入。
+        return geom.height_for_insulation(self.current_insulation())
 
     def current_length(self):
         return self._float(self.length_edit, DEFAULT_LENGTH_MM)
@@ -897,6 +1064,10 @@ class _ClampSettingsDialog(QWidget):
         loads = geom.allowable_loads(dn)
         self.load_label.setText('%.0f / %.0f / %.0f'
                                 % (loads[0], loads[1], loads[2]))
+        try:
+            self.height_label.setText('%.0f' % self.current_height())
+        except ValueError:
+            self.height_label.setText('—')
         try:
             layout = self.current_layout()
             self.clamp_od_label.setText('%.1f'
@@ -1089,6 +1260,30 @@ class _ClampSettingsDialog(QWidget):
                 self.finish_tool()
                 continue
             PyCadInputQueue.PythonMainLoop()
+        self._teardown_window()
+
+    def _teardown_window(self):
+        """退出事件泵后收尾：关闭窗口、冲刷重绘并延迟销毁，避免 UI 残留。
+
+        无边框 + setMask 的自绘窗口若只 ``close()`` 不重绘，容易在屏幕上留下
+        残影；顶层窗口不 ``deleteLater()`` 会一直驻留。这里显式处理。
+        """
+        try:
+            self._running = False
+            self._allow_close = True
+            self.close()
+        except RuntimeError:
+            return
+        # 冲刷一次隐藏 / 重绘事件，再安排销毁（避免残留的窗口像素）。
+        QApplication.processEvents()
+        try:
+            self.deleteLater()
+            # 这里只有 processEvents、没有 exec 主循环，DeferredDelete 需显式派发，
+            # 否则顶层窗口不会被销毁而驻留（表现为 UI 残留）。
+            QApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+        except (RuntimeError, TypeError):
+            pass
+        QApplication.processEvents()
 
 
 # ---------------------------------------------------------------------------
@@ -1199,8 +1394,26 @@ class InsulatedClampTool(DgnElementSetTool):
         return tool
 
 
+_active_settings = None
+
+
 def show_clamp_dialog():
-    return InsulatedClampTool.InstallNewInstance(0)
+    """打开保温管夹面板；已在运行时只把已有窗口提到前台，避免重复窗口残留。"""
+    global _active_settings
+    if _active_settings is not None:
+        try:
+            if _active_settings._running:
+                _active_settings.raise_()
+                _active_settings.activateWindow()
+                return None
+        except RuntimeError:
+            pass
+    settings = _ClampSettingsDialog()
+    _active_settings = settings
+    try:
+        return InsulatedClampTool.InstallNewInstance(0, settings, True)
+    finally:
+        _active_settings = None
 
 
 def export_clamp_bom():

@@ -8,21 +8,21 @@
 
 对应图集：适用范围 **管径 3″~24″，即 DN80~600**。结构（详图 A / C、截面 A-A）：
 
-* **承重板（上 / 下两组）** = 包在保温层外的两块弧形板（板厚 ``T3``），对开
-  45°、两端用**耳板 + 螺栓**（带碟簧垫圈）连接，两块承重板之间留**间隙 J**；
-* **管夹底座**（截面 A-A）= 由**顶部承重板 + 腹板 + 底部承重板**（长 L＞600 时
-  再加中间肋板）组合成的截面，沿管轴拉伸；**底板宽度 W 由保温层外径 D 查表 2**；
-* 以所选**管道中线为坐标原点**，先画截面关键控制点，再沿管轴拉伸。
+* **承重板（上 / 下两组）** = 包在保温层外的筒形板（板厚 ``T3``），对开 45°、
+  两端用**耳板 + 螺栓**（带碟簧垫圈）连接，两块承重板之间留**间隙 J**；
+* **管夹底座** = 底板 + 两道（L＞600 时三道）横向弧顶支撑 + 中央纵向腹板；
+* 以所选**管道中线为坐标原点**，X 沿管轴，Z 竖直向上。
 
 数据来源：
 * **表 1**：螺栓直径、耳板大小、螺栓中心线尺寸 ``C``、耳板焊缝腰高 ``k``、
   承重板间隙 ``J``；以及鞍座和承重板尺寸 ``T1 / T2 / T3``、允许荷载；
 * **表 2**：隔热层外径 ``D`` → 底板宽度 ``W``；
-* **用户输入**：隔热层厚度 ``B``、``H``、``L``。
+* **用户输入**：隔热层厚度 ``B``、``L``（``H`` 由 ``B`` 查表）。
 
-本模块只做**数据与截面点**推导（:func:`build_layout` / :func:`clamp_half_points` /
-:func:`shoe_section_points`），三维实体由 ``保温管夹.py`` 拉伸得到。图中未给死的
-尺寸用顶部默认常量。
+本模块只做**数据与尺寸**推导（:func:`build_layout` / :func:`build_boolean_layout`）。
+三维实体（外圆柱 − 内圆柱 − 45° 贯穿体 = 两片管夹；耳板开孔后与管夹布尔并；
+底座弧顶支撑减圆柱成形）由 ``保温管夹.py`` 做布尔运算得到。图中未给死的尺寸用
+顶部默认常量。
 """
 
 from __future__ import division
@@ -37,16 +37,23 @@ MIN_SHOE_LENGTH_MM = 300.0
 MIN_INSULATION_MM = 1.0
 MIN_HEIGHT_MM = 1.0
 
-# 长 L 超过该值时，管夹底座加盖中间肋板（截面 A-A 的 L＞600 分支）。
+# 长 L 超过该值时，管夹底座加盖中间横向支撑（截面 A-A 的 L＞600 分支）。
 MIDDLE_RIB_LENGTH_MM = 600.0
 # 管夹对开方位角（°）：0 = 正上方（+Z），45 = 图上 45° 螺栓线。
 DEFAULT_SPLIT_ANGLE_DEG = 45.0
-# 承重板螺栓在管夹宽度方向的排布（2 颗）。
-BOLTS_PER_JOINT = 2
-# 截面圆弧的离散段数（纯数据，供建模用）。
-SECTION_ARC_STEPS = 24
+# 旧参数：管夹环轴向宽度默认值（本版管夹环沿轴长改用 L，仅保留兼容）。
+DEFAULT_CLAMP_WIDTH_MM = 75.0
 # 螺栓在两侧承重板之外的长度（mm，含螺母/碟簧余量）。
 BOLT_EXTRA_MM = 25.0
+
+# --- 布尔建模默认常量（对齐「剪切测试」版） --------------------------------
+EAR_END_OFFSET_MM = 75.0      # 首 / 尾耳板中心到管夹轴向端部的距离。
+SUPPORT_END_OFFSET_MM = 75.0  # 横向支撑中心到管夹轴向端部的距离。
+SUPPORT_SIDE_INSET_MM = 10.0  # 横向支撑两侧距底板边缘。
+SUPPORT_OVERLAP_MM = 1.0      # 支撑与承重板 / 底板的布尔搭接量。
+EAR_SETBACK_MM = 10.0         # 耳板内侧面距承重板切口端面的退让距离。
+EAR_ROOT_OVERLAP_MM = 1.0     # 耳板根部与承重板的搭接量。
+HOLE_CLEARANCE_MM = 2.0       # 螺栓通孔相对螺杆直径的单边余量（M20→22）。
 
 
 # ---------------------------------------------------------------------------
@@ -163,6 +170,29 @@ def base_width_for_insulation_od(insulation_od_mm):
 
 
 # ---------------------------------------------------------------------------
+# 表：保温厚度 B → H（管道不含保温底部 → 管托底面）
+# ---------------------------------------------------------------------------
+
+INSULATION_HEIGHT_TABLE = (
+    (75.0, 150.0),
+    (125.0, 200.0),
+    (175.0, 250.0),
+    (225.0, 300.0),
+    (275.0, 350.0),
+)
+
+
+def height_for_insulation(insulation_mm):
+    """按保温厚度 ``B`` 查表得到 ``H``（mm）；超出表上限时报错。"""
+    b = float(insulation_mm)
+    for limit, height in INSULATION_HEIGHT_TABLE:
+        if b <= limit:
+            return height
+    raise ValueError('保温厚度 B=%.1f mm 超出表上限 %.0f mm。'
+                     % (b, INSULATION_HEIGHT_TABLE[-1][0]))
+
+
+# ---------------------------------------------------------------------------
 # 尺寸与截面点推导
 # ---------------------------------------------------------------------------
 
@@ -182,9 +212,9 @@ Layout = namedtuple('Layout', (
 
 
 def build_layout(dn, insulation_mm, height_mm, shoe_length_mm,
-                 clamp_width_mm=75.0,
+                 clamp_width_mm=DEFAULT_CLAMP_WIDTH_MM,
                  split_angle_deg=DEFAULT_SPLIT_ANGLE_DEG):
-    """按 DN + 用户输入推导整套尺寸（mm），供截面绘制 / 拉伸使用。
+    """按 DN + 用户输入推导整套尺寸（mm），供布尔建模使用。
 
     坐标系：原点取 **管道轴线**（管托 L 中心），X 沿管轴，Z 竖直向上。
     ``shoe_bottom_z = -(管半径 + H)``（H = 管道底部 → 管托底面）。
@@ -250,83 +280,137 @@ def build_layout(dn, insulation_mm, height_mm, shoe_length_mm,
     )
 
 
-def _angle_point(radius, angle):
-    """角度 θ 从 +Z 起算、向 +Y 为正：返回 (y, z)。"""
-    return (math.sin(angle) * radius, math.cos(angle) * radius)
+BooleanLayout = namedtuple('BooleanLayout', (
+    'inner_radius', 'outer_radius', 'clamp_length_mm', 'cut_angle_deg', 'gap_j',
+    'ear_center_x', 'support_center_x',
+    'base_bottom_z', 'base_top_z', 'support_half_span', 'support_top_z',
+    'trim_radius',
+    'ear_bounds', 'ear_hole_a', 'hole_dia',
+    'ear_width', 'ear_height', 'ear_thickness', 'ear_setback',
+))
 
 
-def clamp_half_points(layout, upper, steps=SECTION_ARC_STEPS):
-    """半片**承重板（管夹）**截面关键控制点 ``(y, z)``（mm，管中为原点）。
+def _ear_hole_a(a0, a1, b0, b1, outer_radius, bolt_center_c, hole_dia, ear_w):
+    """返回孔心的有符号 a 坐标；同一分口两孔取相同 a，保证同轴。"""
+    b_mid = (b0 + b1) / 2.0
+    contact_a = math.sqrt(outer_radius ** 2 - b_mid ** 2)
+    side = 1.0 if a0 + a1 > 0 else -1.0
+    hole_a = side * (contact_a + bolt_center_c)
+    radius = hole_dia / 2.0
+    if ear_w / 2.0 <= radius or not (a0 < hole_a - radius and
+                                     hole_a + radius < a1):
+        raise ValueError('孔超出耳板边界，请调整 C、孔径或耳板尺寸。')
+    nearest_b = min(abs(b0), abs(b1))
+    surface_a = math.sqrt(outer_radius ** 2 - nearest_b ** 2)
+    if abs(hole_a) - radius <= surface_a:
+        raise ValueError('孔与管夹本体相交，请增大 C 或减小孔径。')
+    return hole_a
 
-    承重板内径 = 保温层外径 D/2、外径 = D/2 + T3；两半在 ``split_angle`` 处对开、
-    端部留**间隙 J**（沿中性层弧长）。上半覆盖对开面之间经管顶的一段，下半经管底。
+
+def build_boolean_layout(layout, ear_end_offset=EAR_END_OFFSET_MM,
+                         ear_group_count=0,
+                         support_end_offset=SUPPORT_END_OFFSET_MM,
+                         support_side_inset=SUPPORT_SIDE_INSET_MM,
+                         support_overlap=SUPPORT_OVERLAP_MM,
+                         ear_setback=EAR_SETBACK_MM,
+                         ear_root_overlap=EAR_ROOT_OVERLAP_MM,
+                         hole_clearance=HOLE_CLEARANCE_MM):
+    """由 :func:`build_layout` 推导布尔建模所需的全部尺寸（mm）。
+
+    返回 :class:`BooleanLayout`。管夹环沿管轴长 ``L``；耳板沿轴均布 2 组
+    （L≤600）或 3 组（L＞600），每组两处分口各 2 块耳板（共 4 块）；底座为
+    底板 + 横向弧顶支撑 + 中央纵向腹板。坐标：X=管轴，Z=竖直向上，管中为原点。
     """
-    r_in = layout.insulation_radius
-    r_out = r_in + layout.t3
-    r_mid = (r_in + r_out) / 2.0
-    half_gap = (layout.plate_gap_j / 2.0) / r_mid
-    split = math.radians(layout.split_angle_deg)
-    if upper:
-        start = split + half_gap
-        end = split + math.pi - half_gap
-    else:
-        start = split + math.pi + half_gap
-        end = split + 2.0 * math.pi - half_gap
-    points = []
-    for index in range(steps + 1):
-        angle = start + (end - start) * index / steps
-        points.append(_angle_point(r_out, angle))
-    for index in range(steps, -1, -1):
-        angle = start + (end - start) * index / steps
-        points.append(_angle_point(r_in, angle))
-    return points
+    length = float(layout.shoe_length_mm)
+    outer_radius = float(layout.clamp_outer_radius)
+    inner_radius = float(layout.insulation_radius)
+    t1 = float(layout.t1)
+    t2 = float(layout.t2)
+    t3 = float(layout.t3)
+    gap_j = float(layout.plate_gap_j)
+    ear_w = float(layout.ear_width)
+    ear_h = float(layout.ear_height)
+    ear_t = float(layout.ear_thickness)
 
+    if length < MIN_SHOE_LENGTH_MM:
+        raise ValueError('管夹长度 L 必须至少 %.0f mm。' % MIN_SHOE_LENGTH_MM)
+    if gap_j >= 2.0 * inner_radius:
+        raise ValueError('承重板间隙 J 必须小于管夹内径。')
+    if ear_group_count not in (0, 2, 3):
+        raise ValueError('耳板组数只能取 0（自动）、2 或 3。')
 
-def shoe_section_points(layout):
-    """**管夹底座**截面（截面 A-A）关键控制点 ``(y, z)``（mm，管中为原点）。
+    count = ear_group_count or (3 if length > MIDDLE_RIB_LENGTH_MM else 2)
+    span = length - 2.0 * ear_end_offset
+    if ear_end_offset < ear_w / 2.0 or span / (count - 1) <= ear_w:
+        raise ValueError('耳板重叠或超出管夹端部，请增大 L 或调整端距及组数。')
+    ear_center_x = tuple(-span / 2.0 + i * span / (count - 1)
+                         for i in range(count))
 
-    工字形：顶部承重板 + 腹板（T2）+ 底部承重板；L＞600 时中间加肋板（同 T2）。
-    顶部板顶面 = 承重板最低点；底板底面 = 管托底面。
-    """
-    w = layout.base_width
-    t2 = layout.t2
-    t_bot = layout.base_plate_thickness
-    z_top = layout.top_plate_top_z
-    z_bot = layout.shoe_bottom_z
-    z_base_top = layout.base_top_z
-    half_w = w / 2.0
-    half_web = t2 / 2.0
+    if not t2 / 2.0 < support_end_offset < length / 2.0 - t2:
+        raise ValueError('横向支撑端距不合理。')
+    support_center_x = [-length / 2.0 + support_end_offset,
+                        length / 2.0 - support_end_offset]
+    if length > MIDDLE_RIB_LENGTH_MM:
+        support_center_x.insert(1, 0.0)
 
-    points = [
-        (-half_w, z_top),
-        (half_w, z_top),
-        (half_w, z_top - t2),
-        (half_web, z_top - t2),
-    ]
-    if layout.has_middle_rib:
-        z_mid = (z_base_top + (z_top - t2)) / 2.0
-        points += [(half_web, z_mid + t2 / 2.0),
-                   (half_w, z_mid + t2 / 2.0),
-                   (half_w, z_mid - t2 / 2.0),
-                   (half_web, z_mid - t2 / 2.0)]
-    points += [
-        (half_web, z_base_top),
-        (half_w, z_base_top),
-        (half_w, z_bot),
-        (-half_w, z_bot),
-        (-half_w, z_base_top),
-        (-half_web, z_base_top),
-    ]
-    if layout.has_middle_rib:
-        points += [(-half_web, z_mid - t2 / 2.0),
-                   (-half_w, z_mid - t2 / 2.0),
-                   (-half_w, z_mid + t2 / 2.0),
-                   (-half_web, z_mid + t2 / 2.0)]
-    points += [
-        (-half_web, z_top - t2),
-        (-half_w, z_top - t2),
-    ]
-    return points
+    base_bottom_z = float(layout.shoe_bottom_z)
+    base_top_z = float(layout.base_top_z)
+    if base_top_z >= -outer_radius:
+        raise ValueError('H 不足，底板与管夹相交或没有支撑净高。')
+    if support_overlap >= min(t3, t1):
+        raise ValueError('搭接量必须小于承重板及底板厚度。')
+
+    half_span = float(layout.base_width) / 2.0 - support_side_inset
+    trim_radius = outer_radius - support_overlap
+    if not t2 / 2.0 < half_span < trim_radius:
+        raise ValueError('横向支撑宽度不适合当前管夹直径。')
+    support_top_z = -math.sqrt(trim_radius ** 2 - half_span ** 2)
+
+    b_near = gap_j / 2.0 + ear_setback
+    b_far = b_near + ear_t
+    if b_far >= outer_radius:
+        raise ValueError('耳板位置超出管夹外圆，请调整间隙、退让或耳板厚度。')
+    a_root = math.sqrt(outer_radius ** 2 - b_far ** 2) - ear_root_overlap
+    if a_root <= 0 or math.hypot(a_root, b_near) <= inner_radius:
+        raise ValueError('耳板根部会穿入保温层，请调整耳板位置或搭接量。')
+    if ear_w > length:
+        raise ValueError('耳板轴向宽度不得超过管夹长度。')
+    if a_root + ear_h <= math.sqrt(outer_radius ** 2 - b_near ** 2):
+        raise ValueError('耳板高度不足以伸出管夹外圆。')
+
+    bounds = []
+    for radial_side in (-1, 1):
+        a0, a1 = sorted((radial_side * a_root,
+                         radial_side * (a_root + ear_h)))
+        for plate_side in (-1, 1):
+            b0, b1 = sorted((plate_side * b_near, plate_side * b_far))
+            bounds.append((a0, a1, b0, b1))
+
+    hole_dia = float(layout.bolt_dia_mm) + hole_clearance
+    hole_a = tuple(
+        _ear_hole_a(a0, a1, b0, b1, outer_radius,
+                    float(layout.bolt_center_c), hole_dia, ear_w)
+        for (a0, a1, b0, b1) in bounds)
+
+    angle = math.radians(float(layout.split_angle_deg))
+    if math.cos(angle) <= 0.0:
+        raise ValueError('切口角度不合理。')
+    max_b = abs(math.sin(angle)) * half_span + math.cos(angle) * support_top_z
+    if max_b >= gap_j / 2.0:
+        raise ValueError('当前切口角度或支撑宽度会使支撑接触上半承重板。')
+
+    return BooleanLayout(
+        inner_radius=inner_radius, outer_radius=outer_radius,
+        clamp_length_mm=length, cut_angle_deg=float(layout.split_angle_deg),
+        gap_j=gap_j,
+        ear_center_x=ear_center_x, support_center_x=tuple(support_center_x),
+        base_bottom_z=base_bottom_z, base_top_z=base_top_z,
+        support_half_span=half_span, support_top_z=support_top_z,
+        trim_radius=trim_radius,
+        ear_bounds=tuple(bounds), ear_hole_a=hole_a, hole_dia=hole_dia,
+        ear_width=ear_w, ear_height=ear_h, ear_thickness=ear_t,
+        ear_setback=ear_setback,
+    )
 
 
 # ---------------------------------------------------------------------------
