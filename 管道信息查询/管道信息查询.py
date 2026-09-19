@@ -104,7 +104,7 @@ reader = _load_module('管道信息_读取',
                       os.path.join(INFO_DIR, '管道信息_读取.py'))
 
 # 接口版本自检：磁盘上是旧版读取库时给出明确提示，而不是崩在导入期。
-REQUIRED_READER_API = 8
+REQUIRED_READER_API = 11
 READER_API_OK = (getattr(reader, 'READER_API_VERSION', None)
                  == REQUIRED_READER_API)
 

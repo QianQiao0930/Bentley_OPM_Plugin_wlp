@@ -133,6 +133,41 @@ OpenPlant_3D 的 EC Schema 里，长度类属性（`OUTSIDE_DIAMETER`、
 `PipeSupportComponents`）。挑选时会**优先 OpenPlant 系 Schema 的实例**，
 ItemType 实例一律不参与，避免把支吊架的设计长度当成管径。
 
+## 供放置类插件调用（放置接口）
+
+除面板外，读取库还导出**放置接口**，供管夹等放置类插件实现"点取管段 → 在该点
+放置"：
+
+```python
+import 管道信息_读取 as reader
+
+info = reader.pipe_placement_info(元素句柄)      # 点取时的一次调用
+info['start_mm']                  # 管段轴线起点 (x, y, z) mm
+info['end_mm']                    # 管段轴线终点
+info['axis']                      # 起点→终点单位向量（管轴，含坡度方向）
+info['orientation']               # 走向：水平 / 竖直 / 倾斜 / 零长度
+info['slope_percent']             # 坡度 %（倾斜管；水平 0.0、竖直 None）
+info['nominal_diameter_mm']       # 公称直径 mm（缺失时回退端部值）
+info['insulation_thickness_mm']   # 保温厚度 mm（无保温为 None）
+info['outside_diameter_mm']       # 外径 mm
+info['wall_thickness_mm']         # 壁厚 mm
+info['warnings']                  # 缺项 / 无轴线等真问题提示
+
+# 点击点 → 轴线上的放置锚点（管夹轴向中心）
+anchor = reader.placement_anchor(info, 点击点mm)
+```
+
+- 返回的是**纯 Python 字典**（不含 Bentley 对象），可安全带出工具回调；
+  ``info['snapshot']`` 保留完整报告快照，需要别的字段时可再取。
+- 另有 ``extract_placement_info(快照)``（纯函数，供单测）、
+  ``project_onto_axis(点, 起点, 终点)``（投影到轴线）可单独使用。
+- 管段带中心线曲线时给出精确的起点 / 终点 / 管轴（``source='geometry'``、
+  ``exact=True``）；**单元格（Cell）类管道**没有曲线，退回包围盒：取**最长边
+  方向**近似管轴（``source='bbox'``、``exact=False``，仅对直管段可靠），
+  ``start_mm``/``end_mm``/``axis`` 仍可用，``center_mm`` 为包围盒中心。
+- 公称直径、保温厚度由 EC 属性按**标定出的单位**换算为 mm；属性缺失即为
+  ``None`` 并在 ``warnings`` 里提示。
+
 ## 已知边界
 
 * 只有 **MicroStation 普通图元**（没有 OpenPlant EC 实例）时，面板只给几何信息

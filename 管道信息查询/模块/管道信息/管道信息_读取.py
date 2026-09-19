@@ -35,7 +35,12 @@ import sys as _sys
 # 本读取库的接口版本。入口脚本会核对这个号：MicroStation 会话里 sys.modules
 # 会保留上次运行加载的**旧模块对象**，磁盘上若还是旧文件，就会在导入期报
 # "no attribute ..."。有了版本号，这种情况会变成一句明确的中文提示。
-READER_API_VERSION = 8
+# v9：新增放置接口 pipe_placement_info / extract_placement_info /
+#     project_onto_axis / placement_anchor（管段起点 + 公称直径 + 保温厚度）。
+# v10：无中心线曲线（单元格管道 / 闭合轮廓）时，放置接口按包围盒最长边
+#      近似管轴，并新增 exact 字段（False=包围盒近似）。
+# v11：放置接口补出走向 orientation 与坡度 slope_percent。
+READER_API_VERSION = 11
 
 # Bentley 运行时：在 OPM / MicroStation 中存在；纯 CPython 下缺失，此时仍可
 # 导入本模块以单测纯逻辑（EC / 几何相关函数不可调用）。
@@ -1099,7 +1104,10 @@ def collect_pipe_info(element_handle, unit_override=None, log=None):
 
     # 没有中心线曲线时（典型情况：管道是单元格 Cell），用元素范围兜底：
     # 它能给出包围盒中心（≈中心线位置）与最长边（≈管段长度）。
-    if snapshot['geometry'] is None and records:
+    # 曲线是**闭合轮廓**时同样没有可用管轴，也退回包围盒。
+    geometry_ok = (snapshot['geometry'] is not None
+                   and snapshot['geometry'].get('is_open_path') is not False)
+    if not geometry_ok and records:
         note('尝试用元素范围（包围盒）兜底')
         snapshot['bbox'] = range_from_records(records, log=note)
         if snapshot['bbox'] is not None:
@@ -1111,6 +1119,195 @@ def collect_pipe_info(element_handle, unit_override=None, log=None):
     note('读取完成：单位按%s（%s）'
          % (snapshot['unit']['label'], snapshot['unit']['source']))
     return snapshot
+
+
+# ---------------------------------------------------------------------------
+# 放置接口：点取管段 → 轴线起终点 + 公称直径 + 保温厚度
+# ---------------------------------------------------------------------------
+#
+# 供管夹等**放置类**插件调用：一次点取即可拿到"管段轴线起终点 + 公称直径 +
+# 保温厚度"；再把用户点击点投影到轴线（:func:`project_onto_axis` /
+# :func:`placement_anchor`），就能在点击处沿管轴放置管夹。返回的仍是
+# **纯 Python 字典**，不含任何 Bentley 对象，可安全地带出工具回调。
+
+
+def _axis_direction(start_mm, end_mm):
+    """由轴线起终点求单位方向向量；退化（长度为零）或缺失时返回 ``None``。"""
+    if not start_mm or not end_mm:
+        return None
+    dx = end_mm[0] - start_mm[0]
+    dy = end_mm[1] - start_mm[1]
+    dz = end_mm[2] - start_mm[2]
+    length = math.sqrt(dx * dx + dy * dy + dz * dz)
+    if length <= 1.0e-9:
+        return None
+    return (dx / length, dy / length, dz / length)
+
+
+# 世界坐标三轴，用于包围盒兜底时取最长边方向。
+_WORLD_AXES = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
+
+
+def axis_from_bbox(bbox):
+    """包围盒兜底：以**最长边方向**为管轴，返回 ``(start_mm, end_mm, axis)``。
+
+    单元格（Cell）类管道没有中心线曲线，只能这样近似——对直管段有效；
+    弯头 / 阀门的包围盒并非沿管轴，调用方应据 ``source`` 自行判断是否可用。
+    包围盒信息不全时返回 ``(None, None, None)``。
+    """
+    span = bbox.get('span_mm')
+    center = bbox.get('center_mm')
+    if not span or not center or len(span) != 3:
+        return None, None, None
+    index = max(range(3), key=lambda axis: span[axis])
+    if span[index] <= 0:
+        return None, None, None
+    axis = _WORLD_AXES[index]
+    half = span[index] / 2.0
+    start = tuple(center[i] - axis[i] * half for i in range(3))
+    end = tuple(center[i] + axis[i] * half for i in range(3))
+    return start, end, axis
+
+
+def project_onto_axis(point_mm, start_mm, end_mm):
+    """把 ``point_mm`` 投影到轴线 ``start_mm→end_mm``，返回轴线上最近点（mm）。
+
+    用于"点击管道上某点 → 在该点放置管夹"：点击点通常偏离轴线一点，
+    投影后即得到管夹的轴向中心。轴线参数缺失或退化时原样返回 ``point_mm``。
+    """
+    if point_mm is None:
+        return None
+    if not start_mm or not end_mm:
+        return point_mm
+    dx = end_mm[0] - start_mm[0]
+    dy = end_mm[1] - start_mm[1]
+    dz = end_mm[2] - start_mm[2]
+    length2 = dx * dx + dy * dy + dz * dz
+    if length2 <= 1.0e-9:
+        return point_mm
+    t = ((point_mm[0] - start_mm[0]) * dx
+         + (point_mm[1] - start_mm[1]) * dy
+         + (point_mm[2] - start_mm[2]) * dz) / length2
+    return (start_mm[0] + t * dx, start_mm[1] + t * dy, start_mm[2] + t * dz)
+
+
+def extract_placement_info(snapshot):
+    """把报告快照提炼成放置管夹用的精简信息（纯函数，可用假快照单测）。
+
+    返回::
+
+        {
+          'ok',                     # 是否拿到可用轴线（几何精确或包围盒近似）
+          'exact',                  # True=轴线来自中心线曲线；False=包围盒近似
+          'elementId',
+          'start_mm', 'end_mm',     # 管段轴线起终点（mm）；都取不到时 None
+          'axis',                   # 起点→终点的单位向量；无轴线时 None
+          'length_mm',              # 管段长度（mm，几何值）
+          'center_mm',              # 默认锚点：轴线中点；无曲线时退回包围盒中心
+          'source',                 # 'geometry' / 'bbox' / None
+          'orientation',            # 走向：水平 / 竖直 / 倾斜 / 零长度 / None
+          'slope_percent',          # 坡度百分比（倾斜管）；水平为 0.0、竖直为 None
+          'nominal_diameter_mm',    # 公称直径（mm，已按标定单位换算；缺端部回退）
+          'outside_diameter_mm',    # 外径（mm）
+          'wall_thickness_mm',      # 壁厚（mm）
+          'insulation_thickness_mm',# 保温厚度（mm；无保温时为 None）
+          'warnings',               # 真问题提示（含快照原有提示）
+          'snapshot',               # 原始报告快照，便于再取其它字段
+        }
+
+    单元格（Cell）类管道没有中心线曲线，此时退回**包围盒**：取包围盒最长边
+    方向近似管轴（``source='bbox'``、``exact=False``），仅对直管段可靠。
+    """
+    geometry = snapshot.get('geometry') or {}
+    values = snapshot.get('values') or {}
+    bbox = snapshot.get('bbox') or {}
+    warnings = list(snapshot.get('warnings') or [])
+
+    start_mm = geometry.get('start_mm')
+    end_mm = geometry.get('end_mm')
+    axis = _axis_direction(start_mm, end_mm)
+
+    if axis is not None:
+        center_mm = ((start_mm[0] + end_mm[0]) / 2.0,
+                     (start_mm[1] + end_mm[1]) / 2.0,
+                     (start_mm[2] + end_mm[2]) / 2.0)
+        source = 'geometry'
+    elif bbox.get('center_mm'):
+        # 无中心线曲线：按包围盒最长边近似管轴（直管段有效）。
+        bbox_start, bbox_end, bbox_axis = axis_from_bbox(bbox)
+        if bbox_axis is not None:
+            start_mm, end_mm, axis = bbox_start, bbox_end, bbox_axis
+        center_mm = tuple(bbox['center_mm'])
+        source = 'bbox'
+        message = ('该管道没有中心线曲线，已按包围盒最长边近似管轴定位'
+                   '（仅对与世界坐标轴平行的直管段可靠；斜管、弯头 / 阀门请勿使用）。')
+        if message not in warnings:
+            warnings.append(message)
+    else:
+        center_mm = None
+        source = None
+        message = ('没有读到管段中心线轴线，也没有可用的元素范围（包围盒），'
+                   '无法定位管夹；请确认点选的是可读取的管道元素。')
+        if message not in warnings:
+            warnings.append(message)
+
+    nominal_diameter_mm = values.get('nominal_diameter')
+    if nominal_diameter_mm is None:
+        message = '没有读到公称直径（NOMINAL_DIAMETER），管夹选型需人工确认。'
+        if message not in warnings:
+            warnings.append(message)
+
+    # 走向 / 坡度：几何精确时直接用曲线结果；包围盒兜底时按近似轴线现算。
+    if source == 'geometry':
+        orientation = geometry.get('orientation')
+        slope_percent = geometry.get('slope_percent')
+    elif axis is not None:
+        orientation, slope_percent = classify_orientation(start_mm, end_mm)
+    else:
+        orientation, slope_percent = None, None
+
+    return {
+        'ok': axis is not None,
+        'exact': source == 'geometry',
+        'elementId': snapshot.get('elementId'),
+        'start_mm': start_mm,
+        'end_mm': end_mm,
+        'axis': axis,
+        'length_mm': geometry.get('length_mm'),
+        'center_mm': center_mm,
+        'source': source,
+        'orientation': orientation,
+        'slope_percent': slope_percent,
+        'nominal_diameter_mm': nominal_diameter_mm,
+        'outside_diameter_mm': values.get('outside_diameter'),
+        'wall_thickness_mm': values.get('wall_thickness'),
+        'insulation_thickness_mm': values.get('insulation_thickness'),
+        'warnings': warnings,
+        'snapshot': snapshot,
+    }
+
+
+def placement_anchor(info, point_mm=None):
+    """给出管夹的放置锚点：把点击点投影到管段轴线，无点击点/无轴线时用中心。
+
+    ``info`` 为 :func:`extract_placement_info` / :func:`pipe_placement_info`
+    的返回值；``point_mm`` 为在管道上点击的点（mm）。返回轴线上的最近点
+    （即管夹的轴向中心），取不到则返回 ``None``。
+    """
+    if point_mm is not None and info.get('start_mm') and info.get('end_mm'):
+        return project_onto_axis(point_mm, info['start_mm'], info['end_mm'])
+    return info.get('center_mm')
+
+
+def pipe_placement_info(element_handle, unit_override=None, log=None):
+    """点取一个管段元素，返回放置管夹用的精简信息。
+
+    这是 :func:`collect_pipe_info` 的薄封装：读取完整快照后交给
+    :func:`extract_placement_info` 提炼。返回值是纯 Python 字典，可安全地
+    带出工具回调，供管夹插件按"点击点投影到轴线"在该点放置。
+    """
+    return extract_placement_info(
+        collect_pipe_info(element_handle, unit_override, log))
 
 
 def _round_tuple(values, digits=1):

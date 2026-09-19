@@ -52,6 +52,10 @@ class ReaderApiSurfaceTests(unittest.TestCase):
         'dump_element',
         'build_report_rows',
         'format_report_text',
+        'pipe_placement_info',
+        'extract_placement_info',
+        'project_onto_axis',
+        'placement_anchor',
     )
 
     def test_required_api_present(self):
@@ -448,6 +452,110 @@ class ReapplyUnitTests(unittest.TestCase):
         snapshot['geometry'] = None
         reader.reapply_unit(snapshot, 'auto')
         self.assertIsNotNone(snapshot['unit'])
+
+
+class PlacementInfoTests(unittest.TestCase):
+    """放置接口：管段起点 + 公称直径 + 保温厚度，供管夹等放置类插件调用。"""
+
+    def test_extracts_axis_size_and_anchor(self):
+        info = reader.extract_placement_info(_sample_info())
+        self.assertTrue(info['ok'])
+        self.assertTrue(info['exact'])
+        self.assertEqual(info['start_mm'], (1000.0, 2000.0, 3000.0))
+        self.assertEqual(info['end_mm'], (1500.0, 2000.0, 3000.0))
+        self.assertEqual(info['axis'], (1.0, 0.0, 0.0))
+        self.assertEqual(info['center_mm'], (1250.0, 2000.0, 3000.0))
+        self.assertEqual(info['source'], 'geometry')
+        self.assertAlmostEqual(info['nominal_diameter_mm'], 150.0)
+        self.assertAlmostEqual(info['outside_diameter_mm'], 168.3)
+        self.assertAlmostEqual(info['wall_thickness_mm'], 7.1)
+        self.assertAlmostEqual(info['insulation_thickness_mm'], 50.0)
+        self.assertEqual(info['orientation'], '水平')
+        self.assertEqual(info['slope_percent'], 0.0)
+
+    def test_step_slope_passed_through(self):
+        snapshot = _sample_info()
+        snapshot['geometry'].update(
+            {'start_mm': (0.0, 0.0, 0.0), 'end_mm': (100.0, 0.0, 10.0),
+             'orientation': '倾斜', 'slope_percent': 10.0})
+        info = reader.extract_placement_info(snapshot)
+        self.assertEqual(info['orientation'], '倾斜')
+        self.assertAlmostEqual(info['slope_percent'], 10.0)
+
+    def test_project_onto_axis_returns_click_anchor(self):
+        info = reader.extract_placement_info(_sample_info())
+        # 点击点稍偏离轴线（Y=2500），投影后落在轴线上（Y=2000）。
+        anchor = reader.placement_anchor(info, (1200.0, 2500.0, 3000.0))
+        self.assertEqual(anchor, (1200.0, 2000.0, 3000.0))
+
+    def test_anchor_falls_back_to_center_without_click_point(self):
+        info = reader.extract_placement_info(_sample_info())
+        self.assertEqual(reader.placement_anchor(info), info['center_mm'])
+
+    def test_missing_axis_falls_back_to_bbox_axis(self):
+        # 单元格（Cell）类管道没有中心线曲线：按包围盒最长边近似管轴。
+        snapshot = _sample_info()
+        snapshot['geometry'] = None
+        snapshot['bbox'] = {'center_mm': (0.0, 0.0, 2500.0),
+                            'span_mm': (300.0, 160.0, 200.0),
+                            'max_span_mm': 300.0, 'source': '实例 1（PIPE）'}
+        info = reader.extract_placement_info(snapshot)
+        self.assertTrue(info['ok'])
+        self.assertFalse(info['exact'])
+        self.assertEqual(info['source'], 'bbox')
+        self.assertEqual(info['axis'], (1.0, 0.0, 0.0))
+        self.assertEqual(info['start_mm'], (-150.0, 0.0, 2500.0))
+        self.assertEqual(info['end_mm'], (150.0, 0.0, 2500.0))
+        self.assertEqual(info['center_mm'], (0.0, 0.0, 2500.0))
+        self.assertEqual(info['orientation'], '水平')
+        self.assertEqual(info['slope_percent'], 0.0)
+        self.assertTrue(any('包围盒' in text for text in info['warnings']))
+
+    def test_no_axis_and_no_bbox_warns_and_is_not_ok(self):
+        snapshot = _sample_info()
+        snapshot['geometry'] = None
+        info = reader.extract_placement_info(snapshot)
+        self.assertFalse(info['ok'])
+        self.assertIsNone(info['axis'])
+        self.assertIsNone(info['start_mm'])
+        self.assertIsNone(info['orientation'])
+        self.assertIsNone(info['slope_percent'])
+        self.assertTrue(any('无法定位' in text for text in info['warnings']))
+
+    def test_axis_from_bbox_picks_longest_edge(self):
+        start, end, axis = reader.axis_from_bbox(
+            {'center_mm': (10.0, 20.0, 30.0), 'span_mm': (5.0, 80.0, 5.0)})
+        self.assertEqual(axis, (0.0, 1.0, 0.0))
+        self.assertEqual(start, (10.0, -20.0, 30.0))
+        self.assertEqual(end, (10.0, 60.0, 30.0))
+        self.assertEqual(reader.axis_from_bbox({}), (None, None, None))
+
+    def test_missing_nominal_diameter_warns(self):
+        snapshot = _sample_info()
+        snapshot['values']['nominal_diameter'] = None
+        info = reader.extract_placement_info(snapshot)
+        self.assertIsNone(info['nominal_diameter_mm'])
+        self.assertTrue(any('公称直径' in text for text in info['warnings']))
+
+    def test_uninsulated_pipe_has_none_thickness_without_warning(self):
+        snapshot = _sample_info()
+        snapshot['values']['insulation_thickness'] = None
+        info = reader.extract_placement_info(snapshot)
+        self.assertIsNone(info['insulation_thickness_mm'])
+        self.assertFalse(any('保温' in text for text in info['warnings']))
+
+    def test_project_onto_axis_degenerate_returns_input(self):
+        point = (1.0, 2.0, 3.0)
+        self.assertEqual(reader.project_onto_axis(point, None, None), point)
+        self.assertEqual(
+            reader.project_onto_axis(point, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+            point)
+
+    def test_axis_direction_is_normalised(self):
+        self.assertEqual(
+            reader._axis_direction((0.0, 0.0, 0.0), (0.0, 0.0, 100.0)),
+            (0.0, 0.0, 1.0))
+        self.assertIsNone(reader._axis_direction(None, (0.0, 0.0, 0.0)))
 
 
 class ReportRowsTests(unittest.TestCase):

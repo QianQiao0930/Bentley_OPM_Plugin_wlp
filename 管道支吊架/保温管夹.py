@@ -68,8 +68,9 @@ SUPPORT_TYPE = '保温管夹'
 SUPPORT_CODE = 'INSULATED_PIPE_CLAMP'
 CELL_NAME = 'INSULATED_PIPE_CLAMP'
 
-# 圆柱用正多边形近似的边数（管道 / 保温层 / 紧固件）。
-CIRCLE_SEGMENTS = 64
+# 管道 / 保温层配色（精确 RGB，不改活动颜色表）：钢灰 + 岩棉黄，便于区分。
+PIPE_RGB = (148, 148, 148)
+INSULATION_RGB = (245, 200, 90)
 
 # --- 布尔建模常量（对齐「剪切测试」版） ------------------------------------
 EAR_END_OFFSET_MM = 75.0      # 首 / 尾耳板中心到管夹轴向端部的距离。
@@ -220,27 +221,6 @@ def _box_body(frame, low, high, dgn_model, uor_per_mm):
     return _profile_body(points, sweep, dgn_model, uor_per_mm)
 
 
-def _prism_body(frame, base_local, axis_local, radius, length, segments,
-                dgn_model, uor_per_mm):
-    """圆柱：底面圆在 ``base_local``、沿 ``axis_local`` 拉伸 ``length``。"""
-    center = _world(frame, *base_local)
-    axis = _normalize(_world_dir(frame, *axis_local))
-    ref = (0.0, 0.0, 1.0) if abs(_dot(axis, (0.0, 0.0, 1.0))) < 0.9 \
-        else (1.0, 0.0, 0.0)
-    u = _normalize(_cross(axis, ref))
-    v = _cross(axis, u)
-    points = []
-    for index in range(segments):
-        angle = 2.0 * math.pi * index / segments
-        c = math.cos(angle) * radius
-        s = math.sin(angle) * radius
-        points.append((center[0] + c * u[0] + s * v[0],
-                       center[1] + c * u[1] + s * v[1],
-                       center[2] + c * u[2] + s * v[2]))
-    sweep = (axis[0] * length, axis[1] * length, axis[2] * length)
-    return _profile_body(points, sweep, dgn_model, uor_per_mm)
-
-
 def _boolean(target, tools, subtract):
     array = ISolidKernelEntityPtrArray()
     for tool in tools:
@@ -260,16 +240,24 @@ def _boolean(target, tools, subtract):
 
 def _tube_body(frame, base_local, axis_local, r_out, r_in, length, dgn_model,
                uor_per_mm):
-    """圆环筒：外圆柱 − 内圆柱。"""
-    outer = _prism_body(frame, base_local, axis_local, r_out, length,
-                        CIRCLE_SEGMENTS, dgn_model, uor_per_mm)
+    """圆环筒：外圆柱 − 内圆柱。
+
+    用**真圆柱曲面**（``_cone_body`` / ``DgnConeDetail``），不再用多边形近似，
+    因此管道 / 保温层表面与管夹环本体一致，无棱面。
+    """
+    axis = _normalize(axis_local)
+    start = tuple(base_local[index] for index in range(3))
+    end = tuple(base_local[index] + axis[index] * length for index in range(3))
+    outer = _cone_body(frame, uor_per_mm, start, end, r_out, dgn_model)
     if outer is None:
         return None
-    inner_base = (base_local[0] - axis_local[0] * 1.0,
-                  base_local[1] - axis_local[1] * 1.0,
-                  base_local[2] - axis_local[2] * 1.0)
-    inner = _prism_body(frame, inner_base, axis_local, r_in, length + 2.0,
-                        CIRCLE_SEGMENTS, dgn_model, uor_per_mm)
+    # 内圆柱两端各多伸 1mm，保证布尔减干净。
+    margin = 1.0
+    inner_start = tuple(start[index] - axis[index] * margin
+                        for index in range(3))
+    inner_end = tuple(end[index] + axis[index] * margin for index in range(3))
+    inner = _cone_body(frame, uor_per_mm, inner_start, inner_end, r_in,
+                       dgn_model)
     if inner is None or not _boolean(outer, [inner], True):
         return None
     return outer
@@ -282,6 +270,34 @@ def _body_to_element(body, dgn_model, name):
         _log('%s: BodyToElement failed' % name)
         return None
     return solid
+
+
+def _element_color(rgb):
+    """由 RGB 生成可直接写入元素的精确颜色编码（不改活动颜色表）。
+
+    取色 API 缺符号 / 失败时返回 ``None``，由 :func:`_apply_color` 跳过上色，
+    不影响几何生成。
+    """
+    try:
+        color_def = IntColorDef(rgb[0], rgb[1], rgb[2])
+        return DgnColorMap.CreateElementColor(
+            color_def, None, None, ISessionMgr.GetActiveDgnFile())
+    except Exception:
+        _log_exception('element color failed')
+        return None
+
+
+def _apply_color(element, color):
+    """把颜色写到元素上；``color`` 为 ``None`` 时原样返回。"""
+    if element is None or color is None:
+        return element
+    try:
+        properties = ElementPropertiesSetter()
+        properties.SetColor(color)
+        properties.Apply(element)
+    except Exception:
+        _log_exception('apply color failed')
+    return element
 
 
 # ---------------------------------------------------------------------------
@@ -567,6 +583,9 @@ def _build_clamp_cell(layout, frame, build_pipe, build_insulation, dgn_model):
 
     builder = _ClampCellBuilder(dgn_model)
     built = {'pipe': 0, 'insulation': 0}
+    # 管道钢灰、保温层岩棉黄，便于在模型里区分（取色失败时自动跳过）。
+    pipe_color = _element_color(PIPE_RGB)
+    insulation_color = _element_color(INSULATION_RGB)
     if build_pipe:
         wall = max(3.0, layout.od_mm * 0.04)
         pipe = _tube_body(frame, (-length / 2.0, 0.0, 0.0), (1.0, 0.0, 0.0),
@@ -575,6 +594,7 @@ def _build_clamp_cell(layout, frame, build_pipe, build_insulation, dgn_model):
         element = _body_to_element(pipe, dgn_model, '管道') \
             if pipe is not None else None
         if element is not None:
+            _apply_color(element, pipe_color)
             builder.add(element)
             built['pipe'] = 1
         else:
@@ -588,6 +608,7 @@ def _build_clamp_cell(layout, frame, build_pipe, build_insulation, dgn_model):
         element = _body_to_element(insulation, dgn_model, '保温层') \
             if insulation is not None else None
         if element is not None:
+            _apply_color(element, insulation_color)
             builder.add(element)
             built['insulation'] = 1
         else:
@@ -846,82 +867,73 @@ class _ClampSettingsDialog(QWidget):
 
         hint_row = QVBoxLayout()
         hint_row.setContentsMargins(15, 0, 15, 0)
-        hint = QLabel("在模型中点选一条管道轴线取方向，再在轴上点取放置点（= 管托 L "
-                      "的中心；未点取时用线中点）。DN80~600：管夹本体 = 外圆柱 − "
-                      "内圆柱 − 45° 矩形贯穿体（对开两片），耳板沿轴均布 2 组"
-                      "（L＞600 为 3 组）、开孔后与管夹布尔并，配带碟簧垫圈的螺栓；"
-                      "底座 = 底板 + 横向弧顶支撑 + 中央纵向腹板，弧顶减圆柱成形，"
-                      "底板宽 W 由保温层外径查表 2。H 由保温厚度 B 查表，L = 管托"
-                      "沿管轴总长（≥300，管夹环同长）。管道本体 / 保温层可选"
-                      "（默认不建），限位块/止推件不建。"
-                      "点取后可改参数、预览自动重建；点【确定】保留，点【取消】放弃。")
+        hint = QLabel(
+            "点选管道轴线取方向，在轴上点取放置点（= 管托 L 中心；未点取用线中点）。"
+            "DN80~600；管夹本体 = 外圆柱 − 内圆柱 − 45° 对开贯穿体，底座 = 底板 + "
+            "弧顶支撑 + 中央腹板；管道 / 保温层可选（默认不建）。"
+            "改参数自动重建预览，点【确定】保留、点【取消】放弃。")
         hint.setWordWrap(True)
         hint.setStyleSheet('color: #7D8AA0; font-size: 12px;')
         hint_row.addWidget(hint)
         body.addLayout(hint_row)
-        body.addSpacing(6)
+        body.addSpacing(3)
 
-        card = base.NeuCard("管径（表 1，DN80~600）")
+        card = base.NeuCard("管径（表 1，DN80~600）", margin_y=2, padding=6)
         self.dn_combo = self._register(base.NeuCombo(
             list(geom.dn_choices()), current=DEFAULT_DN,
             on_change=self.on_options_changed))
         self._row(card.content, 0, "管径：", [self.dn_combo], 16)
         self.od_label = self._value()
-        self._row(card.content, 1, "管道外径 OD：",
-                  [self.od_label, self._note("mm")], 8)
+        self.load_label = self._value()
+        self._pair(card.content, 1, 0, "外径 OD：",
+                   [self.od_label, self._note("mm")])
+        self._pair(card.content, 1, 2, "允许荷载：",
+                   [self.load_label, self._note("kN 垂直/横向/轴向")])
         self.spec_label = self._value()
         self._row(card.content, 2, "螺栓 / T1 / T2 / T3：", [self.spec_label])
-        self.load_label = self._value()
-        self._row(card.content, 3, "允许荷载(垂直/横向/轴向)：",
-                  [self.load_label, self._note("kN　表 1")], 8)
         body.addWidget(card)
 
-        card = base.NeuCard("尺寸参数")
-        self.insulation_edit = self._edit_row(
-            card.content, 0, "隔热层厚度 B：", '%.0f' % DEFAULT_INSULATION_MM,
-            "mm　用户输入（管夹夹保温层外径）")
+        card = base.NeuCard("尺寸参数", margin_y=2, padding=6)
+        self.insulation_edit = self._edit('%.0f' % DEFAULT_INSULATION_MM)
         self.height_label = self._value()
-        self._row(card.content, 1, "H：",
-                  [self.height_label, self._note("mm　由保温厚度 B 查表")], 8)
-        self.length_edit = self._edit_row(
-            card.content, 2, "L：", '%.0f' % DEFAULT_LENGTH_MM,
-            "mm　管托沿管轴总长（≥300，不含止推件）")
-        self.width_edit = self._edit_row(
-            card.content, 3, "管夹宽度：", '%.0f' % geom.DEFAULT_CLAMP_WIDTH_MM,
-            "mm　旧参数；本版管夹环沿轴长改用 L，此项不再参与建模")
+        self._pair(card.content, 0, 0, "隔热层厚度 B：",
+                   [self.insulation_edit, self._note("mm")])
+        self._pair(card.content, 0, 2, "H：",
+                   [self.height_label, self._note("mm 由 B 查表")])
+        self.length_edit = self._edit('%.0f' % DEFAULT_LENGTH_MM)
         self.clamp_od_label = self._value()
-        self._row(card.content, 4, "管夹外径：",
-                  [self.clamp_od_label, self._note("mm　= OD + 2B + 2×板厚")], 8)
+        self._pair(card.content, 1, 0, "L：",
+                   [self.length_edit, self._note("mm ≥300")])
+        self._pair(card.content, 1, 2, "管夹外径：",
+                   [self.clamp_od_label, self._note("mm = OD+2B+2t")])
         body.addWidget(card)
 
-        card = base.NeuCard("管架编号（T4）")
-        self.name_edit = self._edit_row(
-            card.content, 0, "名称：", 'T4', "系列代号；留空则不附加编号")
-        self.temp_edit = self._edit_row(
-            card.content, 1, "温度代码：", '', "按图集温度代码")
-        self.material_edit = self._edit_row(
-            card.content, 2, "材料代码：", '', "按图集材料代码")
-        self.f_edit = self._edit_row(
-            card.content, 3, "F(注11)：", '', "按图集注 11")
+        card = base.NeuCard("管架编号（T4）", margin_y=2, padding=6)
+        self.name_edit = self._edit('T4')
+        self.temp_edit = self._edit('')
+        self._pair(card.content, 0, 0, "名称：", [self.name_edit])
+        self._pair(card.content, 0, 2, "温度代码：", [self.temp_edit])
+        self.material_edit = self._edit('')
+        self.f_edit = self._edit('')
+        self._pair(card.content, 1, 0, "材料代码：", [self.material_edit])
+        self._pair(card.content, 1, 2, "F(注11)：", [self.f_edit])
         self.number_label = self._value()
-        self._row(card.content, 4, "编号：",
-                  [self.number_label, self._note("名称-管径-温度代码-H-L-材料-F")],
-                  8)
+        self._row(card.content, 2, "编号：", [self.number_label])
         body.addWidget(card)
 
-        card = base.NeuCard("创建选项")
-        self.pipe_toggle = self._register(base.NeuToggle("同时创建管道本体"))
+        card = base.NeuCard("创建选项", margin_y=2, padding=6)
+        self.pipe_toggle = self._register(base.NeuToggle("创建管道本体"))
         self.pipe_toggle.setChecked(False)
-        card.content.addWidget(self.pipe_toggle, 0, 0, 1, 2)
-        self.insulation_toggle = self._register(base.NeuToggle("同时创建保温层"))
+        self.insulation_toggle = self._register(base.NeuToggle("创建保温层"))
         self.insulation_toggle.setChecked(False)
-        card.content.addWidget(self.insulation_toggle, 1, 0, 1, 2)
-        self.keep_toggle = self._register(base.NeuToggle("创建后保留所选轴线"))
+        self.keep_toggle = self._register(base.NeuToggle("保留所选轴线"))
         self.keep_toggle.setChecked(True)
-        card.content.addWidget(self.keep_toggle, 2, 0, 1, 2)
+        card.content.addWidget(self.pipe_toggle, 0, 0)
+        card.content.addWidget(self.insulation_toggle, 0, 1)
+        card.content.addWidget(self.keep_toggle, 0, 2)
         body.addWidget(card)
 
-        summary = base.NeuPanel()
+        summary = base.NeuPanel(margin=1, padding=7)
         self.preview_info_label = self._info("预览：—", base.UI_TEXT)
         summary.content.addWidget(self.preview_info_label)
         self.status_label = self._info(
@@ -932,14 +944,14 @@ class _ClampSettingsDialog(QWidget):
         button_row = QHBoxLayout()
         button_row.setContentsMargins(3, 0, 3, 0)
         button_row.setSpacing(0)
-        self.cancel_button = base.NeuButton("取消")
-        self.cancel_button.setFixedWidth(126)
+        self.cancel_button = base.NeuButton("取消", margin_y=7)
+        self.cancel_button.setFixedWidth(118)
         self.cancel_button.clicked.connect(self.cancel_tool)
-        self.export_button = base.NeuButton("导出 JSON 清单")
-        self.export_button.setFixedWidth(150)
+        self.export_button = base.NeuButton("导出 JSON 清单", margin_y=7)
+        self.export_button.setFixedWidth(142)
         self.export_button.clicked.connect(self.export_bom)
-        self.confirm_button = base.NeuButton("确定", accent=True)
-        self.confirm_button.setFixedWidth(126)
+        self.confirm_button = base.NeuButton("确定", accent=True, margin_y=7)
+        self.confirm_button.setFixedWidth(118)
         self.confirm_button.clicked.connect(self.confirm_tool)
         button_row.addStretch(1)
         button_row.addWidget(self.cancel_button)
@@ -977,11 +989,26 @@ class _ClampSettingsDialog(QWidget):
         grid.setColumnStretch(1, 1)
         return holder
 
-    def _edit_row(self, grid, row, name, value, note):
-        field = base.NeuEdit(value, width=96)
+    def _pair(self, grid, row, col, name, widgets, spacing=10):
+        """两列紧凑布局：在第 ``col`` / ``col+1`` 列放一组「标签 : 控件」。"""
+        label = QLabel(name, self)
+        label.setStyleSheet('color: #39435A; font-size: 13px;')
+        grid.addWidget(label, row, col, Qt.AlignLeft | Qt.AlignVCenter)
+        holder = QWidget(self)
+        line = QHBoxLayout(holder)
+        line.setContentsMargins(0, 0, 0, 0)
+        line.setSpacing(spacing)
+        for widget in widgets:
+            line.addWidget(widget)
+        line.addStretch(1)
+        grid.addWidget(holder, row, col + 1)
+        grid.setColumnStretch(col + 1, 1)
+        return holder
+
+    def _edit(self, value, width=84):
+        field = base.NeuEdit(value, width=width)
         self._register(field.edit)
         field.edit.textChanged.connect(self.on_text_changed)
-        self._row(grid, row, name, [field, self._note(note)], 8)
         return field
 
     def _value(self):
@@ -1026,7 +1053,8 @@ class _ClampSettingsDialog(QWidget):
         return self._float(self.length_edit, DEFAULT_LENGTH_MM)
 
     def current_width(self):
-        return self._float(self.width_edit, geom.DEFAULT_CLAMP_WIDTH_MM)
+        # 管夹宽度已是旧参数、不再参与建模：保留默认值，仅为 build_layout 完整。
+        return geom.DEFAULT_CLAMP_WIDTH_MM
 
     def current_layout(self):
         return geom.build_layout(
