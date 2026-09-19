@@ -10,8 +10,8 @@ import win32gui
 
 from MSPyMstnPlatform import PyCadInputQueue
 
-import steel_registry
-import steel_tool
+from . import steel_registry
+from . import steel_tool
 
 
 MODE_PLACE = "place"

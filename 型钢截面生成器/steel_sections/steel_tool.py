@@ -11,7 +11,7 @@ Two modes are driven from the selector dialog:
   in the dialog for the path element to be deleted once the sweep succeeds.
 
 Every placement / sweep step is written to
-``型钢截面生成器_debug_log.txt`` next to this file and reported through the
+``型钢截面生成器_debug_log.txt`` in the plug-in root and reported through the
 MicroStation prompt bar so a silent failure can be diagnosed.
 """
 
@@ -27,11 +27,13 @@ from MSPyDgnPlatform import *  # noqa: F401,F403
 from MSPyDgnView import *  # noqa: F401,F403
 from MSPyMstnPlatform import *  # noqa: F401,F403
 
-import steel_registry
-import steel_sweep_geometry
+from . import steel_registry
+from . import steel_sweep_geometry
 
 
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+# The log stays in the plug-in root (one level above this package) so it is
+# easy to find next to steel_main.py.
+SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEBUG_LOG = os.path.join(SCRIPT_DIR, "型钢截面生成器_debug_log.txt")
 
 # Reference direction used to stop a swept section from twisting about a

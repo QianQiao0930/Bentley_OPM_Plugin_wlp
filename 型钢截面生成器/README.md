@@ -37,19 +37,41 @@ PYSTEEL DEFAULT
 
 ## 后续增加型钢的接口
 
-统一扩展点在 `steel_registry.py` 的 `_FAMILIES`。新型式需要三部分：
+统一扩展点在 `steel_sections/steel_registry.py` 的 `_FAMILIES`。新型式需要三部分：
 
-1. `steel_<family>_data.py`：提供 `DEFAULT_PROFILE`、`profile_names()`、`get_section()` 和 `validate_section()`。
-2. `steel_<family>_geometry.py`：提供 `Point2d`、`INSERTION_MODES`、`scale_section()`、`build_<family>_geometry()` 与 `to_bentley_curve_vector()`。
+1. `steel_sections/steel_<family>_data.py`：提供 `DEFAULT_PROFILE`、`profile_names()`、`get_section()` 和 `validate_section()`。
+2. `steel_sections/steel_<family>_geometry.py`：提供 `Point2d`、`INSERTION_MODES`、`scale_section()`、`build_<family>_geometry()` 与 `to_bentley_curve_vector()`。
 3. 在 `_FAMILIES` 中将对应的待导入定义改为可用定义，并声明显示字段、几何构造函数名及圆弧转换方式。
 
 这样 UI、参数表、动态预览、连续放置及键入命令都无需重复开发。
 
+## 目录结构
+
+插件根目录只保留唯一入口 `steel_main.py` 与键入命令表，其余依赖模块全部放在 `steel_sections/` 包内：
+
+```text
+型钢截面生成器/
+├── steel_main.py                       # 唯一入口 + PYSTEEL 命令注册
+├── SteelSectionGenerator.commands.xml  # 键入命令表
+├── README.md
+├── 型钢截面生成器_debug_log.txt         # 运行日志（自动生成）
+├── steel_sections/                     # 全部依赖模块（Python 包）
+│   ├── __init__.py
+│   ├── steel_ui.py
+│   ├── steel_tool.py
+│   ├── steel_registry.py
+│   ├── steel_sweep_geometry.py
+│   └── steel_<family>_data.py / steel_<family>_geometry.py
+└── tests/                              # 纯逻辑单元测试
+```
+
 ## 文件说明
 
-- `steel_main.py`：唯一入口与 `PYSTEEL` 键入命令注册。
-- `steel_ui.py`：两级选择框、放置方式（放置截面 / 沿路径扫掠）与参数表。
-- `steel_tool.py`：截面自由放置工具与沿路径扫掠工具（`SolidUtil.Create.BodyFromSweep`）。
-- `steel_sweep_geometry.py`：扫掠坐标架与截面圆弧采样的纯几何计算（可脱离 Bentley 单元测试）。
-- `steel_registry.py`：型式注册表及未来扩展接口。
-- `steel_channel_*`、`steel_ibeam_*`、`steel_hbeam_*`、`steel_tapered_channel_*`、`steel_equal_angle_*`、`steel_unequal_angle_*`：内置数据和几何适配器；`steel_hk_data.py` 复用 H 型钢几何适配器。
+- `steel_main.py`：唯一入口与 `PYSTEEL` 键入命令注册；负责把插件根目录加入 `sys.path` 并导入 `steel_sections` 包。
+- `steel_sections/steel_ui.py`：两级选择框、放置方式（放置截面 / 沿路径扫掠）与参数表。
+- `steel_sections/steel_tool.py`：截面自由放置工具与沿路径扫掠工具（`SolidUtil.Create.BodyFromSweep`）；日志写在插件根目录。
+- `steel_sections/steel_sweep_geometry.py`：扫掠坐标架与截面圆弧采样的纯几何计算（可脱离 Bentley 单元测试）。
+- `steel_sections/steel_registry.py`：型式注册表及未来扩展接口。
+- `steel_sections/steel_channel_*`、`steel_ibeam_*`、`steel_hbeam_*`、`steel_tapered_channel_*`、`steel_equal_angle_*`、`steel_unequal_angle_*`：内置数据和几何适配器；`steel_hk_data.py` 复用 H 型钢几何适配器。
+
+> 包内模块一律使用相对导入（`from . import ...`）。仓库内其它插件（如 `管道支吊架`）通过 `from steel_sections import ...` 复用本插件的型钢数据与几何，因此插件根目录必须位于其 `sys.path` 上。

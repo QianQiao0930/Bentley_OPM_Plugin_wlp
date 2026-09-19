@@ -10,7 +10,7 @@ from __future__ import division
 import math
 from collections import namedtuple
 
-from steel_channel_data import validate_section
+from .steel_channel_data import validate_section
 
 
 Point2d = namedtuple("Point2d", "x y")

@@ -1,11 +1,17 @@
 from __future__ import division
 
+import os
+import sys
 import unittest
 
-from steel_tapered_channel_data import (
+_PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _PLUGIN_DIR not in sys.path:
+    sys.path.insert(0, _PLUGIN_DIR)
+
+from steel_sections.steel_tapered_channel_data import (  # noqa: E402
     flange_thicknesses, get_section, nominal_area_mm2, profile_names,
 )
-from steel_tapered_channel_geometry import (
+from steel_sections.steel_tapered_channel_geometry import (  # noqa: E402
     INSERTION_CENTROID, Point2d, build_tapered_channel_geometry,
 )
 

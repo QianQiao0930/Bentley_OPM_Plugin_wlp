@@ -4,27 +4,39 @@ from __future__ import division
 
 import importlib
 import os
+import sys
 
 from MSPyBentley import WString
 from MSPyMstnPlatform import PythonKeyinManager
 
-import steel_channel_data
-import steel_channel_geometry
-import steel_equal_angle_data
-import steel_equal_angle_geometry
-import steel_hbeam_data
-import steel_hbeam_geometry
-import steel_hk_data
-import steel_ibeam_data
-import steel_ibeam_geometry
-import steel_tapered_channel_data
-import steel_tapered_channel_geometry
-import steel_unequal_angle_data
-import steel_unequal_angle_geometry
-import steel_registry
-import steel_sweep_geometry
-import steel_tool
-import steel_ui
+
+# The plug-in root is added to sys.path so the ``steel_sections`` package (which
+# holds every dependency module) is importable no matter how MicroStation sets
+# up the working directory / sys.path.  This root keeps only this entry script
+# and the command-table XML; everything else lives in ``steel_sections/``.
+_PLUGIN_DIR = os.path.dirname(os.path.abspath(__file__))
+if _PLUGIN_DIR not in sys.path:
+    sys.path.insert(0, _PLUGIN_DIR)
+
+from steel_sections import (  # noqa: E402
+    steel_channel_data,
+    steel_channel_geometry,
+    steel_equal_angle_data,
+    steel_equal_angle_geometry,
+    steel_hbeam_data,
+    steel_hbeam_geometry,
+    steel_hk_data,
+    steel_ibeam_data,
+    steel_ibeam_geometry,
+    steel_tapered_channel_data,
+    steel_tapered_channel_geometry,
+    steel_unequal_angle_data,
+    steel_unequal_angle_geometry,
+    steel_registry,
+    steel_sweep_geometry,
+    steel_tool,
+    steel_ui,
+)
 
 
 _COMMANDS_LOADED = False

@@ -1,11 +1,11 @@
-"""True-arc geometry for GB/T 706 tapered-flange I-beam sections."""
+"""True-arc geometry for GB/T 706 1:10 tapered-flange channel sections."""
 
 from __future__ import division
 
 import math
 from collections import namedtuple
 
-from steel_ibeam_data import validate_section
+from .steel_tapered_channel_data import flange_thicknesses, validate_section
 
 
 Point2d = namedtuple("Point2d", "x y")
@@ -13,22 +13,21 @@ LineSegment = namedtuple("LineSegment", "start end")
 ArcSegment = namedtuple("ArcSegment", "start end center radius start_angle sweep")
 _Corner = namedtuple("_Corner", "entry exit arc")
 
-
 INSERTION_CENTROID = "centroid"
 INSERTION_GEOMETRIC_CENTER = "geometric_center"
-INSERTION_BOTTOM_CENTER = "bottom_center"
+INSERTION_WEB_OUTSIDE_CENTER = "web_outside_center"
 INSERTION_LOWER_LEFT = "lower_left"
 
 INSERTION_MODES = (
     (INSERTION_CENTROID, "截面重心（默认）"),
-    (INSERTION_GEOMETRIC_CENTER, "几何中心（与重心重合）"),
-    (INSERTION_BOTTOM_CENTER, "下翼缘外侧中心"),
+    (INSERTION_GEOMETRIC_CENTER, "几何中心"),
+    (INSERTION_WEB_OUTSIDE_CENTER, "腹板外侧中点"),
     (INSERTION_LOWER_LEFT, "左下外角"),
 )
 
 
-class IBeamGeometry(object):
-    """A continuous, closed I-beam path with 1:6 slopes and eight true arcs."""
+class TaperedChannelGeometry(object):
+    """Closed channel path with a 1:10 flange slope and four true arcs."""
 
     def __init__(self, segments, insertion_point, insertion_mode, section):
         self.segments = tuple(segments)
@@ -54,119 +53,98 @@ class IBeamGeometry(object):
         return True
 
 
-def flange_thicknesses(section):
-    """Return ``(root, edge)`` flange thicknesses for the specified 1:6 slope.
-
-    GB/T 706's ``tf`` is the middle/average flange thickness.  Over one half
-    of the flange extension the thickness changes by ``extension / 6``.
-    """
-    validate_section(section)
-    extension = (section["B"] - section["tw"]) / 2.0
-    return (section["tf"] + extension / 12.0,
-            section["tf"] - extension / 12.0)
-
-
 def scale_section(section, factor):
-    """Convert only length dimensions from millimetres to the active DGN UOR."""
+    """Convert millimetre dimensions, including the tabulated centroid, to UOR."""
     validate_section(section)
     if factor <= 0.0:
         raise ValueError("Scale factor must be positive.")
     scaled = dict(section)
-    for key in ("H", "B", "tw", "tf", "r1", "r2"):
-        scaled[key] *= factor
+    for name in ("H", "B", "tw", "tf", "r1", "r2", "Z0"):
+        scaled[name] = float(section[name]) * factor
     return scaled
 
 
 def insertion_anchor(section, insertion_mode):
-    """Return the selected anchor in the untransformed local coordinate system."""
+    """Return the selected local anchor; Z0 is measured from the outer web face."""
     validate_section(section)
-    half_h, half_b = section["H"] / 2.0, section["B"] / 2.0
-    if insertion_mode in (INSERTION_CENTROID, INSERTION_GEOMETRIC_CENTER):
-        return Point2d(0.0, 0.0)
-    if insertion_mode == INSERTION_BOTTOM_CENTER:
-        return Point2d(0.0, -half_h)
+    h = float(section["H"])
+    b = float(section["B"])
+    if insertion_mode == INSERTION_CENTROID:
+        return Point2d(float(section["Z0"]), h / 2.0)
+    if insertion_mode == INSERTION_GEOMETRIC_CENTER:
+        return Point2d(b / 2.0, h / 2.0)
+    if insertion_mode == INSERTION_WEB_OUTSIDE_CENTER:
+        return Point2d(0.0, h / 2.0)
     if insertion_mode == INSERTION_LOWER_LEFT:
-        return Point2d(-half_b, -half_h)
-    raise ValueError("Unsupported insertion mode: {0}".format(insertion_mode))
+        return Point2d(0.0, 0.0)
+    raise ValueError("Unsupported insertion mode: {}".format(insertion_mode))
 
 
-def build_ibeam_geometry(section, insertion_mode=INSERTION_CENTROID,
-                         insertion_point=Point2d(0.0, 0.0)):
-    """Create the GB/T 706 I-section outline in the requested placement frame.
+def build_tapered_channel_geometry(section, insertion_mode=INSERTION_CENTROID,
+                                   insertion_point=Point2d(0.0, 0.0)):
+    """Build a 1:10 tapered channel that opens towards positive X.
 
-    The outline is vertically and horizontally symmetric.  Its flange faces
-    have the standard 1:6 taper and use four inner r1 fillets plus four
-    flange-end r2 fillets; no arc is approximated by short line segments.
+    ``tf`` is the tabulated mean flange thickness.  Across the extension
+    ``B - tw`` the root and free-edge thicknesses differ by that extension
+    divided by ten, with the specified r1/r2 fillets retained as true arcs.
     """
     validate_section(section)
     insertion_point = _as_point2d(insertion_point)
-    half_h, half_b, half_web = (section["H"] / 2.0,
-                                 section["B"] / 2.0,
-                                 section["tw"] / 2.0)
+    h = float(section["H"])
+    b = float(section["B"])
+    tw = float(section["tw"])
     root_t, edge_t = flange_thicknesses(section)
-    y_root = half_h - root_t
-    y_edge = half_h - edge_t
 
-    # Counter-clockwise sharp outline.  Radius zero keeps the four external
-    # flange corners sharp; r2 is the specified flange-end lower arc.
+    # Counter-clockwise sharp outline.  The free flange end has a short outer
+    # vertical face; r2 rounds the transition to the 1:10 inner flange slope.
     vertices = (
-        Point2d(half_b, half_h),
-        Point2d(-half_b, half_h),
-        Point2d(-half_b, y_edge),
-        Point2d(-half_web, y_root),
-        Point2d(-half_web, -y_root),
-        Point2d(-half_b, -y_edge),
-        Point2d(-half_b, -half_h),
-        Point2d(half_b, -half_h),
-        Point2d(half_b, -y_edge),
-        Point2d(half_web, -y_root),
-        Point2d(half_web, y_root),
-        Point2d(half_b, y_edge),
+        Point2d(0.0, 0.0),
+        Point2d(b, 0.0),
+        Point2d(b, edge_t),
+        Point2d(tw, root_t),
+        Point2d(tw, h - root_t),
+        Point2d(b, h - edge_t),
+        Point2d(b, h),
+        Point2d(0.0, h),
     )
-    radii = (0.0, 0.0, section["r2"], section["r1"], section["r1"],
-             section["r2"], 0.0, 0.0, section["r2"], section["r1"],
-             section["r1"], section["r2"])
-    corners = tuple(_make_corner(vertices[index - 1], vertex,
-                                 vertices[(index + 1) % len(vertices)], radius)
-                    for index, (vertex, radius) in enumerate(zip(vertices, radii)))
+    radii = (0.0, 0.0, float(section["r2"]), float(section["r1"]),
+             float(section["r1"]), float(section["r2"]), 0.0, 0.0)
+    corners = tuple(
+        _make_corner(vertices[index - 1], vertex, vertices[(index + 1) % len(vertices)], radius)
+        for index, (vertex, radius) in enumerate(zip(vertices, radii))
+    )
 
-    segments = []
+    raw_segments = []
     current = corners[0].exit
     for index in range(1, len(corners) + 1):
         corner = corners[index % len(corners)]
         if _distance(current, corner.entry) > 1.0e-10:
-            segments.append(LineSegment(current, corner.entry))
+            raw_segments.append(LineSegment(current, corner.entry))
         if corner.arc is not None:
-            segments.append(corner.arc)
+            raw_segments.append(corner.arc)
         current = corner.exit
 
     anchor = insertion_anchor(section, insertion_mode)
-    dx, dy = insertion_point.x - anchor.x, insertion_point.y - anchor.y
-    geometry = IBeamGeometry(
-        tuple(_translate_segment(segment, dx, dy) for segment in segments),
+    dx = insertion_point.x - anchor.x
+    dy = insertion_point.y - anchor.y
+    geometry = TaperedChannelGeometry(
+        tuple(_translate_segment(segment, dx, dy) for segment in raw_segments),
         insertion_point,
         insertion_mode,
         section,
     )
     if not geometry.is_closed_and_continuous():
-        raise RuntimeError("Internal error: generated I-beam outline is not closed.")
-    if geometry.arc_count != 8:
-        raise RuntimeError("Internal error: generated I-beam must contain eight arcs.")
+        raise RuntimeError("Internal error: generated tapered channel is not closed.")
+    if geometry.arc_count != 4:
+        raise RuntimeError("Internal error: generated tapered channel must contain four arcs.")
     return geometry
 
 
 def to_bentley_curve_vector(geometry, z=0.0):
-    """Convert the profile to the CurveVector constructor exposed by MSPython."""
+    """Convert the tapered-channel profile to Bentley native curve primitives."""
     if not geometry.is_closed_and_continuous():
         raise ValueError("Cannot convert an open or discontinuous profile.")
-
-    from MSPyBentleyGeom import (  # pylint: disable=import-error
-        CurveVector,
-        DEllipse3d,
-        DPoint3d,
-        DSegment3d,
-        ICurvePrimitive,
-    )
+    from MSPyBentleyGeom import CurveVector, DEllipse3d, DPoint3d, DSegment3d, ICurvePrimitive
 
     curves = CurveVector(CurveVector.eBOUNDARY_TYPE_Outer)
     for segment in geometry.segments:
@@ -187,7 +165,6 @@ def to_bentley_curve_vector(geometry, z=0.0):
 def _make_corner(previous, vertex, following, radius):
     if radius == 0.0:
         return _Corner(vertex, vertex, None)
-
     incoming = _normalize(_subtract(vertex, previous))
     outgoing = _normalize(_subtract(following, vertex))
     cross = incoming.x * outgoing.y - incoming.y * outgoing.x
@@ -195,11 +172,9 @@ def _make_corner(previous, vertex, following, radius):
     turn = math.atan2(cross, dot)
     if abs(turn) < 1.0e-8:
         raise ValueError("A fillet requires a non-collinear corner.")
-
     tangent_length = radius * abs(math.tan(turn / 2.0))
     if tangent_length >= _distance(previous, vertex) or tangent_length >= _distance(vertex, following):
-        raise ValueError("Fillet radius is too large for the I-beam section.")
-
+        raise ValueError("Tapered-channel fillet radius is too large for the profile.")
     start = _add(vertex, _scale(incoming, -tangent_length))
     end = _add(vertex, _scale(outgoing, tangent_length))
     normal = _left_normal(incoming) if turn > 0.0 else _right_normal(incoming)
@@ -210,12 +185,11 @@ def _make_corner(previous, vertex, following, radius):
 
 def _translate_segment(segment, dx, dy):
     if isinstance(segment, LineSegment):
-        return LineSegment(_translate_point(segment.start, dx, dy),
-                           _translate_point(segment.end, dx, dy))
-    return ArcSegment(_translate_point(segment.start, dx, dy),
-                      _translate_point(segment.end, dx, dy),
-                      _translate_point(segment.center, dx, dy),
-                      segment.radius, segment.start_angle, segment.sweep)
+        return LineSegment(_translate_point(segment.start, dx, dy), _translate_point(segment.end, dx, dy))
+    return ArcSegment(
+        _translate_point(segment.start, dx, dy), _translate_point(segment.end, dx, dy),
+        _translate_point(segment.center, dx, dy), segment.radius, segment.start_angle, segment.sweep,
+    )
 
 
 def _translate_point(point, dx, dy):
@@ -234,8 +208,20 @@ def _as_point2d(value):
 def _normalize(vector):
     length = math.hypot(vector.x, vector.y)
     if length == 0.0:
-        raise ValueError("Coincident I-beam outline vertices are invalid.")
+        raise ValueError("Coincident tapered-channel vertices are invalid.")
     return Point2d(vector.x / length, vector.y / length)
+
+
+def _subtract(left, right):
+    return Point2d(left.x - right.x, left.y - right.y)
+
+
+def _add(point, vector):
+    return Point2d(point.x + vector.x, point.y + vector.y)
+
+
+def _scale(vector, factor):
+    return Point2d(vector.x * factor, vector.y * factor)
 
 
 def _left_normal(vector):
@@ -246,17 +232,5 @@ def _right_normal(vector):
     return Point2d(vector.y, -vector.x)
 
 
-def _add(point, vector):
-    return Point2d(point.x + vector.x, point.y + vector.y)
-
-
-def _subtract(point_a, point_b):
-    return Point2d(point_a.x - point_b.x, point_a.y - point_b.y)
-
-
-def _scale(vector, factor):
-    return Point2d(vector.x * factor, vector.y * factor)
-
-
-def _distance(point_a, point_b):
-    return math.hypot(point_b.x - point_a.x, point_b.y - point_a.y)
+def _distance(left, right):
+    return math.hypot(left.x - right.x, left.y - right.y)

@@ -1,9 +1,15 @@
 from __future__ import division
 
+import os
+import sys
 import unittest
 
-import steel_equal_angle_data
-import steel_equal_angle_geometry
+_PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _PLUGIN_DIR not in sys.path:
+    sys.path.insert(0, _PLUGIN_DIR)
+
+from steel_sections import steel_equal_angle_data  # noqa: E402
+from steel_sections import steel_equal_angle_geometry  # noqa: E402
 
 
 class EqualAngleTests(unittest.TestCase):

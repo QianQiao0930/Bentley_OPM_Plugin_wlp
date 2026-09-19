@@ -9,19 +9,19 @@ from __future__ import division
 
 from collections import OrderedDict, namedtuple
 
-import steel_channel_data
-import steel_channel_geometry
-import steel_equal_angle_data
-import steel_equal_angle_geometry
-import steel_hbeam_data
-import steel_hbeam_geometry
-import steel_hk_data
-import steel_ibeam_data
-import steel_ibeam_geometry
-import steel_tapered_channel_data
-import steel_tapered_channel_geometry
-import steel_unequal_angle_data
-import steel_unequal_angle_geometry
+from . import steel_channel_data
+from . import steel_channel_geometry
+from . import steel_equal_angle_data
+from . import steel_equal_angle_geometry
+from . import steel_hbeam_data
+from . import steel_hbeam_geometry
+from . import steel_hk_data
+from . import steel_ibeam_data
+from . import steel_ibeam_geometry
+from . import steel_tapered_channel_data
+from . import steel_tapered_channel_geometry
+from . import steel_unequal_angle_data
+from . import steel_unequal_angle_geometry
 
 
 FamilyDefinition = namedtuple(

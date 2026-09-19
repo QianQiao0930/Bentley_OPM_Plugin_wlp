@@ -1,12 +1,18 @@
 from __future__ import division
 
 import math
+import os
+import sys
 import unittest
 
-import steel_channel_data
-import steel_channel_geometry
-import steel_registry
-import steel_sweep_geometry
+_PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _PLUGIN_DIR not in sys.path:
+    sys.path.insert(0, _PLUGIN_DIR)
+
+from steel_sections import steel_channel_data  # noqa: E402
+from steel_sections import steel_channel_geometry  # noqa: E402
+from steel_sections import steel_registry  # noqa: E402
+from steel_sections import steel_sweep_geometry  # noqa: E402
 
 
 class _FakeModelInfo(object):

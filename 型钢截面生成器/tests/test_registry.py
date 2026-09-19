@@ -1,8 +1,14 @@
 from __future__ import division
 
+import os
+import sys
 import unittest
 
-import steel_registry
+_PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _PLUGIN_DIR not in sys.path:
+    sys.path.insert(0, _PLUGIN_DIR)
+
+from steel_sections import steel_registry  # noqa: E402
 
 
 class UnifiedRegistryTests(unittest.TestCase):
