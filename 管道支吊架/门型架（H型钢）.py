@@ -1,18 +1,19 @@
 # -*- coding: utf-8 -*-
 """门型架（H型钢）（图 C.4-8 门形架 · H 型钢 · 类型 1）放置工具。
 
-在模型中点选一条用户绘制的 **竖直线**（左立柱轴线），并在面板上输入横担全长
-**L**，据此生成一组 H 型钢门型架：
+在模型中点选一条用户绘制的 **竖直线**（整组门型架的中心线），并在面板上输入
+横担全长 **L**，据此生成一组 H 型钢门型架：
 
-    竖直线   = 左立柱轴线（截面外接矩形中心落在该线上），线长即门架高 H
+    竖直线   = 整组中心线（过横担中点、两立柱轴线关于它对称），线长即门架高 H
+    立柱轴线 = 竖直线 ∓(L - 100 - 立柱截面高)/2
     L        = 横担全长（用户输入，表 1 的查表参数之一）
     两立柱净距 B = L - 2×50 - 2×立柱截面高
                  （横担两端各超出立柱外缘 50，图上 50 (TYP.)）
 
-横担**横跨两根立柱**：两端各超出立柱外缘 50 mm，顶面（固定管子的面）落在所选
-竖直线的顶端（即高度 H 处）；立柱**顶面顶焊在横担下翼缘下表面**，两者腹板
-同处于门架平面内、翼缘对称于该平面。竖直线本身不能确定门架平面，故水平走向
-由面板的「朝向」给出。
+横担以该中心线为中点**横跨两根立柱**：两端各超出立柱外缘 50 mm，顶面（固定
+管子的面）落在所选竖直线的顶端（即高度 H 处）；立柱**顶面顶焊在横担下翼缘下
+表面**，两者腹板同处于门架平面内、翼缘对称于该平面。竖直线本身不能确定门架
+平面，故水平走向由面板的「朝向」给出。
 
 整组构件（两立柱 + 横担）写成一个普通单元（Normal Cell），清单写入**管道支吊架
 公共库** ``支吊架公共库``（`SupportType='门型架（H型钢）'`），可与端焊三角架、
@@ -20,7 +21,7 @@ L 型管架、门型架（角钢和槽钢）一起统计；可导出 JSON / Exce
 
 几何做法（型钢截面的真实圆弧轮廓与沿路径扫掠）复用仓库内
 ``型钢截面生成器`` 的数据 / 几何模块与 ``steel_sweep_geometry``；
-面板外观复用同目录的 ``端焊三角架_基础.py``；
+面板外观复用 ``模块/公共/端焊三角架_基础.py``；
 纯几何 / 数据逻辑在 ``门型架_H型钢_几何.py``（可单测）。
 
 运行环境：Bentley Power Platform Python（MSPy）。
@@ -56,15 +57,17 @@ from PyQt5.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMessageBox,
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(HERE)
 STEEL_DIR = os.path.join(REPO_ROOT, '型钢截面生成器')
-# 本插件与公共支吊架模块、端焊三角架 base 同在 管道支吊架/ 目录下。
-for _path in (HERE, STEEL_DIR):
+# 公共库在 模块/公共/，本插件几何在 模块/门型架H型钢/。
+COMMON_DIR = os.path.join(HERE, '模块', '公共')
+GEOM_DIR = os.path.join(HERE, '模块', '门型架H型钢')
+for _path in (COMMON_DIR, GEOM_DIR, STEEL_DIR):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
 import 端焊三角架_基础 as base  # noqa: E402
 import 门型架_H型钢_几何 as geom  # noqa: E402
 import 支吊架公共库 as psb  # noqa: E402
-import steel_sweep_geometry  # noqa: E402
+from steel_sections import steel_sweep_geometry  # noqa: E402
 
 
 # 支吊架公共清单模块所需的类型标识。
@@ -86,7 +89,7 @@ def _reload_runtime_modules():
         except Exception:
             pass
     # 型钢几何 / 数据模块随 门型架_H型钢_几何 一并重新加载。
-    for name in ('steel_hbeam_data', 'steel_hbeam_geometry'):
+    for name in ('steel_sections.steel_hbeam_data', 'steel_sections.steel_hbeam_geometry'):
         module = sys.modules.get(name)
         if module is not None:
             try:
@@ -100,7 +103,7 @@ def _reload_runtime_modules():
 # 参数
 # ---------------------------------------------------------------------------
 
-DEBUG_LOG = os.path.join(HERE, '门型架（H型钢）_debug_log.txt')
+DEBUG_LOG = os.path.join(HERE, '模块', '日志', '门型架（H型钢）_debug_log.txt')
 
 UI_TITLE = '门型架（H型钢）'
 UI_REVISION = 'line-select-1'
@@ -171,11 +174,11 @@ def _collect_linear_pieces(curve_vector, pieces):
 
 
 def extract_vertical_post(element_handle):
-    """从所选元素提取并校验竖直线（立杆轴线），返回 ``门型架_H型钢_几何.VerticalPost``。"""
+    """从所选元素提取并校验竖直线（整组中心线），返回 ``门型架_H型钢_几何.VerticalPost``。"""
     uor_per_mm = _uor_per_mm()
     curve = ICurvePathQuery.ElementToCurveVector(element_handle)
     if curve is None or not curve.IsOpenPath():
-        raise ValueError('请选择一条竖直线段（立杆轴线）。')
+        raise ValueError('请选择一条竖直线段（整组中心线）。')
     pieces = []
     _collect_linear_pieces(curve, pieces)
     pieces_mm = [[_point_to_mm(point, uor_per_mm) for point in piece]
@@ -428,7 +431,8 @@ def _build_portal_frame_cell(post, variant_key, rack_type, arm_length_mm,
 
     uor_per_mm = _uor_per_mm(dgn_model)
 
-    # 两立柱：左立柱轴线即所选竖直线，右立柱轴线在 L - 100 - 立柱截面高 处。
+    # 两立柱：所选竖直线为整组中心线，两立柱轴线对称于它、在
+    # ∓(L - 100 - 立柱截面高)/2 处。
     # H 型钢截面本身关于腹板平面对称，两根立柱完全相同、无需镜像。
     left_axis = geom.post_axis_offset(variant_key, arm_length_mm, 'left')
     right_axis = geom.post_axis_offset(variant_key, arm_length_mm, 'right')
@@ -525,7 +529,7 @@ def export_bom_json(output_path=None):
     的其它支吊架。
     """
     if output_path is None:
-        output_path = os.path.join(HERE, '门型架（H型钢）_bom.json')
+        output_path = os.path.join(HERE, '模块', '输出', '门型架（H型钢）_bom.json')
     return psb.export_combined_bom(output_path)
 
 
@@ -627,7 +631,8 @@ class _PortalFrameSettingsDialog(QWidget):
         hint_row = QVBoxLayout()
         hint_row.setContentsMargins(15, 0, 15, 0)
         hint = QLabel("在模型中点选一条竖直线：线长即门架高 H（横担顶面到基座），"
-                      "左立柱轴线与该线重合。再输入横担全长 L —— 横担两端各超"
+                      "该线是整组门型架的中心线（两立柱轴线关于它对称）。再输入"
+                      "横担全长 L —— 横担以中心线为中点、两端各超"
                       "立柱外缘 50（图上 50 TYP.），两立柱净距 B = L − 2×50 − "
                       "2×立柱截面高 自动计算。竖直线不能定出朝向，请用「朝向」"
                       "指定门架平面。点取后可改参数、预览自动重建；点【确定】"
@@ -1161,7 +1166,7 @@ class PortalFrameByLineTool(DgnElementSetTool):
         DgnElementSetTool._OnPostInstall(self)
         NotificationManager.OutputPrompt(
             '请点选一条竖直线段：线长即门架高 H（横担顶面到基座），'
-            '左立柱轴线与该线重合。右键放弃。')
+            '该线为整组门型架的中心线。右键放弃。')
 
     def _OnPostLocate(self, path, cant_accept_reason):
         if not DgnElementSetTool._OnPostLocate(self, path, cant_accept_reason):
@@ -1246,7 +1251,7 @@ def RegisterKeyins():
     global _COMMANDS_LOADED
     if _COMMANDS_LOADED:
         return
-    command_xml = os.path.join(HERE, '门型架（H型钢）.commands.xml')
+    command_xml = os.path.join(GEOM_DIR, '门型架（H型钢）.commands.xml')
     PythonKeyinManager.GetManager().LoadCommandTableFromXml(
         WString(os.path.abspath(__file__)), WString(command_xml))
     _COMMANDS_LOADED = True

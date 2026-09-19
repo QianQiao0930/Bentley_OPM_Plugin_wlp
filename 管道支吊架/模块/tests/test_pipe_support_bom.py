@@ -10,8 +10,9 @@ import zipfile
 
 _TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 _MODULE_DIR = os.path.dirname(_TESTS_DIR)
-if _MODULE_DIR not in sys.path:
-    sys.path.insert(0, _MODULE_DIR)
+_COMMON_DIR = os.path.join(_MODULE_DIR, '公共')
+if _COMMON_DIR not in sys.path:
+    sys.path.insert(0, _COMMON_DIR)
 
 import 支吊架公共库 as psb  # noqa: E402
 

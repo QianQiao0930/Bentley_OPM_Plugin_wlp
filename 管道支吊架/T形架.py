@@ -1,33 +1,36 @@
 # -*- coding: utf-8 -*-
-"""门型架（角钢和槽钢）（图 C.4-8 门形架 · 类型 1）放置工具。
+"""T 形架（类型 1）放置工具。
 
-在模型中点选一条用户绘制的 **竖直线**（整组门型架的中心线），并在面板上输入
-净距 **B**，据此生成一组门型架：
+在模型中点选一条用户绘制的 **竖直线**（立柱轴线；允许 ±5° 以内的轻微倾斜），
+并在面板上输入横担全长 **L**、选择类型，据此生成一组 T 形架：
 
-    竖直线   = 整组中心线（过横担中点、两立柱轴线关于它对称），线长即门架高 H
-    立柱轴线 = 竖直线 ∓(B + W)/2（两立柱互为镜像，内缘之间净距为 B）
-    B        = 两立柱净距（左立柱内缘 → 右立柱内缘）
-    横担长 L = B + 2W + 30  （W = 立柱在横担长度方向的截面宽度）
+    所选竖直线 = 立柱轴线；线长即立柱长 H
+    L          = 横担全长（用户输入，表 1 / 表 2 的查表参数之一）
+    横担以所选竖直线为中点、垂直于立柱，取**世界水平**方向（面板「朝向」）
 
-横担以该中心线为中点**横跨两根立柱、两端各超出立柱外缘 15 mm**，顶面（固定
-管子的面）落在所选竖直线的顶端（即高度 H 处）。立柱与横担**背靠背**：
+单根立柱居中、横担居中，构成 T 形；两类型都保留横担长边水平、用于放管道：
 
-* 角钢子项（A/B/C）：立柱**镜像**到横担竖直肢的外侧，两者的**背面**相贴
-  （两角钢背靠背），力经该贴合焊缝下传；立柱**非通长**，顶端止于
-  H − 肢厚 − 10，比横担水平肢低 10 mm 留作施焊。
-* 槽钢子项（D/E）：立柱腹板贴横担腹板的背面，两腹板背靠背；同样非通长，
-  顶端留 10 mm 焊接间隙。
+* **类型 1（正 T 形架）**：横担在竖直线顶端（管位朝上），下端为基座（落在已有
+  钢结构上）。
+* **类型 2（倒 T 形吊架，立柱在上）**：横担在竖直线下端（管位朝上，与类型 1
+  同向），立柱向上到竖直线顶端（接已有结构）。
 
-竖直线本身不能确定门架平面，故水平走向由面板的「朝向」给出。
+立柱与横担**同规格**（构件 A）：
 
-整组构件（两立柱 + 横担）写成一个普通单元（Normal Cell），清单写入**管道支吊架
-公共库** ``支吊架公共库``（`SupportType='门型架'`），可与端焊三角架、L 型管架
-一起统计；可导出 JSON / Excel 清单。
+* 角钢子项（A~C）**背靠背**：立柱的 u-w 平面肢与横担竖直肢背面相贴，留 10 mm
+  施焊间隙；
+* H 型钢子项（D~G）**端面焊接**：立柱端面焊接横担翼缘面，两者腹板共面。
+
+每个子项都有**最大允许 H / L**（见表 1 / 表 2），超限会被拒绝生成。
+
+整组构件（立柱 + 横担）写成一个普通单元（Normal Cell），清单写入**管道支吊架
+公共库** ``支吊架公共库``（`SupportType='T形架'`），可与端焊三角架、L 型管架、
+门型架一起统计；可导出 JSON / Excel 清单。
 
 几何做法（型钢截面的真实圆弧轮廓与沿路径扫掠）复用仓库内
 ``型钢截面生成器`` 的数据 / 几何模块与 ``steel_sweep_geometry``；
 面板外观复用 ``模块/公共/端焊三角架_基础.py``；
-纯几何 / 数据逻辑在 ``门型架_几何.py``（可单测）。
+纯几何 / 数据逻辑在 ``T形架_几何.py``（可单测）。
 
 运行环境：Bentley Power Platform Python（MSPy）。
 """
@@ -47,7 +50,7 @@ from MSPyDgnPlatform import *
 from MSPyDgnView import *
 from MSPyMstnPlatform import *
 
-# 通配导入不一定导出这两个符号，显式再导入一次（与 steel_main.py 一致）。
+# 通配导入不一定导出这两个符号，显式再导入一次（与其它插件一致）。
 from MSPyBentley import WString  # noqa: E402,F811
 from MSPyMstnPlatform import PythonKeyinManager  # noqa: E402,F811
 
@@ -62,22 +65,22 @@ from PyQt5.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMessageBox,
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(HERE)
 STEEL_DIR = os.path.join(REPO_ROOT, '型钢截面生成器')
-# 公共库在 模块/公共/，本插件几何在 模块/门型架/。
+# 公共库在 模块/公共/，本插件几何在 模块/T形架/。
 COMMON_DIR = os.path.join(HERE, '模块', '公共')
-GEOM_DIR = os.path.join(HERE, '模块', '门型架')
+GEOM_DIR = os.path.join(HERE, '模块', 'T形架')
 for _path in (COMMON_DIR, GEOM_DIR, STEEL_DIR):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
 import 端焊三角架_基础 as base  # noqa: E402
-import 门型架_几何 as geom  # noqa: E402
+import T形架_几何 as geom  # noqa: E402
 import 支吊架公共库 as psb  # noqa: E402
 from steel_sections import steel_sweep_geometry  # noqa: E402
 
 
 # 支吊架公共清单模块所需的类型标识。
-SUPPORT_TYPE = '门型架（角钢和槽钢）'
-SUPPORT_CODE = 'PORTAL_FRAME'
+SUPPORT_TYPE = 'T形架'
+SUPPORT_CODE = 'T_FRAME'
 
 
 def _apply_base_overrides():
@@ -93,9 +96,8 @@ def _reload_runtime_modules():
             importlib.reload(module)
         except Exception:
             pass
-    # 型钢几何 / 数据模块随 门型架_几何 一并重新加载。
     for name in ('steel_sections.steel_equal_angle_data', 'steel_sections.steel_equal_angle_geometry',
-                 'steel_sections.steel_channel_data', 'steel_sections.steel_channel_geometry'):
+                 'steel_sections.steel_hbeam_data', 'steel_sections.steel_hbeam_geometry'):
         module = sys.modules.get(name)
         if module is not None:
             try:
@@ -109,20 +111,19 @@ def _reload_runtime_modules():
 # 参数
 # ---------------------------------------------------------------------------
 
-DEBUG_LOG = os.path.join(HERE, '模块', '日志', '门型架_debug_log.txt')
+DEBUG_LOG = os.path.join(HERE, '模块', '日志', 'T形架_debug_log.txt')
 
-UI_TITLE = '门型架（角钢和槽钢）'
+UI_TITLE = 'T形架'
 UI_REVISION = 'line-select-1'
 
 # 整组构件写入的普通单元名。
-CELL_NAME = 'PORTAL_FRAME'
+CELL_NAME = 'T_FRAME'
 
 COMPONENT_POST_NAME = '立柱'
 COMPONENT_ARM_NAME = '横担'
 
-# 默认净距 B（mm）：取表 1 的最小列。
-DEFAULT_SPAN_B_MM = 500.0
-# 默认门架平面朝向（°）：0 = 世界 +X。
+# 默认横担长 L（mm）、横担方向「朝向」（°）：0 = 世界 +X（立柱竖直时使用）。
+DEFAULT_ARM_LENGTH_MM = 500.0
 DEFAULT_HEADING_DEG = 0.0
 
 # 交付给基础模块的覆盖项：日志。
@@ -179,17 +180,17 @@ def _collect_linear_pieces(curve_vector, pieces):
             raise ValueError('所选元素含圆弧或曲线；请选择一条竖直的直线段。')
 
 
-def extract_vertical_post(element_handle):
-    """从所选元素提取并校验竖直线（整组中心线），返回 ``门型架_几何.VerticalPost``。"""
+def extract_line(element_handle):
+    """从所选元素提取并校验竖直线（立柱轴线），返回 ``T形架_几何.SelectedLine``。"""
     uor_per_mm = _uor_per_mm()
     curve = ICurvePathQuery.ElementToCurveVector(element_handle)
     if curve is None or not curve.IsOpenPath():
-        raise ValueError('请选择一条竖直线段（整组中心线）。')
+        raise ValueError('请选择一条竖直线段（立柱轴线）。')
     pieces = []
     _collect_linear_pieces(curve, pieces)
     pieces_mm = [[_point_to_mm(point, uor_per_mm) for point in piece]
                  for piece in pieces]
-    return geom.parse_vertical_post(pieces_mm)
+    return geom.parse_selected_line(pieces_mm)
 
 
 # ---------------------------------------------------------------------------
@@ -278,49 +279,34 @@ def _body_to_element(body, dgn_model, component_name):
     return solid
 
 
-def _world_axis(components, run_dir, v_dir):
-    """把截面轴在 (u, v, w) 下的分量换算为世界方向向量。"""
-    ux, vx, wx = components
-    return (
-        ux * run_dir[0] + vx * v_dir[0],
-        ux * run_dir[1] + vx * v_dir[1],
-        wx,
-    )
-
-
-def _plane_dirs(heading_deg):
-    """门架局部基的水平方向：u（横担长度方向）与 v（管道方向，Z × u）。"""
-    heading = math.radians(float(heading_deg))
-    return ((math.cos(heading), math.sin(heading), 0.0),
-            (-math.sin(heading), math.cos(heading), 0.0))
-
-
-def _build_member_element(variant_key, member_kind, post, heading_deg,
-                          post_axis_u, span_mm, uor_per_mm, dgn_model,
-                          mirror_u=False):
+def _build_member_element(variant_key, member_kind, line, heading_deg,
+                          arm_length_mm, uor_per_mm, dgn_model, rack_type=1):
     """构建一个构件（立柱 / 横担）实体元素，不写入模型。
 
-    截面朝向与扫掠起点由 ``门型架_几何`` 的 ``member_section_params`` /
-    ``member_axes`` / ``member_origin_length`` 给出，坐标系为门架局部基
-    (u, v, w)，原点取所选竖直线的下端（基座）。
+    截面朝向与扫掠起点由 ``T形架_几何`` 的 ``member_section_params`` /
+    ``member_axes`` / ``member_origin_length`` 给出，坐标系为局部基 (u, v, w)，
+    原点取所选竖直线的下端；``frame_axes`` 把 (u, v, w) 换算到世界。
     """
     geometry = geom.member_geometry(variant_key, member_kind, uor_per_mm)
-    run_dir, v_dir = _plane_dirs(heading_deg)
-    axis_x, axis_y, axis_z = geom.member_axes(variant_key, member_kind,
-                                              mirror_u)
-    axis_x = _world_axis(axis_x, run_dir, v_dir)
-    axis_y = _world_axis(axis_y, run_dir, v_dir)
-    axis_z = _world_axis(axis_z, run_dir, v_dir)
+    u_dir, v_dir, w_dir = geom.frame_axes(heading_deg)
+    axes = geom.member_axes(variant_key, member_kind, rack_type)
+    axis_x = geom.world_direction(u_dir, v_dir, w_dir, axes[0])
+    axis_y = geom.world_direction(u_dir, v_dir, w_dir, axes[1])
+    axis_z = geom.world_direction(u_dir, v_dir, w_dir, axes[2])
     origin_uvw, length_mm = geom.member_origin_length(
-        variant_key, member_kind, post.height_mm, span_mm, post_axis_u)
+        variant_key, member_kind, line.length_mm, arm_length_mm, rack_type)
 
-    vertex = _to_uor(post.base, uor_per_mm)
+    base_uor = _to_uor(line.base, uor_per_mm)
     origin = (
-        vertex[0] + origin_uvw[0] * uor_per_mm * run_dir[0]
-        + origin_uvw[1] * uor_per_mm * v_dir[0],
-        vertex[1] + origin_uvw[0] * uor_per_mm * run_dir[1]
-        + origin_uvw[1] * uor_per_mm * v_dir[1],
-        vertex[2] + origin_uvw[2] * uor_per_mm,
+        base_uor[0] + origin_uvw[0] * uor_per_mm * u_dir[0]
+        + origin_uvw[1] * uor_per_mm * v_dir[0]
+        + origin_uvw[2] * uor_per_mm * w_dir[0],
+        base_uor[1] + origin_uvw[0] * uor_per_mm * u_dir[1]
+        + origin_uvw[1] * uor_per_mm * v_dir[1]
+        + origin_uvw[2] * uor_per_mm * w_dir[1],
+        base_uor[2] + origin_uvw[0] * uor_per_mm * u_dir[2]
+        + origin_uvw[1] * uor_per_mm * v_dir[2]
+        + origin_uvw[2] * uor_per_mm * w_dir[2],
     )
     frame = steel_sweep_geometry.Frame(origin, axis_x, axis_y, axis_z)
     profile = _profile_curve(geometry, frame)
@@ -345,8 +331,8 @@ def _succeeded(status):
         return status == 0
 
 
-class _PortalFrameCellBuilder(object):
-    """把两立柱、横担子元素一次性写成一个普通单元。"""
+class _TFrameCellBuilder(object):
+    """把立柱、横担子元素一次性写成一个普通单元。"""
 
     def __init__(self, dgn_model, cell_name=None):
         self.dgn_model = dgn_model
@@ -359,10 +345,10 @@ class _PortalFrameCellBuilder(object):
 
     def add(self, child):
         if child is None:
-            raise RuntimeError('门型架子元素创建失败。')
+            raise RuntimeError('T形架子元素创建失败。')
         status = NormalCellHeaderHandler.AddChildElement(self.cell, child)
         if not _succeeded(status):
-            raise RuntimeError('无法把门型架子元素加入普通单元。')
+            raise RuntimeError('无法把 T形架子元素加入普通单元。')
         self.child_count += 1
 
     def note(self, message):
@@ -372,12 +358,12 @@ class _PortalFrameCellBuilder(object):
     def build(self):
         status = NormalCellHeaderHandler.AddChildComplete(self.cell)
         if not _succeeded(status):
-            raise RuntimeError('无法完成门型架单元。')
+            raise RuntimeError('无法完成 T形架单元。')
         return self.child_count
 
     def commit(self):
         if not _succeeded(self.cell.AddToModel()):
-            raise RuntimeError('无法把门型架单元写入活动模型。')
+            raise RuntimeError('无法把 T形架单元写入活动模型。')
         return self.cell
 
 
@@ -399,7 +385,7 @@ def _delete_preview(handle):
 
 
 def _attach_support_items(cell, result):
-    """把整组门型架写入共享支吊架库（整组记录 + 立柱/横担构件记录）。"""
+    """把整组 T形架写入共享支吊架库（整组记录 + 立柱/横担构件记录）。"""
     return psb.attach_components(
         cell,
         support_type=SUPPORT_TYPE,
@@ -411,13 +397,27 @@ def _attach_support_items(cell, result):
 
 
 # ---------------------------------------------------------------------------
-# 构建整组门型架
+# 构建整组 T形架
 # ---------------------------------------------------------------------------
 
 
-def _build_portal_frame_cell(post, variant_key, rack_type, span_mm, heading_deg,
-                             rack_name=None):
-    """按竖直线与净距 B 构建门型架单元但**不写入模型**。
+def _validate_limits(variant_key, height_mm, arm_length_mm):
+    """校验子项的最大允许 H / L。"""
+    max_height = geom.max_allowed_height(variant_key)
+    if max_height is not None and height_mm > max_height + geom.LOAD_TOLERANCE_MM:
+        raise ValueError(
+            '立柱长 H=%.0f mm 超过子项 %s 的最大允许 H=%d mm。'
+            % (height_mm, variant_key, max_height))
+    max_arm = geom.max_allowed_arm_length(variant_key)
+    if max_arm is not None and arm_length_mm > max_arm + geom.LOAD_TOLERANCE_MM:
+        raise ValueError(
+            '横担长 L=%.0f mm 超过子项 %s 的最大允许 L=%d mm。'
+            % (arm_length_mm, variant_key, max_arm))
+
+
+def _build_t_frame_cell(line, variant_key, rack_type, arm_length_mm,
+                        heading_deg, rack_name=None):
+    """按所选竖直线与横担长 L 构建 T形架单元但**不写入模型**。
 
     返回 ``(builder, 统计字典)``。
     """
@@ -427,10 +427,11 @@ def _build_portal_frame_cell(post, variant_key, rack_type, span_mm, heading_deg,
             % ('/'.join(str(t) for t in geom.allowed_rack_types(variant_key)),
                variant_key, rack_type))
 
-    span_mm = float(span_mm)
-    if span_mm < geom.MIN_SPAN_MM:
-        raise ValueError('净距 B=%.1f mm 过小，要求 ≥ %.0f mm。'
-                         % (span_mm, geom.MIN_SPAN_MM))
+    arm_length_mm = float(arm_length_mm)
+    if arm_length_mm < geom.MIN_ARM_LENGTH_MM:
+        raise ValueError('横担长 L=%.1f mm 过小，要求 ≥ %.0f mm。'
+                         % (arm_length_mm, geom.MIN_ARM_LENGTH_MM))
+    _validate_limits(variant_key, line.length_mm, arm_length_mm)
 
     dgn_model = ISessionMgr.GetActiveDgnModel()
     if not dgn_model.Is3d():
@@ -438,43 +439,32 @@ def _build_portal_frame_cell(post, variant_key, rack_type, span_mm, heading_deg,
 
     uor_per_mm = _uor_per_mm(dgn_model)
 
-    # 两立柱：所选竖直线为整组中心线，两立柱轴线对称于它、在 ∓(B + W)/2 处。
-    # 右立柱在 u 方向镜像，使两根立柱互为镜像、开口都朝门架外。
-    left_axis = geom.post_axis_offset(variant_key, span_mm, 'left')
-    right_axis = geom.post_axis_offset(variant_key, span_mm, 'right')
-    left = _build_member_element(
-        variant_key, 'post', post, heading_deg, left_axis, span_mm,
-        uor_per_mm, dgn_model, mirror_u=False)
-    if left is None:
-        raise RuntimeError('左立柱实体创建失败。')
-    right = _build_member_element(
-        variant_key, 'post', post, heading_deg, right_axis, span_mm,
-        uor_per_mm, dgn_model, mirror_u=True)
-    if right is None:
-        raise RuntimeError('右立柱实体创建失败。')
+    # 单根立柱：轴线即所选竖直线，截面外接矩形中心落在轴线上。
+    post = _build_member_element(
+        variant_key, 'post', line, heading_deg, arm_length_mm,
+        uor_per_mm, dgn_model, rack_type)
+    if post is None:
+        raise RuntimeError('立柱实体创建失败。')
 
-    # 横担：横跨两立柱、两端各超立柱外缘 15，顶面在高度 H 处。
-    # 立柱：非通长，顶端留 10 焊接间隙（见 geom.post_length）。
+    # 横担：以所选竖直线为中点、两端各 L/2，管位面水平。
     arm = _build_member_element(
-        variant_key, 'arm', post, heading_deg, 0.0, span_mm,
-        uor_per_mm, dgn_model)
+        variant_key, 'arm', line, heading_deg, arm_length_mm,
+        uor_per_mm, dgn_model, rack_type)
     if arm is None:
         raise RuntimeError('横担实体创建失败。')
 
-    builder = _PortalFrameCellBuilder(dgn_model)
-    builder.add(left)
-    builder.add(right)
+    builder = _TFrameCellBuilder(dgn_model)
+    builder.add(post)
     builder.add(arm)
     builder.build()
 
     spec = geom.specification(variant_key)
-    arm_length = geom.arm_length(variant_key, span_mm)
-    post_cut_length = geom.post_length(variant_key, post.height_mm)
-    weld_contact = geom.weld_contact_length(variant_key)
+    post_cut_length = geom.post_length(variant_key, line.length_mm, rack_type)
+    weld_contact = geom.weld_contact_length(variant_key, rack_type)
     rack_number = geom.build_pipe_rack_number(
-        rack_name or '', rack_type, variant_key, post.height_mm, arm_length)
+        rack_name or '', rack_type, variant_key, line.length_mm, arm_length_mm)
 
-    load = geom.allowable_load(variant_key, post.height_mm, span_mm)
+    load = geom.allowable_load(variant_key, line.length_mm, arm_length_mm)
     if load.value is None:
         builder.note('允许垂直荷载未取到：%s' % load.message)
 
@@ -482,62 +472,61 @@ def _build_portal_frame_cell(post, variant_key, rack_type, span_mm, heading_deg,
         'variant': variant_key,
         'rack_type': int(rack_type),
         'child_count': builder.child_count,
-        'height': post.height_mm,
-        'span': span_mm,
-        'arm_length': arm_length,
+        'height': line.length_mm,
+        'arm_length': arm_length_mm,
         'post_cut_length': post_cut_length,
         'weld_contact_length': weld_contact,
+        'is_hbeam': geom.variant_is_hbeam(variant_key),
         'heading_deg': float(heading_deg),
         'specification': spec,
         'allowable_load': load.value,
+        'max_height': geom.max_allowed_height(variant_key),
+        'max_arm_length': geom.max_allowed_arm_length(variant_key),
         'pipe_rack_number': rack_number or '',
         'bom_items': [
             {'code': 'Post', 'name': COMPONENT_POST_NAME,
-             'specification': spec, 'length': post_cut_length, 'quantity': 2},
+             'specification': spec, 'length': post_cut_length},
             {'code': 'Arm', 'name': COMPONENT_ARM_NAME,
-             'specification': spec, 'length': arm_length},
+             'specification': spec, 'length': arm_length_mm},
         ],
         'warnings': list(builder.warnings),
     }
-    _log('portal frame built: variant=%s, type=%d, B=%.1f, H=%.1f, L=%.1f, '
-         'post=%.1f, weld=%.1f, heading=%.2f, cells=%d, number=%s' %
-         (variant_key, int(rack_type), span_mm, post.height_mm, arm_length,
-          post_cut_length, weld_contact, float(heading_deg),
-          builder.child_count, result['pipe_rack_number'] or '-'))
+    _log('t frame built: variant=%s, type=%d, H=%.1f, L=%.1f, post=%.1f, '
+         'weld=%.1f, hbeam=%s, heading=%.2f, cells=%d, number=%s' %
+         (variant_key, int(rack_type), line.length_mm, arm_length_mm,
+          post_cut_length, weld_contact, result['is_hbeam'],
+          float(heading_deg), builder.child_count,
+          result['pipe_rack_number'] or '-'))
     return builder, result
 
 
-def replace_portal_frame(post, variant_key, previous_handle, rack_type=1,
-                         span_mm=DEFAULT_SPAN_B_MM, heading_deg=DEFAULT_HEADING_DEG,
-                         rack_name=None):
-    """重建门型架：先建新的一版并写入，成功后再删除上一版预览。"""
-    builder, result = _build_portal_frame_cell(
-        post, variant_key, rack_type, span_mm, heading_deg, rack_name)
+def replace_t_frame(line, variant_key, previous_handle, rack_type=1,
+                    arm_length_mm=DEFAULT_ARM_LENGTH_MM,
+                    heading_deg=DEFAULT_HEADING_DEG, rack_name=None):
+    """重建 T形架：先建新的一版并写入，成功后再删除上一版预览。"""
+    builder, result = _build_t_frame_cell(
+        line, variant_key, rack_type, arm_length_mm, heading_deg, rack_name)
     new_handle = builder.commit()
     _attach_support_items(new_handle, result)
     deleted = _delete_preview(previous_handle)
     return new_handle, result, deleted
 
 
-def draw_portal_frame(post, variant_key, rack_type=1,
-                      span_mm=DEFAULT_SPAN_B_MM,
-                      heading_deg=DEFAULT_HEADING_DEG, rack_name=None):
+def draw_t_frame(line, variant_key, rack_type=1,
+                 arm_length_mm=DEFAULT_ARM_LENGTH_MM,
+                 heading_deg=DEFAULT_HEADING_DEG, rack_name=None):
     """直接创建整组单元并写入模型，返回 (cell, 统计字典)。"""
-    builder, result = _build_portal_frame_cell(
-        post, variant_key, rack_type, span_mm, heading_deg, rack_name)
+    builder, result = _build_t_frame_cell(
+        line, variant_key, rack_type, arm_length_mm, heading_deg, rack_name)
     cell = builder.commit()
     _attach_support_items(cell, result)
     return cell, result
 
 
 def export_bom_json(output_path=None):
-    """导出**全部**管道支吊架的统一清单（共享库），返回文件路径。
-
-    本插件不单独维护自己的库，统一走 ``支吊架公共库``；因此清单里会同时包含
-    端焊三角架、L 型管架、门型架以及今后接入的其它支吊架。
-    """
+    """导出**全部**管道支吊架的统一清单（共享库），返回文件路径。"""
     if output_path is None:
-        output_path = os.path.join(HERE, '模块', '输出', '门型架_bom.json')
+        output_path = os.path.join(HERE, '模块', '输出', 'T形架_bom.json')
     return psb.export_combined_bom(output_path)
 
 
@@ -546,7 +535,7 @@ def export_bom_json(output_path=None):
 # ---------------------------------------------------------------------------
 
 
-class _PortalFrameTitleBar(QWidget):
+class _TFrameTitleBar(QWidget):
     """无边框窗口的自绘标题栏：只保留关闭钮，空白处可拖动窗口。"""
 
     def __init__(self, title, on_close, parent=None):
@@ -589,8 +578,8 @@ class _PortalFrameTitleBar(QWidget):
         super().mouseReleaseEvent(event)
 
 
-class _PortalFrameSettingsDialog(QWidget):
-    """子项 / B / 朝向 / 编号 选择，预览 / 确定 / 取消面板。"""
+class _TFrameSettingsDialog(QWidget):
+    """子项 / L / 朝向 / 编号 选择，预览 / 确定 / 取消面板。"""
 
     RADIUS = base.UI_RADIUS
 
@@ -605,8 +594,8 @@ class _PortalFrameSettingsDialog(QWidget):
         self.setPalette(palette)
         self.setStyleSheet('QWidget {font-family: "Microsoft YaHei UI";}')
 
-        self.post = None
-        self.post_handle = None
+        self.line = None
+        self.line_handle = None
         self.preview_handle = None
         self.preview_result = None
         self.confirmed = False
@@ -629,7 +618,7 @@ class _PortalFrameSettingsDialog(QWidget):
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
-        outer.addWidget(_PortalFrameTitleBar(UI_TITLE, self.cancel_tool))
+        outer.addWidget(_TFrameTitleBar(UI_TITLE, self.cancel_tool))
 
         body = QVBoxLayout()
         body.setContentsMargins(3, 0, 3, 3)
@@ -638,21 +627,22 @@ class _PortalFrameSettingsDialog(QWidget):
 
         hint_row = QVBoxLayout()
         hint_row.setContentsMargins(15, 0, 15, 0)
-        hint = QLabel("在模型中点选一条竖直线：线长即门架高 H，该线是整组门型架"
-                      "的中心线（两立柱轴线关于它对称）。再输入两立柱净距 B —— "
-                      "横担长按 L = B + 2×立柱宽度 "
-                      "+ 30 自动计算（横担以中心线为中点横跨两立柱、两端各超"
-                      "立柱外缘 15；角钢/槽钢立柱都与横担背靠背、非通长，顶端"
-                      "留 10 焊缝间隙）。竖直线不能定出朝向，请用「朝向」"
-                      "指定门架平面。点取后可改参数、预览自动重建；点【确定】"
-                      "保留，点【取消】或右键放弃。")
+        hint = QLabel("在模型中点选一条竖直线（立柱轴线，允许 ±5° 内轻微倾斜）："
+                      "线长即立柱长 H。类型1 正 T 形架：下端为基座、上端放横担，"
+                      "管道坐横担顶面；类型2 倒 T 形吊架：下端放横担（管位朝上，"
+                      "同类型1方向），立柱向上到上端（接已有结构）。再输入横担全长 "
+                      "L —— 横担以该线为中点、垂直于立柱、取世界水平方向（面板"
+                      "「朝向」）。角钢子项（A~C）立柱与横担背靠背、留 10 施焊"
+                      "间隙；H 型钢子项（D~G）端面焊接、腹板共面。各子项有最大"
+                      "允许 H / L，超限会拒绝生成。点取后可改参数、预览自动重建；"
+                      "点【确定】保留，点【取消】放弃。")
         hint.setWordWrap(True)
         hint.setStyleSheet('color: #7D8AA0; font-size: 12px;')
         hint_row.addWidget(hint)
         body.addLayout(hint_row)
         body.addSpacing(6)
 
-        card = base.NeuCard("构件规格（表 2）")
+        card = base.NeuCard("构件规格（表 3）")
         self.variant_combo = self._register(base.NeuCombo(
             list(geom.variant_choices()),
             current=geom.DEFAULT_VARIANT, on_change=self.on_options_changed))
@@ -660,37 +650,45 @@ class _PortalFrameSettingsDialog(QWidget):
         self.spec_label = self._value()
         self._row(card.content, 1, "构件A（立柱 / 横担）：", [self.spec_label])
         self.width_label = self._value()
-        self._row(card.content, 2, "立柱宽度 W：",
-                  [self.width_label, self._note("mm　在横担长度方向的截面宽度")], 8)
+        self._row(card.content, 2, "立柱截面宽 W：",
+                  [self.width_label, self._note("mm　在横担长度方向的截面宽度")],
+                  8)
+        self.connection_label = self._value()
+        self._row(card.content, 3, "连接方式：", [self.connection_label])
         body.addWidget(card)
 
         card = base.NeuCard("尺寸参数")
         self.height_label = self._value()
-        self._row(card.content, 0, "门架高 H：",
-                  [self.height_label, self._note("mm　由所选竖直线自动读取")], 8)
-        self.span_edit = self._edit_row(
-            card.content, 1, "净距 B：", '%.0f' % DEFAULT_SPAN_B_MM,
-            "mm　两立柱内缘之间净距，用于查允许垂直荷载")
-        self.arm_label = self._value()
-        self._row(card.content, 2, "横担长 L：",
-                  [self.arm_label, self._note("mm　自动计算 L = B + 2W + 30")], 8)
+        self._row(card.content, 0, "立柱长 H：",
+                  [self.height_label, self._note("mm　由所选直线自动读取")], 8)
+        self.max_height_label = self._value()
+        self._row(card.content, 1, "最大允许 H：",
+                  [self.max_height_label, self._note("mm　表 1 / 表 2")], 8)
+        self.arm_edit = self._edit_row(
+            card.content, 2, "横担长 L：", '%.0f' % DEFAULT_ARM_LENGTH_MM,
+            "mm　用户输入，表 1 / 表 2 的查表参数之一")
+        self.max_arm_label = self._value()
+        self._row(card.content, 3, "最大允许 L：",
+                  [self.max_arm_label, self._note("mm　表 1 / 表 2")], 8)
         self.post_length_label = self._value()
-        self._row(card.content, 3, "立柱下料长：",
+        self._row(card.content, 4, "立柱下料长：",
                   [self.post_length_label,
-                   self._note("mm　非通长：H − 翼缘厚 − 10（焊接间隙）")], 8)
+                   self._note("mm　角钢：H − 肢厚 − 10；H 型钢：H − 横担截面高")],
+                  8)
         self.load_label = self._value()
-        self._row(card.content, 4, "允许垂直荷载：",
-                  [self.load_label, self._note("kN　按表 1")], 8)
+        self._row(card.content, 5, "允许垂直荷载：",
+                  [self.load_label, self._note("kN　按表 1 / 表 2")], 8)
         self.heading_edit = self._edit_row(
-            card.content, 5, "朝向：", '%.0f' % DEFAULT_HEADING_DEG,
-            "°　门架平面内的横担指向（0 = 世界 +X）")
+            card.content, 6, "朝向：", '%.0f' % DEFAULT_HEADING_DEG,
+            "°　横担方向（0 = 世界 +X）")
         body.addWidget(card)
 
         card = base.NeuCard("管架编号")
         self.rack_name_edit = self._edit_row(
-            card.content, 0, "名称：", 'D8', "管架系列代号；留空则不附加编号")
+            card.content, 0, "名称：", 'D12', "管架系列代号；留空则不附加编号")
         self.rack_type_combo = self._register(base.NeuCombo(
-            [(1, '类型1  |  正门形架（立柱在下、横担在上）')],
+            [(1, '类型1  |  正 T 形架（立柱在下、横担在上）'),
+             (2, '类型2  |  倒 T 形吊架（立柱在上、横担在下）')],
             current=1, on_change=self.on_options_changed))
         self._row(card.content, 1, "类型：", [self.rack_type_combo], 16)
         self.rack_label = self._value()
@@ -699,7 +697,7 @@ class _PortalFrameSettingsDialog(QWidget):
         body.addWidget(card)
 
         card = base.NeuCard("创建选项")
-        self.keep_toggle = self._register(base.NeuToggle("创建后保留所选竖直线"))
+        self.keep_toggle = self._register(base.NeuToggle("创建后保留所选直线"))
         self.keep_toggle.setChecked(True)
         card.content.addWidget(self.keep_toggle, 0, 0, 1, 2)
         body.addWidget(card)
@@ -710,8 +708,7 @@ class _PortalFrameSettingsDialog(QWidget):
         self.preview_info_label = self._info("预览：—", base.UI_TEXT)
         summary.content.addWidget(self.preview_info_label)
         self.status_label = self._info(
-            "请在模型中点选一条竖直线；改参数会自动重建预览。",
-            base.UI_INFO)
+            "请在模型中点选一条竖直线；改参数会自动重建预览。", base.UI_INFO)
         summary.content.addWidget(self.status_label)
         body.addWidget(summary)
 
@@ -809,11 +806,11 @@ class _PortalFrameSettingsDialog(QWidget):
         except (TypeError, ValueError):
             return 1
 
-    def current_span(self):
+    def current_arm_length(self):
         try:
-            return float(self.span_edit.value())
+            return float(self.arm_edit.value())
         except (TypeError, ValueError):
-            return DEFAULT_SPAN_B_MM
+            return DEFAULT_ARM_LENGTH_MM
 
     def current_heading(self):
         try:
@@ -830,18 +827,17 @@ class _PortalFrameSettingsDialog(QWidget):
             'variant': variant_key,
             'rack_type': rack_type,
             'rack_name': self.rack_name_edit.value().strip(),
-            'span': self.current_span(),
+            'arm_length': self.current_arm_length(),
             'heading': self.current_heading(),
         }
 
-    def current_rack_number(self, post=None):
-        post = post if post is not None else self.post
-        if post is None:
+    def current_rack_number(self, line=None):
+        line = line if line is not None else self.line
+        if line is None:
             return ''
-        arm_length = geom.arm_length(self.current_variant(), self.current_span())
         return geom.build_pipe_rack_number(
             self.rack_name_edit.value(), self.current_rack_type(),
-            self.current_variant(), post.height_mm, arm_length)
+            self.current_variant(), line.length_mm, self.current_arm_length())
 
     def set_status(self, message, is_error=False, flush=True):
         self.status_label.setStyleSheet(
@@ -853,15 +849,15 @@ class _PortalFrameSettingsDialog(QWidget):
 
     def set_result(self, result):
         number = result.get('pipe_rack_number') or '—'
+        connection = ('H 型钢端面焊接' if result.get('is_hbeam')
+                      else '角钢背靠背')
         self.preview_info_label.setText(
-            "预览：子项 %s，类型 %d，%s，H=%.0f mm，B=%.0f mm，L=%.0f mm，"
-            "立柱下料 %.0f mm（搭接 %.0f mm），朝向 %.0f°，单元含 %d 个子"
-            "元素；编号 %s。" % (
-                result['variant'], result['rack_type'],
-                result['specification'], result['height'], result['span'],
-                result['arm_length'], result['post_cut_length'],
-                result['weld_contact_length'], result['heading_deg'],
-                result['child_count'], number,
+            "预览：子项 %s，类型 %d，%s，H=%.0f mm，L=%.0f mm，立柱下料 "
+            "%.0f mm（%s），朝向 %.0f°，单元含 %d 个子元素；编号 %s。" % (
+                result['variant'], result['rack_type'], result['specification'],
+                result['height'], result['arm_length'],
+                result['post_cut_length'], connection,
+                result['heading_deg'], result['child_count'], number,
             )
         )
 
@@ -869,49 +865,65 @@ class _PortalFrameSettingsDialog(QWidget):
         variant_key = self.current_variant()
         self.spec_label.setText(geom.specification(variant_key))
         self.width_label.setText('%.0f' % geom.inplane_width(variant_key))
+        self.connection_label.setText(
+            'H 型钢端面焊接（腹板共面）' if geom.variant_is_hbeam(variant_key)
+            else '角钢背靠背（非通长、顶端留 10 焊缝间隙）')
+        max_height = geom.max_allowed_height(variant_key)
+        max_arm = geom.max_allowed_arm_length(variant_key)
+        self.max_height_label.setText(
+            '—' if max_height is None else '%.0f' % max_height)
+        self.max_arm_label.setText(
+            '—' if max_arm is None else '%.0f' % max_arm)
         if self._options_valid():
             self.spec_info_label.setStyleSheet(
                 'color: %s; font-size: 11px;' % base.UI_TEXT.name())
+            if geom.hanger_type(self.current_rack_type()):
+                type_text = ('类型 2 为倒 T 形吊架：横担在下端、管位朝上（同类型 1 '
+                             '方向）；立柱向上到结构，角钢下探与横担竖直肢背靠背'
+                             '搭接，H 型钢端面焊在横担上表面。')
+            else:
+                type_text = ('类型 1 为正 T 形架：单根立柱居中、横担居中，'
+                             '横担顶面为固定管子的面。')
             self.spec_info_label.setText(
-                '构件A：立柱与横担同规格 %s（%s）；类型 1 为正门形架，立柱在'
-                '下、横担在上，横担顶面为固定管子的面。'
+                '构件A：立柱与横担同规格 %s（%s）；%s'
                 % (geom.specification(variant_key),
-                   _family_description(variant_key)))
+                   _family_description(variant_key), type_text))
         else:
             self.spec_info_label.setStyleSheet(
                 'color: %s; font-size: 11px;' % base.UI_ERROR.name())
             self.spec_info_label.setText(self._invalid_message())
         self.refresh_line_labels()
 
-    def _show_line_values(self, post):
-        if post is None:
+    def _show_line_values(self, line):
+        if line is None:
             self.height_label.setText('—')
-            self.arm_label.setText('—')
             self.post_length_label.setText('—')
             self.load_label.setText('—')
             self.load_label.setToolTip('')
             self.rack_label.setText('—')
             return
-        self.height_label.setText('%.1f' % post.height_mm)
+        self.height_label.setText('%.1f' % line.length_mm)
         variant_key = self.current_variant()
-        arm_length = geom.arm_length(variant_key, self.current_span())
-        self.arm_label.setText('%.1f' % arm_length)
-        self.post_length_label.setText(
-            '%.1f' % geom.post_length(variant_key, post.height_mm))
+        try:
+            self.post_length_label.setText(
+                '%.1f' % geom.post_length(variant_key, line.length_mm))
+        except ValueError as error:
+            self.post_length_label.setText('—')
+            self.post_length_label.setToolTip(str(error))
 
         result = geom.allowable_load(
-            self.current_variant(), post.height_mm, self.current_span())
+            variant_key, line.length_mm, self.current_arm_length())
         if result.value is None:
             self.load_label.setText('—')
         else:
             self.load_label.setText('%.2f' % result.value)
         self.load_label.setToolTip(result.message or '')
 
-        number = self.current_rack_number(post)
+        number = self.current_rack_number(line)
         self.rack_label.setText(number if number else '（名称留空，不附加）')
 
     def refresh_line_labels(self):
-        self._show_line_values(self.post)
+        self._show_line_values(self.line)
 
     def _set_busy(self, busy):
         for widget in self.option_widgets + self.action_widgets:
@@ -921,7 +933,6 @@ class _PortalFrameSettingsDialog(QWidget):
     def on_options_changed(self, *_unused):
         self.refresh_spec()
         if not self._options_valid():
-            # 子项与类型冲突：不生成（并撤掉可能过期的预览），只提示。
             self._cancel_pending_regeneration()
             self.discard_preview()
             self.set_status(self._invalid_message(), True)
@@ -947,7 +958,7 @@ class _PortalFrameSettingsDialog(QWidget):
 
     def _schedule_regeneration(self, timer):
         self._cancel_pending_regeneration()
-        if self.post is None:
+        if self.line is None:
             return
         timer.start()
 
@@ -958,20 +969,20 @@ class _PortalFrameSettingsDialog(QWidget):
     def _run_pending_regeneration(self):
         self.regenerate()
 
-    def note_hover(self, post):
-        """悬停到一条合规竖直线上：只刷新数值显示，不改变已选定的线。"""
-        if self.post is None:
-            self._show_line_values(post)
+    def note_hover(self, line):
+        """悬停到一条合规直线上：只刷新数值显示，不改变已选定的线。"""
+        if self.line is None:
+            self._show_line_values(line)
 
     # -- 预览 --------------------------------------------------------------
 
-    def regenerate(self, post=None, handle=None):
-        """按当前竖直线与选项重建预览：先建新的一版，成功后再删掉旧的。"""
+    def regenerate(self, line=None, handle=None):
+        """按当前直线与选项重建预览：先建新的一版，成功后再删掉旧的。"""
         self._cancel_pending_regeneration()
-        if post is not None:
-            self.post = post
-            self.post_handle = handle
-        if self.post is None:
+        if line is not None:
+            self.line = line
+            self.line_handle = handle
+        if self.line is None:
             return None
 
         try:
@@ -981,18 +992,20 @@ class _PortalFrameSettingsDialog(QWidget):
             return None
 
         self._set_busy(True)
-        self.set_status('正在生成门型架预览，请稍候……')
+        self.set_status('正在生成 T形架预览，请稍候……')
         try:
-            handle, result, deleted = replace_portal_frame(
-                self.post, options['variant'], self.preview_handle,
-                options['rack_type'], options['span'], options['heading'],
-                options['rack_name'])
+            handle, result, deleted = replace_t_frame(
+                self.line, options['variant'], self.preview_handle,
+                options['rack_type'], options['arm_length'],
+                options['heading'], options['rack_name'])
         except Exception as error:
-            message = '门型架生成失败：%s' % error
+            # 超限 / 几何失败只写面板状态，不向控制台或提示行输出，避免干扰使用。
+            message = 'T形架生成失败：%s' % error
             self.set_status(message, True)
-            NotificationManager.OutputPrompt(message)
-            print(message)
-            _log_exception('preview failed')
+            if isinstance(error, ValueError):
+                _log('preview rejected: %s' % error)
+            else:
+                _log_exception('preview failed')
             return None
         finally:
             self._set_busy(False)
@@ -1002,11 +1015,11 @@ class _PortalFrameSettingsDialog(QWidget):
         self.refresh_line_labels()
         self.set_result(result)
         message = (
-            "预览已更新：子项 %s，类型 %d，%s，H=%.0f mm，B=%.0f mm，"
-            "L=%.0f mm，朝向 %.0f°，单元含 %d 个子元素，编号 %s。%s"
+            "预览已更新：子项 %s，类型 %d，%s，H=%.0f mm，L=%.0f mm，"
+            "朝向 %.0f°，单元含 %d 个子元素，编号 %s。%s"
             "改参数会自动重建；点【确定】保留，点【取消】放弃。" % (
                 result['variant'], result['rack_type'], result['specification'],
-                result['height'], result['span'], result['arm_length'],
+                result['height'], result['arm_length'],
                 result['heading_deg'], result['child_count'],
                 result['pipe_rack_number'] or '—',
                 '已替换上一版预览。' if deleted else '')
@@ -1024,7 +1037,7 @@ class _PortalFrameSettingsDialog(QWidget):
         return _delete_preview(handle)
 
     def delete_source_line(self):
-        handle = self.post_handle
+        handle = self.line_handle
         if handle is None:
             return False
         try:
@@ -1034,7 +1047,7 @@ class _PortalFrameSettingsDialog(QWidget):
                 return True
         except Exception:
             _log_exception('delete source line failed')
-        self.set_status('所选竖直线删除失败，请手动删除。', True)
+        self.set_status('所选直线删除失败，请手动删除。', True)
         return False
 
     def export_bom(self):
@@ -1061,12 +1074,7 @@ class _PortalFrameSettingsDialog(QWidget):
         self._finish_requested = True
 
     def finish_tool(self):
-        """结束原生工具并直接收起面板。
-
-        正常路径下 StartDefaultCommand 会触发 _OnCleanup，再由其调用
-        :meth:`shutdown`；这里同时直接 shutdown 作为兜底，保证点【确定】/
-        【取消】后面板一定关闭，不会停在事件泵里。
-        """
+        """结束原生工具并直接收起面板。"""
         try:
             PyCommandState.StartDefaultCommand()
         except Exception:
@@ -1126,23 +1134,20 @@ class _PortalFrameSettingsDialog(QWidget):
 
 
 def _family_description(variant_key):
-    labels = {
-        'equal_angle': '等边角钢；横担水平肢在上作固定管子的面、竖直肢在 +v 侧'
-                       '向下；立柱镜像到竖直肢外侧、与横担背面相贴（背靠背），'
-                       '顶端留 10 mm 焊接间隙',
-        'channel': '平行腿槽钢；横担腹板竖直、在门架平面内；立柱腹板贴横担'
-                   '腹板背面（背靠背），顶端留 10 mm 焊接间隙',
-    }
-    return labels.get(geom.VARIANTS[variant_key]['family'], '')
+    if geom.variant_is_hbeam(variant_key):
+        return '热轧 H 型钢；立柱顶面顶焊在横担下翼缘下表面（端面焊接），'\
+               '两者腹板共面'
+    return '等边角钢；立柱镜像到横担竖直肢外侧、与横担背面相贴（背靠背），'\
+           '立柱非通长、顶端留 10 mm 焊接间隙'
 
 
 # ---------------------------------------------------------------------------
-# 交互工具：点选竖直线
+# 交互工具：点选直线
 # ---------------------------------------------------------------------------
 
 
-class PortalFrameByLineTool(DgnElementSetTool):
-    """点选一条竖直线并放置门型架的交互工具。"""
+class TFrameByLineTool(DgnElementSetTool):
+    """点选一条竖直线并放置 T形架的交互工具。"""
 
     def __init__(self, tool_id=0):
         DgnElementSetTool.__init__(self, tool_id)
@@ -1150,7 +1155,7 @@ class PortalFrameByLineTool(DgnElementSetTool):
         self.tool_settings = None
 
     def _GetToolName(self, name):
-        return WString('PortalFrameByLineTool')
+        return WString('TFrameByLineTool')
 
     def _DoGroups(self):
         return False
@@ -1168,17 +1173,16 @@ class PortalFrameByLineTool(DgnElementSetTool):
         AccuSnap.GetInstance().EnableSnap(True)
         DgnElementSetTool._OnPostInstall(self)
         NotificationManager.OutputPrompt(
-            '请点选一条竖直线段：线长即门架高 H，该线为整组门型架的中心线。'
-            '右键放弃。')
+            '请点选一条竖直线段：线长即立柱长 H。右键放弃。')
 
     def _OnPostLocate(self, path, cant_accept_reason):
         if not DgnElementSetTool._OnPostLocate(self, path, cant_accept_reason):
             return False
         try:
             handle = ElementHandle(path.GetHeadElem(), path.GetRoot())
-            post = extract_vertical_post(handle)
+            line = extract_line(handle)
             if self.tool_settings is not None:
-                self.tool_settings.note_hover(post)
+                self.tool_settings.note_hover(line)
             return True
         except Exception as error:
             if self.tool_settings is not None:
@@ -1186,7 +1190,6 @@ class PortalFrameByLineTool(DgnElementSetTool):
             return False
 
     def _OnResetButton(self, event):
-        # 右键放弃：等同【取消】，确保面板与预览一并收掉。
         settings = self.tool_settings
         if settings is not None:
             QTimer.singleShot(0, settings.cancel_tool)
@@ -1196,22 +1199,24 @@ class PortalFrameByLineTool(DgnElementSetTool):
         if self.tool_settings is None:
             return BentleyStatus.eERROR
         try:
-            post = extract_vertical_post(eeh)
-            result = self.tool_settings.regenerate(post, eeh)
+            line = extract_line(eeh)
+            result = self.tool_settings.regenerate(line, eeh)
             return (BentleyStatus.eSUCCESS if result is not None
                     else BentleyStatus.eERROR)
         except Exception as error:
-            message = '门型架生成失败：%s' % error
+            # 只在面板显示，不向控制台 / 提示行输出。
+            message = 'T形架生成失败：%s' % error
             self.tool_settings.set_status(message, True)
-            NotificationManager.OutputPrompt(message)
-            print(message)
-            _log_exception('element modify failed')
+            if isinstance(error, ValueError):
+                _log('element modify rejected: %s' % error)
+            else:
+                _log_exception('element modify failed')
             return BentleyStatus.eERROR
 
     def _OnRestartTool(self):
         settings = self.tool_settings
         self.tool_settings = None
-        PortalFrameByLineTool.InstallNewInstance(self.GetToolId(), settings, False)
+        TFrameByLineTool.InstallNewInstance(self.GetToolId(), settings, False)
 
     def _OnCleanup(self):
         settings = self.tool_settings
@@ -1228,8 +1233,8 @@ class PortalFrameByLineTool(DgnElementSetTool):
     @staticmethod
     def InstallNewInstance(tool_id=0, tool_settings=None, start_ui_loop=True):
         settings = (tool_settings if tool_settings is not None
-                    else _PortalFrameSettingsDialog())
-        tool = PortalFrameByLineTool(tool_id)
+                    else _TFrameSettingsDialog())
+        tool = TFrameByLineTool(tool_id)
         tool.tool_settings = settings
         tool.InstallTool()
         if start_ui_loop:
@@ -1237,11 +1242,11 @@ class PortalFrameByLineTool(DgnElementSetTool):
         return tool
 
 
-def show_portal_frame_dialog():
-    return PortalFrameByLineTool.InstallNewInstance(0)
+def show_t_frame_dialog():
+    return TFrameByLineTool.InstallNewInstance(0)
 
 
-def export_portal_frame_bom():
+def export_t_frame_bom():
     _reload_runtime_modules()
     return export_bom_json()
 
@@ -1250,22 +1255,22 @@ _COMMANDS_LOADED = False
 
 
 def RegisterKeyins():
-    """注册键入命令 PYPORTALFRAME PLACE / PYPORTALFRAME EXPORT。"""
+    """注册键入命令 PYTFRAME PLACE / PYTFRAME EXPORT。"""
     global _COMMANDS_LOADED
     if _COMMANDS_LOADED:
         return
-    command_xml = os.path.join(GEOM_DIR, '门型架（角钢和槽钢）.commands.xml')
+    command_xml = os.path.join(GEOM_DIR, 'T形架.commands.xml')
     PythonKeyinManager.GetManager().LoadCommandTableFromXml(
         WString(os.path.abspath(__file__)), WString(command_xml))
     _COMMANDS_LOADED = True
 
 
-def OpenPortalFrame():
+def OpenTFrame():
     PyMain()
 
 
-def ExportPortalFrameBom():
-    export_portal_frame_bom()
+def ExportTFrameBom():
+    export_t_frame_bom()
 
 
 def PyMain():
@@ -1276,11 +1281,11 @@ def PyMain():
     except Exception:
         _log_exception('register keyins failed')
     try:
-        show_portal_frame_dialog()
+        show_t_frame_dialog()
     except Exception as error:
         detail = traceback.format_exc()
-        _log_exception('portal frame tool start failed')
-        print('门型架插件启动失败：%s\n%s' % (error, detail))
+        _log_exception('t frame tool start failed')
+        print('T形架插件启动失败：%s\n%s' % (error, detail))
         try:
             QMessageBox.critical(None, UI_TITLE, '启动失败：%s' % error)
         except Exception:

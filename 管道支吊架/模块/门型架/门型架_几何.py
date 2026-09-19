@@ -10,12 +10,13 @@
 本模块把「图 C.4-8 门形 / 倒门形架（角钢和槽钢）」类型 1 的规则集中在一起，
 供 ``门型架（角钢和槽钢）.py`` 调用：
 
-* 解析用户绘制的 **竖直线**（立杆轴线）为立柱高度 H；水平布置方向由面板的
-  「朝向」给定 —— 竖直线本身不能确定门架平面。
+* 解析用户绘制的 **竖直线**（**整组门型架的中心线**）为门架高度 H；水平布置
+  方向由面板的「朝向」给定 —— 竖直线本身不能确定门架平面。
 * 提供表 2 的子项 A~E 型钢截面表（A~C 为角钢 / D、E 为槽钢），与表 1 的
   允许垂直荷载查询。
-* 给出立柱与横担的布置：**B 为两立柱净距**（内缘到内缘），横担**横跨两根立柱
-  的顶面**、两端各超出立柱外缘 15 mm，故横担长 L = B + 2W + 30
+* 给出立柱与横担的布置：**B 为两立柱净距**（内缘到内缘），两立柱轴线对称于
+  所选竖直线（分别在 ``∓(B+W)/2``），横担**以该线为中心横跨两根立柱的顶面**、
+  两端各超出立柱外缘 15 mm，故横担长 L = B + 2W + 30
   （W 为立柱在横担长度方向的截面宽度）。
 
 型钢截面本身不重复实现，直接复用仓库内 ``型钢截面生成器`` 的数据与几何模块
@@ -27,11 +28,14 @@
     v = Z × u（水平法向，管道轴线方向）
     w = Z（竖直向上）
 
-* 立柱：截面在 u-v 平面内，沿 +w 由下向上扫掠；**外接矩形中心**落在立杆轴线
-  上，故内缘恰好在轴线 ±W/2 处，B 即为两内缘之间的净距。立柱**非通长**
+其中 **u = 0 即所选竖直线**，也就是整组门型架的中心线：两立柱轴线对称于它，
+横担也以它为中点。
+
+* 立柱：截面在 u-v 平面内，沿 +w 由下向上扫掠；**外接矩形中心**落在自身轴线
+  上（左 / 右轴线在 ``∓(B + W)/2``），故两内缘之间净距恰为 B。立柱**非通长**
   —— 顶端止于 ``H - 翼缘厚 - 10``，比横担水平肢 / 上翼缘低 10 mm 留作施焊。
 * 横担：截面在 v-w 平面内，沿 +u 扫掠；顶面（固定管子的面）落在 w = H，
-  且横跨两根立柱。
+  两端以 u = 0 对称横跨两根立柱。
 * 立柱与横担**背靠背**：横担的竖直肢贴在立柱的 u-w 平面肢外侧，立柱该肢
   平贴横担竖直肢的**内侧（开口侧）面**（与 L 型管架角钢同做法，见
   :func:`post_v_offset`），力经该贴合焊缝下传（见
@@ -48,17 +52,19 @@ from collections import namedtuple
 
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-_REPO_ROOT = os.path.dirname(_HERE)
+# 本文件位于 管道支吊架/模块/门型架/，插件根目录需上溯两级。
+_PLUGIN_ROOT = os.path.dirname(os.path.dirname(_HERE))
+_REPO_ROOT = os.path.dirname(_PLUGIN_ROOT)
 _STEEL_DIR = os.path.join(_REPO_ROOT, '型钢截面生成器')
 if _STEEL_DIR not in sys.path:
     sys.path.insert(0, _STEEL_DIR)
 
 
-import steel_channel_data  # noqa: E402
-import steel_channel_geometry  # noqa: E402
-import steel_equal_angle_data  # noqa: E402
-import steel_equal_angle_geometry  # noqa: E402
-import steel_sweep_geometry  # noqa: E402
+from steel_sections import steel_channel_data  # noqa: E402
+from steel_sections import steel_channel_geometry  # noqa: E402
+from steel_sections import steel_equal_angle_data  # noqa: E402
+from steel_sections import steel_equal_angle_geometry  # noqa: E402
+from steel_sections import steel_sweep_geometry  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -238,12 +244,11 @@ def beam_flange_thickness(variant_key):
 def beam_span(variant_key, span_mm):
     """返回横担的 ``(u_start_mm, length_mm)``。
 
-    横担横跨两根立柱的顶面、两端各超出立柱外缘 15 mm，故
-    ``length = B + 2W + 30``。
+    横担以所选竖直线（整组中心线，u = 0）为中点横跨两根立柱的顶面、两端各
+    超出立柱外缘 15 mm，故 ``u_start = -L/2``，``L = B + 2W + 30``。
     """
-    width = inplane_width(variant_key)
-    return (-width / 2.0 - ARM_BACK_OVERHANG_MM,
-            arm_length(variant_key, span_mm))
+    length = arm_length(variant_key, span_mm)
+    return (-length / 2.0, length)
 
 
 def arm_length(variant_key, span_mm):
@@ -252,16 +257,22 @@ def arm_length(variant_key, span_mm):
             + 2.0 * ARM_BACK_OVERHANG_MM)
 
 
-def post_axis_offset(variant_key, span_mm, side='left'):
-    """立柱轴线相对所选竖直线的 u 偏移（mm）。
+def post_axis_pitch(variant_key, span_mm):
+    """两立柱轴线间距（mm）= 净距 B + 立柱在 u 向的截面宽 W。"""
+    return float(span_mm) + inplane_width(variant_key)
 
-    左立柱轴线即所选竖直线（偏移 0）；右立柱内缘在 ``W/2 + B``，故轴线在
-    ``B + W`` 处。
+
+def post_axis_offset(variant_key, span_mm, side='left'):
+    """立柱轴线相对所选竖直线（整组中心线）的 u 偏移（mm）。
+
+    所选竖直线是**整组门型架的中心线**，两立柱轴线对称于它，分别在
+    ``∓(B + W)/2``；故左立柱轴线不再与所选线重合，需按此提前算出。
     """
+    pitch = post_axis_pitch(variant_key, span_mm)
     if side == 'left':
-        return 0.0
+        return -pitch / 2.0
     if side == 'right':
-        return float(span_mm) + inplane_width(variant_key)
+        return pitch / 2.0
     raise ValueError("side 只能是 'left' 或 'right'。")
 
 
@@ -384,10 +395,11 @@ def member_origin_length(variant_key, member_kind, height_mm, span_mm,
                          post_axis_u=0.0):
     """返回 ``(origin_uvw_mm, length_mm)``：扫掠起点（相对所选线下端）与长度。
 
-    立柱由基座（w = 0）向上扫掠；长度见 :func:`post_length`（角钢非通长，
-    顶端留 10 mm 焊接间隙），并按 :func:`post_v_offset` 在 v 方向平移使两者
-    背靠背；横担自左端（左立柱外缘外 15 mm）沿 +u 扫掠 L，截面中心置于
-    ``w = H - 深度/2``。
+    立柱由基座（w = 0）向上扫掠，u 位置即自身轴线（由 :func:`post_axis_offset`
+    按整组中心线给出的 ``∓(B + W)/2``）；长度见 :func:`post_length`（角钢非
+    通长，顶端留 10 mm 焊接间隙），并按 :func:`post_v_offset` 在 v 方向平移使
+    两者背靠背；横担以整组中心线为中点，自左端（左立柱外缘外 15 mm，即
+    ``u = -L/2``）沿 +u 扫掠 L，截面中心置于 ``w = H - 深度/2``。
     """
     _variant(variant_key)
     height_mm = float(height_mm)
@@ -438,7 +450,7 @@ VerticalPost = namedtuple('VerticalPost', 'base top height_mm')
 
 
 def parse_vertical_post(pieces_mm):
-    """把所选元素的折线（mm 点列）解析为立杆轴线，并校验合规性。
+    """把所选元素的折线（mm 点列）解析为整组中心线，并校验合规性。
 
     ``pieces_mm`` 为若干折线，每条折线是其顶点 ``(x, y, z)`` 的序列。要求
     展开后恰好为一段直线，且该段大致竖直。
@@ -446,12 +458,12 @@ def parse_vertical_post(pieces_mm):
     segments = _flatten_segments(pieces_mm)
     if len(segments) != 1:
         raise ValueError(
-            '请选择一条竖直线段（立杆轴线），当前为 %d 段。' % len(segments))
+            '请选择一条竖直线段（整组中心线），当前为 %d 段。' % len(segments))
 
     first, second = segments[0]
     direction = _sub(second, first)
     if not _is_vertical(direction):
-        raise ValueError('所选线段不是竖直线；请选择一条竖直的线段作为立杆轴线。')
+        raise ValueError('所选线段不是竖直线；请选择一条竖直的线段作为整组中心线。')
 
     if second[2] >= first[2]:
         base, top = first, second

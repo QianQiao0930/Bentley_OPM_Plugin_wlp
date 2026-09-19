@@ -13,7 +13,7 @@
 
 几何做法（型钢截面的真实圆弧轮廓与沿路径扫掠）复用仓库内
 ``型钢截面生成器`` 的数据 / 几何模块与 ``steel_sweep_geometry``；
-面板外观复用同目录的 ``端焊三角架_基础.py``。
+面板外观复用 ``模块/公共/端焊三角架_基础.py``。
 
 运行环境：Bentley Power Platform Python（MSPy）。
 """
@@ -48,15 +48,17 @@ from PyQt5.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMessageBox,
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(HERE)
 STEEL_DIR = os.path.join(REPO_ROOT, '型钢截面生成器')
-# 本插件与公共支吊架模块、端焊三角架 base 同在 管道支吊架/ 目录下。
-for _path in (HERE, STEEL_DIR):
+# 公共库在 模块/公共/，本插件几何在 模块/L型管架/。
+COMMON_DIR = os.path.join(HERE, '模块', '公共')
+GEOM_DIR = os.path.join(HERE, '模块', 'L型管架')
+for _path in (COMMON_DIR, GEOM_DIR, STEEL_DIR):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
 import 端焊三角架_基础 as base  # noqa: E402
 import L型管架_几何 as geom  # noqa: E402
 import 支吊架公共库 as psb  # noqa: E402
-import steel_sweep_geometry  # noqa: E402
+from steel_sections import steel_sweep_geometry  # noqa: E402
 
 
 # 支吊架公共清单模块所需的类型标识。
@@ -78,9 +80,9 @@ def _reload_runtime_modules():
         except Exception:
             pass
     # 型钢几何 / 数据模块随 L型管架_几何 一并重新加载。
-    for name in ('steel_equal_angle_data', 'steel_equal_angle_geometry',
-                 'steel_channel_data', 'steel_channel_geometry',
-                 'steel_hbeam_data', 'steel_hbeam_geometry'):
+    for name in ('steel_sections.steel_equal_angle_data', 'steel_sections.steel_equal_angle_geometry',
+                 'steel_sections.steel_channel_data', 'steel_sections.steel_channel_geometry',
+                 'steel_sections.steel_hbeam_data', 'steel_sections.steel_hbeam_geometry'):
         module = sys.modules.get(name)
         if module is not None:
             try:
@@ -94,7 +96,7 @@ def _reload_runtime_modules():
 # 参数
 # ---------------------------------------------------------------------------
 
-DEBUG_LOG = os.path.join(HERE, 'L型管架_debug_log.txt')
+DEBUG_LOG = os.path.join(HERE, '模块', '日志', 'L型管架_debug_log.txt')
 
 UI_TITLE = 'L 型管架'
 UI_REVISION = 'line-select-1'
@@ -500,7 +502,7 @@ def export_bom_json(output_path=None):
     同时包含端焊三角架、L 型管架以及今后接入的其它支吊架。
     """
     if output_path is None:
-        output_path = os.path.join(HERE, 'L型管架_bom.json')
+        output_path = os.path.join(HERE, '模块', '输出', 'L型管架_bom.json')
     return psb.export_combined_bom(output_path)
 
 
@@ -1203,7 +1205,7 @@ def RegisterKeyins():
     global _COMMANDS_LOADED
     if _COMMANDS_LOADED:
         return
-    command_xml = os.path.join(HERE, 'L型管架.commands.xml')
+    command_xml = os.path.join(GEOM_DIR, 'L型管架.commands.xml')
     PythonKeyinManager.GetManager().LoadCommandTableFromXml(
         WString(os.path.abspath(__file__)), WString(command_xml))
     _COMMANDS_LOADED = True

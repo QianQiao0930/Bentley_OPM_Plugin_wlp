@@ -8,14 +8,16 @@ import unittest
 
 
 _TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
-_PLUGIN_DIR = os.path.dirname(_TESTS_DIR)
+_MODULE_DIR = os.path.dirname(_TESTS_DIR)
+_PLUGIN_DIR = os.path.dirname(_MODULE_DIR)
 _REPO_ROOT = os.path.dirname(_PLUGIN_DIR)
-for _path in (_PLUGIN_DIR, os.path.join(_REPO_ROOT, '型钢截面生成器')):
+_GEOM_DIR = os.path.join(_MODULE_DIR, 'L型管架')
+for _path in (_GEOM_DIR, os.path.join(_REPO_ROOT, '型钢截面生成器')):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
 import L型管架_几何 as geom  # noqa: E402
-import steel_sweep_geometry as ssg  # noqa: E402
+from steel_sections import steel_sweep_geometry as ssg  # noqa: E402
 
 
 RUN_DIR = (1.0, 0.0, 0.0)

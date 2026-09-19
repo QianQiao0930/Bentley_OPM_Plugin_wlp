@@ -8,13 +8,13 @@
 
 对应「图 C.4-8 门形架（H 型钢）」类型 1：
 
-* 解析用户绘制的 **竖直线**（左立柱轴线）为门架高 H；水平布置方向由面板的
-  「朝向」给定 —— 竖直线本身不能确定门架平面。
+* 解析用户绘制的 **竖直线**（**整组门型架的中心线**）为门架高 H；水平布置
+  方向由面板的「朝向」给定 —— 竖直线本身不能确定门架平面。
 * 提供表 1 的子项 A~D 型钢截面表（H100x100x6x8 ~ H250x250x9x14）与允许垂直
   荷载查询（按 **H** 与 **L** 双参数查表）。
-* 给出立柱与横担的布置：**L 为横担全长**，横担两端各超出立柱外缘
-  ``ARM_END_OVERHANG_MM``（图上 50 TYP.），故两立柱**净距**
-  ``B = L - 2*50 - 2*立柱截面高``。
+* 给出立柱与横担的布置：**L 为横担全长**，两立柱轴线对称于所选竖直线，横担
+  以该线为中点、两端各超出立柱外缘 ``ARM_END_OVERHANG_MM``（图上 50 TYP.），
+  故两立柱**净距** ``B = L - 2*50 - 2*立柱截面高``。
 
 型钢截面本身不重复实现，直接复用仓库内 ``型钢截面生成器`` 的数据与几何模块
 （``steel_hbeam_data`` / ``steel_hbeam_geometry``）。
@@ -25,9 +25,13 @@
     v = Z × u（水平法向，管道轴线方向）
     w = Z（竖直向上）
 
+其中 **u = 0 即所选竖直线**，也就是整组门型架的中心线：两立柱轴线对称于它，
+横担也以它为中点。
+
 * 立柱：截面在 u-v 平面内，沿 +w 由下向上扫掠；截面高 ``H`` 朝向 u、翼缘宽
   ``B`` 朝向 v，**腹板位于 v = 0（门架平面内）**、翼缘对称于该面；外接矩形
-  中心落在立杆轴线上，故内缘恰好在轴线 ±H/2 处。
+  中心落在自身轴线上（左 / 右轴线在 ``∓(L - 100 - H)/2``），故内缘恰好在
+  轴线 ±H/2 处。
 * 横担：截面在 v-w 平面内，沿 +u 扫掠；截面高 ``H`` 竖直、翼缘宽 ``B`` 朝向
   v，腹板同样在 v = 0；顶面（固定管子的面）落在 w = H。
 * 立柱顶面顶焊在横担下翼缘下表面（腹板共面，力经该接触面下传），立柱长度
@@ -43,15 +47,17 @@ from collections import namedtuple
 
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-_REPO_ROOT = os.path.dirname(_HERE)
+# 本文件位于 管道支吊架/模块/门型架H型钢/，插件根目录需上溯两级。
+_PLUGIN_ROOT = os.path.dirname(os.path.dirname(_HERE))
+_REPO_ROOT = os.path.dirname(_PLUGIN_ROOT)
 _STEEL_DIR = os.path.join(_REPO_ROOT, '型钢截面生成器')
 if _STEEL_DIR not in sys.path:
     sys.path.insert(0, _STEEL_DIR)
 
 
-import steel_hbeam_data  # noqa: E402
-import steel_hbeam_geometry  # noqa: E402
-import steel_sweep_geometry  # noqa: E402
+from steel_sections import steel_hbeam_data  # noqa: E402
+from steel_sections import steel_hbeam_geometry  # noqa: E402
+from steel_sections import steel_sweep_geometry  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -183,23 +189,29 @@ def net_span(variant_key, arm_length_mm):
 def beam_span(variant_key, arm_length_mm):
     """返回横担的 ``(u_start_mm, length_mm)``。
 
-    左端在左立柱外缘之外 ``ARM_END_OVERHANG_MM``，全长即用户输入的 L。
+    横担以所选竖直线（整组中心线，u = 0）为中点，全长即用户输入的 L，故
+    ``u_start = -L/2``；两端各超出立柱外缘 ``ARM_END_OVERHANG_MM``。
     """
-    leg_depth = member_depth(variant_key, 'post')
-    return (-leg_depth / 2.0 - ARM_END_OVERHANG_MM, float(arm_length_mm))
+    return (-float(arm_length_mm) / 2.0, float(arm_length_mm))
+
+
+def post_axis_pitch(variant_key, arm_length_mm):
+    """两立柱轴线间距（mm）= L - 2*50 - 立柱截面高。"""
+    return (float(arm_length_mm) - 2.0 * ARM_END_OVERHANG_MM
+            - member_depth(variant_key, 'post'))
 
 
 def post_axis_offset(variant_key, arm_length_mm, side='left'):
-    """立柱轴线相对所选竖直线的 u 偏移（mm）。
+    """立柱轴线相对所选竖直线（整组中心线）的 u 偏移（mm）。
 
-    左立柱轴线即所选竖直线（偏移 0）；右立柱外缘与横担右端相距 50，故轴线在
-    ``L - 2*50 - 立柱截面高`` 处。
+    所选竖直线是**整组门型架的中心线**，两立柱轴线对称于它，分别在
+    ``∓(L - 2*50 - 立柱截面高)/2``；故左立柱轴线不再与所选线重合。
     """
+    pitch = post_axis_pitch(variant_key, arm_length_mm)
     if side == 'left':
-        return 0.0
+        return -pitch / 2.0
     if side == 'right':
-        return (float(arm_length_mm) - 2.0 * ARM_END_OVERHANG_MM
-                - member_depth(variant_key, 'post'))
+        return pitch / 2.0
     raise ValueError("side 只能是 'left' 或 'right'。")
 
 
@@ -237,9 +249,10 @@ def member_origin_length(variant_key, member_kind, height_mm, arm_length_mm,
                          post_axis_u=0.0):
     """返回 ``(origin_uvw_mm, length_mm)``：扫掠起点（相对所选线下端）与长度。
 
-    立柱由基座（w = 0）向上扫掠到横担下翼缘下表面，故长度扣除横担截面高；
-    横担自左端（左立柱外缘外 50）沿 +u 扫掠 L，截面中心置于
-    ``w = H - 截面高/2``（顶面恰在 H）。
+    立柱由基座（w = 0）向上扫掠到横担下翼缘下表面，u 位置即自身轴线（由
+    :func:`post_axis_offset` 按整组中心线给出的 ``∓(L-100-H)/2``），长度扣除
+    横担截面高；横担以整组中心线为中点，自左端（左立柱外缘外 50，即
+    ``u = -L/2``）沿 +u 扫掠 L，截面中心置于 ``w = H - 截面高/2``（顶面恰在 H）。
     """
     _variant(variant_key)
     height_mm = float(height_mm)
@@ -298,7 +311,7 @@ VerticalPost = namedtuple('VerticalPost', 'base top height_mm')
 
 
 def parse_vertical_post(pieces_mm):
-    """把所选元素的折线（mm 点列）解析为立杆轴线，并校验合规性。
+    """把所选元素的折线（mm 点列）解析为整组中心线，并校验合规性。
 
     ``pieces_mm`` 为若干折线，每条折线是其顶点 ``(x, y, z)`` 的序列。要求
     展开后恰好为一段直线，且该段大致竖直。
@@ -306,12 +319,12 @@ def parse_vertical_post(pieces_mm):
     segments = _flatten_segments(pieces_mm)
     if len(segments) != 1:
         raise ValueError(
-            '请选择一条竖直线段（立杆轴线），当前为 %d 段。' % len(segments))
+            '请选择一条竖直线段（整组中心线），当前为 %d 段。' % len(segments))
 
     first, second = segments[0]
     direction = _sub(second, first)
     if not _is_vertical(direction):
-        raise ValueError('所选线段不是竖直线；请选择一条竖直的线段作为立杆轴线。')
+        raise ValueError('所选线段不是竖直线；请选择一条竖直的线段作为整组中心线。')
 
     if second[2] >= first[2]:
         base, top = first, second

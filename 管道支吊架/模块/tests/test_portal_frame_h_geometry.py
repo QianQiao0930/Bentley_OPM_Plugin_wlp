@@ -2,7 +2,8 @@
 """H 型钢门型架纯几何 / 数据逻辑单测（不依赖 Bentley 运行时）。
 
 覆盖：竖直线解析、立柱与横担的布置不变量、截面朝向与右手系、表 1 荷载查询、
-管架编号。门架几何的核心约定是「L 为横担全长」——即横担两端各超立柱外缘 50
+管架编号。门架几何的核心约定是「所选竖直线为整组中心线、L 为横担全长」——
+两立柱轴线关于该线对称、横担以其为中点，横担两端各超立柱外缘 50
 （图上 50 TYP.），两立柱净距 ``B = L - 100 - 2×立柱截面高``；立柱顶面顶焊在
 横担下翼缘下表面、两者腹板共面。
 """
@@ -16,15 +17,17 @@ import unittest
 
 
 _TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
-_PLUGIN_DIR = os.path.dirname(_TESTS_DIR)
+_MODULE_DIR = os.path.dirname(_TESTS_DIR)
+_PLUGIN_DIR = os.path.dirname(_MODULE_DIR)
 _REPO_ROOT = os.path.dirname(_PLUGIN_DIR)
-for _path in (_PLUGIN_DIR, os.path.join(_REPO_ROOT, '型钢截面生成器')):
+_GEOM_DIR = os.path.join(_MODULE_DIR, '门型架H型钢')
+for _path in (_GEOM_DIR, os.path.join(_REPO_ROOT, '型钢截面生成器')):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
 import 门型架_H型钢_几何 as geom  # noqa: E402
-import steel_hbeam_data  # noqa: E402
-import steel_sweep_geometry as ssg  # noqa: E402
+from steel_sections import steel_hbeam_data  # noqa: E402
+from steel_sections import steel_sweep_geometry as ssg  # noqa: E402
 
 
 TOL = 1.0e-9
@@ -170,14 +173,52 @@ class LayoutTests(unittest.TestCase):
                                                        self.ARM_LENGTH),
                                    places=6)
 
-    def test_post_section_is_centred_on_the_selected_line(self):
+    def test_selected_line_is_the_assembly_centreline(self):
+        """所选竖直线是整组中心线：两立柱轴对称，横担亦以它为中点。"""
+        for variant_key in sorted(geom.VARIANTS):
+            post, left, right, arm = self._members(variant_key)
+            left_box = _bbox(left[3])
+            right_box = _bbox(right[3])
+            self.assertAlmostEqual(
+                geom.post_axis_offset(variant_key, self.ARM_LENGTH, 'left'),
+                -geom.post_axis_offset(variant_key, self.ARM_LENGTH, 'right'),
+                places=9)
+            self.assertAlmostEqual(left_box[0], -right_box[1], places=6)
+            self.assertAlmostEqual(
+                left_box[0],
+                -(self.ARM_LENGTH - 2.0 * geom.ARM_END_OVERHANG_MM) / 2.0,
+                places=6)
+            # 横担两端同样对称于中心线。
+            u_start, length = geom.beam_span(variant_key, self.ARM_LENGTH)
+            self.assertAlmostEqual(u_start, -length / 2.0, places=9)
+            self.assertAlmostEqual(u_start, -(u_start + length), places=9)
+
+    def test_post_section_is_centred_on_its_own_axis(self):
         """立柱截面高 h 沿 u，外接矩形中心落在轴线上 -> 内缘在轴线 ±h/2。"""
         for variant_key in sorted(geom.VARIANTS):
             depth = geom.member_depth(variant_key, 'post')
             post, left, right, arm = self._members(variant_key)
+            left_axis = geom.post_axis_offset(variant_key, self.ARM_LENGTH,
+                                              'left')
             left_box = _bbox(left[3])
-            self.assertAlmostEqual(left_box[0], -depth / 2.0, places=6)
-            self.assertAlmostEqual(left_box[1], depth / 2.0, places=6)
+            self.assertAlmostEqual(left_box[0], left_axis - depth / 2.0,
+                                   places=6)
+            self.assertAlmostEqual(left_box[1], left_axis + depth / 2.0,
+                                   places=6)
+
+    def test_post_axes_are_symmetric_about_the_selected_line(self):
+        """两立柱轴线间距为 L - 100 - 截面高，且关于所选中心线对称。"""
+        for variant_key in sorted(geom.VARIANTS):
+            depth = geom.member_depth(variant_key, 'post')
+            pitch = (self.ARM_LENGTH - 2.0 * geom.ARM_END_OVERHANG_MM
+                     - depth)
+            left_axis = geom.post_axis_offset(variant_key, self.ARM_LENGTH,
+                                              'left')
+            right_axis = geom.post_axis_offset(variant_key, self.ARM_LENGTH,
+                                               'right')
+            self.assertAlmostEqual(left_axis, -pitch / 2.0, places=9)
+            self.assertAlmostEqual(right_axis, pitch / 2.0, places=9)
+            self.assertAlmostEqual(right_axis - left_axis, pitch, places=9)
 
     def test_arm_length_is_the_rail_full_length(self):
         for variant_key in sorted(geom.VARIANTS):
@@ -256,8 +297,8 @@ class LayoutTests(unittest.TestCase):
 
     def test_heading_rotates_the_frame_plane(self):
         post = _post()
-        depth = geom.member_depth('A', 'post')
-        start = -depth / 2.0 - geom.ARM_END_OVERHANG_MM
+        # 横担左端在左立柱外缘之外 50，即 u = -L/2（以整组中心线为中点）。
+        start = geom.beam_span('A', self.ARM_LENGTH)[0]
         for heading in (0.0, 90.0, 180.0, 270.0):
             run_dir, _v_dir = _plane_dirs(heading)
             origin, axis_z, length, points = _member_world(

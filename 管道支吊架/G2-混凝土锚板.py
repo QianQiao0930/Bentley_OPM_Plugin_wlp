@@ -21,6 +21,7 @@
 from __future__ import division
 
 import os
+import sys
 import traceback
 
 from MSPyBentley import *
@@ -38,12 +39,17 @@ from PyQt5.QtWidgets import (QApplication, QCheckBox, QGridLayout, QHBoxLayout,
                              QLabel, QLineEdit, QMessageBox, QPushButton,
                              QRadioButton, QSizePolicy, QVBoxLayout, QWidget)
 
+HERE = os.path.dirname(os.path.abspath(__file__))
+# 建模库 混凝土锚板.py 已移至 模块/公共/。
+_COMMON_DIR = os.path.join(HERE, '模块', '公共')
+if _COMMON_DIR not in sys.path:
+    sys.path.insert(0, _COMMON_DIR)
+
 import 混凝土锚板 as geometry
 
 
 DEBUG_LOG = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    'G2-混凝土锚板_debug_log.txt')
+    HERE, '模块', '日志', 'G2-混凝土锚板_debug_log.txt')
 
 # UI_TITLE / UI_REVISION / UI_RADIUS 由下方 UI 套件定义。
 

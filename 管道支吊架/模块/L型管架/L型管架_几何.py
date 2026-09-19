@@ -32,19 +32,21 @@ from collections import namedtuple
 
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-_REPO_ROOT = os.path.dirname(_HERE)
+# 本文件位于 管道支吊架/模块/L型管架/，插件根目录需上溯两级。
+_PLUGIN_ROOT = os.path.dirname(os.path.dirname(_HERE))
+_REPO_ROOT = os.path.dirname(_PLUGIN_ROOT)
 _STEEL_DIR = os.path.join(_REPO_ROOT, '型钢截面生成器')
 if _STEEL_DIR not in sys.path:
     sys.path.insert(0, _STEEL_DIR)
 
 
-import steel_channel_data  # noqa: E402
-import steel_channel_geometry  # noqa: E402
-import steel_equal_angle_data  # noqa: E402
-import steel_equal_angle_geometry  # noqa: E402
-import steel_hbeam_data  # noqa: E402
-import steel_hbeam_geometry  # noqa: E402
-import steel_sweep_geometry  # noqa: E402
+from steel_sections import steel_channel_data  # noqa: E402
+from steel_sections import steel_channel_geometry  # noqa: E402
+from steel_sections import steel_equal_angle_data  # noqa: E402
+from steel_sections import steel_equal_angle_geometry  # noqa: E402
+from steel_sections import steel_hbeam_data  # noqa: E402
+from steel_sections import steel_hbeam_geometry  # noqa: E402
+from steel_sections import steel_sweep_geometry  # noqa: E402
 
 
 # ---------------------------------------------------------------------------

@@ -18,8 +18,10 @@ from MSPyDgnView import *  # noqa: F401,F403
 
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-if HERE not in sys.path:
-    sys.path.insert(0, HERE)
+# 公共库 支吊架公共库.py 位于 模块/公共/。
+_COMMON_DIR = os.path.join(HERE, '模块', '公共')
+if _COMMON_DIR not in sys.path:
+    sys.path.insert(0, _COMMON_DIR)
 
 import 支吊架公共库  # noqa: E402
 

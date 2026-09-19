@@ -27,8 +27,8 @@
 ``ApplyCustomItem`` 返回值无法封送的问题），因此同一
 (类型, 构件, 规格/长度) 会复用同一个 ItemType。
 
-本模块不依赖任何具体插件；各插件把 ``管道支吊架`` 目录加入 ``sys.path`` 后
-``import 支吊架公共库`` 即可。
+本模块不依赖任何具体插件；各插件把 ``管道支吊架/模块/公共`` 目录加入
+``sys.path`` 后 ``import 支吊架公共库`` 即可。
 """
 
 from __future__ import division
@@ -58,7 +58,16 @@ except Exception:  # pragma: no cover - 仅在无 Bentley 运行时时触发
 
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DEBUG_LOG = os.path.join(HERE, '管道支吊架_debug_log.txt')
+# 本文件已移至 模块/公共/，插件根目录（管道支吊架/）需上溯两级。
+_PLUGIN_ROOT = os.path.dirname(os.path.dirname(HERE))
+LOG_DIR = os.path.join(_PLUGIN_ROOT, '模块', '日志')
+OUTPUT_DIR = os.path.join(_PLUGIN_ROOT, '模块', '输出')
+for _dir in (LOG_DIR, OUTPUT_DIR):
+    try:
+        os.makedirs(_dir, exist_ok=True)
+    except Exception:
+        pass
+DEBUG_LOG = os.path.join(LOG_DIR, '管道支吊架_debug_log.txt')
 
 # 所有支吊架插件共用的 ItemType 库。
 SUPPORT_LIBRARY_NAME = 'PipeSupportComponents'
@@ -381,7 +390,7 @@ def export_combined_bom(output_path=None):
     逐实例明细（records）。
     """
     if output_path is None:
-        output_path = os.path.join(HERE, '管道支吊架_bom.json')
+        output_path = os.path.join(OUTPUT_DIR, '管道支吊架_bom.json')
     try:
         payload = collect_statistics()
         if not payload['records']:
@@ -598,7 +607,7 @@ def build_excel_sheets(statistics, timestamp=''):
 def export_combined_xlsx(output_path=None, statistics=None, timestamp=''):
     """扫描公共支吊架库，导出 Excel（汇总 / 支吊架表 / 材料汇总表）。"""
     if output_path is None:
-        output_path = os.path.join(HERE, '管道支吊架_bom.xlsx')
+        output_path = os.path.join(OUTPUT_DIR, '管道支吊架_bom.xlsx')
     if statistics is None:
         statistics = collect_statistics()
     if not statistics.get('records'):

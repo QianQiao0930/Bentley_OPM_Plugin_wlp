@@ -32,19 +32,21 @@ from PyQt5.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMessageBox,
 
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-if HERE not in sys.path:
-    sys.path.insert(0, HERE)
+# 公共库（端焊三角架_基础 / 支吊架公共库）位于 模块/公共/。
+_COMMON_DIR = os.path.join(HERE, '模块', '公共')
+if _COMMON_DIR not in sys.path:
+    sys.path.insert(0, _COMMON_DIR)
 
 import 端焊三角架_基础 as base  # noqa: E402
 import 支吊架公共库 as psb  # noqa: E402
 
 
-DEBUG_LOG = os.path.join(HERE, '支吊架统计_debug_log.txt')
+DEBUG_LOG = os.path.join(HERE, '模块', '日志', '支吊架统计_debug_log.txt')
 base.DEBUG_LOG = DEBUG_LOG
 
 UI_TITLE = '管道支吊架统计'
-DEFAULT_XLSX = os.path.join(HERE, '管道支吊架_bom.xlsx')
-DEFAULT_JSON = os.path.join(HERE, '管道支吊架_bom.json')
+DEFAULT_XLSX = os.path.join(HERE, '模块', '输出', '管道支吊架_bom.xlsx')
+DEFAULT_JSON = os.path.join(HERE, '模块', '输出', '管道支吊架_bom.json')
 
 
 def _log_exception(title):

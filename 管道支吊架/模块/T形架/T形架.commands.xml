@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<KeyinTree xmlns="http://www.bentley.com/schemas/1.0/MicroStation/AddIn/KeyinTree.xsd">
+  <RootKeyinTable ID="root">
+    <Keyword SubtableRef="PYTFRAME" CommandClass="MacroCommand" CommandWord="PYTFRAME">
+      <Options Required="true" />
+    </Keyword>
+  </RootKeyinTable>
+  <SubKeyinTables>
+    <KeyinTable ID="PYTFRAME">
+      <Keyword CommandWord="PLACE" />
+      <Keyword CommandWord="EXPORT" />
+    </KeyinTable>
+  </SubKeyinTables>
+  <KeyinHandlers>
+    <KeyinHandler Keyin="PYTFRAME PLACE" Function="OpenTFrame" />
+    <KeyinHandler Keyin="PYTFRAME EXPORT" Function="ExportTFrameBom" />
+  </KeyinHandlers>
+</KeyinTree>

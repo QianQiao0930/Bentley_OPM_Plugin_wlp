@@ -6,7 +6,7 @@
 
     * 面板上「创建端板」勾选项与端板子项（A~D）下拉；
     * 勾选后在所选直线**起点处**放端板（板面垂直于横担轴线，即焊接端面），
-      端板 + 4 根膨胀锚栓的绘制逻辑复用同目录的 混凝土锚板.py；
+      端板 + 4 根膨胀锚栓的绘制逻辑复用 ``模块/公共/混凝土锚板.py``；
     * 端板的孔距 S 按横担截面自动选取：严格大于截面最大边长（高 / 宽），
       再按 25 mm 向上取整，且不小于该子项的 MIN.S；板边长 = S + 100；
     * 端板占用直线起点的 plate_t 厚度，横担相应缩短为 L2 − plate_t
@@ -48,9 +48,12 @@ from PyQt5.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMessageBox,
 
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-# base / 选线版 / 混凝土锚板 / 公共支吊架模块均在 管道支吊架/ 本目录下。
-if HERE not in sys.path:
-    sys.path.insert(0, HERE)
+# base / 混凝土锚板 / 公共支吊架模块在 模块/公共/；选线版本体在 模块/端焊三角架/。
+_COMMON_DIR = os.path.join(HERE, '模块', '公共')
+_LINE_DIR = os.path.join(HERE, '模块', '端焊三角架')
+for _path in (HERE, _COMMON_DIR):
+    if _path not in sys.path:
+        sys.path.insert(0, _path)
 
 import 端焊三角架_基础 as base
 import 混凝土锚板 as anchor
@@ -73,7 +76,7 @@ def _load_module(name, file_path):
 
 # 选线版原版模块：只读复用其直线提取、几何与清单逻辑。
 linebase = _load_module('triangle_bracket_by_line',
-                        os.path.join(HERE, '端焊三角架_选线版.py'))
+                        os.path.join(_LINE_DIR, '端焊三角架_选线版.py'))
 
 
 # ---------------------------------------------------------------------------
@@ -81,7 +84,7 @@ linebase = _load_module('triangle_bracket_by_line',
 # ---------------------------------------------------------------------------
 
 DEBUG_LOG = os.path.join(
-    HERE, '端焊三角架_选线版_端板_debug_log.txt')
+    HERE, '模块', '日志', '端焊三角架_选线版_端板_debug_log.txt')
 
 UI_TITLE = '端焊三角架（选线版·带端板）'
 UI_REVISION = 'line-select-endplate-1'
@@ -440,7 +443,7 @@ def export_bom_json(output_path=None):
     """
     if output_path is None:
         output_path = os.path.join(
-            HERE, '端焊三角架_选线版_端板_bom.json')
+            HERE, '模块', '输出', '端焊三角架_选线版_端板_bom.json')
     return psb.export_combined_bom(output_path)
 
 

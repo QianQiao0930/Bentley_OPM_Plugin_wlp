@@ -2,8 +2,9 @@
 """门型架纯几何 / 数据逻辑单测（不依赖 Bentley 运行时）。
 
 覆盖：竖直线解析、立柱与横担的布置不变量、截面朝向与右手系、表 1 荷载查询、
-管架编号。门架几何的核心约定是「B 为两立柱净距」——即横担**横跨两根立柱顶面**、
-两端各超出立柱外缘 15 mm，故 ``横担长 L = B + 2W + 30``。
+管架编号。门架几何的核心约定是「所选竖直线为整组中心线、B 为两立柱净距」——
+两立柱轴线关于该线对称，横担以其为中点**横跨两根立柱顶面**、两端各超出立柱
+外缘 15 mm，故 ``横担长 L = B + 2W + 30``。
 """
 
 from __future__ import division
@@ -15,14 +16,16 @@ import unittest
 
 
 _TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
-_PLUGIN_DIR = os.path.dirname(_TESTS_DIR)
+_MODULE_DIR = os.path.dirname(_TESTS_DIR)
+_PLUGIN_DIR = os.path.dirname(_MODULE_DIR)
 _REPO_ROOT = os.path.dirname(_PLUGIN_DIR)
-for _path in (_PLUGIN_DIR, os.path.join(_REPO_ROOT, '型钢截面生成器')):
+_GEOM_DIR = os.path.join(_MODULE_DIR, '门型架')
+for _path in (_GEOM_DIR, os.path.join(_REPO_ROOT, '型钢截面生成器')):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
 import 门型架_几何 as geom  # noqa: E402
-import steel_sweep_geometry as ssg  # noqa: E402
+from steel_sections import steel_sweep_geometry as ssg  # noqa: E402
 
 
 TOL = 1.0e-9
@@ -161,25 +164,51 @@ class LayoutTests(unittest.TestCase):
                                        places=6,
                                        msg='%s B=%.0f' % (variant_key, span))
 
-    def test_post_section_is_centred_on_the_selected_line(self):
-        """外接矩形中心落在立杆轴线上，故两端各为轴线 ∓ w/2。"""
+    def test_selected_line_is_the_assembly_centreline(self):
+        """所选竖直线是整组中心线：两立柱轴对称，横担亦以它为中点。"""
         for variant_key in sorted(geom.VARIANTS):
             width = geom.inplane_width(variant_key)
-            post, w, left, right, arm = self._members(variant_key, 500.0)
+            span = 500.0
+            post, w, left, right, arm = self._members(variant_key, span)
             left_box = _bbox(left[3])
-            self.assertAlmostEqual(left_box[0], -width / 2.0, places=6)
-            self.assertAlmostEqual(left_box[1], width / 2.0, places=6)
+            right_box = _bbox(right[3])
+            # 两立柱轴线对称于 u = 0，截面外缘也对称。
+            self.assertAlmostEqual(
+                geom.post_axis_offset(variant_key, span, 'left'),
+                -geom.post_axis_offset(variant_key, span, 'right'), places=9)
+            self.assertAlmostEqual(left_box[0], -right_box[1], places=6)
+            self.assertAlmostEqual(left_box[0], -(span + 2.0 * width) / 2.0,
+                                   places=6)
+            # 横担两端同样对称于中心线。
+            beam_start, beam_len = geom.beam_span(variant_key, span)
+            self.assertAlmostEqual(beam_start, -beam_len / 2.0, places=9)
+            beam_end = arm[0][0] + arm[2] * arm[1][0]
+            self.assertAlmostEqual(arm[0][0], -beam_end, places=6)
 
-    def test_right_post_axis_sits_at_b_plus_w(self):
+    def test_post_section_is_centred_on_its_own_axis(self):
+        """每个立柱截面外接矩形中心落在自身轴线上，故轴线两侧各为 ∓W/2。"""
         for variant_key in sorted(geom.VARIANTS):
             width = geom.inplane_width(variant_key)
             post, w, left, right, arm = self._members(variant_key, 500.0)
-            expected = 500.0 + width
-            self.assertAlmostEqual(
-                geom.post_axis_offset(variant_key, 500.0, 'right'),
-                expected, places=9)
-            right_box = _bbox(right[3])
-            self.assertAlmostEqual(right_box[0], expected - width / 2.0,
+            left_axis = geom.post_axis_offset(variant_key, 500.0, 'left')
+            left_box = _bbox(left[3])
+            self.assertAlmostEqual(left_box[0], left_axis - width / 2.0,
+                                   places=6)
+            self.assertAlmostEqual(left_box[1], left_axis + width / 2.0,
+                                   places=6)
+
+    def test_post_axes_are_symmetric_about_the_selected_line(self):
+        """两立柱轴线间距为 B + W，且关于所选中心线对称。"""
+        for variant_key in sorted(geom.VARIANTS):
+            width = geom.inplane_width(variant_key)
+            pitch = 500.0 + width
+            left_axis = geom.post_axis_offset(variant_key, 500.0, 'left')
+            right_axis = geom.post_axis_offset(variant_key, 500.0, 'right')
+            self.assertAlmostEqual(left_axis, -pitch / 2.0, places=9)
+            self.assertAlmostEqual(right_axis, pitch / 2.0, places=9)
+            self.assertAlmostEqual(right_axis - left_axis, pitch, places=9)
+            right_box = _bbox(self._members(variant_key, 500.0)[3][3])
+            self.assertAlmostEqual(right_box[0], right_axis - width / 2.0,
                                    places=6)
 
     def test_arm_length_is_b_plus_twice_w_plus_30(self):
@@ -198,7 +227,9 @@ class LayoutTests(unittest.TestCase):
             u_start, length = geom.beam_span(variant_key, 500.0)
             left_box = _bbox(left[3])
             # 左端 = 左立柱外缘 - 15。
-            self.assertAlmostEqual(left_box[0], -width / 2.0, places=6)
+            left_axis = geom.post_axis_offset(variant_key, 500.0, 'left')
+            self.assertAlmostEqual(left_box[0], left_axis - width / 2.0,
+                                   places=6)
             self.assertAlmostEqual(
                 left_box[0] - u_start, geom.ARM_BACK_OVERHANG_MM, places=9)
 
@@ -416,9 +447,8 @@ class LayoutTests(unittest.TestCase):
 
     def test_heading_rotates_the_frame_plane(self):
         post = _post()
-        width = geom.inplane_width('A')
-        # 横担左端在左立柱外缘之外 15 mm。
-        start = -width / 2.0 - geom.ARM_BACK_OVERHANG_MM
+        # 横担左端在左立柱外缘之外 15 mm，即 u = -L/2（以整组中心线为中点）。
+        start = geom.beam_span('A', 500.0)[0]
         for heading in (0.0, 90.0, 180.0, 270.0):
             run_dir, _v_dir = _plane_dirs(heading)
             origin, axis_z, length, points = _member_world(

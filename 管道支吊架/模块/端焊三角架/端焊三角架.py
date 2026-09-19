@@ -21,6 +21,13 @@ import math
 import os
 import sys
 
+HERE = os.path.dirname(os.path.abspath(__file__))
+# 本文件位于 模块/端焊三角架/，插件根目录需上溯两级；公共库在 模块/公共/。
+_PLUGIN_ROOT = os.path.dirname(os.path.dirname(HERE))
+_COMMON_DIR = os.path.join(_PLUGIN_ROOT, '模块', '公共')
+if _COMMON_DIR not in sys.path:
+    sys.path.insert(0, _COMMON_DIR)
+
 import 端焊三角架_基础 as base
 
 
@@ -47,8 +54,7 @@ base = _reload_base(base)
 
 
 DEBUG_LOG = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    '端焊三角架_debug_log.txt')
+    _PLUGIN_ROOT, '模块', '日志', '端焊三角架_debug_log.txt')
 
 # 与类型 1 工具区分开的 ItemType 前缀，即使两个工具用在同一 DGN 里也不会
 # 把清单混在一起。
@@ -122,7 +128,7 @@ def export_end_welded_triangle_bracket_bom_json(output_path=None):
     """只导出本插件的 ItemType，写 JSON 并返回文件路径。"""
     if output_path is None:
         output_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), '端焊三角架_bom.json')
+            _PLUGIN_ROOT, '模块', '输出', '端焊三角架_bom.json')
     return base.export_triangle_bracket_bom_json(output_path)
 
 

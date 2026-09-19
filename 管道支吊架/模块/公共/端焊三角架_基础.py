@@ -87,9 +87,16 @@ ITEM_PROPERTY_DEFINITIONS = (
     ('Unit', CustomProperty.Type1.eString),
 )
 
+# 本文件已移至 模块/公共/，插件根目录（管道支吊架/）需上溯两级。
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_PLUGIN_ROOT = os.path.dirname(os.path.dirname(_HERE))
+_OUTPUT_DIR = os.path.join(_PLUGIN_ROOT, '模块', '输出')
+try:
+    os.makedirs(_OUTPUT_DIR, exist_ok=True)
+except Exception:
+    pass
 DEBUG_LOG = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    '端焊三角架_基础_debug_log.txt')
+    _PLUGIN_ROOT, '模块', '日志', '端焊三角架_基础_debug_log.txt')
 
 
 def _log(message):
@@ -372,8 +379,7 @@ def export_triangle_bracket_bom_json(output_path=None):
         }
         if output_path is None:
             output_path = os.path.join(
-                os.path.dirname(os.path.abspath(__file__)),
-                'triangle_bracket_bom.json')
+                _OUTPUT_DIR, 'triangle_bracket_bom.json')
         with open(output_path, 'w', encoding='utf-8') as json_file:
             json.dump(payload, json_file, ensure_ascii=False, indent=2)
         MessageCenter.ShowInfoMessage(
