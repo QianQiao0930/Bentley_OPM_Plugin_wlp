@@ -44,6 +44,9 @@ UP_HINT = steel_sweep_geometry.DEFAULT_UP_HINT
 # it on demand without resetting MicroStation to the default command (which would
 # also tear down the attached selector window).
 _ACTIVE_TOOL = None
+_STATUS_REVISION = 0
+_STATUS_MESSAGE = ""
+_STATUS_IS_ERROR = False
 
 
 def _log(message):
@@ -58,6 +61,19 @@ def _log(message):
 
 def _log_exception(title):
     _log("{0}\n{1}".format(title, traceback.format_exc()))
+
+
+def publish_status(message, is_error=False):
+    """Queue a status update for the Tk dialog without calling Tcl here."""
+    global _STATUS_REVISION, _STATUS_MESSAGE, _STATUS_IS_ERROR
+    _STATUS_REVISION += 1
+    _STATUS_MESSAGE = str(message)
+    _STATUS_IS_ERROR = bool(is_error)
+
+
+def status_snapshot():
+    """Return the latest queued ``(revision, message, is_error)`` tuple."""
+    return _STATUS_REVISION, _STATUS_MESSAGE, _STATUS_IS_ERROR
 
 
 def _has_direction(vector):
@@ -159,6 +175,29 @@ def _path_start_and_tangent(curve_vector):
     return found
 
 
+def _log_path_endpoints(curve_vector):
+    """Record endpoint/chord data that Bentley omits from generic eERROR."""
+    start = _new_point()
+    end = _new_point()
+    tangent_a = _new_vector()
+    tangent_b = _new_vector()
+    try:
+        curve_vector.GetStartEnd(start, end, tangent_a, tangent_b)
+        dx = end.x - start.x
+        dy = end.y - start.y
+        dz = end.z - start.z
+        chord = (dx * dx + dy * dy + dz * dz) ** 0.5
+        _log(
+            "sweep path end=({0:.3f},{1:.3f},{2:.3f}) chord={3:.3f} "
+            "end_tangent=({4:.6f},{5:.6f},{6:.6f})".format(
+                end.x, end.y, end.z, chord,
+                tangent_b.x, tangent_b.y, tangent_b.z,
+            )
+        )
+    except Exception:
+        _log_exception("could not describe sweep path endpoints")
+
+
 def _build_profile_curves(identifier, section_mm, insertion_mode, model_ref, frame):
     """Build the section's closed CurveVector mapped into the path frame."""
     geometry = steel_registry.build_sweep_geometry(
@@ -215,55 +254,200 @@ def _profile_variants(profile_curve):
     return variants
 
 
+def _append_open_path_primitives(source, target, primitive_types):
+    """Flatten nested path CurveVectors into one explicit open path."""
+    for primitive in source:
+        primitive_type = primitive.GetCurvePrimitiveType()
+        if primitive_type == ICurvePrimitive.eCURVE_PRIMITIVE_TYPE_CurveVector:
+            child = primitive.GetChildCurveVector()
+            if child is not None:
+                _append_open_path_primitives(child, target, primitive_types)
+            continue
+        target.Add(primitive)
+        try:
+            primitive_types.append(int(primitive_type))
+        except (TypeError, ValueError):
+            primitive_types.append(str(primitive_type))
+
+
+def _distance_3d(first, second):
+    dx = second.x - first.x
+    dy = second.y - first.y
+    dz = second.z - first.z
+    return (dx * dx + dy * dy + dz * dz) ** 0.5
+
+
+def _sample_primitive(primitive, fraction):
+    point = _new_point()
+    tangent = _new_vector()
+    primitive.FractionToPoint(fraction, point, tangent)
+    return point, tangent
+
+
+def _tangent_cosine(first, second):
+    first_length = (
+        first.x * first.x + first.y * first.y + first.z * first.z
+    ) ** 0.5
+    second_length = (
+        second.x * second.x + second.y * second.y + second.z * second.z
+    ) ** 0.5
+    if first_length <= 1.0e-12 or second_length <= 1.0e-12:
+        return None
+    return (
+        first.x * second.x + first.y * second.y + first.z * second.z
+    ) / (first_length * second_length)
+
+
+def _three_point_radius(first, middle, last):
+    """Estimate a circular arc radius from three sampled 3D points."""
+    side_a = _distance_3d(first, middle)
+    side_b = _distance_3d(middle, last)
+    side_c = _distance_3d(first, last)
+    ux = middle.x - first.x
+    uy = middle.y - first.y
+    uz = middle.z - first.z
+    vx = last.x - first.x
+    vy = last.y - first.y
+    vz = last.z - first.z
+    cross_x = uy * vz - uz * vy
+    cross_y = uz * vx - ux * vz
+    cross_z = ux * vy - uy * vx
+    double_area = (
+        cross_x * cross_x + cross_y * cross_y + cross_z * cross_z
+    ) ** 0.5
+    if double_area <= 1.0e-12:
+        return None
+    return side_a * side_b * side_c / (2.0 * double_area)
+
+
+def _log_path_primitive_geometry(path_curve, model_ref):
+    """Log segment size, arc radius, join gap and tangent continuity."""
+    primitives = []
+
+    def collect(source):
+        for primitive in source:
+            primitive_type = primitive.GetCurvePrimitiveType()
+            if primitive_type == ICurvePrimitive.eCURVE_PRIMITIVE_TYPE_CurveVector:
+                child = primitive.GetChildCurveVector()
+                if child is not None:
+                    collect(child)
+            else:
+                primitives.append((primitive_type, primitive))
+
+    try:
+        collect(path_curve)
+        uor_per_mm = model_ref.GetModelInfo().GetUorPerMeter() / 1000.0
+        previous_end = None
+        previous_tangent = None
+        for index, (primitive_type, primitive) in enumerate(primitives, 1):
+            start, start_tangent = _sample_primitive(primitive, 0.0)
+            middle, unused_tangent = _sample_primitive(primitive, 0.5)
+            end, end_tangent = _sample_primitive(primitive, 1.0)
+            del unused_tangent
+            chord_mm = _distance_3d(start, end) / uor_per_mm
+            gap_mm = (
+                0.0 if previous_end is None
+                else _distance_3d(previous_end, start) / uor_per_mm
+            )
+            tangent_cos = (
+                None if previous_tangent is None
+                else _tangent_cosine(previous_tangent, start_tangent)
+            )
+            radius = _three_point_radius(start, middle, end)
+            radius_text = (
+                "-" if radius is None else "{0:.3f}mm".format(radius / uor_per_mm)
+            )
+            cosine_text = (
+                "-" if tangent_cos is None else "{0:.9f}".format(tangent_cos)
+            )
+            _log(
+                "path segment {0}: type={1} chord={2:.3f}mm radius={3} "
+                "join_gap={4:.6f}mm tangent_cos={5}".format(
+                    index, int(primitive_type), chord_mm, radius_text,
+                    gap_mm, cosine_text,
+                )
+            )
+            previous_end = end
+            previous_tangent = end_tangent
+    except Exception:
+        _log_exception("could not describe individual sweep path segments")
+
+
+def _path_variants(path_curve):
+    """Return the selected path plus a flattened explicit-Open equivalent."""
+    variants = [("selected", path_curve)]
+    try:
+        rebuilt = CurveVector(CurveVector.eBOUNDARY_TYPE_Open)
+        primitive_types = []
+        _append_open_path_primitives(path_curve, rebuilt, primitive_types)
+        if primitive_types:
+            variants.append(("rebuilt-open", rebuilt))
+        _log(
+            "path primitives: count={0} types={1}".format(
+                len(primitive_types), primitive_types
+            )
+        )
+    except Exception:
+        _log_exception("rebuild path as explicit Open CurveVector failed")
+    return variants
+
+
 def _sweep_body(profile_curve, path_curve, model_ref, origin, up_axis):
     """Sweep the profile along the path, tolerating signature/region variants."""
     up = DVec3d.From(up_axis[0], up_axis[1], up_axis[2])
     world_up = DVec3d.From(0.0, 0.0, 1.0)
     start = DPoint3d.From(origin[0], origin[1], origin[2])
 
-    def call_ten(profile, up_vector, scalar):
+    def call_ten(profile, path, up_vector, scalar):
         if scalar:
             return SolidUtil.Create.BodyFromSweep(
-                profile, path_curve, model_ref, False, True, False,
+                profile, path, model_ref, False, True, False,
                 up_vector, 0.0, 1.0, start,
             )
         return SolidUtil.Create.BodyFromSweep(
-            profile, path_curve, model_ref, False, True, False,
+            profile, path, model_ref, False, True, False,
             up_vector, None, None, None,
         )
 
-    def call_six(profile):
+    def call_six(profile, path):
         return SolidUtil.Create.BodyFromSweep(
-            profile, path_curve, model_ref, False, True, False
+            profile, path, model_ref, False, True, False
         )
 
     last_reason = "没有可用的扫掠调用"
-    for profile_label, profile in _profile_variants(profile_curve):
-        up_vectors = [("up", up)]
-        if not (up.x == world_up.x and up.y == world_up.y and up.z == world_up.z):
-            up_vectors.append(("worldZ", world_up))
-        plans = []
-        for up_label, up_vector in up_vectors:
-            plans.append((profile_label + "/10-" + up_label, (
-                lambda p=profile, u=up_vector: call_ten(p, u, False))))
-            plans.append((profile_label + "/10s-" + up_label, (
-                lambda p=profile, u=up_vector: call_ten(p, u, True))))
-        plans.append((profile_label + "/6", (
-            lambda p=profile: call_six(p))))
+    for path_label, path in _path_variants(path_curve):
+        for profile_label, profile in _profile_variants(profile_curve):
+            # Bentley's documented extended call commonly uses a null lock
+            # direction.  It is not equivalent to the short overload in every
+            # MSPython/OpenPlant build, so keep it as an explicit first choice.
+            up_vectors = [("none", None), ("up", up)]
+            if not (up.x == world_up.x and up.y == world_up.y and up.z == world_up.z):
+                up_vectors.append(("worldZ", world_up))
+            plans = []
+            for up_label, up_vector in up_vectors:
+                plans.append((path_label + "/" + profile_label + "/10-" + up_label, (
+                    lambda p=profile, c=path, u=up_vector: call_ten(
+                        p, c, u, False))))
+                if up_vector is not None:
+                    plans.append((path_label + "/" + profile_label + "/10s-" + up_label, (
+                        lambda p=profile, c=path, u=up_vector: call_ten(
+                            p, c, u, True))))
+            plans.append((path_label + "/" + profile_label + "/6", (
+                lambda p=profile, c=path: call_six(p, c))))
 
-        for label, call in plans:
-            try:
-                result = call()
-            except Exception as error:
-                last_reason = "{0}: {1!r}".format(label, error)
-                _log("sweep {0} raised: {1!r}".format(label, error))
-                continue
-            _log("sweep {0} returned: {1!r}".format(label, result))
-            if (isinstance(result, (tuple, list)) and len(result) >= 2
-                    and _status_ok(result[0]) and result[1] is not None):
-                _log("sweep success via {0}".format(label))
-                return result[1]
-            last_reason = "{0}: {1!r}".format(label, result)
+            for label, call in plans:
+                try:
+                    result = call()
+                except Exception as error:
+                    last_reason = "{0}: {1!r}".format(label, error)
+                    _log("sweep {0} raised: {1!r}".format(label, error))
+                    continue
+                _log("sweep {0} returned: {1!r}".format(label, result))
+                if (isinstance(result, (tuple, list)) and len(result) >= 2
+                        and _status_ok(result[0]) and result[1] is not None):
+                    _log("sweep success via {0}".format(label))
+                    return result[1]
+                last_reason = "{0}: {1!r}".format(label, result)
     raise RuntimeError("沿路径扫掠失败（{0}）".format(last_reason))
 
 
@@ -427,7 +611,6 @@ class SteelSectionPlaceTool(DgnPrimitiveTool):
             MessageCenter.ShowErrorMessage("型钢截面生成器", message, False)
         except Exception:
             _log_exception("ShowErrorMessage failed")
-        print("PySteel: operation failed - see debug log")
 
     @staticmethod
     def InstallNewInstance(family_id, profile_name, insertion_mode):
@@ -446,7 +629,7 @@ class SteelSectionSweepTool(DgnElementSetTool):
     """Select one open path and sweep the chosen section along it."""
 
     def __init__(self, family_id, profile_name, insertion_mode, delete_path=False,
-                 rotation_deg=0.0):
+                 rotation_deg=0.0, continuous=False):
         DgnElementSetTool.__init__(self, 0)
         self.m_self = self
         self.family_id = family_id
@@ -454,13 +637,16 @@ class SteelSectionSweepTool(DgnElementSetTool):
         self.insertion_mode = insertion_mode
         self.delete_path = bool(delete_path)
         self.rotation_deg = float(rotation_deg)
+        self.continuous = bool(continuous)
+        self.stopping = False
+        self.cleaned = False
         self.family = steel_registry.require_available(family_id)
         self.section_mm = steel_registry.get_section(family_id, profile_name)
         _log(
             "sweep tool created: family={0} profile={1} insertion={2} "
-            "delete_path={3} rotation={4}".format(
+            "delete_path={3} rotation={4} continuous={5}".format(
                 family_id, profile_name, insertion_mode, self.delete_path,
-                self.rotation_deg,
+                self.rotation_deg, self.continuous,
             )
         )
 
@@ -508,31 +694,67 @@ class SteelSectionSweepTool(DgnElementSetTool):
                 )
             )
             self._perform_sweep(eeh)
-        except Exception:
+        except Exception as error:
             _log_exception("sweep failed")
-            self._error(
-                "扫掠失败：\n{0}\n\n详见日志：{1}".format(
-                    traceback.format_exc(), DEBUG_LOG
+            if str(error).startswith("沿路径扫掠失败"):
+                message = (
+                    "扫掠失败：所选路径不符合要求。\n"
+                    "可能原因：圆角半径过小、路径断开/自交、存在过短线段，"
+                    "或直线与圆弧不相切。\n"
+                    "请增大圆角半径、清理路径，或改用简单连续的开放折线。"
                 )
-            )
+            else:
+                message = (
+                    "扫掠失败：发生内部错误。请检查所选路径后重试。\n"
+                    "详细原因已写入调试日志。"
+                )
+            publish_status(message, True)
+            try:
+                NotificationManager.OutputPrompt(
+                    "扫掠失败，请查看型钢截面生成器窗口中的提示。"
+                )
+            except Exception:
+                pass
             return BentleyStatus.eERROR
         message = "已生成 {0} {1} 沿路径扫掠实体。".format(
             self.family.label, self.profile_name
         )
         if self.delete_path:
             message += " 已删除路径线。"
+        if not self.continuous:
+            message += " 扫掠工具已结束。"
         _log("sweep ok: " + message)
+        publish_status(message, False)
         NotificationManager.OutputPrompt(message)
         return BentleyStatus.eSUCCESS
 
+    def _OnResetButton(self, ev):
+        """Right-click Reset always means stop; never restart the sweep tool."""
+        _log("sweep reset button: exiting tool")
+        publish_status("已结束扫掠工具。可调整参数后重新选取路径。", False)
+        self.stop()
+        return True
+
     def _OnRestartTool(self):
-        SteelSectionSweepTool.InstallNewInstance(
-            self.family_id, self.profile_name, self.insertion_mode,
-            self.delete_path, self.rotation_deg,
-        )
+        if self.continuous and not self.stopping and not self.cleaned:
+            SteelSectionSweepTool.InstallNewInstance(
+                self.family_id, self.profile_name, self.insertion_mode,
+                self.delete_path, self.rotation_deg, self.continuous,
+            )
+        else:
+            self.stopping = True
+            _log("sweep restart skipped: one-shot or stopping")
+
+    def stop(self):
+        if self.cleaned or self.stopping:
+            return
+        self.stopping = True
+        self._ExitTool()
 
     def _OnCleanup(self):
         global _ACTIVE_TOOL
+        self.cleaned = True
+        self.stopping = True
         if _ACTIVE_TOOL is self:
             _ACTIVE_TOOL = None
         self.m_self = None
@@ -556,6 +778,8 @@ class SteelSectionSweepTool(DgnElementSetTool):
                 tangent.x, tangent.y, tangent.z,
             )
         )
+        _log_path_endpoints(path_curve)
+        _log_path_primitive_geometry(path_curve, model_ref)
         frame = steel_sweep_geometry.sweep_frame(
             (start.x, start.y, start.z),
             (tangent.x, tangent.y, tangent.z),
@@ -587,20 +811,20 @@ class SteelSectionSweepTool(DgnElementSetTool):
             MessageCenter.ShowErrorMessage("型钢截面生成器", message, False)
         except Exception:
             _log_exception("ShowErrorMessage failed")
-        print("PySteel: operation failed - see debug log")
 
     @staticmethod
     def InstallNewInstance(family_id, profile_name, insertion_mode, delete_path=False,
-                           rotation_deg=0.0):
+                           rotation_deg=0.0, continuous=False):
         global _ACTIVE_TOOL
         _log(
             "InstallNewInstance(sweep): family={0} profile={1} delete_path={2} "
-            "rotation={3}".format(
-                family_id, profile_name, delete_path, rotation_deg
+            "rotation={3} continuous={4}".format(
+                family_id, profile_name, delete_path, rotation_deg, continuous
             )
         )
         tool = SteelSectionSweepTool(
-            family_id, profile_name, insertion_mode, delete_path, rotation_deg
+            family_id, profile_name, insertion_mode, delete_path, rotation_deg,
+            continuous,
         )
         status = tool.InstallTool()
         _log("InstallNewInstance(sweep): InstallTool status={0}".format(status))
@@ -617,9 +841,10 @@ def start_placement(family_id, profile_name, insertion_mode):
 
 
 def start_sweep(family_id, profile_name, insertion_mode, delete_path=False,
-                rotation_deg=0.0):
+                rotation_deg=0.0, continuous=False):
     return SteelSectionSweepTool.InstallNewInstance(
-        family_id, profile_name, insertion_mode, delete_path, rotation_deg
+        family_id, profile_name, insertion_mode, delete_path, rotation_deg,
+        continuous,
     )
 
 
@@ -639,6 +864,11 @@ def end_active_tool():
         _log("end_active_tool: no active tool")
         return False
     try:
+        stop = getattr(tool, "stop", None)
+        if callable(stop):
+            stop()
+            _log("end_active_tool: tool ended")
+            return True
         dynamics = getattr(tool, "_EndDynamics", None)
         if callable(dynamics):
             try:

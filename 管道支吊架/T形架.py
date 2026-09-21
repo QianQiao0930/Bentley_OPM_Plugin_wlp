@@ -478,14 +478,16 @@ def _build_ground_anchor_elements(dgn_model, line, variant_key, uor_per_mm):
         raise RuntimeError('锚板实体创建失败。')
     elements.append(plate)
 
-    # 膨胀锚栓：从锚板顶面沿孔位向下 L；顶端加一个六角螺母。
+    # 膨胀锚栓：总长 L 不变；螺杆顶端高出螺母顶面 5 mm，底端按总长回算。
     nut_af, nut_h = _nut_size_for(spec['bolt_dia'])
+    bolt_top = bz + (nut_h + anchor.BOLT_PROTRUSION) * uor_per_mm
+    bolt_bottom = bolt_top - bolt_len
     for dx in (-hole_half, hole_half):
         for dy in (-hole_half, hole_half):
             rod = anchor._cylinder(
                 dgn_model,
-                DPoint3d.From(bx + dx, by + dy, bz),
-                DPoint3d.From(bx + dx, by + dy, bz - bolt_len),
+                DPoint3d.From(bx + dx, by + dy, bolt_top),
+                DPoint3d.From(bx + dx, by + dy, bolt_bottom),
                 bolt_r, anchor.COLOR_BOLT)
             if rod is None:
                 raise RuntimeError('膨胀锚栓实体创建失败。')
@@ -846,7 +848,7 @@ class _TFrameDialog(GlassDialog):
         self._rack_number = tk.StringVar(value='—')
         self._spec_info = tk.StringVar(value='')
         self._preview_info = tk.StringVar(value='预览：—')
-        self._status = tk.StringVar()
+        self._status = tk.StringVar(value='请选择一条竖直线段（立柱轴线）。')
         self._variant_by_label = {}
         self._type_by_label = {}
 
@@ -866,142 +868,165 @@ class _TFrameDialog(GlassDialog):
             UI_TITLE, '点选竖直线生成 T 形架 · 改参数自动重建预览')
         form.columnconfigure(0, weight=1)
         form.rowconfigure(0, weight=1)
-        # 只有参数区可滚动；下面的规格说明 / 预览 / 状态 / 按钮全部钉在底部。
-        self._scroll = ScrollFrame(form, bg=CARD, height=520)
+        # 参数与预览可滚动；实时状态和操作区始终钉在底部。
+        self._scroll = ScrollFrame(form, bg=CARD, height=500)
         self._scroll.grid(row=0, column=0, sticky='nsew')
         body = self._scroll.body
-        body.columnconfigure(1, weight=1)
+        body.columnconfigure(0, weight=1)
 
         tk.Label(
             body,
-            text='点选一条竖直线（立柱轴线，允许 ±5° 倾斜）：线长即立柱长 H。'
-                 '输入横担全长 L、选类型即可自动预览：类型1 正 T（立柱在下、'
-                 '横担在上），类型2 倒 T 吊架（立柱在上、横担在下）。点【确定】'
-                 '保留，点【取消】放弃。',
+            text='点选竖直线（立柱轴线，允许 ±5° 倾斜），线长即 H；输入 L、'
+                 '选择类型后自动预览。类型1：立柱在下、横担在上；类型2：'
+                 '立柱在上、横担在下。点【确定】保留，点【取消】放弃。',
             bg=CARD, fg=MUTED, font=UI_FONT_SMALL, justify='left',
-            wraplength=320,
-        ).grid(row=0, column=0, columnspan=2, sticky='w')
+            wraplength=520,
+        ).grid(row=0, column=0, sticky='ew')
 
         ttk.Label(body, text='构件规格（表 3）', style='Section.TLabel').grid(
-            row=1, column=0, columnspan=2, sticky='w', pady=(10, 4))
+            row=1, column=0, sticky='w', pady=(12, 5))
 
-        ttk.Label(body, text='子项', style='GlassMuted.TLabel').grid(
-            row=2, column=0, sticky='nw', pady=6)
+        specification = tk.Frame(body, bg=CARD)
+        specification.grid(row=2, column=0, sticky='ew')
+        specification.columnconfigure(0, weight=1)
+
+        ttk.Label(specification, text='子项', style='GlassMuted.TLabel').grid(
+            row=0, column=0, sticky='w', pady=(0, 3))
         labels = []
         for key, label in geom.variant_choices():
             labels.append(label)
             self._variant_by_label[label] = key
         self._variant_combo = ttk.Combobox(
-            body, textvariable=self._variant, state='readonly', width=22,
+            specification, textvariable=self._variant, state='readonly',
             style='Glass.TCombobox', values=labels)
-        self._variant_combo.grid(row=2, column=1, sticky='ew', padx=(10, 0),
-                                 pady=6)
+        self._variant_combo.grid(row=1, column=0, sticky='ew')
         self._variant_combo.bind('<<ComboboxSelected>>', self.on_options_changed)
         self._variant.set(self._label_for_variant(geom.DEFAULT_VARIANT, labels))
 
-        self._value_row(body, 3, '构件A（立柱 / 横担）', self._spec)
-        self._value_row(body, 4, '立柱截面宽 W', self._width,
-                        note='mm　在横担长度方向的截面宽度')
-        self._value_row(body, 5, '连接方式', self._connection)
+        specification_data = tk.Frame(specification, bg=CARD)
+        specification_data.grid(row=2, column=0, sticky='ew', pady=(7, 0))
+        specification_data.columnconfigure(0, weight=1, uniform='spec')
+        specification_data.columnconfigure(1, weight=1, uniform='spec')
+        self._compact_value(
+            specification_data, 0, 0, '构件A（立柱 / 横担）', self._spec)
+        self._compact_value(
+            specification_data, 0, 1, '立柱截面宽 W', self._width,
+            unit='mm', note='横担长度方向的截面宽度')
+        self._compact_value(
+            specification_data, 1, 0, '连接方式', self._connection,
+            columnspan=2)
 
         ttk.Separator(body, orient='horizontal').grid(
-            row=6, column=0, columnspan=2, sticky='ew', pady=10)
+            row=3, column=0, sticky='ew', pady=10)
 
         ttk.Label(body, text='尺寸参数', style='Section.TLabel').grid(
-            row=7, column=0, columnspan=2, sticky='w', pady=(0, 4))
+            row=4, column=0, sticky='w', pady=(0, 5))
 
-        self._value_row(body, 8, '立柱长 H', self._height,
-                        note='mm　由所选直线自动读取')
-        self._value_row(body, 9, '最大允许 H', self._max_height,
-                        note='mm　表 1 / 表 2')
-        self._arm_entry = self._entry_row(
-            body, 10, '横担长 L', self._arm, 9,
-            note='mm　用户输入，表 1 / 表 2 的查表参数之一')
-        self._value_row(body, 11, '最大允许 L', self._max_arm,
-                        note='mm　表 1 / 表 2')
-        self._value_row(body, 12, '立柱下料长', self._post_length,
-                        note='mm　角钢：H − 肢厚 − 10；H 型钢：H − 横担截面高')
+        dimensions = tk.Frame(body, bg=CARD)
+        dimensions.grid(row=5, column=0, sticky='ew')
+        dimensions.columnconfigure(0, weight=1, uniform='dimension')
+        dimensions.columnconfigure(1, weight=1, uniform='dimension')
 
-        ttk.Label(body, text='允许垂直荷载', style='GlassMuted.TLabel').grid(
-            row=13, column=0, sticky='nw', pady=6)
-        load_holder = tk.Frame(body, bg=CARD)
-        load_holder.grid(row=13, column=1, sticky='w', padx=(10, 0), pady=6)
-        load_top = tk.Frame(load_holder, bg=CARD)
-        load_top.pack(anchor='w')
-        tk.Label(load_top, textvariable=self._load, bg=CARD, fg=INK,
-                 font=UI_FONT_BOLD).pack(side='left')
-        tk.Label(load_top, text='kN', bg=CARD, fg=MUTED,
-                 font=UI_FONT_SMALL).pack(side='left', padx=(6, 0))
-        tk.Label(load_holder, textvariable=self._load_note, bg=CARD, fg=MUTED,
-                 font=UI_FONT_SMALL, anchor='w', justify='left',
-                 wraplength=240).pack(anchor='w')
+        # 输入项置顶；自动读取 / 查表 / 计算结果放在后面。
+        self._arm_entry = self._compact_entry(
+            dimensions, 0, 0, '横担长 L', self._arm, 9,
+            unit='mm', note='用户输入；表 1 / 表 2 查表参数之一')
+        self._heading_entry = self._compact_entry(
+            dimensions, 0, 1, '朝向', self._heading, 9,
+            unit='°', note='横担方向（0 = 世界 +X）')
 
-        self._heading_entry = self._entry_row(
-            body, 14, '朝向', self._heading, 9,
-            note='°　横担方向（0 = 世界 +X）')
+        self._compact_value(
+            dimensions, 1, 0, '立柱长 H', self._height,
+            unit='mm', note='由所选直线自动读取')
+        self._compact_value(
+            dimensions, 1, 1, '最大允许 H', self._max_height,
+            unit='mm', note='表 1 / 表 2')
+        self._compact_value(
+            dimensions, 2, 0, '最大允许 L', self._max_arm,
+            unit='mm', note='表 1 / 表 2')
+        self._compact_value(
+            dimensions, 2, 1, '允许垂直荷载', self._load,
+            unit='kN', notevariable=self._load_note)
+        self._compact_value(
+            dimensions, 3, 0, '立柱下料长', self._post_length,
+            unit='mm',
+            note='角钢：H − 肢厚 − 10；H 型钢：H − 横担截面高',
+            columnspan=2)
 
         ttk.Separator(body, orient='horizontal').grid(
-            row=15, column=0, columnspan=2, sticky='ew', pady=10)
+            row=6, column=0, sticky='ew', pady=10)
 
         ttk.Label(body, text='管架编号', style='Section.TLabel').grid(
-            row=16, column=0, columnspan=2, sticky='w', pady=(0, 4))
+            row=7, column=0, sticky='w', pady=(0, 5))
 
-        self._rack_name_entry = self._entry_row(
-            body, 17, '名称', self._rack_name, 12,
+        numbering = tk.Frame(body, bg=CARD)
+        numbering.grid(row=8, column=0, sticky='ew')
+        numbering.columnconfigure(0, weight=2, uniform='numbering')
+        numbering.columnconfigure(1, weight=3, uniform='numbering')
+
+        self._rack_name_entry = self._compact_entry(
+            numbering, 0, 0, '名称', self._rack_name, 12,
             note='管架系列代号；留空则不附加编号')
 
-        ttk.Label(body, text='类型', style='GlassMuted.TLabel').grid(
-            row=18, column=0, sticky='nw', pady=6)
+        type_cell = tk.Frame(numbering, bg=CARD)
+        type_cell.grid(row=0, column=1, sticky='nsew', padx=(8, 0))
+        ttk.Label(type_cell, text='类型', style='GlassMuted.TLabel').pack(
+            anchor='w')
         type_labels = []
         for key, label in RACK_TYPE_OPTIONS:
             type_labels.append(label)
             self._type_by_label[label] = key
         self._rack_type_combo = ttk.Combobox(
-            body, textvariable=self._rack_type, state='readonly', width=22,
+            type_cell, textvariable=self._rack_type, state='readonly',
             style='Glass.TCombobox', values=type_labels)
-        self._rack_type_combo.grid(row=18, column=1, sticky='ew', padx=(10, 0),
-                                   pady=6)
+        self._rack_type_combo.pack(fill='x', pady=(3, 0))
         self._rack_type_combo.bind('<<ComboboxSelected>>',
                                    self.on_options_changed)
         self._rack_type.set(type_labels[0])
 
-        self._value_row(body, 19, '编号', self._rack_number,
-                        note='名称-类型-子项-H-L（整数）')
+        self._compact_value(
+            numbering, 1, 0, '编号', self._rack_number,
+            note='名称-类型-子项-H-L（整数）', columnspan=2)
 
         ttk.Separator(body, orient='horizontal').grid(
-            row=20, column=0, columnspan=2, sticky='ew', pady=10)
+            row=9, column=0, sticky='ew', pady=10)
 
-        # 规格说明 / 预览 / 状态放进滚动区，随内容一起滚动。
+        # 构造方式长说明不再占用界面；保留变量和控件供既有校验逻辑使用。
         self._spec_info_label = tk.Label(
             body, textvariable=self._spec_info, bg=CARD, fg=MUTED,
-            font=UI_FONT_SMALL, justify='left', anchor='w', wraplength=320)
-        self._spec_info_label.grid(row=21, column=0, columnspan=2, sticky='w')
-        tk.Label(body, textvariable=self._preview_info, bg=CARD, fg=INK,
-                 font=UI_FONT_BOLD, justify='left', anchor='w',
-                 wraplength=320).grid(row=22, column=0, columnspan=2, sticky='w',
-                                      pady=(4, 0))
+            font=UI_FONT_SMALL, justify='left', anchor='w', wraplength=520)
 
-        chip = tk.Frame(body, bg=CARD_SOFT, highlightbackground=BORDER,
+        preview = tk.Frame(body, bg=CARD_SOFT, highlightbackground=BORDER,
+                           highlightthickness=1)
+        preview.grid(row=10, column=0, sticky='ew')
+        tk.Label(preview, textvariable=self._preview_info, bg=CARD_SOFT, fg=INK,
+                 font=UI_FONT_BOLD, justify='left', anchor='w',
+                 wraplength=500).pack(fill='x', padx=10, pady=7)
+
+        # 实时状态独立于滚动区，参数区滚到任何位置时都保持可见。
+        chip = tk.Frame(form, bg=CARD_SOFT, highlightbackground=BORDER,
                         highlightthickness=1)
-        chip.grid(row=23, column=0, columnspan=2, sticky='ew', pady=(8, 0))
+        chip.grid(row=1, column=0, sticky='ew', pady=(8, 0))
         self._status_label = tk.Label(
             chip, textvariable=self._status, bg=CARD_SOFT, fg='#1f5f99',
-            font=UI_FONT_SMALL, wraplength=320, justify='left')
-        self._status_label.pack(anchor='w', padx=12, pady=8)
+            font=UI_FONT_SMALL, wraplength=520, justify='left', anchor='w')
+        self._status_label.pack(fill='x', padx=10, pady=7)
 
         # -- 钉在底部：创建选项 + 按钮 --------------------------------------
+        creation_options = tk.Frame(form, bg=CARD)
+        creation_options.grid(row=2, column=0, sticky='ew', pady=(6, 0))
         self._ground_check = tk.Checkbutton(
-            form, text='地面固定（生成锚板与现场灌浆保护层）',
+            creation_options, text='地面固定（生成锚板与现场灌浆保护层）',
             variable=self._ground_fixed, command=self.on_ground_fixed_changed,
             bg=CARD, fg=INK, activebackground=CARD, selectcolor=CARD,
             font=UI_FONT, highlightthickness=0, bd=0)
-        self._ground_check.grid(row=1, column=0, sticky='w', pady=(8, 0))
+        self._ground_check.pack(side='left')
 
         self._keep_check = tk.Checkbutton(
-            form, text='创建后保留所选直线', variable=self._keep_line,
+            creation_options, text='创建后保留所选直线', variable=self._keep_line,
             bg=CARD, fg=INK, activebackground=CARD, selectcolor=CARD,
             font=UI_FONT, highlightthickness=0, bd=0)
-        self._keep_check.grid(row=2, column=0, sticky='w', pady=(2, 0))
+        self._keep_check.pack(side='left', padx=(10, 0))
 
         buttons = tk.Frame(form, bg=CARD)
         buttons.grid(row=3, column=0, sticky='ew', pady=(6, 0))
@@ -1021,6 +1046,51 @@ class _TFrameDialog(GlassDialog):
         self._arm.trace_add('write', self.on_text_changed)
         self._heading.trace_add('write', self.on_text_changed)
         self._rack_name.trace_add('write', self.on_text_changed)
+
+    def _compact_value(self, parent, row, column, name, textvariable,
+                       unit='', note='', notevariable=None, columnspan=1):
+        """两列信息块：标题在上，值 / 单位同行，备注紧随其后。"""
+        cell = tk.Frame(parent, bg=CARD)
+        left_pad = 8 if column else 0
+        cell.grid(row=row, column=column, columnspan=columnspan,
+                  sticky='nsew', padx=(left_pad, 0), pady=(3, 4))
+        ttk.Label(cell, text=name, style='GlassMuted.TLabel').pack(anchor='w')
+        value_line = tk.Frame(cell, bg=CARD)
+        value_line.pack(fill='x', pady=(1, 0))
+        tk.Label(value_line, textvariable=textvariable, bg=CARD, fg=INK,
+                 font=UI_FONT_BOLD, anchor='w', justify='left').pack(side='left')
+        if unit:
+            tk.Label(value_line, text=unit, bg=CARD, fg=MUTED,
+                     font=UI_FONT_SMALL).pack(side='left', padx=(5, 0))
+        if notevariable is not None:
+            tk.Label(cell, textvariable=notevariable, bg=CARD, fg=MUTED,
+                     font=UI_FONT_SMALL, anchor='w', justify='left',
+                     wraplength=500).pack(anchor='w')
+        elif note:
+            tk.Label(cell, text=note, bg=CARD, fg=MUTED,
+                     font=UI_FONT_SMALL, anchor='w', justify='left',
+                     wraplength=500).pack(anchor='w')
+        return cell
+
+    def _compact_entry(self, parent, row, column, name, variable, width,
+                       unit='', note='', columnspan=1):
+        """两列输入块：标题在上，输入框 / 单位同行，帮助文字紧随其后。"""
+        cell = tk.Frame(parent, bg=CARD)
+        left_pad = 8 if column else 0
+        cell.grid(row=row, column=column, columnspan=columnspan,
+                  sticky='nsew', padx=(left_pad, 0), pady=(3, 4))
+        ttk.Label(cell, text=name, style='GlassMuted.TLabel').pack(anchor='w')
+        entry_line = tk.Frame(cell, bg=CARD)
+        entry_line.pack(fill='x', pady=(3, 0))
+        entry = self._entry(entry_line, variable, width)
+        if unit:
+            tk.Label(entry_line, text=unit, bg=CARD, fg=MUTED,
+                     font=UI_FONT_SMALL).pack(side='left', padx=(5, 0))
+        if note:
+            tk.Label(cell, text=note, bg=CARD, fg=MUTED,
+                     font=UI_FONT_SMALL, anchor='w', justify='left',
+                     wraplength=500).pack(anchor='w', pady=(1, 0))
+        return entry
 
     def _entry(self, parent, variable, width):
         entry = tk.Entry(
@@ -1077,11 +1147,8 @@ class _TFrameDialog(GlassDialog):
         label = self._label_for_variant(variant)
         if label:
             self._variant.set(label)
-        rack_type = state.get('rack_type')
-        for text, key in self._type_by_label.items():
-            if key == rack_type:
-                self._rack_type.set(text)
-                break
+        # 类型每次打开都从类型 1 开始，不恢复上次会话的类型选择。
+        self._rack_type.set(RACK_TYPE_OPTIONS[0][1])
         rack_name = state.get('rack_name')
         if isinstance(rack_name, str):
             self._rack_name.set(rack_name)
