@@ -17,6 +17,9 @@
 
 **只读**：本插件不生成、不修改任何几何，也不写 ItemType。
 
+面板用 **Tkinter** 实现，外观沿用仓库共享的 ``bentley_ui`` 主题（卡片 / 圆角
+按钮 / 细滚动条），并自动记住上次窗口位置与单位选择。
+
 命令：``PYPIPEINFO PICK``（打开面板点取）、``PYPIPEINFO REPORT``
 （对当前选择集第一个元素直接出报告，不打开面板）。
 
@@ -30,7 +33,9 @@ import importlib
 import importlib.util
 import os
 import sys
+import tkinter as tk
 import traceback
+from tkinter import ttk
 
 from MSPyBentley import *  # noqa: F401,F403
 from MSPyBentleyGeom import *  # noqa: F401,F403
@@ -50,34 +55,38 @@ try:
 except Exception:
     pass
 
-# PyQt5 必须放在 MSPy 的 import * **之后**：MSPy 通配导入会带进同名符号，
-# 放在前面会被覆盖，导致面板基本控件类丢失、插件直接起不来。
-from PyQt5.QtCore import QEvent, QEventLoop, QRectF, Qt, QTimer
-from PyQt5.QtGui import QColor, QPainter, QPainterPath, QPalette, QPen, QRegion
-from PyQt5.QtWidgets import (QAbstractScrollArea, QApplication, QFrame,
-                             QHBoxLayout, QLabel, QMessageBox, QPlainTextEdit,
-                             QScrollArea, QVBoxLayout, QWidget)
-
-# pywin32 只用于"面板保持在 OPM 之上"这一条：缺了也不影响读取功能。
-try:
-    import win32gui
-    import win32process
-except Exception:  # pragma: no cover - 仅在无 pywin32 时触发
-    win32gui = None
-    win32process = None
-
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(HERE)
-# 点取工具的"统一外观 / 单位换算"公共库沿用 管道支吊架 的 模块/公共。
-# 本插件自身的读取库在 模块/管道信息/。
-SUPPORT_COMMON = os.path.join(REPO_ROOT, '管道支吊架', '模块', '公共')
+# 仓库根提供共享 UI 工具箱 bentley_ui；本插件自身的读取库在 模块/管道信息/。
 INFO_DIR = os.path.join(HERE, '模块', '管道信息')
-for _path in (SUPPORT_COMMON, INFO_DIR):
+for _path in (REPO_ROOT, INFO_DIR):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
-import 端焊三角架_基础 as base  # noqa: E402
+# 共享 UI 工具箱在导入前强制重读一次，避免拿到 MicroStation 缓存的旧模块。
+try:
+    import bentley_ui.glass as _glass_module  # noqa: F401
+    import bentley_ui as _bentley_ui_module  # noqa: F401
+    importlib.reload(_glass_module)
+    importlib.reload(_bentley_ui_module)
+except Exception:
+    pass
+
+from bentley_ui import (  # noqa: E402
+    BG,
+    BORDER,
+    CARD,
+    INK,
+    MUTED,
+    UI_FONT,
+    UI_FONT_BOLD,
+    UI_FONT_SMALL,
+    GlassDialog,
+    RoundButton,
+    ScrollFrame,
+    SlimScrollbar,
+)
 
 
 def _load_module(name, file_path):
@@ -165,7 +174,10 @@ UI_TITLE = '管道信息查询'
 
 def _log(message):
     try:
-        base._log(message)
+        with open(DEBUG_LOG, 'a', encoding='utf-8') as stream:
+            stream.write('[%s] %s\n'
+                         % (datetime.datetime.now().strftime('%H:%M:%S'),
+                            message))
     except Exception:
         pass
 
@@ -189,93 +201,13 @@ def _reset_log():
         pass
 
 
-def _apply_base_overrides():
-    """公共库的日志写到本插件目录（base 重新加载后会丢失，需重设）。"""
-    base.DEBUG_LOG = DEBUG_LOG
-
-
 def _reload_runtime_modules():
     """每次运行都强制重新读取依赖，规避 MicroStation 的模块缓存。"""
     importlib.invalidate_caches()
-    for module in (reader, base):
-        try:
-            importlib.reload(module)
-        except Exception:
-            pass
-    _apply_base_overrides()
-
-
-def _host_window_hwnd():
-    """找出当前 OPM 进程的主窗口（用于"面板始终在软件之上"）。"""
-    if win32gui is None or win32process is None:
-        return None
-    candidates = []
-
-    def collect(hwnd, _):
-        try:
-            if not win32gui.IsWindowVisible(hwnd):
-                return
-            if win32process.GetWindowThreadProcessId(hwnd)[1] != os.getpid():
-                return
-            if win32gui.GetWindow(hwnd, 4):
-                return
-            left, top, right, bottom = win32gui.GetWindowRect(hwnd)
-            candidates.append(((right - left) * (bottom - top), hwnd))
-        except Exception:
-            return
-
     try:
-        win32gui.EnumWindows(collect, None)
+        importlib.reload(reader)
     except Exception:
-        return None
-    return max(candidates)[1] if candidates else None
-
-
-# ---------------------------------------------------------------------------
-# 无边框窗口的自绘标题栏（与 支吊架统计 一致：只保留关闭钮，空白处可拖动）
-# ---------------------------------------------------------------------------
-
-
-class _TitleBar(QWidget):
-
-    def __init__(self, title, on_close, parent=None):
-        super().__init__(parent)
-        self.setFixedHeight(46)
-        self._drag_offset = None
-        row = QHBoxLayout(self)
-        row.setContentsMargins(18, 0, 10, 0)
-        row.setSpacing(9)
-        dot = QLabel(self)
-        dot.setFixedSize(9, 9)
-        dot.setStyleSheet('background: #4A66E0; border-radius: 4px;')
-        dot.setAttribute(Qt.WA_TransparentForMouseEvents, True)
-        caption = QLabel(title, self)
-        caption.setStyleSheet('font-size: 14px; font-weight: 600;'
-                              ' color: #39435A;')
-        caption.setAttribute(Qt.WA_TransparentForMouseEvents, True)
-        row.addWidget(dot)
-        row.addWidget(caption)
-        row.addStretch(1)
-        row.addWidget(base.NeuIconButton(self, 'close', on_close, danger=True))
-
-    def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            self._drag_offset = (event.globalPos()
-                                 - self.window().frameGeometry().topLeft())
-            event.accept()
-            return
-        super().mousePressEvent(event)
-
-    def mouseMoveEvent(self, event):
-        if self._drag_offset is not None and event.buttons() & Qt.LeftButton:
-            self.window().move(event.globalPos() - self._drag_offset)
-            event.accept()
-            return
-        super().mouseMoveEvent(event)
-
-    def mouseReleaseEvent(self, event):
-        self._drag_offset = None
-        super().mouseReleaseEvent(event)
+        pass
 
 
 # ---------------------------------------------------------------------------
@@ -283,90 +215,61 @@ class _TitleBar(QWidget):
 # ---------------------------------------------------------------------------
 
 
-class _DumpDialog(QWidget):
-    """「全部 EC 属性」窗口。
+class _DumpWindow(tk.Toplevel):
+    """把当前元素上的全部 EC 属性原样显示出来（只读）。"""
 
-    以主面板为父窗口（Qt.Window + parent = 归属窗口）：作为面板的附属窗口，
-    自然随面板一起保持在 OPM 之上，并在 OPM 最小化时一起收起。
-    """
+    def __init__(self, master, text):
+        tk.Toplevel.__init__(self, master)
+        self.title('全部 EC 属性')
+        self.configure(bg=BG)
+        self.transient(master)
+        try:
+            self.attributes('-topmost', True)
+        except tk.TclError:
+            pass
 
-    RADIUS = base.UI_RADIUS
+        shell = tk.Frame(self, bg=BG, padx=12, pady=12)
+        shell.pack(fill='both', expand=True)
 
-    def __init__(self, text, parent=None):
-        base.ensure_qt_app()
-        super().__init__(parent)
-        self.setWindowTitle('全部 EC 属性')
-        self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint)
-        self.setAutoFillBackground(True)
-        palette = self.palette()
-        palette.setColor(QPalette.Window, base.UI_BG)
-        self.setPalette(palette)
-        self.setStyleSheet('QWidget {font-family: "Microsoft YaHei UI";}')
-        self._allow_close = False
+        header = tk.Frame(shell, bg=BG)
+        header.pack(fill='x', pady=(0, 8))
+        dot = tk.Canvas(header, width=9, height=9, bg=BG,
+                        highlightthickness=0, bd=0)
+        dot.create_oval(1, 1, 8, 8, fill="#4A66E0", outline="")
+        dot.pack(side='left', pady=(6, 0), padx=(2, 8))
+        tk.Label(header, text='全部 EC 属性', bg=BG, fg=INK,
+                 font=UI_FONT_BOLD).pack(side='left')
 
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
-        outer.setSpacing(0)
-        outer.addWidget(_TitleBar('全部 EC 属性', self.close_dump))
+        card = tk.Frame(shell, bg=CARD, highlightbackground=BORDER,
+                        highlightthickness=1)
+        card.pack(fill='both', expand=True)
+        text_frame = tk.Frame(card, bg=CARD)
+        text_frame.pack(fill='both', expand=True, padx=8, pady=8)
 
-        body = QVBoxLayout()
-        body.setContentsMargins(6, 0, 6, 6)
-        body.setSpacing(6)
-        outer.addLayout(body)
+        self._text = tk.Text(
+            text_frame, wrap='word', bg=CARD, fg=INK, relief='flat',
+            highlightthickness=0, bd=0, font=('Consolas', 10), padx=4, pady=4)
+        scroll = SlimScrollbar(text_frame, command=self._text.yview)
+        self._text.configure(yscrollcommand=scroll.set)
+        self._text.insert('1.0', text)
+        self._text.configure(state='disabled')
+        self._text.pack(side='left', fill='both', expand=True)
+        scroll.pack(side='right', fill='y')
 
-        self.view = QPlainTextEdit(text, self)
-        self.view.setReadOnly(True)
-        self.view.setStyleSheet(
-            'QPlainTextEdit {background: #FFFFFF; border: none;'
-            ' border-radius: 10px; padding: 8px; color: #39435A;'
-            ' font-family: Consolas, "Microsoft YaHei UI"; font-size: 12px;}')
-        body.addWidget(self.view)
+        close_button = RoundButton(shell, '关闭', self.destroy, bg=BG,
+                                   font=UI_FONT, font_bold=UI_FONT_BOLD)
+        close_button.pack(anchor='e', pady=(8, 0))
 
-        row = QHBoxLayout()
-        row.addStretch(1)
-        close_button = base.NeuButton('关闭')
-        close_button.setFixedWidth(96)
-        close_button.clicked.connect(self.close_dump)
-        row.addWidget(close_button)
-        body.addLayout(row)
-
-        self.resize(720, 560)
-        screen = QApplication.primaryScreen()
-        if screen is not None:
-            available = screen.availableGeometry()
-            self.setMaximumSize(int(available.width() * 0.9),
-                                int(available.height() * 0.9))
-        # 停靠在主面板上方居中，避免默认落到屏幕角落。
-        if parent is not None:
-            center = parent.frameGeometry().center()
-            self.move(max(0, center.x() - self.width() // 2),
-                      max(0, center.y() - self.height() // 2))
-
-    def close_dump(self):
-        self._allow_close = True
-        self.close()
-        self.deleteLater()
-
-    def closeEvent(self, event):
-        if self._allow_close:
-            event.accept()
-            return
-        event.ignore()
-        self.close_dump()
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing, True)
-        frame = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
-        painter.setPen(QPen(QColor(210, 218, 231), 1.0))
-        painter.setBrush(base.UI_BG)
-        painter.drawRoundedRect(frame, self.RADIUS, self.RADIUS)
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        path = QPainterPath()
-        path.addRoundedRect(QRectF(self.rect()), self.RADIUS, self.RADIUS)
-        self.setMask(QRegion(path.toFillPolygon().toPolygon()))
+        self.update_idletasks()
+        self.geometry('%dx%d' % (min(760, self.winfo_screenwidth() - 120),
+                                 min(560, self.winfo_screenheight() - 160)))
+        if master is not None:
+            try:
+                x = master.winfo_rootx() + 60
+                y = master.winfo_rooty() + 40
+                self.geometry('+%d+%d' % (x, y))
+            except tk.TclError:
+                pass
 
 
 # ---------------------------------------------------------------------------
@@ -374,285 +277,201 @@ class _DumpDialog(QWidget):
 # ---------------------------------------------------------------------------
 
 
-class _PipeInfoDialog(QWidget):
-
-    RADIUS = base.UI_RADIUS
-    # 卡片按这个顺序出现；每次都重建行，保证"读不到的不显示占位"。
+class _PipeInfoDialog(GlassDialog):
+    STATE_KEY = 'PipeInfoQuery'
+    # 分组顺序；没读到的分组不显示占位行。
     GROUP_ORDER = ('元素', '单位', '管道属性', '几何', '推算')
 
     def __init__(self):
-        self._app = base.ensure_qt_app()
-        super().__init__()
-        self.setWindowTitle(UI_TITLE)
-        self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint)
-        self.setAutoFillBackground(True)
-        palette = self.palette()
-        palette.setColor(QPalette.Window, base.UI_BG)
-        self.setPalette(palette)
-        self.setStyleSheet('QWidget {font-family: "Microsoft YaHei UI";}')
-
-        self._running = True
-        self._allow_close = False
-        self._event_loop = QEventLoop()
-        # 只记元素 ID，不留 Bentley 句柄：句柄只在工具回调期间有效。
-        self._element_id = None
-        # 点取工具排进来的待读元素 ID，由事件循环取出执行（不在回调里读）。
+        GlassDialog.__init__(self, title=UI_TITLE)
+        self._status = tk.StringVar()
         self._pending_element_id = None
+        self._element_id = None
         self._info = None
-        self._dump_dialog = None
-        self._host_hwnd = None
+        self._dump_window = None
+        self._unit_value_by_label = {label: value
+                                     for value, label in reader.UNIT_OPTIONS}
 
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
-        outer.setSpacing(0)
-        outer.addWidget(_TitleBar(UI_TITLE, self.close_panel))
-
-        body = QVBoxLayout()
-        body.setContentsMargins(3, 0, 3, 3)
-        body.setSpacing(6)
-        outer.addLayout(body)
-
-        hint = QLabel('点【点取管道】后在模型中点一个管道 / 管道元件；'
-                      '右键退出点取，可继续点其它管道。本工具只读，不修改模型。')
-        hint.setWordWrap(True)
-        hint.setStyleSheet('color: #7D8AA0; font-size: 12px;')
-        body.addWidget(hint)
-
-        # 卡片放进滚动区：属性行数可能到 30+，必须能滚动，否则会超出屏幕。
-        self.scroll = QScrollArea(self)
-        self.scroll.setWidgetResizable(True)
-        self.scroll.setFrameShape(QFrame.NoFrame)
-        self.scroll.setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContents)
-        self.scroll.setStyleSheet(
-            'QScrollArea {background: transparent; border: none;}'
-            'QScrollArea > QWidget > QWidget {background: transparent;}'
-            'QScrollBar:vertical {background: transparent; width: 8px;'
-            ' margin: 2px;}'
-            'QScrollBar::handle:vertical {background: #C3CCDC;'
-            ' border-radius: 4px; min-height: 30px;}'
-            'QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical'
-            ' {height: 0px;}')
-        holder = QWidget(self.scroll)
-        self._card_holder = QVBoxLayout(holder)
-        self._card_holder.setContentsMargins(0, 0, 0, 0)
-        self._card_holder.setSpacing(6)
-        # 卡片一次性按 GROUP_ORDER 建好并隐藏；之后只显示 / 填内容，
-        # 这样分组顺序永远固定，不会因某次读取缺项而错位。
-        self._cards = {}
-        for group in self.GROUP_ORDER:
-            card = base.NeuCard(group)
-            self._card_holder.addWidget(card)
-            card.hide()
-            self._cards[group] = card
-        self._card_holder.addStretch(1)
-        self.scroll.setWidget(holder)
-        body.addWidget(self.scroll, 1)
-
-        summary = base.NeuPanel()
-        self.status_label = QLabel('等待点取管道……', self)
-        self.status_label.setWordWrap(True)
-        self.status_label.setStyleSheet(
-            'color: %s; font-size: 11px;' % base.UI_INFO.name())
-        summary.content.addWidget(self.status_label)
-        body.addWidget(summary)
-
-        option_row = QHBoxLayout()
-        option_row.setContentsMargins(6, 0, 6, 0)
-        option_row.setSpacing(8)
-        unit_caption = QLabel('属性单位：', self)
-        unit_caption.setStyleSheet('color: #39435A; font-size: 12px;')
-        option_row.addWidget(unit_caption)
-        self.unit_combo = base.NeuCombo(
-            reader.UNIT_OPTIONS, current='auto',
-            on_change=self.on_unit_changed, parent=self)
-        option_row.addWidget(self.unit_combo)
-        self.element_label = QLabel('', self)
-        self.element_label.setStyleSheet('color: #7D8AA0; font-size: 12px;')
-        option_row.addWidget(self.element_label)
-        option_row.addStretch(1)
-        body.addLayout(option_row)
-
-        button_row = QHBoxLayout()
-        button_row.setContentsMargins(3, 0, 3, 0)
-        self.pick_button = base.NeuButton('点取管道', accent=True)
-        self.pick_button.setFixedWidth(140)
-        self.pick_button.clicked.connect(self.start_pick)
-        self.dump_button = base.NeuButton('全部属性')
-        self.dump_button.setFixedWidth(120)
-        self.dump_button.clicked.connect(self.show_dump)
-        self.clear_button = base.NeuButton('清空')
-        self.clear_button.setFixedWidth(96)
-        self.clear_button.clicked.connect(self.clear_info)
-        self.close_button = base.NeuButton('关闭')
-        self.close_button.setFixedWidth(96)
-        self.close_button.clicked.connect(self.close_panel)
-        button_row.addStretch(1)
-        button_row.addWidget(self.pick_button)
-        button_row.addWidget(self.dump_button)
-        button_row.addWidget(self.clear_button)
-        button_row.addWidget(self.close_button)
-        body.addLayout(button_row)
-
-        self.setMinimumWidth(660)
-        self._cap_height()
+        self._build()
         self._render(None)
-        # 面板只在打开时定一次尺寸：无边框窗口不能拖边缩放，固定高度 +
-        # 滚动区比"每次点取都自动伸缩"更稳定（不会跳来跳去）。
-        self.resize(800, min(860, self.maximumHeight()))
-        self._attach_to_host()
+        self.restore_state()
+        self.restore_position()
+        self.after(80, self._poll_pending)
         if STARTUP_NOTICE:
             self.set_status(STARTUP_NOTICE, True)
 
-    # -- 始终显示在 OPM 之上 ------------------------------------------------
+    # -- 构建 --------------------------------------------------------------
 
-    def _attach_to_host(self):
-        """把自己挂成 OPM 的工具设置窗，并周期性地保持不被主窗遮挡。
+    def _build(self):
+        form = self.build_shell(
+            UI_TITLE, '点取管道读取属性与定位信息 · 只读')
+        form.columnconfigure(0, weight=1)
 
-        ``AttachQtToolSetting`` 让本窗口被 OPM 主窗"拥有"：始终位于主窗之上，
-        且 **OPM 整体最小化时随主窗一起收起**——正是所需的行为。
-        个别情况下仅靠它仍会被主窗遮住，所以再加一个只在"OPM 在前台"时才
-        把自己提到最前的定时器；OPM 被最小化或切到别的程序时不动。
-        """
-        self._host_hwnd = _host_window_hwnd()
+        tk.Label(
+            form,
+            text='点【点取管道】后在模型中点一个管道 / 管道元件；右键退出点取，'
+                 '可继续点其它管道。本工具只读，不修改模型。',
+            bg=CARD, fg=MUTED, font=UI_FONT_SMALL, justify='left',
+            wraplength=380,
+        ).grid(row=0, column=0, sticky='w')
+
+        report_box = tk.Frame(form, bg=CARD, highlightbackground=BORDER,
+                              highlightthickness=1)
+        report_box.grid(row=1, column=0, sticky='ew', pady=(8, 0))
+        self._report_scroll = ScrollFrame(report_box, bg=CARD, height=330)
+        self._report_scroll.pack(fill='both', expand=True)
+        self._report_body = self._report_scroll.body
+        self._report_body.columnconfigure(0, minsize=104)
+        self._report_body.columnconfigure(1, weight=1)
+        self.bind('<MouseWheel>', self._on_report_wheel)
+
+        self.make_status_chip(form, self._status, wraplength=380).grid(
+            row=2, column=0, sticky='ew', pady=(8, 0))
+
+        options = tk.Frame(form, bg=CARD)
+        options.grid(row=3, column=0, sticky='ew', pady=(8, 0))
+        tk.Label(options, text='属性单位：', bg=CARD, fg=INK,
+                 font=UI_FONT).pack(side='left')
+        self._unit = tk.StringVar(value=reader.UNIT_OPTIONS[0][1])
+        self._unit_combo = ttk.Combobox(
+            options, textvariable=self._unit, state='readonly', width=10,
+            style='Glass.TCombobox',
+            values=[label for _value, label in reader.UNIT_OPTIONS])
+        self._unit_combo.pack(side='left', padx=(6, 0))
+        self._unit_combo.bind('<<ComboboxSelected>>', self.on_unit_changed)
+        self._element_label = tk.Label(options, text='', bg=CARD, fg=MUTED,
+                                       font=UI_FONT_SMALL)
+        self._element_label.pack(side='left', padx=(12, 0))
+
+        buttons = tk.Frame(form, bg=CARD)
+        buttons.grid(row=4, column=0, sticky='ew', pady=(10, 0))
+        self._pick_button = RoundButton(
+            buttons, '点取管道', self.start_pick, primary=True, bg=CARD,
+            font=UI_FONT, font_bold=UI_FONT_BOLD)
+        self._dump_button = RoundButton(
+            buttons, '全部属性', self.show_dump, bg=CARD,
+            font=UI_FONT, font_bold=UI_FONT_BOLD)
+        self._clear_button = RoundButton(
+            buttons, '清空', self.clear_info, bg=CARD,
+            font=UI_FONT, font_bold=UI_FONT_BOLD)
+        self._close_button = RoundButton(
+            buttons, '关闭', self.destroy, bg=CARD,
+            font=UI_FONT, font_bold=UI_FONT_BOLD)
+        self._pick_button.pack(side='left')
+        self._close_button.pack(side='right')
+        self._clear_button.pack(side='right', padx=(0, 8))
+        self._dump_button.pack(side='right', padx=(0, 8))
+
+    # -- 记忆 --------------------------------------------------------------
+
+    def restore_state(self):
+        unit = self.ui_state.get('unit')
+        if unit:
+            for value, label in reader.UNIT_OPTIONS:
+                if value == unit:
+                    self._unit.set(label)
+                    break
+
+    def persist_state(self, state):
         try:
-            self.hwnd = int(self.winId())
-            PyCadInputQueue.AttachQtToolSetting(self.hwnd)
+            state['unit'] = self._unit_value_by_label.get(
+                self._unit.get(), 'auto')
         except Exception:
-            _log_exception('attach qt tool setting failed')
-
-        self._top_timer = QTimer(self)
-        self._top_timer.setInterval(1200)
-        self._top_timer.timeout.connect(self._keep_above_host)
-        self._top_timer.start()
-
-    def _keep_above_host(self):
-        if self._host_hwnd is None or not self.isVisible():
-            return
-        if win32gui is None:
-            return
-        try:
-            if not win32gui.IsWindow(self._host_hwnd):
-                return
-            # 只有 OPM 处于前台而本面板被压到后面时才提上来；
-            # OPM 最小化（不在前台）时保持不动，不打扰其它程序。
-            if win32gui.GetForegroundWindow() != self._host_hwnd:
-                return
-        except Exception:
-            return
-        try:
-            self.raise_()
-        except RuntimeError:
             pass
-
-    def _cap_height(self):
-        """窗口高度不超过屏幕可用高度的 85%，超出部分交给滚动区。"""
-        screen = QApplication.primaryScreen()
-        if screen is None:
-            return
-        available = screen.availableGeometry()
-        self.setMaximumHeight(int(available.height() * 0.85))
-        self.setMaximumWidth(int(available.width() * 0.9))
 
     # -- 渲染 --------------------------------------------------------------
 
-    def _clear_grid(self, grid):
-        while grid.count():
-            item = grid.takeAt(0)
-            widget = item.widget()
-            if widget is not None:
-                widget.setParent(None)
-                widget.deleteLater()
-
     def _render(self, info):
+        for child in self._report_body.winfo_children():
+            child.destroy()
         rows = reader.build_report_rows(info) if info else []
         grouped = {}
+        order = []
         for group, item, value, note in rows:
-            grouped.setdefault(group, []).append((item, value, note))
-        for group in self.GROUP_ORDER:
-            card = self._cards[group]
-            entries = grouped.get(group)
-            self._clear_grid(card.content)
-            if not entries:
-                card.hide()
-                continue
-            for row_index, (item, value, note) in enumerate(entries):
-                caption = QLabel(item, self)
-                caption.setStyleSheet('color: #7D8AA0; font-size: 12px;')
-                value_label = QLabel(value, self)
-                value_label.setWordWrap(True)
-                value_label.setStyleSheet(
-                    'color: #39435A; font-size: 13px; font-weight: 600;')
-                card.content.addWidget(caption, row_index, 0,
-                                       Qt.AlignLeft | Qt.AlignTop)
-                # 值与备注**放在同一个单元格里上下排**：两者都吃满整列宽度。
-                # 之前分成两列且加了 AlignLeft，标签只占"最小宽度"，导致列很宽
-                # 而标签很窄——短数据也被折行、备注被挤出高度而显示不全。
-                cell = QWidget(self)
-                cell_box = QVBoxLayout(cell)
-                cell_box.setContentsMargins(0, 0, 0, 0)
-                cell_box.setSpacing(1)
-                cell_box.addWidget(value_label)
+            if group not in grouped:
+                grouped[group] = []
+                order.append(group)
+            grouped[group].append((item, value, note))
+        line = 0
+        for group in order:
+            if line:
+                separator = tk.Frame(self._report_body, bg=BORDER, height=1)
+                separator.grid(row=line, column=0, columnspan=2, sticky='ew',
+                               pady=(9, 4))
+                line += 1
+            tk.Label(self._report_body, text=group, bg=CARD, fg=MUTED,
+                     font=UI_FONT_SMALL, anchor='w').grid(
+                         row=line, column=0, columnspan=2, sticky='w')
+            line += 1
+            for item, value, note in grouped[group]:
+                tk.Label(self._report_body, text=item, bg=CARD, fg=MUTED,
+                         font=UI_FONT, anchor='nw', justify='left',
+                         wraplength=104).grid(row=line, column=0, sticky='nw',
+                                              padx=(2, 8), pady=2)
+                cell = tk.Frame(self._report_body, bg=CARD)
+                cell.grid(row=line, column=1, sticky='ew', pady=2)
+                tk.Label(cell, text=value, bg=CARD, fg=INK, font=UI_FONT_BOLD,
+                         anchor='w', justify='left', wraplength=250).pack(
+                             anchor='w')
                 if note:
-                    note_label = QLabel(note, self)
-                    note_label.setWordWrap(True)
-                    note_label.setStyleSheet(
-                        'color: #9AA6BA; font-size: 11px;')
-                    cell_box.addWidget(note_label)
-                # 只用 AlignTop：横向**填满**单元格，文字才有足够宽度不折行。
-                card.content.addWidget(cell, row_index, 1, Qt.AlignTop)
-            # 名称列按内容取最小宽度，其余全给"值 + 备注"列。
-            card.content.setColumnStretch(0, 0)
-            card.content.setColumnStretch(1, 1)
-            card.show()
-            card.adjustSize()
+                    tk.Label(cell, text=note, bg=CARD, fg=MUTED,
+                             font=UI_FONT_SMALL, anchor='w', justify='left',
+                             wraplength=250).pack(anchor='w')
+                line += 1
+        self._report_scroll.scroll_to_top()
         self._show_warnings(info)
+
+    def _on_report_wheel(self, event):
+        self._report_scroll.scroll_units(-1 if event.delta > 0 else 1)
+        return 'break'
 
     def _show_warnings(self, info):
         if not info:
-            self.status_label.setStyleSheet(
-                'color: %s; font-size: 11px;' % base.UI_INFO.name())
-            self.status_label.setText('等待点取管道……')
+            self.set_status('等待点取管道……')
             return
         warnings = info.get('warnings') or []
         if warnings:
-            self.status_label.setStyleSheet(
-                'color: %s; font-size: 11px;' % base.UI_ERROR.name())
-            self.status_label.setText('；'.join(warnings))
+            self.set_status('；'.join(warnings), True)
+            return
+        geometry = info.get('geometry') or {}
+        bbox = info.get('bbox') or {}
+        if geometry.get('centerline_z_mm') is not None:
+            elevation_text = '%.1f mm' % geometry['centerline_z_mm']
+        elif bbox.get('center_mm'):
+            elevation_text = '%.1f mm（包围盒近似）' % bbox['center_mm'][2]
         else:
-            geometry = info.get('geometry') or {}
-            bbox = info.get('bbox') or {}
-            if geometry.get('centerline_z_mm') is not None:
-                elevation_text = '%.1f mm' % geometry['centerline_z_mm']
-            elif bbox.get('center_mm'):
-                elevation_text = '%.1f mm（包围盒近似）' % bbox['center_mm'][2]
-            else:
-                elevation_text = '—'
-            self.status_label.setStyleSheet(
-                'color: %s; font-size: 11px;' % base.UI_INFO.name())
-            message = (
-                '已读取：%s ｜ 中心线标高 %s ｜ 走向 %s。右键退出点取。'
-                % (info.get('ec', {}).get('class') or '未知类',
-                   elevation_text,
-                   geometry.get('orientation') or '—'))
-            notes = info.get('notes') or []
-            if notes:
-                message = '%s\n%s' % (message, ' '.join(notes))
-            if info.get('bbox_cross_note'):
-                message = '%s\n%s' % (message, info['bbox_cross_note'])
-            self.status_label.setText(message)
+            elevation_text = '—'
+        message = (
+            '已读取：%s ｜ 中心线标高 %s ｜ 走向 %s。右键退出点取。'
+            % (info.get('ec', {}).get('class') or '未知类',
+               elevation_text,
+               geometry.get('orientation') or '—'))
+        notes = info.get('notes') or []
+        if notes:
+            message = '%s\n%s' % (message, ' '.join(notes))
+        if info.get('bbox_cross_note'):
+            message = '%s\n%s' % (message, info['bbox_cross_note'])
+        self.set_status(message)
 
     def set_status(self, message, is_error=False):
-        self.status_label.setStyleSheet(
-            'color: %s; font-size: 11px;'
-            % (base.UI_ERROR if is_error else base.UI_INFO).name())
-        self.status_label.setText(message)
-        QApplication.processEvents()
+        try:
+            self._status.set(message)
+            self.update_idletasks()
+        except tk.TclError:
+            pass
 
     # -- 读取 --------------------------------------------------------------
 
-    def _log_stage(self, message):
-        """读取过程的阶段日志：崩溃时最后一行即出问题的步骤。"""
-        _log('[点取] %s' % message)
+    def _poll_pending(self):
+        pending = self._pending_element_id
+        if pending is not None:
+            self._pending_element_id = None
+            self.inspect_element(pending)
+        if tk._default_root is not None:
+            try:
+                self.after(80, self._poll_pending)
+            except tk.TclError:
+                pass
 
     def queue_inspect(self, element_id):
         """点取工具调用：只排队，不在工具回调里做 EC 读取。"""
@@ -665,7 +484,7 @@ class _PipeInfoDialog(QWidget):
         这里**只把元素 ID 传进来**，句柄当场按 ID 重新取、用完即弃，
         不在面板里保留任何 Bentley 对象。
         """
-        self._log_stage('--- 元素 %s ---' % element_id)
+        _log('[点取] --- 元素 %s ---' % element_id)
         try:
             handle = reader.element_handle_by_id(element_id)
         except Exception as error:
@@ -677,10 +496,9 @@ class _PipeInfoDialog(QWidget):
                             True)
             return None
 
-        override = self.unit_combo.value()
+        override = self._unit_value_by_label.get(self._unit.get(), 'auto')
         try:
-            info = reader.collect_pipe_info(handle, override,
-                                            log=self._log_stage)
+            info = reader.collect_pipe_info(handle, override, log=_log)
         except Exception as error:
             _log_exception('collect pipe info failed')
             self.set_status('读取失败：%s' % error, True)
@@ -690,26 +508,24 @@ class _PipeInfoDialog(QWidget):
         self._info = info
         self._render(info)
         ec = info.get('ec') or {}
-        self.element_label.setText(
-            '元素 ID %s ｜ %s' % (self._element_id,
-                                 ec.get('class') or '无管道 EC 实例'))
+        try:
+            self._element_label.configure(
+                text='元素 ID %s ｜ %s'
+                     % (self._element_id,
+                        ec.get('class') or '无管道 EC 实例'))
+        except tk.TclError:
+            pass
         _log(reader.format_report_text(info))
-        self._raise_now()
+        self.lift()
         return info
 
-    def _raise_now(self):
-        """读到新数据后把自己提到最前（不抢键盘焦点）。"""
-        try:
-            self.raise_()
-        except RuntimeError:
-            pass
-
-    def on_unit_changed(self):
+    def on_unit_changed(self, event=None):
         """切换属性单位：只重算快照，不再访问元素。"""
         if self._info is None:
             return
         try:
-            info = reader.reapply_unit(self._info, self.unit_combo.value())
+            info = reader.reapply_unit(self._info, self._unit_value_by_label.get(
+                self._unit.get(), 'auto'))
         except Exception as error:
             _log_exception('unit override refresh failed')
             self.set_status('切换单位失败：%s' % error, True)
@@ -720,7 +536,10 @@ class _PipeInfoDialog(QWidget):
     def clear_info(self):
         self._element_id = None
         self._info = None
-        self.element_label.setText('')
+        try:
+            self._element_label.configure(text='')
+        except tk.TclError:
+            pass
         self._render(None)
 
     def show_dump(self):
@@ -734,24 +553,21 @@ class _PipeInfoDialog(QWidget):
             lines.append('')
             # 实时按 ID 重新取句柄，不依赖任何缓存的 Bentley 对象。
             lines.append(reader.dump_element(self._element_id))
-        if self._dump_dialog is not None:
+        if self._dump_window is not None:
             try:
-                self._dump_dialog.deleteLater()
+                self._dump_window.destroy()
             except Exception:
                 pass
         try:
-            self._dump_dialog = _DumpDialog('\n'.join(lines), self)
-            self._dump_dialog.show()
-            self._dump_dialog.raise_()
-            self._dump_dialog.activateWindow()
+            self._dump_window = _DumpWindow(self, '\n'.join(lines))
         except Exception:
-            _log_exception('open dump dialog failed')
+            _log_exception('open dump window failed')
 
     # -- 点取 --------------------------------------------------------------
 
     def start_pick(self):
         self.set_status('请在模型中点取一个管道 / 管道元件；右键退出点取。')
-        self._raise_now()
+        self.lift()
         try:
             PipeInfoPickTool.InstallNewInstance(0, self, False)
         except Exception as error:
@@ -760,7 +576,7 @@ class _PipeInfoDialog(QWidget):
 
     def on_tool_started(self):
         """工具装好后把面板提到最前，免得点取时读不到数。"""
-        self._raise_now()
+        self.lift()
 
     def on_tool_stopped(self, message=None):
         if message:
@@ -768,76 +584,14 @@ class _PipeInfoDialog(QWidget):
 
     # -- 窗口 --------------------------------------------------------------
 
-    def close_panel(self):
-        self._running = False
-        self._allow_close = True
+    def destroy(self):
         try:
-            if self._dump_dialog is not None:
-                self._dump_dialog.close_dump()
-                self._dump_dialog = None
+            if self._dump_window is not None:
+                self._dump_window.destroy()
+                self._dump_window = None
         except Exception:
             pass
-        try:
-            self.close()
-        except RuntimeError:
-            pass
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing, True)
-        frame = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
-        painter.setPen(QPen(QColor(210, 218, 231), 1.0))
-        painter.setBrush(base.UI_BG)
-        painter.drawRoundedRect(frame, self.RADIUS, self.RADIUS)
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        path = QPainterPath()
-        path.addRoundedRect(QRectF(self.rect()), self.RADIUS, self.RADIUS)
-        self.setMask(QRegion(path.toFillPolygon().toPolygon()))
-
-    def closeEvent(self, event):
-        if self._allow_close:
-            event.accept()
-            return
-        event.ignore()
-        self.close_panel()
-
-    def run_dialog_loop(self):
-        screen = QApplication.primaryScreen()
-        if screen is not None:
-            area = screen.availableGeometry()
-            self.move(area.center().x() - self.width() // 2,
-                      area.center().y() - self.height() // 2)
-        self.show()
-        self.raise_()
-        self.activateWindow()
-        while self._running:
-            self._event_loop.processEvents()
-            PyCadInputQueue.PythonMainLoop()
-            # EC 读取**在工具回调之外**执行：点取工具只把元素 ID 放进队列，
-            # 真正读属性发生在 PythonMainLoop 返回之后（与"直接执行脚本"同一
-            # 上下文），这是实测唯一稳定的时机。
-            pending = self._pending_element_id
-            if pending is not None:
-                self._pending_element_id = None
-                self.inspect_element(pending)
-        self._teardown_window()
-
-    def _teardown_window(self):
-        try:
-            self._running = False
-            self._allow_close = True
-            self.close()
-        except RuntimeError:
-            return
-        QApplication.processEvents()
-        try:
-            self.deleteLater()
-            QApplication.sendPostedEvents(None, QEvent.DeferredDelete)
-        except (RuntimeError, TypeError):
-            pass
-        QApplication.processEvents()
+        GlassDialog.destroy(self)
 
 
 # ---------------------------------------------------------------------------
@@ -948,7 +702,7 @@ class PipeInfoPickTool(DgnElementSetTool):
         tool.panel = panel
         tool.InstallTool()
         if start_ui_loop and panel is not None:
-            panel.run_dialog_loop()
+            panel.run_bentley_loop()
         return tool
 
 
@@ -960,23 +714,22 @@ _active_dialog = None
 
 
 def show_pipe_info_panel():
-    """打开管道信息面板；已在运行时只把窗口提到前台，避免重复窗口。"""
+    """打开管道信息面板；已打开时只把窗口提到前台，避免重复窗口。"""
     global _active_dialog
     if _active_dialog is not None:
         try:
-            if _active_dialog._running:
-                _active_dialog.raise_()
-                _active_dialog.activateWindow()
+            if _active_dialog.winfo_exists():
+                _active_dialog.lift()
                 return _active_dialog
-        except RuntimeError:
+        except tk.TclError:
             pass
     dialog = _PipeInfoDialog()
     _active_dialog = dialog
     try:
-        dialog.run_dialog_loop()
-        return dialog
+        dialog.run_bentley_loop()
     finally:
         _active_dialog = None
+    return dialog
 
 
 def _first_selected_element():
@@ -1062,7 +815,9 @@ def PyMain():
         _log_exception('pipe info tool start failed')
         print('管道信息查询插件启动失败：%s\n%s' % (error, detail))
         try:
-            QMessageBox.critical(None, UI_TITLE, '启动失败：%s' % error)
+            MessageCenter.ShowErrorMessage(
+                '管道信息查询启动失败：%s\n详见日志：%s' % (error, DEBUG_LOG),
+                '', False)
         except Exception:
             pass
         return None

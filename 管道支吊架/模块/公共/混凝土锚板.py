@@ -88,8 +88,17 @@ COLOR_SLEEVE = 4
 DEFAULT_OPTIONS = {
     'subtype': 'A',       # A / B / C / D
     'spacing': None,      # 螺栓间距 S（mm）；None 取该子项 MIN.S
-    'heading_deg': 0.0,   # 朝向：0° 时锚栓轴线沿模型 +X
+    'heading_deg': 0.0,   # 朝向：墙面为绕 Z 的方位角，楼板为绕竖轴的转角
+    'mount': 'wall',      # 安装面：wall（竖直墙面）/ floor（楼板顶）/ ceiling（楼板底）
 }
+
+# 安装面选项：渲染面板与校验共用。'wall' 为原有行为（锚栓沿水平方向）。
+MOUNT_OPTIONS = (
+    ('wall', '竖直墙面（螺栓水平）'),
+    ('floor', '水平楼板顶面（螺栓朝下）'),
+    ('ceiling', '水平楼板底面（螺栓朝上）'),
+)
+MOUNT_KEYS = tuple(key for key, _label in MOUNT_OPTIONS)
 
 # 切割刀具体伸出锚板两侧的余量（mm），避免共面。
 CUTTER_EXTENSION = 2.0
@@ -118,21 +127,46 @@ def _apply_color(element, color):
 
 
 class _PlateFrame(object):
-    """局部坐标（mm）-> 世界坐标（UOR）的映射，朝向绕 Z 旋转。"""
+    """局部坐标（mm）-> 世界坐标（UOR）的映射。
 
-    def __init__(self, origin, uor_per_mm, heading_deg):
+    局部 +X 始终是混凝土外法向（锚栓露出的那一侧）：
+
+    * ``wall``    竖直面：+X 在水平面内，朝向角绕 Z 旋转（原有行为）；
+    * ``floor``   水平楼板顶面：+X = 世界 +Z，锚板水平、螺栓向下插入楼板；
+    * ``ceiling`` 水平楼板底面：+X = 世界 -Z，锚板水平、螺栓向上。
+
+    朝向角在各自平面内绕外法向旋转锚板。
+    """
+
+    def __init__(self, origin, uor_per_mm, heading_deg, mount='wall'):
         self.origin = DPoint3d.From(origin.x, origin.y, origin.z)
         self.uor = uor_per_mm
         angle = math.radians(heading_deg)
-        self.c = math.cos(angle)
-        self.s = math.sin(angle)
+        cos_a = math.cos(angle)
+        sin_a = math.sin(angle)
+        if mount == 'floor':
+            self.axis_x = (0.0, 0.0, 1.0)
+            self.axis_y = (cos_a, sin_a, 0.0)
+            self.axis_z = (-sin_a, cos_a, 0.0)
+        elif mount == 'ceiling':
+            self.axis_x = (0.0, 0.0, -1.0)
+            self.axis_y = (cos_a, sin_a, 0.0)
+            self.axis_z = (sin_a, -cos_a, 0.0)
+        else:  # wall
+            self.axis_x = (cos_a, sin_a, 0.0)
+            self.axis_y = (-sin_a, cos_a, 0.0)
+            self.axis_z = (0.0, 0.0, 1.0)
 
     def point(self, x, y, z):
-        world_x = x * self.c - y * self.s
-        world_y = x * self.s + y * self.c
+        world_x = (x * self.axis_x[0] + y * self.axis_y[0]
+                   + z * self.axis_z[0])
+        world_y = (x * self.axis_x[1] + y * self.axis_y[1]
+                   + z * self.axis_z[1])
+        world_z = (x * self.axis_x[2] + y * self.axis_y[2]
+                   + z * self.axis_z[2])
         return DPoint3d.From(self.origin.x + self.uor * world_x,
                              self.origin.y + self.uor * world_y,
-                             self.origin.z + self.uor * z)
+                             self.origin.z + self.uor * world_z)
 
     def uor_of(self, value_mm):
         return value_mm * self.uor
@@ -359,6 +393,10 @@ def resolve_options(options=None):
     if not math.isfinite(heading):
         raise ValueError('朝向必须是有限数字。')
 
+    mount = resolved.get('mount') or 'wall'
+    if mount not in MOUNT_KEYS:
+        raise ValueError('安装面只支持：%s。' % '、'.join(MOUNT_KEYS))
+
     # 螺杆外端 = 螺母外端面 + 露出的丝头；总长 L 不变，多出的部分全部埋入。
     nut_outer = table['plate_t'] + table['washer_t'] + table['nut_h']
     out_len = nut_outer + BOLT_PROTRUSION
@@ -371,6 +409,7 @@ def resolve_options(options=None):
     return {
         'subtype': subtype,
         'heading_deg': heading,
+        'mount': mount,
         'spacing': spacing,
         'plate_side': spacing + 2.0 * PLATE_MARGIN,
         'plate_t': table['plate_t'],
@@ -431,7 +470,8 @@ def build_anchor_plate_cell(placement_point, options=None):
 
     uor_per_mm = dgn_model.GetModelInfo().GetUorPerMeter() / 1000.0
     resolved = resolve_options(options)
-    frame = _PlateFrame(placement_point, uor_per_mm, resolved['heading_deg'])
+    frame = _PlateFrame(placement_point, uor_per_mm, resolved['heading_deg'],
+                        resolved['mount'])
 
     builder = _AnchorPlateCellBuilder(dgn_model, CELL_NAME)
     _add_plate(builder, frame, dgn_model, resolved)

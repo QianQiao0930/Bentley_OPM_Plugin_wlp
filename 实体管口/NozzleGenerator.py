@@ -23,13 +23,17 @@ from MSPyDgnPlatform import *
 from MSPyDgnView import *
 from MSPyMstnPlatform import *
 
+# 通配导入不一定导出 WString，显式再导入一次（与其它插件一致）。
+from MSPyBentley import WString  # noqa: E402,F811
+
 # PyQt5 必须放在 MSPy 的 import * **之后**：MSPy 通配导入会带进同名符号，
 # 放在前面会被覆盖，导致面板基本控件类丢失、插件直接起不来。
 from PyQt5.QtCore import QEventLoop, QPoint, QRectF, QSize, Qt
 from PyQt5.QtGui import (QColor, QLinearGradient, QPainter, QPainterPath,
                          QPalette, QPen, QRegion)
-from PyQt5.QtWidgets import (QApplication, QButtonGroup, QFrame, QGridLayout,
-                             QHBoxLayout, QLabel, QLineEdit, QMessageBox,
+from PyQt5.QtWidgets import (QApplication, QButtonGroup, QCheckBox, QFrame,
+                             QGridLayout, QHBoxLayout, QLabel, QLineEdit,
+                             QMessageBox,
                              QPushButton, QRadioButton, QScrollArea,
                              QSizePolicy, QVBoxLayout, QWidget)
 
@@ -297,7 +301,10 @@ class NozzlePlacementTool(DgnPrimitiveTool):
     def __init__(self, builder):
         DgnPrimitiveTool.__init__(self, 0, 0)
         self._builder = builder
-        self._self_reference = self
+        self.m_self = self
+
+    def _GetToolName(self, name):
+        return WString('NozzlePlacementTool')
 
     def _OnPostInstall(self):
         AccuSnap.GetInstance().EnableSnap(True)
@@ -308,7 +315,7 @@ class NozzlePlacementTool(DgnPrimitiveTool):
             self._builder.create_at(event.GetPoint())
         except Exception as error:
             QMessageBox.critical(None, "管口生成失败", str(error))
-        return False
+        return True
 
     def _OnResetButton(self, event):
         """DgnPrimitiveTool 的必需回调：右键取消当前动作并重置放置工具。"""

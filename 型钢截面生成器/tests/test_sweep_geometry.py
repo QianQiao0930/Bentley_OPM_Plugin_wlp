@@ -130,5 +130,28 @@ class RegistrySweepGeometryTests(unittest.TestCase):
         self.assertAlmostEqual(2.0 * section["H"], high.y)
 
 
+class RotateFrameTests(unittest.TestCase):
+    def test_zero_rotation_is_identity(self):
+        frame = steel_sweep_geometry.sweep_frame((0.0, 0.0, 0.0), (0.0, 1.0, 0.0))
+        self.assertEqual(frame, steel_sweep_geometry.rotate_frame(frame, 0.0))
+
+    def test_rotation_keeps_the_section_in_the_path_plane(self):
+        frame = steel_sweep_geometry.sweep_frame((1.0, 2.0, 3.0), (0.0, 1.0, 0.0))
+        rotated = steel_sweep_geometry.rotate_frame(frame, 37.0)
+        for axis in (rotated.axis_x, rotated.axis_y):
+            self.assertAlmostEqual(0.0, _dot(axis, rotated.axis_z))
+            self.assertAlmostEqual(1.0, _length(axis))
+        self.assertAlmostEqual(0.0, _dot(rotated.axis_x, rotated.axis_y))
+        self.assertEqual(frame.origin, rotated.origin)
+
+    def test_quarter_turn_swaps_the_plane_axes(self):
+        frame = steel_sweep_geometry.sweep_frame((0.0, 0.0, 0.0), (0.0, 1.0, 0.0))
+        rotated = steel_sweep_geometry.rotate_frame(frame, 90.0)
+        self.assertAlmostEqual(0.0, rotated.axis_x[0])
+        self.assertAlmostEqual(0.0, rotated.axis_x[1])
+        self.assertAlmostEqual(1.0, rotated.axis_x[2])
+        self.assertAlmostEqual(1.0, rotated.axis_y[0])
+
+
 if __name__ == "__main__":
     unittest.main()

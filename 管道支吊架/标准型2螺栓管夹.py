@@ -45,20 +45,16 @@ import importlib.util
 import math
 import os
 import sys
+import time
+import tkinter as tk
 import traceback
+from tkinter import ttk
 
 from MSPyBentley import *
 from MSPyBentleyGeom import *
 from MSPyDgnPlatform import *
 from MSPyDgnView import *
 from MSPyMstnPlatform import *
-
-# PyQt5 必须放在 MSPy 的 import * **之后**：MSPy 通配导入会带进同名符号，
-# 放在前面会被覆盖，导致面板基本控件类丢失、插件直接起不来。
-from PyQt5.QtCore import QEvent, QEventLoop, QRectF, Qt
-from PyQt5.QtGui import QColor, QPainter, QPainterPath, QPalette, QPen, QRegion
-from PyQt5.QtWidgets import (QApplication, QHBoxLayout, QLabel,
-                             QPlainTextEdit, QVBoxLayout, QWidget)
 
 
 # ---------------------------------------------------------------------------
@@ -69,6 +65,8 @@ from PyQt5.QtWidgets import (QApplication, QHBoxLayout, QLabel,
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _REPO_ROOT = os.path.dirname(_HERE)
 _PIPE_INFO_DIR = os.path.join(_REPO_ROOT, '管道信息查询', '模块', '管道信息')
+# 仓库根提供共享 UI 工具箱 bentley_ui；公共支吊架库在 模块/公共/。
+_UI_DIR = os.path.join(_HERE, '模块', '公共')
 
 
 def _load_pipe_reader():
@@ -99,16 +97,49 @@ pipe_reader.fill_mspy_symbols(
     globals())
 
 
-# 复用 管道支吊架 的统一面板外观（与其它插件一致的控件与配色）。
-_UI_DIR = os.path.join(_HERE, '模块', '公共')
-if _UI_DIR not in sys.path:
-    sys.path.insert(0, _UI_DIR)
-import 端焊三角架_基础 as base  # noqa: E402
+# 共享 UI 工具箱在导入前强制重读一次，避免拿到 MicroStation 缓存的旧模块。
+for _path in (_REPO_ROOT, _UI_DIR):
+    if _path not in sys.path:
+        sys.path.insert(0, _path)
+try:
+    import bentley_ui.glass as _glass_module  # noqa: F401
+    import bentley_ui as _bentley_ui_module  # noqa: F401
+    importlib.reload(_glass_module)
+    importlib.reload(_bentley_ui_module)
+except Exception:
+    pass
 
-UI_TITLE = '标准型2螺栓管夹（剪切测试）'
-base.DEBUG_LOG = os.path.join(_HERE, '模块', '日志',
-                              '标准型2螺栓管夹_剪切测试_debug_log.txt')
-_log = base._log
+from bentley_ui import (  # noqa: E402
+    BORDER,
+    CARD,
+    CARD_SOFT,
+    FIELD,
+    INK,
+    MUTED,
+    UI_FONT,
+    UI_FONT_BOLD,
+    UI_FONT_SMALL,
+    GlassDialog,
+    RoundButton,
+    SlimScrollbar,
+)
+
+UI_TITLE = '标准型2螺栓管夹'
+DEBUG_LOG = os.path.join(_HERE, '模块', '日志', '标准型2螺栓管夹_debug_log.txt')
+try:
+    os.makedirs(os.path.dirname(DEBUG_LOG), exist_ok=True)
+except Exception:
+    pass
+
+
+def _log(message):
+    try:
+        stamp = time.strftime('%Y-%m-%d %H:%M:%S')
+        with open(DEBUG_LOG, 'a', encoding='utf-8') as stream:
+            stream.write('[%s] %s\n' % (stamp, message))
+            stream.flush()
+    except Exception:
+        pass
 
 
 def _log_exception(title):
@@ -154,7 +185,7 @@ TABLE = {
 }
 
 _THROUGH_MARGIN_MM = 5.0
-_CELL_NAME = 'STD_2BOLT_CLAMP_TEST'
+_CELL_NAME = 'STD_2BOLT_CLAMP'
 
 # 简化紧固件比例（精度不要求细致，能看出螺栓/螺母即可）。
 _HEX_ACROSS_FLATS_RATIO = 1.5   # 六角对边 ≈ 1.5 d（M16→24）。
@@ -371,7 +402,11 @@ def build_clamp(center_mm, axis, dn=None, insulation_mm=0.0, note=''):
     row = dict(_row(dn))
     insulation_mm = float(insulation_mm or 0.0)
     if ACCOMMODATE_INSULATION and insulation_mm > 0.0:
+        # 按保温层外径放大内孔：孔径 A' = A + 2×保温厚度（半径 +保温厚度）。
+        # 螺栓孔心距中心 B 是「半径向」尺寸，必须同步外移同样的保温厚度，
+        # 否则孔会落进放大后的孔洞区域被剪掉，螺栓随之错位。
         row['A'] = float(row['A']) + 2.0 * insulation_mm
+        row['B'] = float(row['B']) + insulation_mm
 
     a = float(row['A'])
     c = float(row['C'])
@@ -470,16 +505,21 @@ def _is_pipe_placement(placement):
     return bool((snapshot.get('ec') or {}).get('found'))
 
 
-def build_on_pick(placement, click_mm):
+def build_on_pick(placement, click_mm, fallback_dn=None,
+                  fallback_insulation_mm=0.0):
     """按所选元素（管道或直线段）与点击点生成管夹。
 
     * 选中**管道**：用其公称直径自动查表，并按其保温厚度决定是否放大内孔；
-    * 选中**直线段**：以该直线为管轴，未读到管道属性时用脚本顶部 ``DN`` 兜底。
+    * 选中**直线段 / 读不到管道属性**：以该直线为管轴，改用面板输入的
+      ``fallback_dn``（管径）与 ``fallback_insulation_mm``（保温厚度）建模。
 
     ``placement`` 为读取库 ``pipe_placement_info`` 的返回（对普通直线同样适用）；
     ``click_mm`` 为点击点（mm），投影到轴线后即管夹的轴向中心。
     返回 ``(模型单元, 提示文本)``，提示文本由面板显示。
     """
+    fallback_dn = DN if fallback_dn is None else fallback_dn
+    fallback_insulation_mm = float(fallback_insulation_mm or 0.0)
+
     start = placement.get('start_mm')
     end = placement.get('end_mm')
     axis = placement.get('axis')
@@ -495,7 +535,12 @@ def build_on_pick(placement, click_mm):
     is_pipe = _is_pipe_placement(placement)
     nominal = placement.get('nominal_diameter_mm')
     matched = _match_table_dn(nominal)
-    dn = matched if matched is not None else DN
+    dn = matched if matched is not None else fallback_dn
+    pipe_insulation = placement.get('insulation_thickness_mm')
+    if pipe_insulation is None:
+        insulation = fallback_insulation_mm
+    else:
+        insulation = float(pipe_insulation)
     raw_warnings = [text for text in (placement.get('warnings') or []) if text]
 
     parts = []
@@ -503,11 +548,16 @@ def build_on_pick(placement, click_mm):
         if matched is not None:
             parts.append('管道公称直径 %.1f mm。' % nominal)
         else:
-            parts.append('管道公称直径 %s 未匹配到表 1，管径暂用 DN%d。'
-                         % ('未知' if nominal is None else '%.1f mm' % nominal, DN))
+            parts.append('管道公称直径 %s 未匹配到表 1，改用面板管径 DN%d。'
+                         % ('未知' if nominal is None else '%.1f mm' % nominal,
+                            fallback_dn))
+        if pipe_insulation is None:
+            parts.append('管道未读到保温厚度，改用面板保温厚度 %.1f mm。'
+                         % insulation)
         warnings = raw_warnings
     else:
-        parts.append('按所选直线作为管轴；未读到管道属性，管径暂用 DN%d。' % DN)
+        parts.append('按所选直线作为管轴；未读到管道属性，改用面板参数：'
+                     'DN%d、保温厚度 %.1f mm。' % (dn, insulation))
         # 直线元素上"没有管道实例 / 没有公称直径 / 无法标定属性单位"属正常，
         # 都是面向管道 EC 属性的提示，对直线无意义。
         skip = ('没有找到 OpenPlant', '公称直径', '没有读到公称直径',
@@ -527,9 +577,7 @@ def build_on_pick(placement, click_mm):
     if warnings:
         parts.append('注意：%s' % '；'.join(warnings))
 
-    return build_clamp(center, axis, dn,
-                       placement.get('insulation_thickness_mm') or 0.0,
-                       ''.join(parts))
+    return build_clamp(center, axis, dn, insulation, ''.join(parts))
 
 
 # ---------------------------------------------------------------------------
@@ -537,107 +585,231 @@ def build_on_pick(placement, click_mm):
 # ---------------------------------------------------------------------------
 
 
-class _ClampPanel(QWidget):
-    """简易面板：点选提示 + 生成记录 + 状态；同时驱动点选主循环。"""
+class _ClampPanel(GlassDialog):
+    """点选提示 + 生成记录 + 状态；同时驱动点选主循环。
 
-    RADIUS = base.UI_RADIUS
+    MicroStation 的原生回调（``_OnPostLocate`` / ``_OnDataButton``）里**不做
+    EC 读取、也不碰 Tk**：只把 (元素 ID, 点击点) 放进 ``pending``、把提示放进
+    ``_pending_status``。真正读取 EC 与建模型都在主循环
+    ``PyCadInputQueue.PythonMainLoop()`` 返回之后调用 :meth:`_run_pending` 完成。
+    """
+
+    STATE_KEY = 'Std2BoltClamp'
 
     def __init__(self):
-        self._app = base.ensure_qt_app()
-        super().__init__()
-        self.setWindowTitle(UI_TITLE)
-        self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint
-                            | Qt.WindowSystemMenuHint
-                            | Qt.WindowMinimizeButtonHint)
-        self.setAutoFillBackground(True)
-        palette = self.palette()
-        palette.setColor(QPalette.Window, base.UI_BG)
-        self.setPalette(palette)
-        self.setStyleSheet('QWidget {font-family: "Microsoft YaHei UI";}')
+        GlassDialog.__init__(self, title=UI_TITLE)
+        self.pending = []
+        self._pending_status = None
+        self._pending_status_is_error = False
+        self._close_requested = False
+        self._dn = tk.StringVar()
+        self._insulation = tk.StringVar(value='0')
+        self._dn_by_label = {}
+        self._build()
+        self.restore_state()
+        self.restore_position()
+        self.protocol('WM_DELETE_WINDOW', self.close_panel)
+        try:
+            # 竖长（类手机）比例：窄而高。
+            self.minsize(430, 760)
+        except tk.TclError:
+            pass
+        _log('panel built file=%s' % os.path.abspath(__file__))
 
-        self.pending = []          # [(element_id, click_mm)]
-        self._running = True
-        self._allow_close = False
-        self._finish_requested = False
-        self._event_loop = QEventLoop()
+    def _build(self):
+        form = self.build_shell(
+            UI_TITLE,
+            '点选管道或直线，在点击处沿其轴线生成管夹；右键退出')
+        form.columnconfigure(0, weight=1)
 
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
-        outer.setSpacing(0)
-        outer.addWidget(base.NeuTitleBar(UI_TITLE, self.showMinimized,
-                                         self.close_panel))
-
-        body = QVBoxLayout()
-        body.setContentsMargins(3, 0, 3, 3)
-        body.setSpacing(0)
-        outer.addLayout(body)
-
-        hint_row = QVBoxLayout()
-        hint_row.setContentsMargins(15, 0, 15, 0)
-        hint = QLabel(
+        hint_frame, hint_text = self._text_field(form, height=3)
+        hint_frame.grid(row=0, column=0, sticky='ew')
+        self._set_text(hint_text, (
             '在模型中点选一根管道或一条直线段：管夹将在点击处沿其轴线生成。'
-            '管道自动读取公称直径 / 保温厚度；直线用默认 DN%d。'
-            '可连续点选（管道 / 直线可交替），右键退出。' % DN)
-        hint.setWordWrap(True)
-        hint.setStyleSheet('color: #7D8AA0; font-size: 12px;')
-        hint_row.addWidget(hint)
-        body.addLayout(hint_row)
-        body.addSpacing(6)
+            '管道自动读取公称直径 / 保温厚度；选中直线、或读不到管道属性时，'
+            '改用下面面板输入的公称直径 / 保温厚度建模。可连续点选（管道 / '
+            '直线可交替），右键退出。'))
 
-        card = base.NeuCard('生成记录')
-        self.log = QPlainTextEdit()
-        self.log.setReadOnly(True)
-        self.log.setMinimumHeight(240)
-        self.log.setStyleSheet(
-            'QPlainTextEdit {border: none; background: #E7EBF2;'
-            ' color: #39435A; font-size: 12px;}')
-        card.content.addWidget(self.log, 0, 0)
-        body.addWidget(card)
+        ttk.Label(form, text='管径 / 保温（读不到管道属性时使用）',
+                  style='Section.TLabel').grid(
+            row=1, column=0, sticky='w', pady=(6, 2))
 
-        summary = base.NeuPanel()
-        self.status_label = QLabel('请在模型中点选管道或直线。')
-        self.status_label.setWordWrap(True)
-        self.status_label.setStyleSheet('color: #2F6FB5; font-size: 11px;')
-        summary.content.addWidget(self.status_label)
-        body.addWidget(summary)
+        dn_row = tk.Frame(form, bg=CARD)
+        dn_row.grid(row=2, column=0, sticky='w')
+        tk.Label(dn_row, text='公称直径', bg=CARD, fg=INK,
+                 font=UI_FONT_BOLD).pack(side='left')
+        dn_labels = []
+        for key in sorted(TABLE):
+            label = 'DN%d  |  %s' % (key, TABLE[key]['nps'])
+            dn_labels.append(label)
+            self._dn_by_label[label] = key
+        self._dn_combo = ttk.Combobox(
+            dn_row, textvariable=self._dn, state='readonly', width=20,
+            style='Glass.TCombobox', values=dn_labels)
+        self._dn_combo.pack(side='left', padx=(10, 0))
+        tk.Label(form, text='选中直线 / 读不到管道公称直径时，按此管径查表 1',
+                 bg=CARD, fg=MUTED, font=UI_FONT_SMALL).grid(
+            row=3, column=0, sticky='w')
 
-        button_row = QHBoxLayout()
-        button_row.setContentsMargins(3, 0, 3, 0)
-        button_row.setSpacing(0)
-        self.clear_button = base.NeuButton('清空记录')
-        self.clear_button.setFixedWidth(130)
-        self.clear_button.clicked.connect(self.log.clear)
-        self.close_button = base.NeuButton('退出', accent=True)
-        self.close_button.setFixedWidth(126)
-        self.close_button.clicked.connect(self.close_panel)
-        button_row.addStretch(1)
-        button_row.addWidget(self.clear_button)
-        button_row.addWidget(self.close_button)
-        body.addLayout(button_row)
+        ins_row = tk.Frame(form, bg=CARD)
+        ins_row.grid(row=4, column=0, sticky='w', pady=(6, 0))
+        tk.Label(ins_row, text='保温厚度', bg=CARD, fg=INK,
+                 font=UI_FONT_BOLD).pack(side='left')
+        self._insulation_entry = tk.Entry(
+            ins_row, textvariable=self._insulation, width=9, font=UI_FONT,
+            fg=INK, bg=FIELD, relief='flat', highlightthickness=1,
+            highlightbackground=BORDER, highlightcolor='#9FB4CC',
+            insertbackground=INK, justify='center')
+        self._insulation_entry.pack(side='left', padx=(10, 0), ipady=3)
+        tk.Label(ins_row, text='mm', bg=CARD, fg=MUTED,
+                 font=UI_FONT_SMALL).pack(side='left', padx=(6, 0))
+        tk.Label(form, text='管夹内孔 A′ = A + 2×保温厚度；读不到管道保温时用此值',
+                 bg=CARD, fg=MUTED, font=UI_FONT_SMALL).grid(
+            row=5, column=0, sticky='w')
 
-        self.setMinimumWidth(560)
-        self.adjustSize()
-        self.setFixedSize(self.sizeHint().expandedTo(self.minimumSizeHint()))
-        self.hwnd = int(self.winId())
-        PyCadInputQueue.AttachQtToolSetting(self.hwnd)
+        ttk.Label(form, text='生成记录', style='Section.TLabel').grid(
+            row=6, column=0, sticky='w', pady=(8, 2))
+        log_frame = tk.Frame(form, bg=CARD_SOFT, highlightbackground=BORDER,
+                             highlightthickness=1)
+        log_frame.grid(row=7, column=0, sticky='nsew')
+        form.rowconfigure(7, weight=1)
+        self._log_view = tk.Text(
+            log_frame, height=18, width=36, wrap='word', font=UI_FONT_SMALL,
+            bg=CARD_SOFT, fg=INK, relief='flat', highlightthickness=0, bd=0,
+            padx=8, pady=6, cursor='arrow')
+        log_bar = SlimScrollbar(log_frame, command=self._log_view.yview,
+                                trough=CARD_SOFT)
+        self._log_view.configure(yscrollcommand=log_bar.set)
+        self._log_view.pack(side='left', fill='both', expand=True)
+        log_bar.pack(side='right', fill='y')
+        self._log_view.configure(state='disabled')
 
-    # -- 输出 --------------------------------------------------------------
+        self._status_frame, self._status_text = self._text_field(form, height=3)
+        self._status_frame.grid(row=8, column=0, sticky='ew', pady=(6, 0))
+        self._set_text(self._status_text, '请在模型中点选管道或直线。')
 
-    def set_status(self, message, is_error=False):
-        self.status_label.setStyleSheet(
-            'color: %s; font-size: 11px;'
-            % (base.UI_ERROR if is_error else base.UI_INFO).name())
-        self.status_label.setText(message)
-        QApplication.processEvents()
+        buttons = tk.Frame(form, bg=CARD)
+        buttons.grid(row=9, column=0, sticky='ew', pady=(8, 0))
+        self.clear_button = RoundButton(
+            buttons, '清空记录', self.clear_log, bg=CARD,
+            font=UI_FONT, font_bold=UI_FONT_BOLD)
+        self.close_button = RoundButton(
+            buttons, '退出', self.close_panel, primary=True, bg=CARD,
+            font=UI_FONT, font_bold=UI_FONT_BOLD)
+        self.close_button.pack(side='right')
+        self.clear_button.pack(side='right', padx=(0, 8))
+
+    def _text_field(self, parent, height=3):
+        frame = tk.Frame(parent, bg=CARD_SOFT, highlightbackground=BORDER,
+                         highlightthickness=1)
+        text = tk.Text(
+            frame, height=height, width=36, wrap='word', font=UI_FONT_SMALL,
+            bg=CARD_SOFT, fg=INK, relief='flat', highlightthickness=0, bd=0,
+            padx=8, pady=5, cursor='arrow', takefocus=0)
+        bar = SlimScrollbar(frame, command=text.yview, trough=CARD_SOFT)
+        text.configure(yscrollcommand=bar.set)
+        text.pack(side='left', fill='both', expand=True)
+        bar.pack(side='right', fill='y')
+        text.configure(state='disabled')
+        return frame, text
+
+    def _set_text(self, text_widget, value):
+        if text_widget is None:
+            return
+        try:
+            text_widget.configure(state='normal')
+            text_widget.delete('1.0', 'end')
+            text_widget.insert('1.0', value or '')
+            text_widget.configure(state='disabled')
+            text_widget.yview_moveto(0.0)
+        except tk.TclError:
+            pass
+
+    # -- 面板输入（读不到管道属性时用于建模） ------------------------------
+
+    def restore_state(self):
+        state = self.ui_state
+        selected = None
+        fallback = None
+        for label, key in self._dn_by_label.items():
+            if fallback is None:
+                fallback = label
+            if key == DN:
+                fallback = label
+            if key == state.get('dn'):
+                selected = label
+        self._dn.set(selected or fallback)
+        value = state.get('insulation')
+        if isinstance(value, str) and value.strip():
+            self._insulation.set(value)
+
+    def persist_state(self, state):
+        try:
+            state['dn'] = self.current_dn()
+            state['insulation'] = self._insulation.get()
+        except Exception:
+            pass
+
+    def current_dn(self):
+        return self._dn_by_label.get(self._dn.get(), DN)
+
+    def current_insulation(self):
+        try:
+            return float((self._insulation.get() or '').strip())
+        except (TypeError, ValueError):
+            return 0.0
+
+    # -- 输出（只在主循环 / Tk 上下文里调用） ------------------------------
+
+    def _apply_status(self, message, is_error=False):
+        self._set_text(getattr(self, '_status_text', None), message)
 
     def append_log(self, message):
-        self.log.appendPlainText(message)
-        self.log.appendPlainText('')
+        text_widget = getattr(self, '_log_view', None)
+        if text_widget is None:
+            return
+        try:
+            text_widget.configure(state='normal')
+            text_widget.insert('end', str(message) + '\n\n')
+            text_widget.see('end')
+            text_widget.configure(state='disabled')
+        except tk.TclError:
+            pass
 
-    # -- 点选队列 ----------------------------------------------------------
+    def clear_log(self):
+        text_widget = getattr(self, '_log_view', None)
+        if text_widget is None:
+            return
+        try:
+            text_widget.configure(state='normal')
+            text_widget.delete('1.0', 'end')
+            text_widget.configure(state='disabled')
+        except tk.TclError:
+            pass
+
+    # -- 原生回调入口：只写普通 Python 状态，绝不碰 Tk / EC ---------------
+
+    def set_status(self, message, is_error=False):
+        self._pending_status = message
+        self._pending_status_is_error = bool(is_error)
 
     def queue_pick(self, element_id, click_mm):
         self.pending.append((element_id, click_mm))
+
+    def close_panel(self):
+        self._close_requested = True
+
+    # -- 主循环 ------------------------------------------------------------
+
+    def _run_pending(self):
+        """在 ``PythonMainLoop`` 返回之后执行：安全读取 EC 并建模。"""
+        self._drain_pending()
+        if self._pending_status is not None:
+            message = self._pending_status
+            is_error = self._pending_status_is_error
+            self._pending_status = None
+            self._pending_status_is_error = False
+            self._apply_status(message, is_error)
 
     def _drain_pending(self):
         pending, self.pending = self.pending, []
@@ -658,7 +830,9 @@ class _ClampPanel(QWidget):
             return
         try:
             placement = pipe_reader.pipe_placement_info(handle, 'auto')
-            result, message = build_on_pick(placement, click_mm)
+            result, message = build_on_pick(
+                placement, click_mm,
+                self.current_dn(), self.current_insulation())
         except Exception as error:
             _log_exception('build clamp failed')
             self.set_status('生成失败：%s' % error, True)
@@ -668,10 +842,6 @@ class _ClampPanel(QWidget):
 
     # -- 收尾 --------------------------------------------------------------
 
-    def close_panel(self):
-        self._running = False
-        self._finish_requested = True
-
     def _finish_tool(self):
         try:
             PyCommandState.StartDefaultCommand()
@@ -680,76 +850,30 @@ class _ClampPanel(QWidget):
         self.shutdown()
 
     def shutdown(self):
-        if not self._running and self._allow_close:
-            return
         try:
-            self._running = False
-            self._allow_close = True
-            self.close()
-        except RuntimeError:
+            if self.winfo_exists():
+                self.destroy()
+        except tk.TclError:
             pass
 
-    # -- 窗口 --------------------------------------------------------------
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing, True)
-        frame = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
-        painter.setPen(QPen(QColor(210, 218, 231), 1.0))
-        painter.setBrush(base.UI_BG)
-        painter.drawRoundedRect(frame, self.RADIUS, self.RADIUS)
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        path = QPainterPath()
-        path.addRoundedRect(QRectF(self.rect()), self.RADIUS, self.RADIUS)
-        self.setMask(QRegion(path.toFillPolygon().toPolygon()))
-
-    def closeEvent(self, event):
-        if self._allow_close:
-            event.accept()
-            return
-        event.ignore()
-        self.close_panel()
-
     def run_dialog_loop(self):
-        screen = QApplication.primaryScreen()
-        if screen is not None:
-            area = screen.availableGeometry()
-            self.move(area.center().x() - self.width() // 2,
-                      area.center().y() - self.height() // 2)
-        self.show()
-        self.raise_()
-        self.activateWindow()
-        while self._running:
-            self._event_loop.processEvents()
-            if self._finish_requested:
-                self._finish_requested = False
+        """Tk 主循环：UI 事件 + MicroStation；EC 读取放在 PythonMainLoop 之后。"""
+        while tk._default_root is not None:
+            try:
+                self.update_idletasks()
+                self.update()
+            except tk.TclError:
+                break
+            if self._close_requested:
+                self._close_requested = False
                 self._finish_tool()
-                continue
+                break
             try:
                 PyCadInputQueue.PythonMainLoop()
             except Exception:
                 _log_exception('PythonMainLoop failed')
                 break
-            self._drain_pending()
-        self._teardown_window()
-
-    def _teardown_window(self):
-        """退出事件泵后收尾：关闭窗口、冲刷重绘并延迟销毁，避免 UI 残留。"""
-        try:
-            self._running = False
-            self._allow_close = True
-            self.close()
-        except RuntimeError:
-            return
-        QApplication.processEvents()
-        try:
-            self.deleteLater()
-            QApplication.sendPostedEvents(None, QEvent.DeferredDelete)
-        except (RuntimeError, TypeError):
-            pass
-        QApplication.processEvents()
+            self._run_pending()
 
 
 # ---------------------------------------------------------------------------
@@ -774,7 +898,7 @@ class Std2BoltClampPipeTool(DgnElementSetTool):
         self._located_id = None
 
     def _GetToolName(self, name):
-        return WString('Std2BoltClampPipeTest')
+        return WString('Std2BoltClampPipeTool')
 
     def _DoGroups(self):
         return False
@@ -853,11 +977,10 @@ def show_clamp_panel():
     global _active_panel
     if _active_panel is not None:
         try:
-            if _active_panel._running:
-                _active_panel.raise_()
-                _active_panel.activateWindow()
+            if _active_panel.winfo_exists():
+                _active_panel.lift()
                 return None
-        except RuntimeError:
+        except tk.TclError:
             pass
     panel = _ClampPanel()
     _active_panel = panel
@@ -869,12 +992,16 @@ def show_clamp_panel():
 
 def PyMain():
     try:
+        _log('PyMain: entry')
         return show_clamp_panel()
     except Exception as error:
+        detail = traceback.format_exc()
         _log_exception('clamp tool start failed')
+        print('标准型2螺栓管夹启动失败：%s\n%s' % (error, detail))
         try:
-            from PyQt5.QtWidgets import QMessageBox
-            QMessageBox.critical(None, UI_TITLE, '启动失败：%s' % error)
+            MessageCenter.ShowErrorMessage(
+                '标准型2螺栓管夹启动失败：%s\n详见日志：%s' % (error, DEBUG_LOG),
+                '', False)
         except Exception:
             pass
         return None

@@ -13,7 +13,7 @@
 
 几何做法（型钢截面的真实圆弧轮廓与沿路径扫掠）复用仓库内
 ``型钢截面生成器`` 的数据 / 几何模块与 ``steel_sweep_geometry``；
-面板外观复用 ``模块/公共/端焊三角架_基础.py``。
+面板用 **Tkinter**，外观复用仓库共享的 ``bentley_ui`` 主题。
 
 运行环境：Bentley Power Platform Python（MSPy）。
 """
@@ -21,9 +21,11 @@
 from __future__ import division
 
 import importlib
+import importlib.util
 import math
 import os
 import sys
+import time
 import traceback
 
 from MSPyBentley import *
@@ -37,25 +39,45 @@ from MSPyMstnPlatform import *
 from MSPyBentley import WString  # noqa: E402,F811
 from MSPyMstnPlatform import PythonKeyinManager  # noqa: E402,F811
 
-# PyQt5 必须放在 MSPy 的 import * **之后**：MSPy 通配导入会带进同名符号，
-# 放在前面会被覆盖，导致面板基本控件类丢失、插件直接起不来。
-from PyQt5.QtCore import QEvent, QEventLoop, QRectF, Qt, QTimer
-from PyQt5.QtGui import QColor, QPainter, QPainterPath, QPalette, QPen, QRegion
-from PyQt5.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMessageBox,
-                             QVBoxLayout, QWidget)
-
+# tkinter 必须放在 MSPy 的 import * **之后**：MSPy 通配导入会带进同名符号，
+# 放在前面会被覆盖，导致 tk / ttk 被替换、建控件 / 事件循环时直接崩溃。
+import tkinter as tk  # noqa: E402
+from tkinter import ttk  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(HERE)
 STEEL_DIR = os.path.join(REPO_ROOT, '型钢截面生成器')
-# 公共库在 模块/公共/，本插件几何在 模块/L型管架/。
+# 公共库在 模块/公共/，本插件几何在 模块/L型管架/；仓库根提供共享 UI 工具箱。
 COMMON_DIR = os.path.join(HERE, '模块', '公共')
 GEOM_DIR = os.path.join(HERE, '模块', 'L型管架')
-for _path in (COMMON_DIR, GEOM_DIR, STEEL_DIR):
+for _path in (COMMON_DIR, GEOM_DIR, STEEL_DIR, REPO_ROOT):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
-import 端焊三角架_基础 as base  # noqa: E402
+# 共享 UI 工具箱在导入前强制重读一次，避免拿到 MicroStation 缓存的旧模块。
+try:
+    import bentley_ui.glass as _glass_module  # noqa: F401
+    import bentley_ui as _bentley_ui_module  # noqa: F401
+    importlib.reload(_glass_module)
+    importlib.reload(_bentley_ui_module)
+except Exception:
+    pass
+
+from bentley_ui import (  # noqa: E402
+    BORDER,
+    CARD,
+    CARD_SOFT,
+    FIELD,
+    INK,
+    MUTED,
+    UI_FONT,
+    UI_FONT_BOLD,
+    UI_FONT_SMALL,
+    GlassDialog,
+    RoundButton,
+    ScrollFrame,
+)
+
 import L型管架_几何 as geom  # noqa: E402
 import 支吊架公共库 as psb  # noqa: E402
 from steel_sections import steel_sweep_geometry  # noqa: E402
@@ -66,15 +88,48 @@ SUPPORT_TYPE = 'L型管架'
 SUPPORT_CODE = 'L_PIPE_RACK'
 
 
-def _apply_base_overrides():
-    """把本插件的日志写入基础模块（重载后会丢失）。"""
-    base.DEBUG_LOG = DEBUG_LOG
+# ---------------------------------------------------------------------------
+# 参数
+# ---------------------------------------------------------------------------
+
+DEBUG_LOG = os.path.join(HERE, '模块', '日志', 'L型管架_debug_log.txt')
+try:
+    os.makedirs(os.path.dirname(DEBUG_LOG), exist_ok=True)
+except Exception:
+    pass
+
+UI_TITLE = 'L 型管架'
+
+# 整组构件写入的普通单元名。
+CELL_NAME = 'L_PIPE_RACK'
+
+COMPONENT_POST_NAME = '立杆'
+COMPONENT_ARM_NAME = '横担'
+
+# 允许荷载查询用的默认 B（mm）。
+DEFAULT_WIDTH_B_MM = 250.0
+
+# 选项变化后延迟重建的毫秒数：连点几下只重建一次。
+REGENERATE_DELAY_MS = 150        # 下拉框的防抖
+TEXT_REGENERATE_DELAY_MS = 750   # 文本框的防抖，避免打到一半就重建
+
+
+def _log(message):
+    try:
+        with open(DEBUG_LOG, 'a', encoding='utf-8') as log_file:
+            log_file.write(str(message) + '\n')
+    except Exception:
+        pass
+
+
+def _log_exception(title):
+    _log('%s: %s' % (title, traceback.format_exc()))
 
 
 def _reload_runtime_modules():
     """每次运行都强制重新读取本插件与依赖模块，规避 MicroStation 缓存。"""
     importlib.invalidate_caches()
-    for module in (geom, steel_sweep_geometry, psb, base):
+    for module in (geom, steel_sweep_geometry, psb):
         try:
             importlib.reload(module)
         except Exception:
@@ -89,35 +144,6 @@ def _reload_runtime_modules():
                 importlib.reload(module)
             except Exception:
                 pass
-    _apply_base_overrides()
-
-
-# ---------------------------------------------------------------------------
-# 参数
-# ---------------------------------------------------------------------------
-
-DEBUG_LOG = os.path.join(HERE, '模块', '日志', 'L型管架_debug_log.txt')
-
-UI_TITLE = 'L 型管架'
-UI_REVISION = 'line-select-1'
-
-# 整组构件写入的普通单元名。
-CELL_NAME = 'L_PIPE_RACK'
-
-COMPONENT_POST_NAME = '立杆'
-COMPONENT_ARM_NAME = '横担'
-
-# 允许荷载查询用的默认 B（mm）。
-DEFAULT_WIDTH_B_MM = 250.0
-
-# 交付给基础模块的覆盖项：日志。
-base.DEBUG_LOG = DEBUG_LOG
-
-_log = base._log
-
-
-def _log_exception(title):
-    _log('%s: %s' % (title, traceback.format_exc()))
 
 
 # ---------------------------------------------------------------------------
@@ -511,267 +537,317 @@ def export_bom_json(output_path=None):
 # ---------------------------------------------------------------------------
 
 
-class _PipeRackTitleBar(QWidget):
-    """无边框窗口的自绘标题栏：只保留关闭钮，空白处按住可拖动窗口。"""
-
-    def __init__(self, title, on_close, parent=None):
-        super().__init__(parent)
-        self.setFixedHeight(46)
-        self._drag_offset = None
-        row = QHBoxLayout(self)
-        row.setContentsMargins(18, 0, 10, 0)
-        row.setSpacing(9)
-        dot = QLabel(self)
-        dot.setFixedSize(9, 9)
-        dot.setStyleSheet('background: #4A66E0; border-radius: 4px;')
-        dot.setAttribute(Qt.WA_TransparentForMouseEvents, True)
-        caption = QLabel(title, self)
-        caption.setStyleSheet('font-size: 14px; font-weight: 600;'
-                              ' color: #39435A;')
-        caption.setAttribute(Qt.WA_TransparentForMouseEvents, True)
-        row.addWidget(dot)
-        row.addWidget(caption)
-        row.addStretch(1)
-        row.addWidget(base.NeuIconButton(self, 'close', on_close, danger=True))
-
-    def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            self._drag_offset = (event.globalPos()
-                                 - self.window().frameGeometry().topLeft())
-            event.accept()
-            return
-        super().mousePressEvent(event)
-
-    def mouseMoveEvent(self, event):
-        if self._drag_offset is not None and event.buttons() & Qt.LeftButton:
-            self.window().move(event.globalPos() - self._drag_offset)
-            event.accept()
-            return
-        super().mouseMoveEvent(event)
-
-    def mouseReleaseEvent(self, event):
-        self._drag_offset = None
-        super().mouseReleaseEvent(event)
+# 管架类型（编号后缀）选项：类型 1/2 立杆在下，类型 3/4 为吊架（立杆在上）。
+RACK_TYPE_OPTIONS = (
+    (1, '类型1  |  立杆在下（端焊）'),
+    (2, '类型2  |  立杆在下（侧焊）'),
+    (3, '类型3  |  立杆在上（端焊·吊架）'),
+    (4, '类型4  |  立杆在上（侧焊·吊架）'),
+)
 
 
-class _PipeRackSettingsDialog(QWidget):
-    """子项 / 类型 / B / 编号 选择，预览 / 确定 / 取消面板。"""
+class _PipeRackDialog(GlassDialog):
+    """子项 / 类型 / B / 编号 选择，预览 / 导出 / 确定 / 取消面板。"""
 
-    RADIUS = base.UI_RADIUS
+    STATE_KEY = 'LPipeRack'
+    # UI 刷新轮询周期（ms）：原生回调只写状态，由这个常驻定时器统一刷进控件。
+    POLL_MS = 120
 
     def __init__(self):
-        self._app = base.ensure_qt_app()
-        super().__init__()
-        self.setWindowTitle(UI_TITLE)
-        self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint)
-        self.setAutoFillBackground(True)
-        palette = self.palette()
-        palette.setColor(QPalette.Window, base.UI_BG)
-        self.setPalette(palette)
-        self.setStyleSheet('QWidget {font-family: "Microsoft YaHei UI";}')
-
+        GlassDialog.__init__(self, title=UI_TITLE)
         self.line = None
         self.line_handle = None
         self.preview_handle = None
         self.preview_result = None
         self.confirmed = False
-        self.variant_combo = None
-        self.option_widgets = []
-        self._running = True
-        self._allow_close = False
-        self._finish_requested = False
-        self._event_loop = QEventLoop()
 
-        self._regen_timer = QTimer(self)
-        self._regen_timer.setSingleShot(True)
-        self._regen_timer.setInterval(base.REGENERATE_DELAY_MS)
-        self._regen_timer.timeout.connect(self._run_pending_regeneration)
-        self._text_timer = QTimer(self)
-        self._text_timer.setSingleShot(True)
-        self._text_timer.setInterval(base.TEXT_REGENERATE_DELAY_MS)
-        self._text_timer.timeout.connect(self._run_pending_regeneration)
+        # 关键：MicroStation 的原生回调（_OnPostLocate / _OnElementModify /
+        # _OnResetButton / _OnCleanup）会在 Tk 的 update() 里被**重入式**调用；
+        # 此时任何 Tcl 调用（after / StringVar.set / 控件 configure / destroy）
+        # 都可能弄坏 Tcl 的事件队列，随后 update() 直接访问冲突崩溃。因此回调里
+        # 只写普通 Python 状态，所有 Tk 刷新交给常驻定时器 _poll_ui 完成。
+        self._poll_job = None
+        self._regen_deadline = None
+        self._hover_line = None
+        self._pending_result = None
+        self._pending_message = None
+        self._pending_is_error = False
+        self._shutdown_requested = False
+        self._cancel_requested = False
+        # 供原生回调使用的纯 Python 缓存（绝不能在回调里读控件 = 调 Tcl）。
+        self._rack_type_cache = 1
 
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
-        outer.setSpacing(0)
-        outer.addWidget(_PipeRackTitleBar(UI_TITLE, self.cancel_tool))
+        self._variant = tk.StringVar()
+        self._rack_type = tk.StringVar()
+        self._width = tk.StringVar(value='%.0f' % DEFAULT_WIDTH_B_MM)
+        self._rack_name = tk.StringVar(value='D5')
+        self._keep_line = tk.BooleanVar(value=True)
+        self._spec = tk.StringVar(value='—')
+        self._post = tk.StringVar(value='—')
+        self._arm = tk.StringVar(value='—')
+        self._load = tk.StringVar(value='—')
+        self._load_note = tk.StringVar(value='')
+        self._rack_number = tk.StringVar(value='—')
+        self._spec_info = tk.StringVar(value='')
+        self._preview_info = tk.StringVar(value='预览：—')
+        self._status = tk.StringVar()
+        self._variant_by_label = {}
+        self._type_by_label = {}
 
-        body = QVBoxLayout()
-        body.setContentsMargins(3, 0, 3, 3)
-        body.setSpacing(0)
-        outer.addLayout(body)
+        self._build()
+        self.restore_state()
+        self.restore_position()
 
-        hint_row = QVBoxLayout()
-        hint_row.setContentsMargins(15, 0, 15, 0)
-        hint = QLabel("在模型中点选一条 L 形折线：竖直线为立杆轴线，水平线为横担"
-                      "顶面（固定管子的面）。两段须共享拐点、大致垂直。类型 1/2 要求"
-                      "立杆在下（竖直段在拐点下方）；类型 3/4 为吊架、要求立杆在上"
-                      "（竖直段在拐点上方）。点取后可改参数，预览自动重建；点【确定】"
-                      "保留，点【取消】或右键放弃。")
-        hint.setWordWrap(True)
-        hint.setStyleSheet('color: #7D8AA0; font-size: 12px;')
-        hint_row.addWidget(hint)
-        body.addLayout(hint_row)
-        body.addSpacing(6)
+        # 关闭窗口时按"取消"处理：丢弃预览并结束工具。
+        self.protocol('WM_DELETE_WINDOW', self.cancel_tool)
+        self._start_poll()
+        _log('panel built file=%s' % os.path.abspath(__file__))
 
-        card = base.NeuCard("构件规格（表 3）")
-        self.variant_combo = self._register(base.NeuCombo(
-            list(geom.variant_choices()),
-            current=geom.DEFAULT_VARIANT, on_change=self.on_options_changed))
-        self._row(card.content, 0, "子项：", [self.variant_combo], 16)
-        self.spec_label = self._value()
-        self._row(card.content, 1, "构件A（立杆 / 横担）：", [self.spec_label])
-        body.addWidget(card)
+    # -- 构建 --------------------------------------------------------------
 
-        card = base.NeuCard("尺寸参数")
-        self.post_label = self._value()
-        self._row(card.content, 0, "立杆高 H：",
-                  [self.post_label, self._note("mm　由所选竖直线自动读取")], 8)
-        self.arm_label = self._value()
-        self._row(card.content, 1, "横担长 L：",
-                  [self.arm_label, self._note("mm　由所选水平线自动读取")], 8)
-        self.width_edit = self._edit_row(
-            card.content, 2, "B：", '%.0f' % DEFAULT_WIDTH_B_MM,
-            "mm　管架水平参数，用于查允许垂直荷载")
-        self.load_label = self._value()
-        self._row(card.content, 3, "允许垂直荷载：",
-                  [self.load_label, self._note("kN　按表 1 / 表 2")], 8)
-        body.addWidget(card)
+    def _build(self):
+        form = self.build_shell(
+            UI_TITLE, '点选 L 形折线生成 L 型管架 · 改参数自动重建预览')
+        form.columnconfigure(0, weight=1)
+        form.rowconfigure(0, weight=1)
+        # 只有参数 / 说明区可滚动；勾选框和按钮钉在底部。
+        self._scroll = ScrollFrame(form, bg=CARD, height=520)
+        self._scroll.grid(row=0, column=0, sticky='nsew')
+        body = self._scroll.body
+        body.columnconfigure(1, weight=1)
 
-        card = base.NeuCard("管架编号")
-        self.rack_name_edit = self._edit_row(
-            card.content, 0, "名称：", 'D5', "管架系列代号；留空则不附加编号")
-        self.rack_type_combo = self._register(base.NeuCombo(
-            [(1, '类型1  |  立杆在下（端焊）'),
-             (2, '类型2  |  立杆在下（侧焊）'),
-             (3, '类型3  |  立杆在上（端焊·吊架）'),
-             (4, '类型4  |  立杆在上（侧焊·吊架）')],
-            current=1, on_change=self.on_options_changed))
-        self._row(card.content, 1, "类型：", [self.rack_type_combo], 16)
-        self.rack_label = self._value()
-        self._row(card.content, 2, "编号：",
-                  [self.rack_label, self._note("名称-类型-子项-H-L（整数）")], 8)
-        body.addWidget(card)
+        tk.Label(
+            body,
+            text='点选一条 L 形折线：竖直线为立杆轴线，水平线为横担顶面'
+                 '（固定管子的面）。类型1/2 要求立杆在下；类型3/4 为吊架、'
+                 '要求立杆在上。点【确定】保留，点【取消】放弃。',
+            bg=CARD, fg=MUTED, font=UI_FONT_SMALL, justify='left',
+            wraplength=320,
+        ).grid(row=0, column=0, columnspan=2, sticky='w')
 
-        card = base.NeuCard("创建选项")
-        self.keep_toggle = self._register(base.NeuToggle("创建后保留所选 L 形线"))
-        self.keep_toggle.setChecked(True)
-        card.content.addWidget(self.keep_toggle, 0, 0, 1, 2)
-        body.addWidget(card)
+        ttk.Label(body, text='构件规格（表 3）', style='Section.TLabel').grid(
+            row=1, column=0, columnspan=2, sticky='w', pady=(10, 4))
 
-        summary = base.NeuPanel()
-        self.spec_info_label = self._info("", base.UI_TEXT)
-        summary.content.addWidget(self.spec_info_label)
-        self.preview_info_label = self._info("预览：—", base.UI_TEXT)
-        summary.content.addWidget(self.preview_info_label)
-        self.status_label = self._info(
-            "请在模型中点选一条 L 形折线；改参数会自动重建预览。",
-            base.UI_INFO)
-        summary.content.addWidget(self.status_label)
-        body.addWidget(summary)
+        ttk.Label(body, text='子项', style='GlassMuted.TLabel').grid(
+            row=2, column=0, sticky='nw', pady=6)
+        labels = []
+        for key, label in geom.variant_choices():
+            labels.append(label)
+            self._variant_by_label[label] = key
+        self._variant_combo = ttk.Combobox(
+            body, textvariable=self._variant, state='readonly', width=22,
+            style='Glass.TCombobox', values=labels)
+        self._variant_combo.grid(row=2, column=1, sticky='ew', padx=(10, 0),
+                                 pady=6)
+        self._variant_combo.bind('<<ComboboxSelected>>', self.on_options_changed)
+        self._variant.set(self._label_for_variant(geom.DEFAULT_VARIANT, labels))
 
-        button_row = QHBoxLayout()
-        button_row.setContentsMargins(3, 0, 3, 0)
-        button_row.setSpacing(0)
-        self.cancel_button = base.NeuButton("取消")
-        self.cancel_button.setFixedWidth(126)
-        self.cancel_button.clicked.connect(self.cancel_tool)
-        self.export_button = base.NeuButton("导出 JSON 清单")
-        self.export_button.setFixedWidth(150)
-        self.export_button.clicked.connect(self.export_bom)
-        self.confirm_button = base.NeuButton("确定", accent=True)
-        self.confirm_button.setFixedWidth(126)
-        self.confirm_button.clicked.connect(self.confirm_tool)
-        button_row.addStretch(1)
-        button_row.addWidget(self.cancel_button)
-        button_row.addWidget(self.export_button)
-        button_row.addWidget(self.confirm_button)
-        body.addLayout(button_row)
-        self.action_widgets = [
-            self.confirm_button, self.cancel_button, self.export_button]
+        self._value_row(body, 3, '构件A（立杆 / 横担）', self._spec)
 
-        self.refresh_spec()
-        self.setMinimumWidth(560)
-        self.adjustSize()
-        self.setFixedSize(self.sizeHint().expandedTo(self.minimumSizeHint()))
-        try:
-            _stamp = int(os.path.getmtime(os.path.abspath(__file__)))
-        except Exception:
-            _stamp = 0
-        _log('panel built %dx%d rev=%s file=%s mtime=%d'
-             % (self.width(), self.height(), UI_REVISION,
-                os.path.abspath(__file__), _stamp))
-        self.hwnd = int(self.winId())
-        PyCadInputQueue.AttachQtToolSetting(self.hwnd)
+        ttk.Separator(body, orient='horizontal').grid(
+            row=4, column=0, columnspan=2, sticky='ew', pady=10)
 
-    # -- 控件构造 ----------------------------------------------------------
+        ttk.Label(body, text='尺寸参数', style='Section.TLabel').grid(
+            row=5, column=0, columnspan=2, sticky='w', pady=(0, 4))
 
-    def _register(self, widget):
-        self.option_widgets.append(widget)
-        return widget
+        self._value_row(body, 6, '立杆高 H', self._post,
+                        note='mm　由所选竖直线自动读取')
+        self._value_row(body, 7, '横担长 L', self._arm,
+                        note='mm　由所选水平线自动读取')
+        self._width_entry = self._entry_row(
+            body, 8, 'B', self._width, 9,
+            note='mm　管架水平参数，用于查允许垂直荷载')
 
-    def _row(self, grid, row, name, widgets, spacing=18):
-        label = QLabel(name, self)
-        label.setStyleSheet('color: #39435A; font-size: 13px;')
-        grid.addWidget(label, row, 0, Qt.AlignLeft | Qt.AlignVCenter)
-        holder = QWidget(self)
-        line = QHBoxLayout(holder)
-        line.setContentsMargins(0, 0, 0, 0)
-        line.setSpacing(spacing)
-        for widget in widgets:
-            line.addWidget(widget)
-        line.addStretch(1)
-        grid.addWidget(holder, row, 1)
-        grid.setColumnStretch(1, 1)
+        ttk.Label(body, text='允许垂直荷载', style='GlassMuted.TLabel').grid(
+            row=9, column=0, sticky='nw', pady=6)
+        load_holder = tk.Frame(body, bg=CARD)
+        load_holder.grid(row=9, column=1, sticky='w', padx=(10, 0), pady=6)
+        load_top = tk.Frame(load_holder, bg=CARD)
+        load_top.pack(anchor='w')
+        tk.Label(load_top, textvariable=self._load, bg=CARD, fg=INK,
+                 font=UI_FONT_BOLD).pack(side='left')
+        tk.Label(load_top, text='kN', bg=CARD, fg=MUTED,
+                 font=UI_FONT_SMALL).pack(side='left', padx=(6, 0))
+        tk.Label(load_holder, textvariable=self._load_note, bg=CARD, fg=MUTED,
+                 font=UI_FONT_SMALL, anchor='w', justify='left',
+                 wraplength=240).pack(anchor='w')
+
+        ttk.Separator(body, orient='horizontal').grid(
+            row=10, column=0, columnspan=2, sticky='ew', pady=10)
+
+        ttk.Label(body, text='管架编号', style='Section.TLabel').grid(
+            row=11, column=0, columnspan=2, sticky='w', pady=(0, 4))
+
+        self._rack_name_entry = self._entry_row(
+            body, 12, '名称', self._rack_name, 12,
+            note='管架系列代号；留空则不附加编号')
+
+        ttk.Label(body, text='类型', style='GlassMuted.TLabel').grid(
+            row=13, column=0, sticky='nw', pady=6)
+        type_labels = []
+        for key, label in RACK_TYPE_OPTIONS:
+            type_labels.append(label)
+            self._type_by_label[label] = key
+        self._rack_type_combo = ttk.Combobox(
+            body, textvariable=self._rack_type, state='readonly', width=22,
+            style='Glass.TCombobox', values=type_labels)
+        self._rack_type_combo.grid(row=13, column=1, sticky='ew', padx=(10, 0),
+                                   pady=6)
+        self._rack_type_combo.bind('<<ComboboxSelected>>',
+                                   self.on_options_changed)
+        self._rack_type.set(type_labels[0])
+
+        self._value_row(body, 14, '编号', self._rack_number,
+                        note='名称-类型-子项-H-L（整数）')
+
+        ttk.Separator(body, orient='horizontal').grid(
+            row=15, column=0, columnspan=2, sticky='ew', pady=10)
+
+        # 规格说明 / 预览 / 状态放进滚动区，随内容一起滚动。
+        self._spec_info_label = tk.Label(
+            body, textvariable=self._spec_info, bg=CARD, fg=MUTED,
+            font=UI_FONT_SMALL, justify='left', anchor='w', wraplength=320)
+        self._spec_info_label.grid(row=16, column=0, columnspan=2, sticky='w')
+        tk.Label(body, textvariable=self._preview_info, bg=CARD, fg=INK,
+                 font=UI_FONT_BOLD, justify='left', anchor='w',
+                 wraplength=320).grid(row=17, column=0, columnspan=2, sticky='w',
+                                      pady=(4, 0))
+
+        chip = tk.Frame(body, bg=CARD_SOFT, highlightbackground=BORDER,
+                        highlightthickness=1)
+        chip.grid(row=18, column=0, columnspan=2, sticky='ew', pady=(8, 0))
+        self._status_label = tk.Label(
+            chip, textvariable=self._status, bg=CARD_SOFT, fg='#1f5f99',
+            font=UI_FONT_SMALL, wraplength=320, justify='left')
+        self._status_label.pack(anchor='w', padx=12, pady=8)
+
+        # -- 钉在底部：创建选项 + 按钮 --------------------------------------
+        self._keep_check = tk.Checkbutton(
+            form, text='创建后保留所选 L 形线', variable=self._keep_line,
+            bg=CARD, fg=INK, activebackground=CARD, selectcolor=CARD,
+            font=UI_FONT, highlightthickness=0, bd=0)
+        self._keep_check.grid(row=1, column=0, sticky='w', pady=(8, 0))
+
+        buttons = tk.Frame(form, bg=CARD)
+        buttons.grid(row=2, column=0, sticky='ew', pady=(6, 0))
+        self._confirm_button = RoundButton(
+            buttons, '确定', self.confirm_tool, primary=True, bg=CARD,
+            font=UI_FONT, font_bold=UI_FONT_BOLD)
+        self._export_button = RoundButton(
+            buttons, '导出清单', self.export_bom, bg=CARD,
+            font=UI_FONT, font_bold=UI_FONT_BOLD)
+        self._cancel_button = RoundButton(
+            buttons, '取消', self.cancel_tool, bg=CARD,
+            font=UI_FONT, font_bold=UI_FONT_BOLD)
+        self._confirm_button.pack(side='right')
+        self._export_button.pack(side='right', padx=(0, 8))
+        self._cancel_button.pack(side='right', padx=(0, 8))
+
+        self._width.trace_add('write', self.on_text_changed)
+        self._rack_name.trace_add('write', self.on_text_changed)
+
+    def _entry(self, parent, variable, width):
+        entry = tk.Entry(
+            parent, textvariable=variable, width=width, font=UI_FONT, fg=INK,
+            bg=FIELD, relief='flat', highlightthickness=1,
+            highlightbackground=BORDER, highlightcolor='#9FB4CC',
+            insertbackground=INK, justify='center')
+        entry.pack(side='left', ipady=3)
+        return entry
+
+    def _value_row(self, parent, row, name, textvariable, note=''):
+        """左列名称、右列数值；备注放在数值**下方**，用更小的淡色字体。"""
+        ttk.Label(parent, text=name, style='GlassMuted.TLabel').grid(
+            row=row, column=0, sticky='nw', pady=6)
+        holder = tk.Frame(parent, bg=CARD)
+        holder.grid(row=row, column=1, sticky='w', padx=(10, 0), pady=6)
+        tk.Label(holder, textvariable=textvariable, bg=CARD, fg=INK,
+                 font=UI_FONT_BOLD, anchor='w', justify='left',
+                 wraplength=240).pack(anchor='w')
+        if note:
+            tk.Label(holder, text=note, bg=CARD, fg=MUTED,
+                     font=UI_FONT_SMALL, anchor='w', justify='left',
+                     wraplength=240).pack(anchor='w')
         return holder
 
-    def _edit_row(self, grid, row, name, value, note):
-        field = base.NeuEdit(value, width=96)
-        self._register(field.edit)
-        field.edit.textChanged.connect(self.on_text_changed)
-        self._row(grid, row, name, [field, self._note(note)], 8)
-        return field
+    def _entry_row(self, parent, row, name, variable, width, note=''):
+        """左列名称、右列输入框；备注放在输入框**下方**，用更小的淡色字体。"""
+        ttk.Label(parent, text=name, style='GlassMuted.TLabel').grid(
+            row=row, column=0, sticky='nw', pady=6)
+        holder = tk.Frame(parent, bg=CARD)
+        holder.grid(row=row, column=1, sticky='w', padx=(10, 0), pady=6)
+        entry_line = tk.Frame(holder, bg=CARD)
+        entry_line.pack(anchor='w')
+        entry = self._entry(entry_line, variable, width)
+        if note:
+            tk.Label(holder, text=note, bg=CARD, fg=MUTED,
+                     font=UI_FONT_SMALL, anchor='w', justify='left',
+                     wraplength=240).pack(anchor='w')
+        return entry
 
-    def _value(self):
-        label = QLabel('—', self)
-        label.setStyleSheet('color: #39435A; font-size: 13px;'
-                            ' font-weight: 600;')
-        return label
+    def _label_for_variant(self, variant_key, labels=None):
+        for label, key in self._variant_by_label.items():
+            if key == variant_key:
+                return label
+        if labels:
+            return labels[0]
+        return ''
 
-    def _note(self, text):
-        label = QLabel(text, self)
-        label.setStyleSheet('color: #7D8AA0; font-size: 12px;')
-        return label
+    # -- 记忆 --------------------------------------------------------------
 
-    def _info(self, text, color):
-        label = QLabel(text, self)
-        label.setWordWrap(True)
-        label.setStyleSheet('color: %s; font-size: 11px;' % color.name())
-        return label
+    def restore_state(self):
+        state = self.ui_state
+        variant = state.get('variant')
+        label = self._label_for_variant(variant)
+        if label:
+            self._variant.set(label)
+        rack_type = state.get('rack_type')
+        for text, key in self._type_by_label.items():
+            if key == rack_type:
+                self._rack_type.set(text)
+                break
+        width = state.get('width')
+        if isinstance(width, str) and width.strip():
+            self._width.set(width)
+        rack_name = state.get('rack_name')
+        if isinstance(rack_name, str):
+            self._rack_name.set(rack_name)
+        if isinstance(state.get('keep_line'), bool):
+            self._keep_line.set(state.get('keep_line'))
+        self._rack_type_cache = self.current_rack_type()
+        self.refresh_spec()
+
+    def persist_state(self, state):
+        try:
+            state['variant'] = self.current_variant()
+            state['rack_type'] = self.current_rack_type()
+            state['width'] = self._width.get()
+            state['rack_name'] = self._rack_name.get()
+            state['keep_line'] = bool(self._keep_line.get())
+        except Exception:
+            pass
 
     # -- 选项 --------------------------------------------------------------
 
     def current_variant(self):
-        if self.variant_combo is None:
-            return geom.DEFAULT_VARIANT
-        return self.variant_combo.value() or geom.DEFAULT_VARIANT
+        return self._variant_by_label.get(self._variant.get(),
+                                          geom.DEFAULT_VARIANT)
 
     def current_rack_type(self):
-        if self.rack_type_combo is None:
-            return 1
-        try:
-            return int(self.rack_type_combo.value())
-        except (TypeError, ValueError):
-            return 1
+        return self._type_by_label.get(self._rack_type.get(), 1)
 
     def current_width(self):
         try:
-            return float(self.width_edit.value())
+            return float((self._width.get() or '').strip())
         except (TypeError, ValueError):
             return DEFAULT_WIDTH_B_MM
 
     def current_hanger(self):
         return geom.hanger_type(self.current_rack_type())
+
+    def hanger_hint(self):
+        """供原生回调使用：当前是否吊架。纯 Python，不读控件。"""
+        return geom.hanger_type(self._rack_type_cache)
 
     def current_options(self):
         variant_key = self.current_variant()
@@ -782,7 +858,7 @@ class _PipeRackSettingsDialog(QWidget):
             'variant': variant_key,
             'rack_type': rack_type,
             'hanger': geom.hanger_type(rack_type),
-            'rack_name': self.rack_name_edit.value().strip(),
+            'rack_name': (self._rack_name.get() or '').strip(),
             'width': self.current_width(),
         }
 
@@ -791,22 +867,24 @@ class _PipeRackSettingsDialog(QWidget):
         if line is None:
             return ''
         return _build_rack_number(
-            self.rack_name_edit.value(), self.current_rack_type(),
+            self._rack_name.get(), self.current_rack_type(),
             self.current_variant(), line.post_height_mm, line.arm_length_mm)
 
     def set_status(self, message, is_error=False, flush=True):
-        self.status_label.setStyleSheet(
-            'color: %s; font-size: 11px;'
-            % (base.UI_ERROR if is_error else base.UI_INFO).name())
-        self.status_label.setText(message)
-        if flush:
-            QApplication.processEvents()
+        # 只在 Tk 定时器 / 控件回调上下文里刷新；不调用 update_idletasks，
+        # 避免在 after 回调里重入 Tk 的事件处理。
+        try:
+            self._status_label.configure(
+                fg='#b42318' if is_error else '#1f5f99')
+            self._status.set(message)
+        except tk.TclError:
+            pass
 
     def set_result(self, result):
         number = result.get('pipe_rack_number') or '—'
-        self.preview_info_label.setText(
-            "预览：子项 %s，类型 %d，%s，H=%.0f mm，L=%.0f mm，"
-            "单元含 %d 个子元素；编号 %s。" % (
+        self._preview_info.set(
+            '预览：子项 %s，类型 %d，%s，H=%.0f mm，L=%.0f mm，'
+            '单元含 %d 个子元素；编号 %s。' % (
                 result['variant'], result['rack_type'],
                 result['specification'], result['post_height'],
                 result['arm_length'], result['child_count'], number,
@@ -815,53 +893,48 @@ class _PipeRackSettingsDialog(QWidget):
 
     def refresh_spec(self):
         variant_key = self.current_variant()
-        self.spec_label.setText(geom.specification(variant_key))
+        self._spec.set(geom.specification(variant_key))
         hanger = self.current_hanger()
         position = '立杆在上（吊架）' if hanger else '立杆在下'
         if self._options_valid():
-            self.spec_info_label.setStyleSheet(
-                'color: %s; font-size: 11px;' % base.UI_TEXT.name())
-            self.spec_info_label.setText(
+            self._spec_info_label.configure(fg=INK)
+            self._spec_info.set(
                 '构件A：立杆与横担同规格 %s（%s）；%s。'
                 % (geom.specification(variant_key),
                    _family_description(variant_key, hanger), position))
         else:
-            self.spec_info_label.setStyleSheet(
-                'color: %s; font-size: 11px;' % base.UI_ERROR.name())
-            self.spec_info_label.setText(self._invalid_message())
+            self._spec_info_label.configure(fg='#b42318')
+            self._spec_info.set(self._invalid_message())
         self.refresh_line_labels()
 
     def _show_line_values(self, line):
         if line is None:
-            self.post_label.setText('—')
-            self.arm_label.setText('—')
-            self.load_label.setText('—')
-            self.load_label.setToolTip('')
-            self.rack_label.setText('—')
+            self._post.set('—')
+            self._arm.set('—')
+            self._load.set('—')
+            self._load_note.set('')
+            self._rack_number.set('—')
             return
-        self.post_label.setText('%.1f' % line.post_height_mm)
-        self.arm_label.setText('%.1f' % line.arm_length_mm)
+        self._post.set('%.1f' % line.post_height_mm)
+        self._arm.set('%.1f' % line.arm_length_mm)
 
         result = geom.allowable_load(
             self.current_variant(), line.post_height_mm, self.current_width())
         if result.value is None:
-            self.load_label.setText('—')
+            self._load.set('—')
         else:
-            self.load_label.setText('%.2f' % result.value)
-        self.load_label.setToolTip(result.message or '')
+            self._load.set('%.2f' % result.value)
+        self._load_note.set(result.message or '')
 
         number = self.current_rack_number(line)
-        self.rack_label.setText(number if number else '（名称留空，不附加）')
+        self._rack_number.set(number if number else '（名称留空，不附加）')
 
     def refresh_line_labels(self):
         self._show_line_values(self.line)
 
-    def _set_busy(self, busy):
-        for widget in self.option_widgets + self.action_widgets:
-            widget.setEnabled(not busy)
-        QApplication.processEvents()
-
-    def on_options_changed(self, *_unused):
+    def on_options_changed(self, event=None):
+        # 在 Tk 事件里刷新原生回调要用的纯 Python 缓存（读控件在这里是安全的）。
+        self._rack_type_cache = self.current_rack_type()
         self.refresh_spec()
         if not self._options_valid():
             # 子项与类型冲突：不生成（并撤掉可能过期的预览），只提示。
@@ -869,7 +942,7 @@ class _PipeRackSettingsDialog(QWidget):
             self.discard_preview()
             self.set_status(self._invalid_message(), True)
             return
-        self._schedule_regeneration(self._regen_timer)
+        self._schedule_regeneration(REGENERATE_DELAY_MS)
 
     def _options_valid(self):
         return geom.variant_supports_type(
@@ -888,30 +961,101 @@ class _PipeRackSettingsDialog(QWidget):
         self.refresh_spec()
         if not self._options_valid():
             return
-        self._schedule_regeneration(self._text_timer)
+        self._schedule_regeneration(TEXT_REGENERATE_DELAY_MS)
 
-    def _schedule_regeneration(self, timer):
+    def _schedule_regeneration(self, delay_ms):
+        # 纯 Python，不碰 Tcl：可能由原生回调调用。
         self._cancel_pending_regeneration()
         if self.line is None:
             return
-        timer.start()
+        self._regen_deadline = time.monotonic() + delay_ms / 1000.0
 
     def _cancel_pending_regeneration(self):
-        self._regen_timer.stop()
-        self._text_timer.stop()
-
-    def _run_pending_regeneration(self):
-        self.regenerate()
+        self._regen_deadline = None
 
     def note_hover(self, line):
-        """悬停到一条合规 L 形线上：只刷新数值显示，不改变已选定的线。"""
-        if self.line is None:
-            self._show_line_values(line)
+        """悬停到一条合规 L 形线上：只记 Python 状态，由 poll 定时器刷新。"""
+        self._hover_line = line
+
+    def note_hover_error(self, message):
+        """悬停到不合规元素：只登记提示（不碰 Tcl），由 poll 定时器刷新。"""
+        self._pending_message = message
+        self._pending_is_error = True
+
+    def request_cancel(self):
+        """原生回调里请求取消：只置标志，由 poll 定时器执行。"""
+        self._cancel_requested = True
+
+    def request_shutdown(self):
+        """原生回调里请求关闭：只置标志，由 poll 定时器执行。"""
+        self._shutdown_requested = True
+
+    # -- UI 刷新：只允许在这个 Tk 定时器里碰控件 ---------------------------
+
+    def _start_poll(self):
+        """常驻 Tk 定时器：原生回调只写 Python 状态，真正刷新全在这里做。"""
+        try:
+            self._poll_job = self.after(self.POLL_MS, self._poll_ui)
+        except tk.TclError:
+            self._poll_job = None
+
+    def _poll_ui(self):
+        self._poll_job = None
+        try:
+            if self._shutdown_requested:
+                self._shutdown_requested = False
+                self.shutdown()
+                return
+            if self._cancel_requested:
+                self._cancel_requested = False
+                self.cancel_tool()
+                return
+            if (self._regen_deadline is not None
+                    and time.monotonic() >= self._regen_deadline):
+                self._regen_deadline = None
+                self.regenerate()
+            self._flush_ui()
+            self._poll_job = self.after(self.POLL_MS, self._poll_ui)
+        except tk.TclError:
+            self._poll_job = None
+        except Exception:
+            _log_exception('poll failed')
+            try:
+                self._poll_job = self.after(self.POLL_MS, self._poll_ui)
+            except tk.TclError:
+                self._poll_job = None
+
+    def _flush_ui(self):
+        try:
+            if self._pending_result is not None:
+                result = self._pending_result
+                message = self._pending_message or ''
+                self._pending_result = None
+                self._pending_message = None
+                self._pending_is_error = False
+                self.refresh_line_labels()
+                self.set_result(result)
+                self.set_status(message)
+            elif self._pending_message is not None:
+                message = self._pending_message
+                is_error = self._pending_is_error
+                self._pending_message = None
+                self._pending_is_error = False
+                self.set_status(message, is_error)
+            if self.line is None and self._hover_line is not None:
+                self._show_line_values(self._hover_line)
+        except tk.TclError:
+            pass
 
     # -- 预览 --------------------------------------------------------------
 
     def regenerate(self, line=None, handle=None):
-        """按当前 L 形线与选项重建预览：先建新的一版，成功后再删掉旧的。"""
+        """按当前 L 形线与选项重建预览：先建新的一版，成功后再删掉旧的。
+
+        可能由 MicroStation 的原生回调（选取元素）直接调用，故这里**只做
+        Bentley 建模**，结果写进普通 Python 状态；所有 Tk 控件刷新由常驻
+        定时器 :meth:`_poll_ui` 完成，避免在原生回调里重入 Tcl 崩溃。
+        """
         self._cancel_pending_regeneration()
         if line is not None:
             self.line = line
@@ -922,33 +1066,34 @@ class _PipeRackSettingsDialog(QWidget):
         try:
             options = self.current_options()
         except ValueError as error:
-            self.set_status('参数有误：%s' % error, True)
+            _log('regenerate: bad options: %s' % error)
+            self._pending_message = '参数有误：%s' % error
+            self._pending_is_error = True
             return None
 
-        self._set_busy(True)
-        self.set_status('正在生成 L 型管架预览，请稍候……')
+        _log('regenerate: start')
         try:
             handle, result, deleted = replace_pipe_rack(
                 self.line, options['variant'], self.preview_handle,
                 options['rack_type'], options['rack_name'])
         except Exception as error:
             message = 'L 型管架生成失败：%s' % error
-            self.set_status(message, True)
-            NotificationManager.OutputPrompt(message)
-            print(message)
             _log_exception('preview failed')
+            self._pending_message = message
+            self._pending_is_error = True
+            try:
+                NotificationManager.OutputPrompt(message)
+            except Exception:
+                _log_exception('OutputPrompt failed')
+            print(message)
             return None
-        finally:
-            self._set_busy(False)
 
         self.preview_handle = handle
         self.preview_result = result
-        self.refresh_line_labels()
-        self.set_result(result)
         message = (
-            "预览已更新：子项 %s，类型 %d，%s，H=%.0f mm，L=%.0f mm，"
-            "单元含 %d 个子元素，编号 %s。%s改参数会自动重建；"
-            "点【确定】保留，点【取消】放弃。" % (
+            '预览已更新：子项 %s，类型 %d，%s，H=%.0f mm，L=%.0f mm，'
+            '单元含 %d 个子元素，编号 %s。%s改参数会自动重建；'
+            '点【确定】保留，点【取消】放弃。' % (
                 result['variant'], result['rack_type'], result['specification'],
                 result['post_height'], result['arm_length'],
                 result['child_count'], result['pipe_rack_number'] or '—',
@@ -956,8 +1101,14 @@ class _PipeRackSettingsDialog(QWidget):
         )
         if result['warnings']:
             message += '注意：%s' % '；'.join(result['warnings'])
-        self.set_status(message)
-        NotificationManager.OutputPrompt(message)
+        self._pending_result = result
+        self._pending_message = message
+        self._pending_is_error = False
+        try:
+            NotificationManager.OutputPrompt(message)
+        except Exception:
+            _log_exception('OutputPrompt failed')
+        _log('regenerate: done')
         return result
 
     def discard_preview(self):
@@ -981,7 +1132,12 @@ class _PipeRackSettingsDialog(QWidget):
         return False
 
     def export_bom(self):
-        output_path = export_bom_json()
+        try:
+            output_path = export_bom_json()
+        except Exception as error:
+            _log_exception('export bom failed')
+            self.set_status('导出清单失败：%s' % error, True)
+            return
         if output_path is not None:
             self.set_status('清单已导出：%s' % output_path)
 
@@ -993,23 +1149,18 @@ class _PipeRackSettingsDialog(QWidget):
             self.set_status(self._invalid_message(), True)
             return
         self.confirmed = True
-        if self.preview_handle is not None and not self.keep_toggle.isChecked():
+        if self.preview_handle is not None and not self._keep_line.get():
             self.delete_source_line()
-        self._finish_requested = True
+        self.finish_tool()
 
     def cancel_tool(self):
         self._cancel_pending_regeneration()
         self.confirmed = False
         self.discard_preview()
-        self._finish_requested = True
+        self.finish_tool()
 
     def finish_tool(self):
-        """结束原生工具并直接收起面板。
-
-        正常路径下 StartDefaultCommand 会触发 _OnCleanup，再由其调用
-        :meth:`shutdown`；这里同时直接 shutdown 作为兜底，保证点【确定】/
-        【取消】后面板一定关闭，不会停在事件泵里。
-        """
+        """结束原生工具并收起面板：点【确定】/【取消】/关闭都走这里，退回默认命令。"""
         try:
             PyCommandState.StartDefaultCommand()
         except Exception:
@@ -1017,76 +1168,18 @@ class _PipeRackSettingsDialog(QWidget):
         self.shutdown()
 
     def shutdown(self):
-        """停止 Qt 事件泵并关闭面板（可重复调用）。"""
-        if not self._running and self._allow_close:
-            return
+        """关闭面板（可重复调用）。"""
+        if self._poll_job is not None:
+            try:
+                self.after_cancel(self._poll_job)
+            except Exception:
+                pass
+            self._poll_job = None
         try:
-            self._running = False
-            self._allow_close = True
-            self.close()
-        except RuntimeError:
+            if self.winfo_exists():
+                self.destroy()
+        except tk.TclError:
             pass
-
-    # -- 窗口 --------------------------------------------------------------
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing, True)
-        frame = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
-        painter.setPen(QPen(QColor(210, 218, 231), 1.0))
-        painter.setBrush(base.UI_BG)
-        painter.drawRoundedRect(frame, self.RADIUS, self.RADIUS)
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        path = QPainterPath()
-        path.addRoundedRect(QRectF(self.rect()), self.RADIUS, self.RADIUS)
-        self.setMask(QRegion(path.toFillPolygon().toPolygon()))
-
-    def closeEvent(self, event):
-        if self._allow_close:
-            event.accept()
-            return
-        event.ignore()
-        self.cancel_tool()
-
-    def run_dialog_loop(self):
-        screen = QApplication.primaryScreen()
-        if screen is not None:
-            area = screen.availableGeometry()
-            self.move(area.center().x() - self.width() // 2,
-                      area.center().y() - self.height() // 2)
-        self.show()
-        self.raise_()
-        self.activateWindow()
-        while self._running:
-            self._event_loop.processEvents()
-            if self._finish_requested:
-                self._finish_requested = False
-                self.finish_tool()
-                continue
-            PyCadInputQueue.PythonMainLoop()
-        self._teardown_window()
-
-    def _teardown_window(self):
-        """退出事件泵后收尾：关闭窗口、冲刷重绘并延迟销毁，避免 UI 残留。
-
-        无边框 + setMask 的自绘窗口若只 ``close()`` 不重绘，容易在屏幕上留下
-        残影；顶层窗口不 ``deleteLater()`` 会一直驻留。这里显式处理。
-        """
-        try:
-            self._running = False
-            self._allow_close = True
-            self.close()
-        except RuntimeError:
-            return
-        QApplication.processEvents()
-        try:
-            self.deleteLater()
-            QApplication.sendPostedEvents(None, QEvent.DeferredDelete)
-        except (RuntimeError, TypeError):
-            pass
-        QApplication.processEvents()
 
 
 def _family_description(variant_key, hanger=False):
@@ -1146,38 +1239,46 @@ class PipeRackByLineTool(DgnElementSetTool):
             return False
         try:
             handle = ElementHandle(path.GetHeadElem(), path.GetRoot())
-            hanger = (self.tool_settings is not None
-                      and self.tool_settings.current_hanger())
+            # 只读纯 Python 缓存，**绝不读控件**（读 StringVar = 调 Tcl，
+            # 会在 locate 回调里重入 Tcl 导致 OPM 原生崩溃）。
+            hanger = (self.tool_settings.hanger_hint()
+                      if self.tool_settings is not None else False)
             line = extract_l_shape(handle, hanger)
             if self.tool_settings is not None:
                 self.tool_settings.note_hover(line)
             return True
         except Exception as error:
             if self.tool_settings is not None:
-                self.tool_settings.set_status(str(error), True, flush=False)
+                try:
+                    self.tool_settings.note_hover_error(str(error))
+                except Exception:
+                    pass
             return False
 
     def _OnResetButton(self, event):
-        # 右键放弃：等同【取消】，确保面板与预览一并收掉。
+        # 右键放弃：等同【取消】。只置标志，由面板的 poll 定时器执行。
         settings = self.tool_settings
         if settings is not None:
-            QTimer.singleShot(0, settings.cancel_tool)
+            settings.request_cancel()
         return True
 
     def _OnElementModify(self, eeh):
         if self.tool_settings is None:
             return BentleyStatus.eERROR
         try:
-            line = extract_l_shape(eeh, self.tool_settings.current_hanger())
+            line = extract_l_shape(eeh, self.tool_settings.hanger_hint())
             result = self.tool_settings.regenerate(line, eeh)
             return (BentleyStatus.eSUCCESS if result is not None
                     else BentleyStatus.eERROR)
         except Exception as error:
             message = 'L 型管架生成失败：%s' % error
-            self.tool_settings.set_status(message, True)
-            NotificationManager.OutputPrompt(message)
-            print(message)
             _log_exception('element modify failed')
+            try:
+                self.tool_settings.note_hover_error(message)
+                NotificationManager.OutputPrompt(message)
+            except Exception:
+                pass
+            print(message)
             return BentleyStatus.eERROR
 
     def _OnRestartTool(self):
@@ -1195,7 +1296,8 @@ class PipeRackByLineTool(DgnElementSetTool):
                 settings.discard_preview()
         except Exception:
             pass
-        settings.shutdown()
+        # 原生回调里不碰 Tcl；由 poll 定时器执行关闭。
+        settings.request_shutdown()
 
     @staticmethod
     def InstallNewInstance(tool_id=0, tool_settings=None, start_ui_loop=True):
@@ -1204,14 +1306,13 @@ class PipeRackByLineTool(DgnElementSetTool):
             active = getattr(PipeRackByLineTool, '_active_settings', None)
             if active is not None:
                 try:
-                    if active._running:
-                        active.raise_()
-                        active.activateWindow()
+                    if active.winfo_exists():
+                        active.lift()
                         return None
-                except RuntimeError:
+                except tk.TclError:
                     pass
         settings = (tool_settings if tool_settings is not None
-                    else _PipeRackSettingsDialog())
+                    else _PipeRackDialog())
         if owner:
             PipeRackByLineTool._active_settings = settings
         tool = PipeRackByLineTool(tool_id)
@@ -1219,7 +1320,7 @@ class PipeRackByLineTool(DgnElementSetTool):
         tool.InstallTool()
         try:
             if start_ui_loop:
-                settings.run_dialog_loop()
+                settings.run_bentley_loop()
         finally:
             if owner:
                 PipeRackByLineTool._active_settings = None
@@ -1271,7 +1372,9 @@ def PyMain():
         _log('tool start failed: %s\n%s' % (error, detail))
         print('L 型管架工具启动失败：%s\n%s' % (error, detail))
         try:
-            QMessageBox.critical(None, UI_TITLE, '工具启动失败：%s' % error)
+            MessageCenter.ShowErrorMessage(
+                'L 型管架启动失败：%s\n详见日志：%s' % (error, DEBUG_LOG),
+                '', False)
         except Exception:
             pass
         return None

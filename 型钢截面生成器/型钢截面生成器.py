@@ -18,6 +18,11 @@ _PLUGIN_DIR = os.path.dirname(os.path.abspath(__file__))
 if _PLUGIN_DIR not in sys.path:
     sys.path.insert(0, _PLUGIN_DIR)
 
+# The repository root holds the shared ``bentley_ui`` UI toolkit.
+_REPO_ROOT = os.path.dirname(_PLUGIN_DIR)
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
 from steel_sections import (  # noqa: E402
     steel_channel_data,
     steel_channel_geometry,
@@ -45,6 +50,13 @@ _COMMANDS_LOADED = False
 def _reload_runtime_modules():
     """Reload only this plug-in's uniquely named modules."""
     importlib.invalidate_caches()
+    try:
+        import bentley_ui.glass
+        import bentley_ui
+        importlib.reload(bentley_ui.glass)
+        importlib.reload(bentley_ui)
+    except Exception:
+        pass
     for module in (
             steel_channel_data, steel_channel_geometry,
             steel_ibeam_data, steel_ibeam_geometry,

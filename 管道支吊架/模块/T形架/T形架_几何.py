@@ -650,3 +650,59 @@ def build_pipe_rack_number(name, rack_type, variant_key, height_mm, arm_mm):
     return '%s-%d-%s-%d-%d' % (
         label, int(rack_type), str(variant_key).upper(),
         round_half_up(height_mm), round_half_up(arm_mm))
+
+
+# ---------------------------------------------------------------------------
+# 地面固定：锚板 / 膨胀锚栓（表 2）
+# ---------------------------------------------------------------------------
+
+# 子项 -> 地面固定用的锚板 / 锚栓参数（mm）。
+#   plate_e        : 锚板边长 E（锚板 E×E）
+#   hole_spacing_f : 螺栓孔中心距 F（孔位 F×F，居中）
+#   hole_dia_g     : 螺栓孔直径 G
+#   plate_t        : 锚板厚 T
+#   bolt_dia/len   : 膨胀锚栓直径 / 长度 L
+#   embed          : 有效埋深 h_ef
+#   min_h          : 地坪最小厚度 MIN.h
+GROUND_ANCHOR_TABLE = {
+    'A': dict(plate_e=150.0, hole_spacing_f=100.0, hole_dia_g=10.0, plate_t=10.0,
+              bolt_dia=8.0, bolt_len=120.0, embed=55.0, min_h=100.0),
+    'B': dict(plate_e=210.0, hole_spacing_f=150.0, hole_dia_g=14.0, plate_t=10.0,
+              bolt_dia=12.0, bolt_len=160.0, embed=90.0, min_h=150.0),
+    'C': dict(plate_e=260.0, hole_spacing_f=200.0, hole_dia_g=18.0, plate_t=12.0,
+              bolt_dia=16.0, bolt_len=180.0, embed=100.0, min_h=150.0),
+    'D': dict(plate_e=260.0, hole_spacing_f=200.0, hole_dia_g=18.0, plate_t=12.0,
+              bolt_dia=16.0, bolt_len=180.0, embed=100.0, min_h=150.0),
+    'E': dict(plate_e=350.0, hole_spacing_f=250.0, hole_dia_g=22.0, plate_t=16.0,
+              bolt_dia=20.0, bolt_len=220.0, embed=125.0, min_h=150.0),
+    'F': dict(plate_e=400.0, hole_spacing_f=300.0, hole_dia_g=22.0, plate_t=20.0,
+              bolt_dia=20.0, bolt_len=220.0, embed=125.0, min_h=150.0),
+    'G': dict(plate_e=500.0, hole_spacing_f=400.0, hole_dia_g=22.0, plate_t=20.0,
+              bolt_dia=20.0, bolt_len=220.0, embed=125.0, min_h=150.0),
+}
+
+# 现场灌浆保护层：高度，以及相对锚板每边的斜向外扩量（mm）。
+# 顶面与锚板同尺寸 E×E，向下高 25，每边斜向外扩 20（≈45°），呈梯台（棱台）状。
+GROUND_GROUT_THICKNESS_MM = 25.0
+GROUND_GROUT_FLARE_MM = 20.0
+
+# 地面固定时的管架系列代号（名称）。
+GROUND_ANCHOR_NAME = 'G4'
+
+
+def ground_anchor_spec(variant_key):
+    """返回该子项地面固定用的锚板 / 锚栓参数副本（mm）。"""
+    try:
+        return dict(GROUND_ANCHOR_TABLE[variant_key])
+    except KeyError:
+        raise ValueError('子项 %s 没有地面固定用的锚板数据（表 2）。'
+                         % variant_key)
+
+
+def ground_anchor_number(variant_key, height_mm, arm_length_mm,
+                         name=GROUND_ANCHOR_NAME):
+    """地面固定编号「名称-子项-H-L」（如 G4-D-1000-500）。"""
+    label = str(name).strip() or GROUND_ANCHOR_NAME
+    return '%s-%s-%d-%d' % (
+        label, str(variant_key).upper(),
+        round_half_up(height_mm), round_half_up(arm_length_mm))

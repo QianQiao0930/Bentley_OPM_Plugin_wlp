@@ -800,6 +800,80 @@ def ensure_qt_app():
     return app
 
 
+# pywin32 只用于"面板保持在 OPM 之上"这一条：缺了也不影响建模功能。
+try:
+    import win32gui
+    import win32process
+except Exception:  # pragma: no cover - 仅在无 pywin32 时触发
+    win32gui = None
+    win32process = None
+
+
+def _host_window_hwnd():
+    """找出当前进程的主窗口（OPM 主窗），用于"面板始终在软件之上"。"""
+    if win32gui is None or win32process is None:
+        return None
+    candidates = []
+
+    def collect(hwnd, _):
+        try:
+            if not win32gui.IsWindowVisible(hwnd):
+                return
+            if win32process.GetWindowThreadProcessId(hwnd)[1] != os.getpid():
+                return
+            if win32gui.GetWindow(hwnd, 4):  # GW_OWNER：跳过被拥有的窗口
+                return
+            left, top, right, bottom = win32gui.GetWindowRect(hwnd)
+            candidates.append(((right - left) * (bottom - top), hwnd))
+        except Exception:
+            return
+
+    try:
+        win32gui.EnumWindows(collect, None)
+    except Exception:
+        return None
+    return max(candidates)[1] if candidates else None
+
+
+def keep_above_host(panel, interval_ms=1200):
+    """把面板挂成 OPM 的工具设置窗，并周期性地避免被主窗遮挡。
+
+    ``AttachQtToolSetting`` 让面板被 OPM 主窗"拥有"：始终位于主窗之上，
+    且 OPM 整体最小化时随主窗一起收起——正是所需的行为。个别机器上仅靠
+    它仍会被主窗遮住，所以再加一个只在"OPM 在前台"时才把面板提到最前的
+    定时器；OPM 被最小化或切到别的程序时不动，不打扰其它程序。
+    """
+    try:
+        panel.hwnd = int(panel.winId())
+        PyCadInputQueue.AttachQtToolSetting(panel.hwnd)
+    except Exception:
+        _log('attach qt tool setting failed: %s' % traceback.format_exc())
+
+    host = _host_window_hwnd()
+    timer = QTimer(panel)
+    timer.setInterval(interval_ms)
+
+    def _keep_above():
+        if host is None or win32gui is None or not panel.isVisible():
+            return
+        try:
+            if not win32gui.IsWindow(host):
+                return
+            if win32gui.GetForegroundWindow() != host:
+                return
+        except Exception:
+            return
+        try:
+            panel.raise_()
+        except RuntimeError:
+            pass
+
+    timer.timeout.connect(_keep_above)
+    timer.start()
+    panel._keep_above_timer = timer
+    return timer
+
+
 def rounded_rect(rect, radius):
     path = QPainterPath()
     path.addRoundedRect(QRectF(rect), radius, radius)
@@ -1000,9 +1074,13 @@ class NeuIconButton(QWidget):
 
 
 class NeuTitleBar(QWidget):
-    """无边框窗口的自绘标题栏，空白处按住可拖动整个窗口。"""
+    """无边框窗口的自绘标题栏，空白处按住可拖动整个窗口。
 
-    def __init__(self, title, on_minimize, on_close, parent=None):
+    只有关闭钮：面板是 OPM 主窗的 owned window，没有任务栏入口，最小化后
+    无法再唤回，故不提供最小化。``on_minimize`` 仅为兼容旧调用而保留。
+    """
+
+    def __init__(self, title, on_minimize=None, on_close=None, parent=None):
         super().__init__(parent)
         self.setFixedHeight(46)
         self._drag_offset = None
@@ -1020,7 +1098,6 @@ class NeuTitleBar(QWidget):
         row.addWidget(dot)
         row.addWidget(caption)
         row.addStretch(1)
-        row.addWidget(NeuIconButton(self, 'minimize', on_minimize))
         row.addWidget(NeuIconButton(self, 'close', on_close, danger=True))
 
     def mousePressEvent(self, event):
@@ -1557,10 +1634,8 @@ class TriangleBracketSettingsDialog(QWidget):
         _log('panel built %dx%d rev=%s file=%s mtime=%d'
              % (self.width(), self.height(), UI_REVISION,
                 os.path.abspath(__file__), _stamp))
-        self.hwnd = int(self.winId())
-        _log('panel hwnd=%s, AttachQtToolSetting' % self.hwnd)
-        PyCadInputQueue.AttachQtToolSetting(self.hwnd)
-        _log('panel AttachQtToolSetting returned')
+        keep_above_host(self)
+        _log('panel attached to host, hwnd=%s' % getattr(self, 'hwnd', None))
 
     # -- 控件构造 ----------------------------------------------------------
 
@@ -1783,7 +1858,12 @@ class TriangleBracketSettingsDialog(QWidget):
         self._finish_requested = True
 
     def finish_tool(self):
-        PyCommandState.StartDefaultCommand()
+        """结束原生工具并收起面板：点【确定】/【取消】/关闭都走这里，退回默认命令。"""
+        try:
+            PyCommandState.StartDefaultCommand()
+        except Exception:
+            _log('StartDefaultCommand failed: %s' % traceback.format_exc())
+        self.shutdown()
 
     def shutdown(self):
         """由工具的 _OnCleanup 调用：收起窗口并结束事件泵。"""

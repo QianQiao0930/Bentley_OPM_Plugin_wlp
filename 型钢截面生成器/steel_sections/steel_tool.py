@@ -40,6 +40,11 @@ DEBUG_LOG = os.path.join(SCRIPT_DIR, "型钢截面生成器_debug_log.txt")
 # horizontal path.  Vertical paths fall back to another world axis internally.
 UP_HINT = steel_sweep_geometry.DEFAULT_UP_HINT
 
+# The tool instance that is currently installed, so the settings dialog can end
+# it on demand without resetting MicroStation to the default command (which would
+# also tear down the attached selector window).
+_ACTIVE_TOOL = None
+
 
 def _log(message):
     """Append one timestamped line to the plug-in debug log."""
@@ -160,8 +165,10 @@ def _build_profile_curves(identifier, section_mm, insertion_mode, model_ref, fra
         identifier, section_mm, insertion_mode, model_ref
     )
     profile = CurveVector(CurveVector.eBOUNDARY_TYPE_Outer)
+    corners = []
     for segment in geometry.segments:
         points = steel_sweep_geometry.sample_segment(segment, frame)
+        corners.extend(points)
         world = [DPoint3d.From(point[0], point[1], point[2]) for point in points]
         if len(world) == 2:
             profile.Add(ICurvePrimitive.CreateLine(DSegment3d(world[0], world[1])))
@@ -171,43 +178,93 @@ def _build_profile_curves(identifier, section_mm, insertion_mode, model_ref, fra
                     DEllipse3d.FromPointsOnArc(world[0], world[1], world[2])
                 )
             )
+    _log(
+        "profile built: segments={0} x=[{1:.3f},{2:.3f}] y=[{3:.3f},{4:.3f}] "
+        "z=[{5:.3f},{6:.3f}]".format(
+            len(geometry.segments),
+            min(point[0] for point in corners), max(point[0] for point in corners),
+            min(point[1] for point in corners), max(point[1] for point in corners),
+            min(point[2] for point in corners), max(point[2] for point in corners),
+        )
+    )
+    _log(
+        "profile plane vs tangent: axisX.t={0:.3e} axisY.t={1:.3e}".format(
+            sum(a * b for a, b in zip(frame.axis_x, frame.axis_z)),
+            sum(a * b for a, b in zip(frame.axis_y, frame.axis_z)),
+        )
+    )
     return profile
 
 
+def _status_ok(status):
+    try:
+        return int(status) == 0
+    except (TypeError, ValueError):
+        return status == 0
+
+
+def _profile_variants(profile_curve):
+    """Return the profile as-is plus the wrapped region most kernels expect."""
+    variants = [("outer", profile_curve)]
+    try:
+        region = CurveVector(CurveVector.eBOUNDARY_TYPE_ParityRegion)
+        region.Add(profile_curve)
+        variants.append(("parity", region))
+    except Exception:
+        _log_exception("wrap profile as ParityRegion failed")
+    return variants
+
+
 def _sweep_body(profile_curve, path_curve, model_ref, origin, up_axis):
-    """Sweep the profile along the path, tolerating the signature variants."""
+    """Sweep the profile along the path, tolerating signature/region variants."""
     up = DVec3d.From(up_axis[0], up_axis[1], up_axis[2])
+    world_up = DVec3d.From(0.0, 0.0, 1.0)
     start = DPoint3d.From(origin[0], origin[1], origin[2])
 
-    def ten_arg_none():
+    def call_ten(profile, up_vector, scalar):
+        if scalar:
+            return SolidUtil.Create.BodyFromSweep(
+                profile, path_curve, model_ref, False, True, False,
+                up_vector, 0.0, 1.0, start,
+            )
         return SolidUtil.Create.BodyFromSweep(
-            profile_curve, path_curve, model_ref, False, True, False,
-            up, None, None, None,
+            profile, path_curve, model_ref, False, True, False,
+            up_vector, None, None, None,
         )
 
-    def ten_arg_scalars():
+    def call_six(profile):
         return SolidUtil.Create.BodyFromSweep(
-            profile_curve, path_curve, model_ref, False, True, False,
-            up, 0.0, 1.0, start,
+            profile, path_curve, model_ref, False, True, False
         )
 
-    def six_arg():
-        return SolidUtil.Create.BodyFromSweep(
-            profile_curve, path_curve, model_ref, False, True, False
-        )
+    last_reason = "没有可用的扫掠调用"
+    for profile_label, profile in _profile_variants(profile_curve):
+        up_vectors = [("up", up)]
+        if not (up.x == world_up.x and up.y == world_up.y and up.z == world_up.z):
+            up_vectors.append(("worldZ", world_up))
+        plans = []
+        for up_label, up_vector in up_vectors:
+            plans.append((profile_label + "/10-" + up_label, (
+                lambda p=profile, u=up_vector: call_ten(p, u, False))))
+            plans.append((profile_label + "/10s-" + up_label, (
+                lambda p=profile, u=up_vector: call_ten(p, u, True))))
+        plans.append((profile_label + "/6", (
+            lambda p=profile: call_six(p))))
 
-    last_error = None
-    for attempt in (ten_arg_none, ten_arg_scalars, six_arg):
-        try:
-            result = attempt()
-        except Exception as error:
-            last_error = error
-            continue
-        if not isinstance(result, (tuple, list)) or len(result) < 2:
-            continue
-        if result[0] == BentleyStatus.eSUCCESS and result[1] is not None:
-            return result[1]
-    raise RuntimeError("沿路径扫掠失败：{0}".format(last_error))
+        for label, call in plans:
+            try:
+                result = call()
+            except Exception as error:
+                last_reason = "{0}: {1!r}".format(label, error)
+                _log("sweep {0} raised: {1!r}".format(label, error))
+                continue
+            _log("sweep {0} returned: {1!r}".format(label, result))
+            if (isinstance(result, (tuple, list)) and len(result) >= 2
+                    and _status_ok(result[0]) and result[1] is not None):
+                _log("sweep success via {0}".format(label))
+                return result[1]
+            last_reason = "{0}: {1!r}".format(label, result)
+    raise RuntimeError("沿路径扫掠失败（{0}）".format(last_reason))
 
 
 def _delete_element(element):
@@ -297,6 +354,12 @@ class SteelSectionPlaceTool(DgnPrimitiveTool):
         self._ExitTool()
         return True
 
+    def _OnCleanup(self):
+        global _ACTIVE_TOOL
+        if _ACTIVE_TOOL is self:
+            _ACTIVE_TOOL = None
+        self.m_self = None
+
     def _OnDynamicFrame(self, ev):
         eeh = EditElementHandle()
         try:
@@ -368,30 +431,36 @@ class SteelSectionPlaceTool(DgnPrimitiveTool):
 
     @staticmethod
     def InstallNewInstance(family_id, profile_name, insertion_mode):
+        global _ACTIVE_TOOL
         _log("InstallNewInstance(place): family={0} profile={1}".format(family_id, profile_name))
         tool = SteelSectionPlaceTool(family_id, profile_name, insertion_mode)
         status = tool.InstallTool()
         _log("InstallNewInstance(place): InstallTool status={0}".format(status))
         if BentleyStatus.eSUCCESS != status:
             raise RuntimeError("无法启动型钢截面放置工具，状态码：{0}".format(status))
+        _ACTIVE_TOOL = tool
         return tool
 
 
 class SteelSectionSweepTool(DgnElementSetTool):
     """Select one open path and sweep the chosen section along it."""
 
-    def __init__(self, family_id, profile_name, insertion_mode, delete_path=False):
+    def __init__(self, family_id, profile_name, insertion_mode, delete_path=False,
+                 rotation_deg=0.0):
         DgnElementSetTool.__init__(self, 0)
         self.m_self = self
         self.family_id = family_id
         self.profile_name = profile_name
         self.insertion_mode = insertion_mode
         self.delete_path = bool(delete_path)
+        self.rotation_deg = float(rotation_deg)
         self.family = steel_registry.require_available(family_id)
         self.section_mm = steel_registry.get_section(family_id, profile_name)
         _log(
-            "sweep tool created: family={0} profile={1} insertion={2} delete_path={3}".format(
-                family_id, profile_name, insertion_mode, self.delete_path
+            "sweep tool created: family={0} profile={1} insertion={2} "
+            "delete_path={3} rotation={4}".format(
+                family_id, profile_name, insertion_mode, self.delete_path,
+                self.rotation_deg,
             )
         )
 
@@ -458,8 +527,15 @@ class SteelSectionSweepTool(DgnElementSetTool):
 
     def _OnRestartTool(self):
         SteelSectionSweepTool.InstallNewInstance(
-            self.family_id, self.profile_name, self.insertion_mode, self.delete_path
+            self.family_id, self.profile_name, self.insertion_mode,
+            self.delete_path, self.rotation_deg,
         )
+
+    def _OnCleanup(self):
+        global _ACTIVE_TOOL
+        if _ACTIVE_TOOL is self:
+            _ACTIVE_TOOL = None
+        self.m_self = None
 
     def _perform_sweep(self, path_element):
         model_ref = ISessionMgr.ActiveDgnModelRef
@@ -473,11 +549,19 @@ class SteelSectionSweepTool(DgnElementSetTool):
             raise RuntimeError("请选择一条非闭合的路径线。")
 
         start, tangent = _path_start_and_tangent(path_curve)
+        _log(
+            "sweep path: isOpen={0} start=({1:.3f},{2:.3f},{3:.3f}) "
+            "tangent=({4:.6f},{5:.6f},{6:.6f})".format(
+                path_curve.IsOpenPath(), start.x, start.y, start.z,
+                tangent.x, tangent.y, tangent.z,
+            )
+        )
         frame = steel_sweep_geometry.sweep_frame(
             (start.x, start.y, start.z),
             (tangent.x, tangent.y, tangent.z),
             UP_HINT,
         )
+        frame = steel_sweep_geometry.rotate_frame(frame, self.rotation_deg)
         profile_curve = _build_profile_curves(
             self.family_id, self.section_mm, self.insertion_mode, model_ref, frame
         )
@@ -506,19 +590,23 @@ class SteelSectionSweepTool(DgnElementSetTool):
         print("PySteel: operation failed - see debug log")
 
     @staticmethod
-    def InstallNewInstance(family_id, profile_name, insertion_mode, delete_path=False):
+    def InstallNewInstance(family_id, profile_name, insertion_mode, delete_path=False,
+                           rotation_deg=0.0):
+        global _ACTIVE_TOOL
         _log(
-            "InstallNewInstance(sweep): family={0} profile={1} delete_path={2}".format(
-                family_id, profile_name, delete_path
+            "InstallNewInstance(sweep): family={0} profile={1} delete_path={2} "
+            "rotation={3}".format(
+                family_id, profile_name, delete_path, rotation_deg
             )
         )
         tool = SteelSectionSweepTool(
-            family_id, profile_name, insertion_mode, delete_path
+            family_id, profile_name, insertion_mode, delete_path, rotation_deg
         )
         status = tool.InstallTool()
         _log("InstallNewInstance(sweep): InstallTool status={0}".format(status))
         if BentleyStatus.eSUCCESS != status:
             raise RuntimeError("无法启动型钢扫掠工具，状态码：{0}".format(status))
+        _ACTIVE_TOOL = tool
         return tool
 
 
@@ -528,7 +616,38 @@ def start_placement(family_id, profile_name, insertion_mode):
     )
 
 
-def start_sweep(family_id, profile_name, insertion_mode, delete_path=False):
+def start_sweep(family_id, profile_name, insertion_mode, delete_path=False,
+                rotation_deg=0.0):
     return SteelSectionSweepTool.InstallNewInstance(
-        family_id, profile_name, insertion_mode, delete_path
+        family_id, profile_name, insertion_mode, delete_path, rotation_deg
     )
+
+
+def has_active_tool():
+    return _ACTIVE_TOOL is not None
+
+
+def end_active_tool():
+    """End the installed tool while leaving the selector dialog open.
+
+    ``PyCommandState.StartDefaultCommand`` is deliberately avoided: it also
+    unloads the attached Tk tool-settings window.  Exiting the tool itself
+    returns control to MicroStation without touching the dialog.
+    """
+    tool = _ACTIVE_TOOL
+    if tool is None:
+        _log("end_active_tool: no active tool")
+        return False
+    try:
+        dynamics = getattr(tool, "_EndDynamics", None)
+        if callable(dynamics):
+            try:
+                dynamics()
+            except Exception:
+                _log_exception("end_active_tool: _EndDynamics failed")
+        tool._ExitTool()
+    except Exception:
+        _log_exception("end_active_tool failed")
+        return False
+    _log("end_active_tool: tool ended")
+    return True

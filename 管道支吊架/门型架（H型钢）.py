@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """门型架（H型钢）（图 C.4-8 门形架 · H 型钢 · 类型 1）放置工具。
 
 在模型中点选一条用户绘制的 **竖直线**（整组门型架的中心线），并在面板上输入
@@ -21,7 +21,7 @@ L 型管架、门型架（角钢和槽钢）一起统计；可导出 JSON / Exce
 
 几何做法（型钢截面的真实圆弧轮廓与沿路径扫掠）复用仓库内
 ``型钢截面生成器`` 的数据 / 几何模块与 ``steel_sweep_geometry``；
-面板外观复用 ``模块/公共/端焊三角架_基础.py``；
+面板外观沿用仓库共享的 Tkinter 工具箱 ``bentley_ui``（卡片 / 圆角按钮）；
 纯几何 / 数据逻辑在 ``门型架_H型钢_几何.py``（可单测）。
 
 运行环境：Bentley Power Platform Python（MSPy）。
@@ -29,11 +29,15 @@ L 型管架、门型架（角钢和槽钢）一起统计；可导出 JSON / Exce
 
 from __future__ import division
 
+import faulthandler
 import importlib
 import math
 import os
 import sys
+import time
+import tkinter as tk
 import traceback
+from tkinter import ttk
 
 from MSPyBentley import *
 from MSPyBentleyGeom import *
@@ -46,25 +50,43 @@ from MSPyMstnPlatform import *
 from MSPyBentley import WString  # noqa: E402,F811
 from MSPyMstnPlatform import PythonKeyinManager  # noqa: E402,F811
 
-# PyQt5 必须放在 MSPy 的 import * **之后**：MSPy 通配导入会带进同名符号，
-# 放在前面会被覆盖，导致面板基本控件类丢失、插件直接起不来。
-from PyQt5.QtCore import QEvent, QEventLoop, QRectF, Qt, QTimer
-from PyQt5.QtGui import QColor, QPainter, QPainterPath, QPalette, QPen, QRegion
-from PyQt5.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMessageBox,
-                             QVBoxLayout, QWidget)
-
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(HERE)
 STEEL_DIR = os.path.join(REPO_ROOT, '型钢截面生成器')
-# 公共库在 模块/公共/，本插件几何在 模块/门型架H型钢/。
+# 公共库在 模块/公共/，本插件几何在 模块/门型架H型钢/，仓库根提供共享
+# Tkinter 工具箱 ``bentley_ui``。
 COMMON_DIR = os.path.join(HERE, '模块', '公共')
 GEOM_DIR = os.path.join(HERE, '模块', '门型架H型钢')
-for _path in (COMMON_DIR, GEOM_DIR, STEEL_DIR):
+for _path in (REPO_ROOT, COMMON_DIR, GEOM_DIR, STEEL_DIR):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
-import 端焊三角架_基础 as base  # noqa: E402
+# 共享 UI 工具箱在导入前强制重读一次，避免拿到 MicroStation 缓存的旧模块。
+try:
+    import bentley_ui.glass as _glass_module
+    import bentley_ui as _bentley_ui_module
+    importlib.reload(_glass_module)
+    importlib.reload(_bentley_ui_module)
+except Exception:
+    pass
+
+from bentley_ui import (  # noqa: E402
+    BORDER,
+    CARD,
+    CARD_SOFT,
+    FIELD,
+    INK,
+    MUTED,
+    UI_FONT,
+    UI_FONT_BOLD,
+    UI_FONT_SMALL,
+    GlassDialog,
+    RoundButton,
+    ScrollFrame,
+    SlimScrollbar,
+)
+
 import 门型架_H型钢_几何 as geom  # noqa: E402
 import 支吊架公共库 as psb  # noqa: E402
 from steel_sections import steel_sweep_geometry  # noqa: E402
@@ -75,15 +97,10 @@ SUPPORT_TYPE = '门型架（H型钢）'
 SUPPORT_CODE = 'PORTAL_FRAME_H'
 
 
-def _apply_base_overrides():
-    """把本插件的日志写入基础模块（重载后会丢失）。"""
-    base.DEBUG_LOG = DEBUG_LOG
-
-
 def _reload_runtime_modules():
     """每次运行都强制重新读取本插件与依赖模块，规避 MicroStation 缓存。"""
     importlib.invalidate_caches()
-    for module in (geom, steel_sweep_geometry, psb, base):
+    for module in (geom, steel_sweep_geometry, psb):
         try:
             importlib.reload(module)
         except Exception:
@@ -96,7 +113,6 @@ def _reload_runtime_modules():
                 importlib.reload(module)
             except Exception:
                 pass
-    _apply_base_overrides()
 
 
 # ---------------------------------------------------------------------------
@@ -104,9 +120,13 @@ def _reload_runtime_modules():
 # ---------------------------------------------------------------------------
 
 DEBUG_LOG = os.path.join(HERE, '模块', '日志', '门型架（H型钢）_debug_log.txt')
+try:
+    os.makedirs(os.path.dirname(DEBUG_LOG), exist_ok=True)
+except Exception:
+    pass
 
 UI_TITLE = '门型架（H型钢）'
-UI_REVISION = 'line-select-1'
+UI_REVISION = 'line-select-tk-5'
 
 # 整组构件写入的普通单元名。
 CELL_NAME = 'PORTAL_FRAME_H'
@@ -119,14 +139,69 @@ DEFAULT_ARM_LENGTH_MM = 1000.0
 # 默认门架平面朝向（°）：0 = 世界 +X。
 DEFAULT_HEADING_DEG = 0.0
 
-# 交付给基础模块的覆盖项：日志。
-base.DEBUG_LOG = DEBUG_LOG
+# 选项变化后延迟重建的毫秒数：连点几下只重建一次。
+REGENERATE_DELAY_MS = 150        # 下拉框的防抖
+TEXT_REGENERATE_DELAY_MS = 750   # 文本框的防抖，避免打到一半就重建
 
-_log = base._log
+
+def _log(message):
+    """Append one timestamped line to the plug-in debug log (best effort)."""
+    try:
+        stamp = time.strftime('%Y-%m-%d %H:%M:%S')
+        with open(DEBUG_LOG, 'a', encoding='utf-8') as stream:
+            stream.write('[%s] %s\n' % (stamp, message))
+            stream.flush()
+    except Exception:
+        pass
 
 
 def _log_exception(title):
     _log('%s: %s' % (title, traceback.format_exc()))
+
+
+_FAULT_FILE = None
+_LAST_HOVER_LOG = [0.0]
+
+
+def _log_hover(message):
+    """鼠标悬停会高频触发；同一秒内只记一条，避免刷爆日志。"""
+    now = time.monotonic()
+    if now - _LAST_HOVER_LOG[0] < 1.0:
+        return
+    _LAST_HOVER_LOG[0] = now
+    _log(message)
+
+
+def _enable_fault_logging():
+    """把 Python 级崩溃栈写入 fault 日志，便于定位硬崩溃 / 卡死。
+
+    * ``faulthandler.enable``：捕获访问冲突等致命错误。
+    * ``faulthandler.dump_traceback_later``：主线程一旦卡死（超过 8s 没有
+      更新心跳），C 级看门狗线程会自动把所有线程的调用栈写进日志，从而看出
+      卡在哪个原生调用上——这种死锁不会抛异常，只能靠它定位。
+    """
+    global _FAULT_FILE
+    try:
+        if _FAULT_FILE is None:
+            path = os.path.join(HERE, '模块', '日志', '门型架（H型钢）_fault.log')
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            _FAULT_FILE = open(path, 'a', encoding='utf-8')
+            faulthandler.enable(_FAULT_FILE)
+        _FAULT_FILE.write(
+            '=== session start %s rev=%s ===\n'
+            % (time.strftime('%Y-%m-%d %H:%M:%S'), UI_REVISION))
+        _FAULT_FILE.flush()
+        # 每次入口都重新布防看门狗（主线程卡死 8s 即自动 dump 全部线程栈）。
+        faulthandler.dump_traceback_later(8.0, repeat=True, file=_FAULT_FILE)
+    except Exception:
+        pass
+
+
+def _disable_fault_logging():
+    try:
+        faulthandler.cancel_dump_traceback_later()
+    except Exception:
+        pass
 
 
 def _uor_per_mm(dgn_model=None):
@@ -173,17 +248,38 @@ def _collect_linear_pieces(curve_vector, pieces):
             raise ValueError('所选元素含圆弧或曲线；请选择一条竖直的直线段。')
 
 
+_EXTRACT_TRACE = [0]
+_LOCATE_TRACE = [0]
+
+
 def extract_vertical_post(element_handle):
     """从所选元素提取并校验竖直线（整组中心线），返回 ``门型架_H型钢_几何.VerticalPost``。"""
+    # 前几次调用逐步记录，便于定位卡在哪个原生调用（之后不再逐步记录）。
+    trace = _EXTRACT_TRACE[0] < 5
+    _EXTRACT_TRACE[0] += 1
+    if trace:
+        _log('extract: step1 uor_per_mm')
     uor_per_mm = _uor_per_mm()
+    if trace:
+        _log('extract: step2 ElementToCurveVector')
     curve = ICurvePathQuery.ElementToCurveVector(element_handle)
+    if trace:
+        _log('extract: step3 got curve, IsOpenPath')
     if curve is None or not curve.IsOpenPath():
         raise ValueError('请选择一条竖直线段（整组中心线）。')
+    if trace:
+        _log('extract: step4 collect pieces')
     pieces = []
     _collect_linear_pieces(curve, pieces)
+    if trace:
+        _log('extract: step5 point_to_mm')
     pieces_mm = [[_point_to_mm(point, uor_per_mm) for point in piece]
                  for piece in pieces]
-    return geom.parse_vertical_post(pieces_mm)
+    if trace:
+        _log('extract: step6 parse_vertical_post')
+    post = geom.parse_vertical_post(pieces_mm)
+    _log_hover('extract_vertical_post: ok H=%.1f' % post.height_mm)
+    return post
 
 
 # ---------------------------------------------------------------------------
@@ -297,6 +393,7 @@ def _build_member_element(variant_key, member_kind, post, heading_deg,
     ``member_axes`` / ``member_origin_length`` 给出，坐标系为门架局部基
     (u, v, w)，原点取所选竖直线的下端（基座）。
     """
+    _log('build member enter: %s/%s' % (member_kind, variant_key))
     geometry = geom.member_geometry(variant_key, member_kind, uor_per_mm)
     run_dir, v_dir = _plane_dirs(heading_deg)
     axis_x, axis_y, axis_z = geom.member_axes(variant_key, member_kind)
@@ -315,14 +412,19 @@ def _build_member_element(variant_key, member_kind, post, heading_deg,
         vertex[2] + origin_uvw[2] * uor_per_mm,
     )
     frame = steel_sweep_geometry.Frame(origin, axis_x, axis_y, axis_z)
+    _log('build member %s: building profile, len=%.1f' % (member_kind, length_mm))
     profile = _profile_curve(geometry, frame)
     length = length_mm * uor_per_mm
     end = (origin[0] + axis_z[0] * length,
            origin[1] + axis_z[1] * length,
            origin[2] + axis_z[2] * length)
     path = _line_curve(origin, end)
+    _log('build member %s: sweeping' % member_kind)
     body = _sweep_body(profile, path, dgn_model, frame.origin, frame.axis_y)
-    return _body_to_element(body, dgn_model, member_kind)
+    _log('build member %s: sweep ok, converting to element' % member_kind)
+    element = _body_to_element(body, dgn_model, member_kind)
+    _log('build member %s: done' % member_kind)
+    return element
 
 
 # ---------------------------------------------------------------------------
@@ -430,6 +532,9 @@ def _build_portal_frame_cell(post, variant_key, rack_type, arm_length_mm,
         raise RuntimeError('请先激活一个三维 DGN 模型。')
 
     uor_per_mm = _uor_per_mm(dgn_model)
+    _log('portal frame (h-beam) build start: variant=%s type=%d L=%.1f H=%.1f '
+         'heading=%.2f' % (variant_key, int(rack_type), arm_length_mm,
+                           post.height_mm, float(heading_deg)))
 
     # 两立柱：所选竖直线为整组中心线，两立柱轴线对称于它、在
     # ∓(L - 100 - 立柱截面高)/2 处。
@@ -459,6 +564,7 @@ def _build_portal_frame_cell(post, variant_key, rack_type, arm_length_mm,
     builder.add(right)
     builder.add(arm)
     builder.build()
+    _log('portal frame (h-beam): cell assembled, %d children' % builder.child_count)
 
     spec = geom.specification(variant_key)
     post_cut_length = geom.member_origin_length(
@@ -504,9 +610,13 @@ def replace_portal_frame(post, variant_key, previous_handle, rack_type=1,
     """重建门型架：先建新的一版并写入，成功后再删除上一版预览。"""
     builder, result = _build_portal_frame_cell(
         post, variant_key, rack_type, arm_length_mm, heading_deg, rack_name)
+    _log('replace_portal_frame: committing cell')
     new_handle = builder.commit()
+    _log('replace_portal_frame: attaching ItemType/公共库')
     _attach_support_items(new_handle, result)
+    _log('replace_portal_frame: deleting previous preview')
     deleted = _delete_preview(previous_handle)
+    _log('replace_portal_frame: done (deleted=%s)' % bool(deleted))
     return new_handle, result, deleted
 
 
@@ -534,281 +644,375 @@ def export_bom_json(output_path=None):
 
 
 # ---------------------------------------------------------------------------
-# 面板
+# 面板（Tkinter / bentley_ui）
 # ---------------------------------------------------------------------------
 
 
-class _PortalFrameTitleBar(QWidget):
-    """无边框窗口的自绘标题栏：只保留关闭钮，空白处可拖动窗口。"""
-
-    def __init__(self, title, on_close, parent=None):
-        super().__init__(parent)
-        self.setFixedHeight(46)
-        self._drag_offset = None
-        row = QHBoxLayout(self)
-        row.setContentsMargins(18, 0, 10, 0)
-        row.setSpacing(9)
-        dot = QLabel(self)
-        dot.setFixedSize(9, 9)
-        dot.setStyleSheet('background: #4A66E0; border-radius: 4px;')
-        dot.setAttribute(Qt.WA_TransparentForMouseEvents, True)
-        caption = QLabel(title, self)
-        caption.setStyleSheet('font-size: 14px; font-weight: 600;'
-                              ' color: #39435A;')
-        caption.setAttribute(Qt.WA_TransparentForMouseEvents, True)
-        row.addWidget(dot)
-        row.addWidget(caption)
-        row.addStretch(1)
-        row.addWidget(base.NeuIconButton(self, 'close', on_close, danger=True))
-
-    def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            self._drag_offset = (event.globalPos()
-                                 - self.window().frameGeometry().topLeft())
-            event.accept()
-            return
-        super().mousePressEvent(event)
-
-    def mouseMoveEvent(self, event):
-        if self._drag_offset is not None and event.buttons() & Qt.LeftButton:
-            self.window().move(event.globalPos() - self._drag_offset)
-            event.accept()
-            return
-        super().mouseMoveEvent(event)
-
-    def mouseReleaseEvent(self, event):
-        self._drag_offset = None
-        super().mouseReleaseEvent(event)
-
-
-class _PortalFrameSettingsDialog(QWidget):
+class _PortalFrameSettingsDialog(GlassDialog):
     """子项 / L / 朝向 / 编号 选择，预览 / 确定 / 取消面板。"""
 
-    RADIUS = base.UI_RADIUS
+    STATE_KEY = 'PortalFrameH'
+    # UI 刷新轮询周期（ms）：原生回调只写状态，由这个周期统一刷进控件。
+    POLL_MS = 120
 
     def __init__(self):
-        self._app = base.ensure_qt_app()
-        super().__init__()
-        self.setWindowTitle(UI_TITLE)
-        self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint)
-        self.setAutoFillBackground(True)
-        palette = self.palette()
-        palette.setColor(QPalette.Window, base.UI_BG)
-        self.setPalette(palette)
-        self.setStyleSheet('QWidget {font-family: "Microsoft YaHei UI";}')
-
+        GlassDialog.__init__(self, title=UI_TITLE)
         self.post = None
         self.post_handle = None
         self.preview_handle = None
         self.preview_result = None
         self.confirmed = False
-        self.variant_combo = None
-        self.option_widgets = []
-        self._running = True
-        self._allow_close = False
-        self._finish_requested = False
-        self._event_loop = QEventLoop()
+        # 关键：MicroStation 的原生回调（_OnPostLocate / _OnElementModify）
+        # 会在 Tk 的 update() 里被重入式调用；此时**任何** Tcl 调用
+        # （after/after_idle/StringVar.set/控件 configure）都可能弄坏 Tcl 的
+        # 事件队列，随后 update() 直接访问冲突崩溃。因此回调里只写普通
+        # Python 状态，所有 Tk 刷新交给一个常驻的 Tk 定时器 _poll_ui 完成。
+        self._poll_job = None
+        self._regen_deadline = None
+        self._hover_post = None
+        self._pending_result = None
+        self._pending_message = None
+        self._pending_is_error = False
+        self._shutdown_requested = False
+        self._cancel_requested = False
 
-        self._regen_timer = QTimer(self)
-        self._regen_timer.setSingleShot(True)
-        self._regen_timer.setInterval(base.REGENERATE_DELAY_MS)
-        self._regen_timer.timeout.connect(self._run_pending_regeneration)
-        self._text_timer = QTimer(self)
-        self._text_timer.setSingleShot(True)
-        self._text_timer.setInterval(base.TEXT_REGENERATE_DELAY_MS)
-        self._text_timer.timeout.connect(self._run_pending_regeneration)
+        self._variant = tk.StringVar()
+        self._rack_type = tk.StringVar()
+        self._rack_name = tk.StringVar(value='D13')
+        self._arm_length = tk.StringVar(value='%.0f' % DEFAULT_ARM_LENGTH_MM)
+        self._heading = tk.StringVar(value='%.0f' % DEFAULT_HEADING_DEG)
+        self._keep_line = tk.BooleanVar(value=True)
+        self._spec = tk.StringVar(value='—')
+        self._depth = tk.StringVar(value='—')
+        self._height = tk.StringVar(value='—')
+        self._span = tk.StringVar(value='—')
+        self._post_length = tk.StringVar(value='—')
+        self._load = tk.StringVar(value='—')
+        self._rack_number = tk.StringVar(value='—')
+        self._variant_by_label = {}
+        self._rack_type_by_label = {}
 
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
-        outer.setSpacing(0)
-        outer.addWidget(_PortalFrameTitleBar(UI_TITLE, self.cancel_tool))
+        self._build()
+        self.restore_state()
+        self.restore_position()
 
-        body = QVBoxLayout()
-        body.setContentsMargins(3, 0, 3, 3)
-        body.setSpacing(0)
-        outer.addLayout(body)
-
-        hint_row = QVBoxLayout()
-        hint_row.setContentsMargins(15, 0, 15, 0)
-        hint = QLabel("在模型中点选一条竖直线：线长即门架高 H（横担顶面到基座），"
-                      "该线是整组门型架的中心线（两立柱轴线关于它对称）。再输入"
-                      "横担全长 L —— 横担以中心线为中点、两端各超"
-                      "立柱外缘 50（图上 50 TYP.），两立柱净距 B = L − 2×50 − "
-                      "2×立柱截面高 自动计算。竖直线不能定出朝向，请用「朝向」"
-                      "指定门架平面。点取后可改参数、预览自动重建；点【确定】"
-                      "保留，点【取消】或右键放弃。")
-        hint.setWordWrap(True)
-        hint.setStyleSheet('color: #7D8AA0; font-size: 12px;')
-        hint_row.addWidget(hint)
-        body.addLayout(hint_row)
-        body.addSpacing(6)
-
-        card = base.NeuCard("构件规格（表 1）")
-        self.variant_combo = self._register(base.NeuCombo(
-            list(geom.variant_choices()),
-            current=geom.DEFAULT_VARIANT, on_change=self.on_options_changed))
-        self._row(card.content, 0, "子项：", [self.variant_combo], 16)
-        self.spec_label = self._value()
-        self._row(card.content, 1, "构件A（立柱 / 横担）：", [self.spec_label])
-        self.depth_label = self._value()
-        self._row(card.content, 2, "截面高 h：",
-                  [self.depth_label, self._note("mm　立柱沿 u、横担沿竖直")], 8)
-        body.addWidget(card)
-
-        card = base.NeuCard("尺寸参数")
-        self.height_label = self._value()
-        self._row(card.content, 0, "门架高 H：",
-                  [self.height_label, self._note("mm　由所选竖直线自动读取")], 8)
-        self.arm_edit = self._edit_row(
-            card.content, 1, "横担长 L：", '%.0f' % DEFAULT_ARM_LENGTH_MM,
-            "mm　横担全长，表 1 的查表参数")
-        self.span_label = self._value()
-        self._row(card.content, 2, "两立柱净距 B：",
-                  [self.span_label, self._note("mm　自动计算 B = L − 100 − 2h")], 8)
-        self.post_length_label = self._value()
-        self._row(card.content, 3, "立柱下料长：",
-                  [self.post_length_label,
-                   self._note("mm　H − 横担截面高（柱顶顶焊横担下翼缘）")], 8)
-        self.load_label = self._value()
-        self._row(card.content, 4, "允许垂直荷载：",
-                  [self.load_label, self._note("kN　按表 1（H 与 L 双参数）")], 8)
-        self.heading_edit = self._edit_row(
-            card.content, 5, "朝向：", '%.0f' % DEFAULT_HEADING_DEG,
-            "°　门架平面内的横担指向（0 = 世界 +X）")
-        body.addWidget(card)
-
-        card = base.NeuCard("管架编号")
-        self.rack_name_edit = self._edit_row(
-            card.content, 0, "名称：", 'D13', "管架系列代号；留空则不附加编号")
-        self.rack_type_combo = self._register(base.NeuCombo(
-            [(1, '类型1  |  正门形架（立柱在下、横担在上）')],
-            current=1, on_change=self.on_options_changed))
-        self._row(card.content, 1, "类型：", [self.rack_type_combo], 16)
-        self.rack_label = self._value()
-        self._row(card.content, 2, "编号：",
-                  [self.rack_label, self._note("名称-类型-子项-H-L（整数）")], 8)
-        body.addWidget(card)
-
-        card = base.NeuCard("创建选项")
-        self.keep_toggle = self._register(base.NeuToggle("创建后保留所选竖直线"))
-        self.keep_toggle.setChecked(True)
-        card.content.addWidget(self.keep_toggle, 0, 0, 1, 2)
-        body.addWidget(card)
-
-        summary = base.NeuPanel()
-        self.spec_info_label = self._info("", base.UI_TEXT)
-        summary.content.addWidget(self.spec_info_label)
-        self.preview_info_label = self._info("预览：—", base.UI_TEXT)
-        summary.content.addWidget(self.preview_info_label)
-        self.status_label = self._info(
-            "请在模型中点选一条竖直线；改参数会自动重建预览。",
-            base.UI_INFO)
-        summary.content.addWidget(self.status_label)
-        body.addWidget(summary)
-
-        button_row = QHBoxLayout()
-        button_row.setContentsMargins(3, 0, 3, 0)
-        button_row.setSpacing(0)
-        self.cancel_button = base.NeuButton("取消")
-        self.cancel_button.setFixedWidth(126)
-        self.cancel_button.clicked.connect(self.cancel_tool)
-        self.export_button = base.NeuButton("导出 JSON 清单")
-        self.export_button.setFixedWidth(150)
-        self.export_button.clicked.connect(self.export_bom)
-        self.confirm_button = base.NeuButton("确定", accent=True)
-        self.confirm_button.setFixedWidth(126)
-        self.confirm_button.clicked.connect(self.confirm_tool)
-        button_row.addStretch(1)
-        button_row.addWidget(self.cancel_button)
-        button_row.addWidget(self.export_button)
-        button_row.addWidget(self.confirm_button)
-        body.addLayout(button_row)
-        self.action_widgets = [
-            self.confirm_button, self.cancel_button, self.export_button]
-
-        self.refresh_spec()
-        self.setMinimumWidth(560)
-        self.adjustSize()
-        self.setFixedSize(self.sizeHint().expandedTo(self.minimumSizeHint()))
+        # 关闭窗口时按"取消"处理：丢弃预览并结束工具。
+        self.protocol('WM_DELETE_WINDOW', self.cancel_tool)
+        self._start_poll()
         try:
-            _stamp = int(os.path.getmtime(os.path.abspath(__file__)))
-        except Exception:
-            _stamp = 0
-        _log('panel built %dx%d rev=%s file=%s mtime=%d'
-             % (self.width(), self.height(), UI_REVISION,
-                os.path.abspath(__file__), _stamp))
-        self.hwnd = int(self.winId())
-        PyCadInputQueue.AttachQtToolSetting(self.hwnd)
+            self.minsize(600, 640)
+        except tk.TclError:
+            pass
+        _log('panel built rev=%s file=%s'
+             % (UI_REVISION, os.path.abspath(__file__)))
 
-    # -- 控件构造 ----------------------------------------------------------
+    # -- 构建 --------------------------------------------------------------
 
-    def _register(self, widget):
-        self.option_widgets.append(widget)
-        return widget
+    def _build(self):
+        shell_form = self.build_shell(
+            UI_TITLE,
+            '点选一条竖直线（整组中心线）· 输入横担长 L，自动预览')
+        # 整块内容放进固定高度的滚动容器，保证面板再长也不超出屏幕；
+        # 鼠标滚轮或右侧细滚动条查看。
+        shell_form.columnconfigure(0, weight=1)
+        shell_form.rowconfigure(0, weight=1)
+        self._scroll = ScrollFrame(shell_form, bg=CARD, height=380)
+        self._scroll.grid(row=0, column=0, sticky='nsew')
+        form = self._scroll.body
+        form.columnconfigure(1, weight=1)
 
-    def _row(self, grid, row, name, widgets, spacing=18):
-        label = QLabel(name, self)
-        label.setStyleSheet('color: #39435A; font-size: 13px;')
-        grid.addWidget(label, row, 0, Qt.AlignLeft | Qt.AlignVCenter)
-        holder = QWidget(self)
-        line = QHBoxLayout(holder)
-        line.setContentsMargins(0, 0, 0, 0)
-        line.setSpacing(spacing)
-        for widget in widgets:
-            line.addWidget(widget)
-        line.addStretch(1)
-        grid.addWidget(holder, row, 1)
-        grid.setColumnStretch(1, 1)
-        return holder
+        hint_frame, hint_text = self._text_field(form, height=2)
+        hint_frame.grid(row=0, column=0, columnspan=2, sticky='ew')
+        self._set_text(hint_text, (
+            '在模型中点选一条竖直线：线长即门架高 H（横担顶面到基座），'
+            '该线是整组门型架的中心线（两立柱轴线关于它对称）。再输入'
+            '横担全长 L —— 横担以中心线为中点、两端各超立柱外缘 50'
+            '（图上 50 TYP.），两立柱净距 B = L − 2×50 − 2×立柱截面高'
+            ' 自动计算。竖直线不能定出朝向，请用「朝向」指定门架平面。'
+            '点取后可改参数、预览自动重建；点【确定】保留，点【取消】'
+            '或右键放弃。'))
 
-    def _edit_row(self, grid, row, name, value, note):
-        field = base.NeuEdit(value, width=96)
-        self._register(field.edit)
-        field.edit.textChanged.connect(self.on_text_changed)
-        self._row(grid, row, name, [field, self._note(note)], 8)
-        return field
+        ttk.Label(form, text='构件规格（表 1）', style='Section.TLabel').grid(
+            row=1, column=0, columnspan=2, sticky='w', pady=(6, 2))
 
-    def _value(self):
-        label = QLabel('—', self)
-        label.setStyleSheet('color: #39435A; font-size: 13px;'
-                            ' font-weight: 600;')
-        return label
+        ttk.Label(form, text='子项', style='GlassMuted.TLabel').grid(
+            row=2, column=0, sticky='w', pady=3)
+        labels = []
+        for key, label in geom.variant_choices():
+            labels.append(label)
+            self._variant_by_label[label] = key
+        self._variant_combo = ttk.Combobox(
+            form, textvariable=self._variant, state='readonly', width=30,
+            style='Glass.TCombobox', values=labels)
+        self._variant_combo.grid(row=2, column=1, sticky='ew', padx=(10, 0),
+                                 pady=3)
+        self._variant_combo.bind('<<ComboboxSelected>>',
+                                 self.on_options_changed)
 
-    def _note(self, text):
-        label = QLabel(text, self)
-        label.setStyleSheet('color: #7D8AA0; font-size: 12px;')
-        return label
+        ttk.Label(form, text='构件A（立柱 / 横担）',
+                  style='GlassMuted.TLabel').grid(row=3, column=0, sticky='w',
+                                                  pady=3)
+        tk.Label(form, textvariable=self._spec, bg=CARD, fg=INK,
+                 font=UI_FONT_BOLD, anchor='w').grid(
+            row=3, column=1, sticky='w', padx=(10, 0), pady=3)
 
-    def _info(self, text, color):
-        label = QLabel(text, self)
-        label.setWordWrap(True)
-        label.setStyleSheet('color: %s; font-size: 11px;' % color.name())
-        return label
+        ttk.Label(form, text='截面高 h', style='GlassMuted.TLabel').grid(
+            row=4, column=0, sticky='w', pady=3)
+        tk.Label(form, textvariable=self._depth, bg=CARD, fg=INK,
+                 font=UI_FONT_BOLD, anchor='w').grid(
+            row=4, column=1, sticky='w', padx=(10, 0), pady=3)
+
+        ttk.Separator(form, orient='horizontal').grid(
+            row=5, column=0, columnspan=2, sticky='ew', pady=6)
+
+        ttk.Label(form, text='尺寸参数', style='Section.TLabel').grid(
+            row=6, column=0, columnspan=2, sticky='w', pady=(0, 2))
+
+        ttk.Label(form, text='门架高 H', style='GlassMuted.TLabel').grid(
+            row=7, column=0, sticky='w', pady=3)
+        tk.Label(form, textvariable=self._height, bg=CARD, fg=INK,
+                 font=UI_FONT_BOLD, anchor='w').grid(
+            row=7, column=1, sticky='w', padx=(10, 0), pady=3)
+
+        ttk.Label(form, text='横担长 L', style='GlassMuted.TLabel').grid(
+            row=8, column=0, sticky='nw', pady=3)
+        arm_holder = tk.Frame(form, bg=CARD)
+        arm_holder.grid(row=8, column=1, sticky='w', padx=(10, 0), pady=3)
+        arm_input = tk.Frame(arm_holder, bg=CARD)
+        arm_input.pack(anchor='w')
+        self._arm_entry = self._entry(arm_input, self._arm_length, 9)
+        tk.Label(arm_holder, text='mm　横担全长，表 1 的查表参数', bg=CARD,
+                 fg=MUTED, font=UI_FONT_SMALL).pack(anchor='w', pady=(1, 0))
+
+        ttk.Label(form, text='两立柱净距 B', style='GlassMuted.TLabel').grid(
+            row=9, column=0, sticky='w', pady=3)
+        tk.Label(form, textvariable=self._span, bg=CARD, fg=INK,
+                 font=UI_FONT_BOLD, anchor='w').grid(
+            row=9, column=1, sticky='w', padx=(10, 0), pady=3)
+
+        ttk.Label(form, text='立柱下料长', style='GlassMuted.TLabel').grid(
+            row=10, column=0, sticky='w', pady=3)
+        tk.Label(form, textvariable=self._post_length, bg=CARD, fg=INK,
+                 font=UI_FONT_BOLD, anchor='w').grid(
+            row=10, column=1, sticky='w', padx=(10, 0), pady=3)
+
+        ttk.Label(form, text='允许垂直荷载', style='GlassMuted.TLabel').grid(
+            row=11, column=0, sticky='w', pady=3)
+        tk.Label(form, textvariable=self._load, bg=CARD, fg=INK,
+                 font=UI_FONT_BOLD, anchor='w').grid(
+            row=11, column=1, sticky='w', padx=(10, 0), pady=3)
+
+        ttk.Label(form, text='朝向', style='GlassMuted.TLabel').grid(
+            row=12, column=0, sticky='nw', pady=3)
+        heading_holder = tk.Frame(form, bg=CARD)
+        heading_holder.grid(row=12, column=1, sticky='w', padx=(10, 0), pady=3)
+        heading_input = tk.Frame(heading_holder, bg=CARD)
+        heading_input.pack(anchor='w')
+        self._heading_entry = self._entry(heading_input, self._heading, 9)
+        tk.Label(heading_holder, text='°　门架平面内的横担指向（0 = 世界 +X）',
+                 bg=CARD, fg=MUTED, font=UI_FONT_SMALL).pack(anchor='w',
+                                                             pady=(1, 0))
+
+        ttk.Separator(form, orient='horizontal').grid(
+            row=13, column=0, columnspan=2, sticky='ew', pady=6)
+
+        ttk.Label(form, text='管架编号', style='Section.TLabel').grid(
+            row=14, column=0, columnspan=2, sticky='w', pady=(0, 2))
+
+        ttk.Label(form, text='名称', style='GlassMuted.TLabel').grid(
+            row=15, column=0, sticky='nw', pady=3)
+        name_holder = tk.Frame(form, bg=CARD)
+        name_holder.grid(row=15, column=1, sticky='w', padx=(10, 0), pady=3)
+        name_input = tk.Frame(name_holder, bg=CARD)
+        name_input.pack(anchor='w')
+        self._rack_name_entry = self._entry(name_input, self._rack_name, 12)
+        tk.Label(name_holder, text='管架系列代号；留空则不附加编号', bg=CARD,
+                 fg=MUTED, font=UI_FONT_SMALL).pack(anchor='w', pady=(1, 0))
+
+        ttk.Label(form, text='类型', style='GlassMuted.TLabel').grid(
+            row=16, column=0, sticky='w', pady=3)
+        type_labels = []
+        for key, label in ((1, '类型1  |  正门形架（立柱在下、横担在上）'),):
+            type_labels.append(label)
+            self._rack_type_by_label[label] = key
+        self._rack_type_combo = ttk.Combobox(
+            form, textvariable=self._rack_type, state='readonly', width=30,
+            style='Glass.TCombobox', values=type_labels)
+        self._rack_type_combo.grid(row=16, column=1, sticky='ew',
+                                   padx=(10, 0), pady=3)
+        self._rack_type_combo.bind('<<ComboboxSelected>>',
+                                   self.on_options_changed)
+
+        ttk.Label(form, text='编号', style='GlassMuted.TLabel').grid(
+            row=17, column=0, sticky='w', pady=3)
+        tk.Label(form, textvariable=self._rack_number, bg=CARD, fg=INK,
+                 font=UI_FONT_BOLD, anchor='w').grid(
+            row=17, column=1, sticky='w', padx=(10, 0), pady=3)
+
+        ttk.Separator(form, orient='horizontal').grid(
+            row=18, column=0, columnspan=2, sticky='ew', pady=6)
+
+        ttk.Label(form, text='创建选项', style='Section.TLabel').grid(
+            row=19, column=0, columnspan=2, sticky='w', pady=(0, 2))
+        self._keep_check = tk.Checkbutton(
+            form, text='创建后保留所选竖直线', variable=self._keep_line,
+            bg=CARD, fg=INK, activebackground=CARD, selectcolor=CARD,
+            font=UI_FONT, highlightthickness=0, bd=0)
+        self._keep_check.grid(row=20, column=0, columnspan=2, sticky='w')
+
+        # 说明 / 预览 / 状态固定在滚动区下方，始终可见。
+        info = tk.Frame(shell_form, bg=CARD)
+        info.grid(row=1, column=0, sticky='ew', pady=(6, 0))
+        self._spec_info_frame, self._spec_info_text = self._text_field(
+            info, height=2)
+        self._spec_info_frame.pack(fill='x')
+        self._preview_info_frame, self._preview_info_text = self._text_field(
+            info, height=2)
+        self._preview_info_frame.pack(fill='x', pady=(4, 0))
+        self._status_frame, self._status_text = self._text_field(info, height=2)
+        self._status_frame.pack(fill='x', pady=(4, 0))
+        self._set_text(self._preview_info_text, '预览：—')
+        self._set_text(self._status_text,
+                       '请在模型中点选一条竖直线；改参数会自动重建预览。')
+
+        buttons = tk.Frame(shell_form, bg=CARD)
+        buttons.grid(row=2, column=0, sticky='ew', pady=(6, 0))
+        self.confirm_button = RoundButton(
+            buttons, '确定', self.confirm_tool, primary=True, bg=CARD,
+            font=UI_FONT, font_bold=UI_FONT_BOLD)
+        self.cancel_button = RoundButton(
+            buttons, '取消', self.cancel_tool, bg=CARD,
+            font=UI_FONT, font_bold=UI_FONT_BOLD)
+        self.export_button = RoundButton(
+            buttons, '导出 JSON 清单', self.export_bom, bg=CARD,
+            font=UI_FONT, font_bold=UI_FONT_BOLD)
+        self.export_button.pack(side='left')
+        self.confirm_button.pack(side='right')
+        self.cancel_button.pack(side='right', padx=(0, 8))
+
+        self._arm_length.trace_add('write', self.on_text_changed)
+        self._heading.trace_add('write', self.on_text_changed)
+        self._rack_name.trace_add('write', self.on_text_changed)
+        self._bind_wheel(self._scroll)
+
+    def _bind_wheel(self, scroll):
+        """让整块表单支持鼠标滚轮（只读文本框自己处理滚轮，不拦截）。"""
+        def on_wheel(event):
+            scroll.scroll_units(-1 if event.delta > 0 else 1)
+            return 'break'
+
+        def walk(widget):
+            if isinstance(widget, tk.Text):
+                return
+            widget.bind('<MouseWheel>', on_wheel)
+            for child in widget.winfo_children():
+                walk(child)
+        walk(scroll)
+
+    def _entry(self, parent, variable, width):
+        entry = tk.Entry(
+            parent, textvariable=variable, width=width, font=UI_FONT, fg=INK,
+            bg=FIELD, relief='flat', highlightthickness=1,
+            highlightbackground=BORDER, highlightcolor='#9FB4CC',
+            insertbackground=INK, justify='center')
+        entry.pack(side='left', ipady=3)
+        return entry
+
+    def _text_field(self, parent, height=2):
+        """固定高度的只读文本框：内容超出时用右侧细滚动条 / 鼠标滚轮查看。"""
+        frame = tk.Frame(parent, bg=CARD_SOFT, highlightbackground=BORDER,
+                         highlightthickness=1)
+        text = tk.Text(
+            frame, height=height, wrap='word', font=UI_FONT_SMALL,
+            bg=CARD_SOFT, fg=INK, relief='flat', highlightthickness=0, bd=0,
+            padx=8, pady=5, cursor='arrow', takefocus=0)
+        bar = SlimScrollbar(frame, command=text.yview, trough=CARD_SOFT)
+        text.configure(yscrollcommand=bar.set)
+        text.pack(side='left', fill='both', expand=True)
+        bar.pack(side='right', fill='y')
+        text.configure(state='disabled')
+        return frame, text
+
+    def _set_text(self, text_widget, value):
+        if text_widget is None:
+            return
+        try:
+            text_widget.configure(state='normal')
+            text_widget.delete('1.0', 'end')
+            text_widget.insert('1.0', value or '')
+            text_widget.configure(state='disabled')
+            text_widget.yview_moveto(0.0)
+        except tk.TclError:
+            pass
+
+    # -- 记忆 --------------------------------------------------------------
+
+    def restore_state(self):
+        state = self.ui_state
+        variant = state.get('variant')
+        selected = None
+        fallback = None
+        for label, key in self._variant_by_label.items():
+            if fallback is None:
+                fallback = label
+            if key == geom.DEFAULT_VARIANT:
+                fallback = label
+            if key == variant:
+                selected = label
+        self._variant.set(selected or fallback)
+
+        rack_type = state.get('rack_type')
+        selected_type = None
+        fallback_type = None
+        for label, key in self._rack_type_by_label.items():
+            if fallback_type is None:
+                fallback_type = label
+            if key == rack_type:
+                selected_type = label
+        self._rack_type.set(selected_type or fallback_type)
+
+        for key, variable in (('arm_length', self._arm_length),
+                              ('heading', self._heading)):
+            value = state.get(key)
+            if isinstance(value, str) and value.strip():
+                variable.set(value)
+        name = state.get('rack_name')
+        if isinstance(name, str):
+            self._rack_name.set(name)
+        keep = state.get('keep_line')
+        if isinstance(keep, bool):
+            self._keep_line.set(keep)
+        self.refresh_spec()
+
+    def persist_state(self, state):
+        try:
+            state['variant'] = self.current_variant()
+            state['rack_type'] = self.current_rack_type()
+            state['rack_name'] = self._rack_name.get()
+            state['arm_length'] = self._arm_length.get()
+            state['heading'] = self._heading.get()
+            state['keep_line'] = bool(self._keep_line.get())
+        except tk.TclError:
+            pass
 
     # -- 选项 --------------------------------------------------------------
 
     def current_variant(self):
-        if self.variant_combo is None:
-            return geom.DEFAULT_VARIANT
-        return self.variant_combo.value() or geom.DEFAULT_VARIANT
+        return self._variant_by_label.get(
+            self._variant.get(), geom.DEFAULT_VARIANT)
 
     def current_rack_type(self):
-        if self.rack_type_combo is None:
-            return 1
-        try:
-            return int(self.rack_type_combo.value())
-        except (TypeError, ValueError):
-            return 1
+        return self._rack_type_by_label.get(self._rack_type.get(), 1)
 
     def current_arm_length(self):
         try:
-            return float(self.arm_edit.value())
+            return float((self._arm_length.get() or '').strip())
         except (TypeError, ValueError):
             return DEFAULT_ARM_LENGTH_MM
 
     def current_heading(self):
         try:
-            return float(self.heading_edit.value())
+            return float((self._heading.get() or '').strip())
         except (TypeError, ValueError):
             return DEFAULT_HEADING_DEG
 
@@ -820,7 +1024,7 @@ class _PortalFrameSettingsDialog(QWidget):
         return {
             'variant': variant_key,
             'rack_type': rack_type,
-            'rack_name': self.rack_name_edit.value().strip(),
+            'rack_name': self._rack_name.get().strip(),
             'arm_length': self.current_arm_length(),
             'heading': self.current_heading(),
         }
@@ -830,21 +1034,17 @@ class _PortalFrameSettingsDialog(QWidget):
         if post is None:
             return ''
         return geom.build_pipe_rack_number(
-            self.rack_name_edit.value(), self.current_rack_type(),
+            self._rack_name.get(), self.current_rack_type(),
             self.current_variant(), post.height_mm,
             self.current_arm_length())
 
     def set_status(self, message, is_error=False, flush=True):
-        self.status_label.setStyleSheet(
-            'color: %s; font-size: 11px;'
-            % (base.UI_ERROR if is_error else base.UI_INFO).name())
-        self.status_label.setText(message)
-        if flush:
-            QApplication.processEvents()
+        # 只在 Tk 定时器上下文里刷新控件（见 _poll_ui/_flush_ui）。
+        self._set_text(getattr(self, '_status_text', None), message)
 
     def set_result(self, result):
         number = result.get('pipe_rack_number') or '—'
-        self.preview_info_label.setText(
+        self._set_text(self._preview_info_text,
             "预览：子项 %s，类型 %d，%s，H=%.0f mm，L=%.0f mm，B=%.0f mm，"
             "立柱下料 %.0f mm，朝向 %.0f°，单元含 %d 个子元素；编号 %s。" % (
                 result['variant'], result['rack_type'],
@@ -857,69 +1057,119 @@ class _PortalFrameSettingsDialog(QWidget):
 
     def refresh_spec(self):
         variant_key = self.current_variant()
-        self.spec_label.setText(geom.specification(variant_key))
-        self.depth_label.setText(
-            '%.0f' % geom.member_depth(variant_key, 'post'))
+        self._spec.set(geom.specification(variant_key))
+        try:
+            self._depth.set('%.0f' % geom.member_depth(variant_key, 'post'))
+        except ValueError:
+            self._depth.set('—')
         if self._options_valid():
-            self.spec_info_label.setStyleSheet(
-                'color: %s; font-size: 11px;' % base.UI_TEXT.name())
-            self.spec_info_label.setText(
+            self._set_text(self._spec_info_text,
                 '构件A：立柱与横担同为 %s（%s）。立柱与横担腹板同处于门架'
                 '平面内、翼缘对称；立柱顶面顶焊在横担下翼缘下表面。'
                 % (geom.specification(variant_key),
                    _family_description(variant_key)))
         else:
-            self.spec_info_label.setStyleSheet(
-                'color: %s; font-size: 11px;' % base.UI_ERROR.name())
-            self.spec_info_label.setText(self._invalid_message())
+            self._set_text(self._spec_info_text, self._invalid_message())
         self.refresh_line_labels()
-
-    def _show_line_values(self, post):
-        if post is None:
-            self.height_label.setText('—')
-            self.span_label.setText('—')
-            self.post_length_label.setText('—')
-            self.load_label.setText('—')
-            self.load_label.setToolTip('')
-            self.rack_label.setText('—')
-            return
-        variant_key = self.current_variant()
-        arm_length = self.current_arm_length()
-        self.height_label.setText('%.1f' % post.height_mm)
-        try:
-            span = geom.net_span(variant_key, arm_length)
-            self.span_label.setText('%.1f' % span)
-            self.span_label.setToolTip('')
-        except ValueError as error:
-            self.span_label.setText('—')
-            self.span_label.setToolTip(str(error))
-        try:
-            self.post_length_label.setText(
-                '%.1f' % geom.member_origin_length(
-                    variant_key, 'post', post.height_mm, arm_length, 0.0)[1])
-        except ValueError as error:
-            self.post_length_label.setText('—')
-            self.post_length_label.setToolTip(str(error))
-
-        result = geom.allowable_load(variant_key, post.height_mm, arm_length)
-        if result.value is None:
-            self.load_label.setText('—')
-        else:
-            self.load_label.setText('%.2f' % result.value)
-        self.load_label.setToolTip(result.message or '')
-
-        number = self.current_rack_number(post)
-        self.rack_label.setText(number if number else '（名称留空，不附加）')
 
     def refresh_line_labels(self):
         self._show_line_values(self.post)
 
-    def _set_busy(self, busy):
-        for widget in self.option_widgets + self.action_widgets:
-            widget.setEnabled(not busy)
-        QApplication.processEvents()
+    def _show_line_values(self, post):
+        if post is None:
+            self._height.set('—')
+            self._span.set('—')
+            self._post_length.set('—')
+            self._load.set('—')
+            self._rack_number.set('—')
+            return
+        variant_key = self.current_variant()
+        arm_length = self.current_arm_length()
+        self._height.set('%.1f' % post.height_mm)
+        try:
+            self._span.set('%.1f' % geom.net_span(variant_key, arm_length))
+        except ValueError:
+            self._span.set('—')
+        try:
+            self._post_length.set(
+                '%.1f' % geom.member_origin_length(
+                    variant_key, 'post', post.height_mm, arm_length, 0.0)[1])
+        except ValueError:
+            self._post_length.set('—')
 
-    def on_options_changed(self, *_unused):
+        result = geom.allowable_load(variant_key, post.height_mm, arm_length)
+        if result.value is None:
+            self._load.set('—')
+        else:
+            self._load.set('%.2f' % result.value)
+
+        number = self.current_rack_number(post)
+        self._rack_number.set(number if number else '（名称留空，不附加）')
+
+    # -- UI 刷新：只允许在这个 Tk 定时器里碰控件 ---------------------------
+
+    def _start_poll(self):
+        """常驻 Tk 定时器：原生回调只写 Python 状态，真正刷新全在这里做。"""
+        try:
+            self._poll_job = self.after(self.POLL_MS, self._poll_ui)
+        except tk.TclError:
+            self._poll_job = None
+
+    def _poll_ui(self):
+        self._poll_job = None
+        try:
+            if self._shutdown_requested:
+                self._shutdown_requested = False
+                self.shutdown()
+                return
+            if self._cancel_requested:
+                self._cancel_requested = False
+                self.cancel_tool()
+                return
+            if (self._regen_deadline is not None
+                    and time.monotonic() >= self._regen_deadline):
+                self._regen_deadline = None
+                self.regenerate()
+            self._flush_ui()
+            self._poll_job = self.after(self.POLL_MS, self._poll_ui)
+        except tk.TclError:
+            self._poll_job = None
+
+    def _flush_ui(self):
+        try:
+            if self._pending_result is not None:
+                result = self._pending_result
+                message = self._pending_message or ''
+                self._pending_result = None
+                self._pending_message = None
+                self._pending_is_error = False
+                self.refresh_line_labels()
+                self.set_result(result)
+                self.set_status(message)
+            elif self._pending_message is not None:
+                message = self._pending_message
+                is_error = self._pending_is_error
+                self._pending_message = None
+                self._pending_is_error = False
+                self.set_status(message, is_error)
+            if self.post is None and self._hover_post is not None:
+                self._show_line_values(self._hover_post)
+        except tk.TclError:
+            pass
+
+    def note_hover_error(self, message):
+        """悬停到不合规元素：只登记提示（不碰 Tcl），由 poll 定时器刷新。"""
+        self._pending_message = message
+        self._pending_is_error = True
+
+    def request_cancel(self):
+        """原生回调里请求取消：只置标志，由 poll 定时器执行。"""
+        self._cancel_requested = True
+
+    def request_shutdown(self):
+        self._shutdown_requested = True
+
+    def on_options_changed(self, event=None):
         self.refresh_spec()
         if not self._options_valid():
             # 子项与类型冲突：不生成（并撤掉可能过期的预览），只提示。
@@ -927,7 +1177,7 @@ class _PortalFrameSettingsDialog(QWidget):
             self.discard_preview()
             self.set_status(self._invalid_message(), True)
             return
-        self._schedule_regeneration(self._regen_timer)
+        self._schedule_regeneration(REGENERATE_DELAY_MS)
 
     def _options_valid(self):
         return geom.variant_supports_type(
@@ -940,34 +1190,35 @@ class _PortalFrameSettingsDialog(QWidget):
         return ('不合法组合：子项 %s 仅对类型 %s 有效，当前为类型 %d。'
                 % (variant_key, allowed, rack_type))
 
-    def on_text_changed(self, *_unused):
+    def on_text_changed(self, *_args):
         self.refresh_spec()
         if not self._options_valid():
             return
-        self._schedule_regeneration(self._text_timer)
+        self._schedule_regeneration(TEXT_REGENERATE_DELAY_MS)
 
-    def _schedule_regeneration(self, timer):
+    def _schedule_regeneration(self, delay_ms):
         self._cancel_pending_regeneration()
         if self.post is None:
             return
-        timer.start()
+        self._regen_deadline = time.monotonic() + delay_ms / 1000.0
 
     def _cancel_pending_regeneration(self):
-        self._regen_timer.stop()
-        self._text_timer.stop()
-
-    def _run_pending_regeneration(self):
-        self.regenerate()
+        # 纯 Python，不碰 Tcl：可能由原生回调调用。
+        self._regen_deadline = None
 
     def note_hover(self, post):
-        """悬停到一条合规竖直线上：只刷新数值显示，不改变已选定的线。"""
-        if self.post is None:
-            self._show_line_values(post)
+        """悬停到一条合规竖直线上：只记 Python 状态，由 poll 定时器刷新。"""
+        self._hover_post = post
 
     # -- 预览 --------------------------------------------------------------
 
     def regenerate(self, post=None, handle=None):
-        """按当前竖直线与选项重建预览：先建新的一版，成功后再删掉旧的。"""
+        """按当前竖直线与选项重建预览：先建新的一版，成功后再删掉旧的。
+
+        可能由 MicroStation 的原生回调（选取元素）直接调用，故这里**只做
+        Bentley 建模**，结果写进普通 Python 状态；所有 Tk 控件刷新由
+        常驻定时器 :meth:`_poll_ui` 完成，避免在原生回调里重入 Tcl 崩溃。
+        """
         self._cancel_pending_regeneration()
         if post is not None:
             self.post = post
@@ -978,11 +1229,12 @@ class _PortalFrameSettingsDialog(QWidget):
         try:
             options = self.current_options()
         except ValueError as error:
-            self.set_status('参数有误：%s' % error, True)
+            _log('regenerate: bad options: %s' % error)
+            self._pending_message = '参数有误：%s' % error
+            self._pending_is_error = True
             return None
 
-        self._set_busy(True)
-        self.set_status('正在生成门型架预览，请稍候……')
+        _log('regenerate: start options=%s' % (options,))
         try:
             handle, result, deleted = replace_portal_frame(
                 self.post, options['variant'], self.preview_handle,
@@ -990,18 +1242,18 @@ class _PortalFrameSettingsDialog(QWidget):
                 options['heading'], options['rack_name'])
         except Exception as error:
             message = '门型架生成失败：%s' % error
-            self.set_status(message, True)
-            NotificationManager.OutputPrompt(message)
-            print(message)
             _log_exception('preview failed')
+            self._pending_message = message
+            self._pending_is_error = True
+            try:
+                NotificationManager.OutputPrompt(message)
+            except Exception:
+                _log_exception('OutputPrompt failed')
+            print(message)
             return None
-        finally:
-            self._set_busy(False)
 
         self.preview_handle = handle
         self.preview_result = result
-        self.refresh_line_labels()
-        self.set_result(result)
         message = (
             "预览已更新：子项 %s，类型 %d，%s，H=%.0f mm，L=%.0f mm，"
             "B=%.0f mm，立柱下料 %.0f mm，朝向 %.0f°，单元含 %d 个子元素，"
@@ -1014,8 +1266,14 @@ class _PortalFrameSettingsDialog(QWidget):
         )
         if result['warnings']:
             message += '注意：%s' % '；'.join(result['warnings'])
-        self.set_status(message)
-        NotificationManager.OutputPrompt(message)
+        self._pending_result = result
+        self._pending_message = message
+        self._pending_is_error = False
+        try:
+            NotificationManager.OutputPrompt(message)
+        except Exception:
+            _log_exception('OutputPrompt failed')
+        _log('regenerate: done')
         return result
 
     def discard_preview(self):
@@ -1051,23 +1309,18 @@ class _PortalFrameSettingsDialog(QWidget):
             self.set_status(self._invalid_message(), True)
             return
         self.confirmed = True
-        if self.preview_handle is not None and not self.keep_toggle.isChecked():
+        if self.preview_handle is not None and not self._keep_line.get():
             self.delete_source_line()
-        self._finish_requested = True
+        self.finish_tool()
 
     def cancel_tool(self):
         self._cancel_pending_regeneration()
         self.confirmed = False
         self.discard_preview()
-        self._finish_requested = True
+        self.finish_tool()
 
     def finish_tool(self):
-        """结束原生工具并直接收起面板。
-
-        正常路径下 StartDefaultCommand 会触发 _OnCleanup，再由其调用
-        :meth:`shutdown`；这里同时直接 shutdown 作为兜底，保证点【确定】/
-        【取消】后面板一定关闭，不会停在事件泵里。
-        """
+        """结束原生工具并收起面板：点【确定】/【取消】/关闭都走这里，退回默认命令。"""
         try:
             PyCommandState.StartDefaultCommand()
         except Exception:
@@ -1075,76 +1328,18 @@ class _PortalFrameSettingsDialog(QWidget):
         self.shutdown()
 
     def shutdown(self):
-        """停止 Qt 事件泵并关闭面板（可重复调用）。"""
-        if not self._running and self._allow_close:
-            return
+        if self._poll_job is not None:
+            try:
+                self.after_cancel(self._poll_job)
+            except Exception:
+                pass
+            self._poll_job = None
+        _disable_fault_logging()
         try:
-            self._running = False
-            self._allow_close = True
-            self.close()
-        except RuntimeError:
+            if self.winfo_exists():
+                self.destroy()
+        except tk.TclError:
             pass
-
-    # -- 窗口 --------------------------------------------------------------
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing, True)
-        frame = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
-        painter.setPen(QPen(QColor(210, 218, 231), 1.0))
-        painter.setBrush(base.UI_BG)
-        painter.drawRoundedRect(frame, self.RADIUS, self.RADIUS)
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        path = QPainterPath()
-        path.addRoundedRect(QRectF(self.rect()), self.RADIUS, self.RADIUS)
-        self.setMask(QRegion(path.toFillPolygon().toPolygon()))
-
-    def closeEvent(self, event):
-        if self._allow_close:
-            event.accept()
-            return
-        event.ignore()
-        self.cancel_tool()
-
-    def run_dialog_loop(self):
-        screen = QApplication.primaryScreen()
-        if screen is not None:
-            area = screen.availableGeometry()
-            self.move(area.center().x() - self.width() // 2,
-                      area.center().y() - self.height() // 2)
-        self.show()
-        self.raise_()
-        self.activateWindow()
-        while self._running:
-            self._event_loop.processEvents()
-            if self._finish_requested:
-                self._finish_requested = False
-                self.finish_tool()
-                continue
-            PyCadInputQueue.PythonMainLoop()
-        self._teardown_window()
-
-    def _teardown_window(self):
-        """退出事件泵后收尾：关闭窗口、冲刷重绘并延迟销毁，避免 UI 残留。
-
-        无边框 + setMask 的自绘窗口若只 ``close()`` 不重绘，容易在屏幕上留下
-        残影；顶层窗口不 ``deleteLater()`` 会一直驻留。这里显式处理。
-        """
-        try:
-            self._running = False
-            self._allow_close = True
-            self.close()
-        except RuntimeError:
-            return
-        QApplication.processEvents()
-        try:
-            self.deleteLater()
-            QApplication.sendPostedEvents(None, QEvent.DeferredDelete)
-        except (RuntimeError, TypeError):
-            pass
-        QApplication.processEvents()
 
 
 def _family_description(variant_key):
@@ -1183,13 +1378,18 @@ class PortalFrameByLineTool(DgnElementSetTool):
         return False
 
     def _OnPostInstall(self):
+        _log('_OnPostInstall: enter')
         AccuSnap.GetInstance().EnableSnap(True)
         DgnElementSetTool._OnPostInstall(self)
+        _log('_OnPostInstall: base done')
         NotificationManager.OutputPrompt(
             '请点选一条竖直线段：线长即门架高 H（横担顶面到基座），'
             '该线为整组门型架的中心线。右键放弃。')
 
     def _OnPostLocate(self, path, cant_accept_reason):
+        if _LOCATE_TRACE[0] < 5:
+            _LOCATE_TRACE[0] += 1
+            _log('_OnPostLocate: call %d' % _LOCATE_TRACE[0])
         if not DgnElementSetTool._OnPostLocate(self, path, cant_accept_reason):
             return False
         try:
@@ -1200,19 +1400,23 @@ class PortalFrameByLineTool(DgnElementSetTool):
             return True
         except Exception as error:
             if self.tool_settings is not None:
-                self.tool_settings.set_status(str(error), True, flush=False)
+                try:
+                    self.tool_settings.note_hover_error(str(error))
+                except Exception:
+                    pass
             return False
 
     def _OnResetButton(self, event):
         # 右键放弃：等同【取消】，确保面板与预览一并收掉。
         settings = self.tool_settings
         if settings is not None:
-            QTimer.singleShot(0, settings.cancel_tool)
+            settings.request_cancel()
         return True
 
     def _OnElementModify(self, eeh):
         if self.tool_settings is None:
             return BentleyStatus.eERROR
+        _log('_OnElementModify: selected element')
         try:
             post = extract_vertical_post(eeh)
             result = self.tool_settings.regenerate(post, eeh)
@@ -1220,10 +1424,13 @@ class PortalFrameByLineTool(DgnElementSetTool):
                     else BentleyStatus.eERROR)
         except Exception as error:
             message = '门型架生成失败：%s' % error
-            self.tool_settings.set_status(message, True)
-            NotificationManager.OutputPrompt(message)
-            print(message)
             _log_exception('element modify failed')
+            try:
+                self.tool_settings.note_hover_error(message)
+                NotificationManager.OutputPrompt(message)
+            except Exception:
+                pass
+            print(message)
             return BentleyStatus.eERROR
 
     def _OnRestartTool(self):
@@ -1241,7 +1448,9 @@ class PortalFrameByLineTool(DgnElementSetTool):
                 settings.discard_preview()
         except Exception:
             pass
-        settings.shutdown()
+        _log('_OnCleanup: requesting panel close')
+        # 原生回调里不碰 Tcl；由 poll 定时器执行关闭。
+        settings.request_shutdown()
 
     @staticmethod
     def InstallNewInstance(tool_id=0, tool_settings=None, start_ui_loop=True):
@@ -1250,11 +1459,10 @@ class PortalFrameByLineTool(DgnElementSetTool):
             active = getattr(PortalFrameByLineTool, '_active_settings', None)
             if active is not None:
                 try:
-                    if active._running:
-                        active.raise_()
-                        active.activateWindow()
+                    if active.winfo_exists():
+                        active.lift()
                         return None
-                except RuntimeError:
+                except tk.TclError:
                     pass
         settings = (tool_settings if tool_settings is not None
                     else _PortalFrameSettingsDialog())
@@ -1265,7 +1473,7 @@ class PortalFrameByLineTool(DgnElementSetTool):
         tool.InstallTool()
         try:
             if start_ui_loop:
-                settings.run_dialog_loop()
+                settings.run_bentley_loop()
         finally:
             if owner:
                 PortalFrameByLineTool._active_settings = None
@@ -1305,6 +1513,8 @@ def ExportPortalFrameBom():
 
 def PyMain():
     """供 MicroStation Python 管理器调用的入口。"""
+    _enable_fault_logging()
+    _log('PyMain: entry rev=%s' % UI_REVISION)
     _reload_runtime_modules()
     try:
         RegisterKeyins()
@@ -1317,7 +1527,9 @@ def PyMain():
         _log_exception('portal frame tool start failed')
         print('门型架插件启动失败：%s\n%s' % (error, detail))
         try:
-            QMessageBox.critical(None, UI_TITLE, '启动失败：%s' % error)
+            MessageCenter.ShowErrorMessage(
+                '门型架启动失败：%s\n详见日志：%s' % (error, DEBUG_LOG),
+                '', False)
         except Exception:
             pass
         return None

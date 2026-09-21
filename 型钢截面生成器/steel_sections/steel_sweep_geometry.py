@@ -93,6 +93,28 @@ def map_local_point(frame, x, y):
     )
 
 
+def rotate_frame(frame, angle_deg):
+    """Rotate the section frame about the path tangent (``axis_z``).
+
+    The section keeps its insertion base at ``frame.origin`` and simply spins
+    within the plane normal to the path.  A positive angle turns the section
+    clockwise when looking along the path direction; ``0`` returns the frame
+    unchanged (the default sweep orientation).
+    """
+    angle = math.radians(float(angle_deg))
+    if abs(angle) < 1e-12:
+        return frame
+    cos_a = math.cos(angle)
+    sin_a = math.sin(angle)
+    axis_z = frame.axis_z
+
+    def spin(vector):
+        cross = _cross(axis_z, vector)
+        return tuple(vector[index] * cos_a + cross[index] * sin_a for index in range(3))
+
+    return Frame(frame.origin, spin(frame.axis_x), spin(frame.axis_y), axis_z)
+
+
 def segment_kind(segment):
     """Return ``"arc"`` for an arc record, ``"line"`` otherwise."""
     return "arc" if hasattr(segment, "center") else "line"
