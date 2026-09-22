@@ -2,6 +2,7 @@
 
 from __future__ import division
 
+import time
 import tkinter as tk
 import traceback
 from tkinter import messagebox, ttk
@@ -44,14 +45,27 @@ class SteelSectionDialog(GlassDialog):
         self._status = tk.StringVar()
         self._mode = tk.StringVar(value=MODE_PLACE)
         self._delete_path = tk.BooleanVar(value=False)
-        self._continuous_sweep = tk.BooleanVar(value=False)
         self._rotation = tk.StringVar(value="0")
+
+        # 扫掠"预览 + 确认"状态。原生回调（选路径 / 参数变化）只写这些普通
+        # Python 属性，所有 Tk 刷新交给常驻定时器 _poll_ui，避免重入崩溃。
+        self.preview_handle = None
+        self.preview_result = None
+        self.path_handle = None
+        self._pending_path_handle = None
+        self.confirmed = False
+        self._params = {}
+        self._regen_deadline = None
+        self._pending_message = None
+        self._pending_is_error = False
+        self._cleanup_requested = False
+        self._cancel_requested = False
 
         self._build()
         self._load_family_choices()
         self.restore_state()
         self.restore_position()
-        self._poll_tool_status()
+        self._poll_ui()
 
     def _build(self):
         form = self.build_shell(
@@ -79,7 +93,7 @@ class SteelSectionDialog(GlassDialog):
             style="Glass.TCombobox")
         self._profile_picker.grid(row=2, column=1, columnspan=2, sticky="ew",
                                   padx=(12, 0), pady=7)
-        self._profile_picker.bind("<<ComboboxSelected>>", self._refresh_details)
+        self._profile_picker.bind("<<ComboboxSelected>>", self._on_profile_changed)
 
         ttk.Label(form, text="插入基准", style="GlassMuted.TLabel").grid(
             row=3, column=0, sticky="w", pady=7)
@@ -88,6 +102,7 @@ class SteelSectionDialog(GlassDialog):
             style="Glass.TCombobox")
         self._insertion_picker.grid(row=3, column=1, columnspan=2, sticky="ew",
                                     padx=(12, 0), pady=7)
+        self._insertion_picker.bind("<<ComboboxSelected>>", self._on_insertion_changed)
 
         ttk.Separator(form, orient="horizontal").grid(
             row=4, column=0, columnspan=3, sticky="ew", pady=12)
@@ -117,16 +132,8 @@ class SteelSectionDialog(GlassDialog):
         self._delete_path_check.grid(row=8, column=0, columnspan=3, sticky="w",
                                      padx=(22, 0), pady=(4, 0))
 
-        self._continuous_sweep_check = tk.Checkbutton(
-            form, text="连续扫掠（完成后继续选择路径）",
-            variable=self._continuous_sweep, state="disabled", bg=CARD, fg=INK,
-            activebackground=CARD, selectcolor=CARD, font=UI_FONT,
-            highlightthickness=0, bd=0)
-        self._continuous_sweep_check.grid(
-            row=9, column=0, columnspan=3, sticky="w", padx=(22, 0), pady=(4, 0))
-
         rotation_row = tk.Frame(form, bg=CARD)
-        rotation_row.grid(row=10, column=0, columnspan=3, sticky="w",
+        rotation_row.grid(row=9, column=0, columnspan=3, sticky="w",
                           padx=(22, 0), pady=(6, 0))
         tk.Label(rotation_row, text="截面旋转角（顺时针）", bg=CARD, fg=INK,
                  font=UI_FONT).pack(side="left")
@@ -138,25 +145,26 @@ class SteelSectionDialog(GlassDialog):
         self._rotation_entry.pack(side="left", padx=(10, 0), ipady=3)
         tk.Label(rotation_row, text="°", bg=CARD, fg=MUTED,
                  font=UI_FONT_SMALL).pack(side="left", padx=(6, 0))
+        self._rotation.trace_add("write", self._on_rotation_changed)
 
         tk.Label(
             form,
             text="放置截面：连续点取插入点。\n"
-                 "沿路径扫掠：截面自动放在路径起点并垂直于路径，沿所选路径（直线、折线、"
-                 "SmartLine、复杂链、圆弧或样条）生成实体。",
+                 "沿路径扫掠：点选路径后仅生成预览，改型钢 / 规格 / 旋转角会"
+                 "实时重建预览，点【确定】才保留实体并计入统计，右键放弃预览。",
             bg=CARD, fg=MUTED, font=UI_FONT_SMALL, justify="left", wraplength=290,
-        ).grid(row=11, column=0, columnspan=3, sticky="w", pady=(8, 0),
+        ).grid(row=10, column=0, columnspan=3, sticky="w", pady=(8, 0),
                padx=(22, 0))
 
         ttk.Separator(form, orient="horizontal").grid(
-            row=12, column=0, columnspan=3, sticky="ew", pady=12)
+            row=11, column=0, columnspan=3, sticky="ew", pady=12)
 
         ttk.Label(form, text="3. 截面参数", style="Section.TLabel").grid(
-            row=13, column=0, columnspan=3, sticky="w", pady=(0, 6))
+            row=12, column=0, columnspan=3, sticky="w", pady=(0, 6))
 
         tree_frame = tk.Frame(form, bg=CARD, highlightbackground=BORDER,
                               highlightthickness=1)
-        tree_frame.grid(row=14, column=0, columnspan=3, sticky="ew")
+        tree_frame.grid(row=13, column=0, columnspan=3, sticky="ew")
         self._detail_tree = ttk.Treeview(
             tree_frame, columns=("name", "value"), show="headings", height=6,
             style="Glass.Treeview")
@@ -172,15 +180,18 @@ class SteelSectionDialog(GlassDialog):
 
         self._status_chip = self.make_status_chip(form, self._status)
         self._status_chip.grid(
-            row=15, column=0, columnspan=3, sticky="ew", pady=(12, 0))
+            row=14, column=0, columnspan=3, sticky="ew", pady=(12, 0))
 
         button_bar = tk.Frame(form, bg=CARD)
-        button_bar.grid(row=16, column=0, columnspan=3, sticky="ew", pady=(14, 0))
+        button_bar.grid(row=15, column=0, columnspan=3, sticky="ew", pady=(14, 0))
         self._start_button = RoundButton(
             button_bar, "开始", self._start, primary=True, bg=CARD,
             font=UI_FONT, font_bold=UI_FONT_BOLD)
+        self._confirm_button = RoundButton(
+            button_bar, "确定", self.confirm_tool, primary=True, bg=CARD,
+            font=UI_FONT, font_bold=UI_FONT_BOLD)
         self._cancel_button = RoundButton(
-            button_bar, "取消", self.destroy, bg=CARD,
+            button_bar, "取消", self.cancel_tool, bg=CARD,
             font=UI_FONT, font_bold=UI_FONT_BOLD)
         self._end_button = RoundButton(
             button_bar, "结束工具", self._end_tool, bg=CARD,
@@ -188,7 +199,9 @@ class SteelSectionDialog(GlassDialog):
         self._end_button.pack(side="left")
         self._start_button.pack(side="right")
         self._cancel_button.pack(side="right", padx=(0, 8))
+        self._confirm_button.pack(side="right", padx=(0, 8))
         self._start_button.set_enabled(False)
+        self._confirm_button.set_enabled(False)
 
     def restore_state(self):
         state = self.ui_state
@@ -207,8 +220,6 @@ class SteelSectionDialog(GlassDialog):
             self._mode.set(mode)
         if isinstance(state.get("delete_path"), bool):
             self._delete_path.set(state.get("delete_path"))
-        if isinstance(state.get("continuous_sweep"), bool):
-            self._continuous_sweep.set(state.get("continuous_sweep"))
         rotation = state.get("rotation")
         if isinstance(rotation, str) and rotation.strip():
             self._rotation.set(rotation)
@@ -222,7 +233,6 @@ class SteelSectionDialog(GlassDialog):
             state["insertion"] = self._insertion.get()
             state["mode"] = self._mode.get()
             state["delete_path"] = bool(self._delete_path.get())
-            state["continuous_sweep"] = bool(self._continuous_sweep.get())
             state["rotation"] = self._rotation.get()
         except tk.TclError:
             pass
@@ -230,19 +240,173 @@ class SteelSectionDialog(GlassDialog):
     def _on_mode_changed(self):
         sweep = self._mode.get() == MODE_SWEEP
         self._delete_path_check.configure(state="normal" if sweep else "disabled")
-        self._continuous_sweep_check.configure(
-            state="normal" if sweep else "disabled")
         try:
             self._rotation_entry.configure(state="normal" if sweep else "disabled")
         except tk.TclError:
             pass
         self._update_start_button_label()
+        self._update_confirm_button()
 
     def _update_start_button_label(self):
         if self._mode.get() == MODE_SWEEP:
             self._start_button.set_text("选取路径")
         else:
             self._start_button.set_text("放置")
+
+    def _update_confirm_button(self):
+        """【确定】只在存在扫掠预览时可用。"""
+        try:
+            self._confirm_button.set_enabled(self.preview_handle is not None)
+        except (AttributeError, tk.TclError):
+            pass
+
+    def _sync_params(self):
+        """把当前 Tk 选项缓存成普通 Python 字典，供原生回调安全读取。"""
+        try:
+            family_id = self._family_id_by_label.get(self._family.get())
+            insertion = self._insertion_id_by_label.get(self._insertion.get())
+            rotation_text = (self._rotation.get() or "").strip()
+            try:
+                rotation = float(rotation_text) if rotation_text else 0.0
+            except ValueError:
+                rotation = 0.0
+            self._params = {
+                "family_id": family_id,
+                "profile": self._profile.get(),
+                "insertion": insertion,
+                "rotation_deg": rotation,
+                "delete_path": bool(self._delete_path.get()),
+            }
+        except tk.TclError:
+            pass
+
+    def _on_profile_changed(self, event=None):
+        self._refresh_details()
+        self._sync_params()
+        self._schedule_regeneration()
+
+    def _on_insertion_changed(self, event=None):
+        self._sync_params()
+        self._schedule_regeneration()
+
+    def _on_rotation_changed(self, *_args):
+        self._sync_params()
+        self._schedule_regeneration()
+
+    def _schedule_regeneration(self, delay_ms=150):
+        """参数变化后防抖重建预览（没有已选路径时什么都不做）。"""
+        if self.path_handle is None:
+            return
+        self._regen_deadline = time.monotonic() + delay_ms / 1000.0
+
+    def note_path(self, handle):
+        """悬停到合规路径时记录稳定句柄（原生回调，仅写普通状态）。"""
+        self._pending_path_handle = handle
+
+    # -- 预览：可能由原生回调调用，只做 Bentley 建模，不碰 Tcl ----------------
+
+    def regenerate(self, path_element=None):
+        self._regen_deadline = None
+        handle = self._pending_path_handle
+        self._pending_path_handle = None
+        if handle is None:
+            handle = path_element
+        if handle is None:
+            handle = self.path_handle
+        if handle is None:
+            return None
+        self.path_handle = handle
+        if not self._params.get("family_id") or not self._params.get("profile"):
+            self._sync_params()
+        try:
+            handle, result, _deleted = steel_tool.build_preview(
+                self._params["family_id"],
+                self._params["profile"],
+                self._params["insertion"],
+                self._params["rotation_deg"],
+                self.path_handle,
+                self.preview_handle,
+            )
+        except Exception as error:
+            steel_tool._log_exception("sweep preview failed")
+            self._pending_message = "扫掠预览失败：{0}".format(error)
+            self._pending_is_error = True
+            return None
+        self.preview_handle = handle
+        self.preview_result = result
+        self._pending_message = (
+            "预览已更新：{label} {profile}，长度 {length:.0f} mm，"
+            "旋转 {rot:.1f}°，已附加统计项 {items} 条。"
+            "改型钢 / 规格 / 旋转角会实时重建；点【确定】保留，右键放弃。".format(
+                label=result["family_label"], profile=result["profile"],
+                length=result["length_mm"], rot=result["rotation_deg"],
+                items=result["attached_items"])
+        )
+        self._pending_is_error = False
+        return result
+
+    def discard_preview(self):
+        handle = self.preview_handle
+        self.preview_handle = None
+        self.preview_result = None
+        if handle is not None:
+            steel_tool._delete_element(handle)
+        self._update_confirm_button()
+
+    def _on_tool_cleanup(self):
+        """工具退出后的 UI 复位：未确认则丢弃预览。"""
+        if self.confirmed:
+            # 已确认：实体保留在模型中，只解除跟踪，绝不能删除。
+            self.preview_handle = None
+        else:
+            self.discard_preview()
+        self.path_handle = None
+        self.preview_result = None
+        self._update_confirm_button()
+
+    def _handle_cancel_request(self):
+        """右键 Reset：放弃预览并结束工具，但保留面板。"""
+        self.confirmed = False
+        self.discard_preview()
+        self.path_handle = None
+        steel_tool.end_active_tool()
+        try:
+            self._status.set("已放弃预览。可重新选取路径。")
+            self._set_status_appearance(False)
+        except tk.TclError:
+            pass
+
+    def request_cancel(self):
+        self._cancel_requested = True
+
+    def request_cleanup(self):
+        self._cleanup_requested = True
+
+    def confirm_tool(self):
+        """【确定】：保留预览实体（已附加统计项）并结束扫掠工具。"""
+        if self.preview_handle is None:
+            return
+        self.confirmed = True
+        self._sync_params()
+        if self._params.get("delete_path") and self.path_handle is not None:
+            steel_tool._delete_element(self.path_handle)
+        steel_tool.end_active_tool()
+        # 已确认：实体保留在模型中，解除预览跟踪以免后续误删。
+        self.preview_handle = None
+        self.path_handle = None
+        self.preview_result = None
+        self._update_confirm_button()
+        try:
+            self._status.set("已确认并保留扫掠实体（已计入统计）。可继续选取路径。")
+            self._set_status_appearance(False)
+        except tk.TclError:
+            pass
+
+    def cancel_tool(self):
+        """【取消】：放弃预览、结束工具并关闭面板。"""
+        self.confirmed = False
+        self.discard_preview()
+        self.destroy()
 
     def _end_tool(self):
         ended = steel_tool.end_active_tool()
@@ -266,15 +430,33 @@ class SteelSectionDialog(GlassDialog):
         except (AttributeError, tk.TclError):
             pass
 
-    def _poll_tool_status(self):
-        """Apply status queued by Bentley callbacks from Tk's own event turn."""
+    def _poll_ui(self):
+        """常驻 Tk 定时器：处理原生回调排队的预览 / 取消 / 清理与状态刷新。"""
+        self._status_poll_job = None
         try:
+            if self._cleanup_requested:
+                self._cleanup_requested = False
+                self._on_tool_cleanup()
+            if self._cancel_requested:
+                self._cancel_requested = False
+                self._handle_cancel_request()
+            if (self._regen_deadline is not None
+                    and time.monotonic() >= self._regen_deadline):
+                self.regenerate()
             revision, message, is_error = steel_tool.status_snapshot()
             if revision != self._last_tool_status_revision:
                 self._last_tool_status_revision = revision
                 self._status.set(message)
                 self._set_status_appearance(is_error)
-            self._status_poll_job = self.after(100, self._poll_tool_status)
+            if self._pending_message is not None:
+                message = self._pending_message
+                is_error = self._pending_is_error
+                self._pending_message = None
+                self._pending_is_error = False
+                self._status.set(message)
+                self._set_status_appearance(is_error)
+            self._update_confirm_button()
+            self._status_poll_job = self.after(100, self._poll_ui)
         except tk.TclError:
             self._status_poll_job = None
 
@@ -286,6 +468,8 @@ class SteelSectionDialog(GlassDialog):
             except tk.TclError:
                 pass
             self._status_poll_job = None
+        self.confirmed = False
+        self.discard_preview()
         steel_tool.end_active_tool()
         GlassDialog.destroy(self)
 
@@ -333,6 +517,8 @@ class SteelSectionDialog(GlassDialog):
         self._insertion.set(insertion_labels[0])
         self._start_button.set_enabled(True)
         self._refresh_details()
+        self._sync_params()
+        self._schedule_regeneration()
 
     def _clear_details(self):
         for item in self._detail_tree.get_children():
@@ -359,23 +545,24 @@ class SteelSectionDialog(GlassDialog):
             family_id = self._selected_family_id()
             insertion_mode = self._insertion_id_by_label[self._insertion.get()]
             sweep = self._mode.get() == MODE_SWEEP
-            delete_path = bool(self._delete_path.get()) if sweep else False
-            continuous_sweep = (
-                bool(self._continuous_sweep.get()) if sweep else False
-            )
             rotation_deg = self._get_rotation_deg() if sweep else 0.0
             steel_tool._log(
-                "UI start: family={0} profile={1} mode={2} delete_path={3} "
-                "rotation={4} continuous={5}".format(
-                    family_id, self._profile.get(), self._mode.get(), delete_path,
-                    rotation_deg, continuous_sweep,
+                "UI start: family={0} profile={1} mode={2} rotation={3}".format(
+                    family_id, self._profile.get(), self._mode.get(),
+                    rotation_deg,
                 )
             )
             if sweep:
-                steel_tool.start_sweep(
-                    family_id, self._profile.get(), insertion_mode, delete_path,
-                    rotation_deg, continuous_sweep,
-                )
+                # 进入预览模式前，先结束可能存在的旧工具并清空旧预览。
+                steel_tool.end_active_tool()
+                self.confirmed = False
+                self.path_handle = None
+                self._pending_path_handle = None
+                self._cleanup_requested = False
+                self._cancel_requested = False
+                self.discard_preview()
+                self._sync_params()
+                steel_tool.start_sweep(self)
             else:
                 steel_tool.start_placement(
                     family_id, self._profile.get(), insertion_mode
@@ -393,13 +580,10 @@ class SteelSectionDialog(GlassDialog):
             )
             return
         if sweep:
-            if continuous_sweep:
-                message = (
-                    "已启动连续扫掠：请点选路径线；完成后可继续点选，"
-                    "右键或“结束工具”停止。"
-                )
-            else:
-                message = "已启动单次扫掠：点选一条路径后将自动结束。"
+            message = (
+                "已启动扫掠预览：请点选一条路径线。改型钢 / 规格 / 旋转角会实时"
+                "重建预览，点【确定】保留实体并计入统计，右键放弃。"
+            )
         else:
             message = (
                 "已启动放置工具：请在模型中连续点取插入点。"

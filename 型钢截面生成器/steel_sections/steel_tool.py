@@ -7,8 +7,10 @@ Two modes are driven from the selector dialog:
 * **Sweep along path** – the user selects one open path element (line, polyline,
   SmartLine, complex chain, arc or spline).  The section is generated at the
   path's start point, oriented normal to the path's start tangent, then swept
-  into a SmartSolid with ``SolidUtil.Create.BodyFromSweep``.  The user may ask
-  in the dialog for the path element to be deleted once the sweep succeeds.
+  into a SmartSolid with ``SolidUtil.Create.BodyFromSweep``.  The sweep is only
+  a **preview** until the user confirms: changing the section type / profile /
+  rotation rebuilds it live, and a statistics item (written to the shared pipe
+  support ItemType library) is attached when it is committed.
 
 Every placement / sweep step is written to
 ``型钢截面生成器_debug_log.txt`` in the plug-in root and reported through the
@@ -19,6 +21,7 @@ from __future__ import division
 
 import datetime
 import os
+import sys
 import traceback
 
 from MSPyBentley import *  # noqa: F401,F403
@@ -35,6 +38,21 @@ from . import steel_sweep_geometry
 # easy to find next to 型钢截面生成器.py.
 SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEBUG_LOG = os.path.join(SCRIPT_DIR, "型钢截面生成器_debug_log.txt")
+
+# 统计项复用管道支吊架的公共 ItemType 库（PipeSupportComponents），使型钢
+# 扫掠实体也能进入统一的支吊架 / 材料清单。库不存在时降级为不附加统计项，
+# 不影响建模本身。
+STEEL_SUPPORT_TYPE = "型钢"
+STEEL_SUPPORT_CODE = "STEEL_SECTION"
+try:
+    _COMMON_DIR = os.path.join(
+        os.path.dirname(SCRIPT_DIR), "管道支吊架", "模块", "公共"
+    )
+    if os.path.isdir(_COMMON_DIR) and _COMMON_DIR not in sys.path:
+        sys.path.insert(0, _COMMON_DIR)
+    import 支吊架公共库 as _support_library  # noqa: E402
+except Exception:
+    _support_library = None
 
 # Reference direction used to stop a swept section from twisting about a
 # horizontal path.  Vertical paths fall back to another world axis internally.
@@ -461,6 +479,78 @@ def _delete_element(element):
     return False
 
 
+def _attach_steel_items(element, family, profile_name, length_mm):
+    """把型钢扫掠实体写入公共支吊架库（复用统一统计 / 清单导出）。
+
+    每个实体记一条整组记录（统计根数）和一条构件记录（记录型号与长度）。
+    """
+    if _support_library is None:
+        _log("support library unavailable; statistics item skipped")
+        return 0
+    try:
+        return _support_library.attach_components(
+            element,
+            support_type=STEEL_SUPPORT_TYPE,
+            support_code=STEEL_SUPPORT_CODE,
+            assembly_tag="",
+            assembly_spec=profile_name,
+            components=({
+                "code": family.identifier,
+                "name": family.label,
+                "specification": profile_name,
+                "length": float(length_mm),
+                "quantity": 1,
+                "unit": "根",
+            },),
+        )
+    except Exception:
+        _log_exception("attach steel statistics item failed")
+        return 0
+
+
+def _primitive_length_uor(primitive, samples=24):
+    """Approximate one curve primitive's length by uniform sampling."""
+    total = 0.0
+    previous = _new_point()
+    primitive.FractionToPoint(0.0, previous, _new_vector())
+    for index in range(1, samples + 1):
+        point = _new_point()
+        primitive.FractionToPoint(index / float(samples), point, _new_vector())
+        total += _distance_3d(previous, point)
+        previous = point
+    return total
+
+
+def _curve_length_uor(curve_vector, samples=24):
+    """Sum the length of every leaf primitive in a (possibly nested) path."""
+    total = 0.0
+    for primitive in curve_vector:
+        primitive_type = primitive.GetCurvePrimitiveType()
+        if primitive_type == ICurvePrimitive.eCURVE_PRIMITIVE_TYPE_CurveVector:
+            child = primitive.GetChildCurveVector()
+            if child is not None:
+                total += _curve_length_uor(child, samples)
+            continue
+        total += _primitive_length_uor(primitive, samples)
+    return total
+
+
+def _path_length_mm(path_curve, model_ref):
+    """Return the open path's approximate length in millimetres."""
+    try:
+        uor_per_mm = model_ref.GetModelInfo().GetUorPerMeter() / 1000.0
+    except Exception:
+        uor_per_mm = 0.0
+    try:
+        length_uor = _curve_length_uor(path_curve)
+    except Exception:
+        _log_exception("path length sampling failed")
+        return 0.0
+    if not uor_per_mm:
+        return length_uor
+    return length_uor / uor_per_mm
+
+
 class SteelSectionPlaceTool(DgnPrimitiveTool):
     """Dynamic-preview tool that places any available registered family."""
 
@@ -625,30 +715,112 @@ class SteelSectionPlaceTool(DgnPrimitiveTool):
         return tool
 
 
-class SteelSectionSweepTool(DgnElementSetTool):
-    """Select one open path and sweep the chosen section along it."""
+def _build_sweep_element(family_id, section_mm, insertion_mode, rotation_deg,
+                         path_curve, path_element, model_ref):
+    """Build the swept solid as an element handle **without** writing the model."""
+    start, tangent = _path_start_and_tangent(path_curve)
+    _log(
+        "sweep path: isOpen={0} start=({1:.3f},{2:.3f},{3:.3f}) "
+        "tangent=({4:.6f},{5:.6f},{6:.6f})".format(
+            path_curve.IsOpenPath(), start.x, start.y, start.z,
+            tangent.x, tangent.y, tangent.z,
+        )
+    )
+    _log_path_endpoints(path_curve)
+    _log_path_primitive_geometry(path_curve, model_ref)
+    frame = steel_sweep_geometry.sweep_frame(
+        (start.x, start.y, start.z),
+        (tangent.x, tangent.y, tangent.z),
+        UP_HINT,
+    )
+    frame = steel_sweep_geometry.rotate_frame(frame, rotation_deg)
+    profile_curve = _build_profile_curves(
+        family_id, section_mm, insertion_mode, model_ref, frame
+    )
+    body = _sweep_body(
+        profile_curve, path_curve, model_ref, frame.origin, frame.axis_y
+    )
+    element = EditElementHandle()
+    if BentleyStatus.eSUCCESS != SolidUtil.Convert.BodyToElement(
+            element, body, path_element, model_ref.GetDgnModel()):
+        raise RuntimeError("无法把扫掠实体写入元素。")
+    ElementPropertyUtils.ApplyActiveSettings(element)
+    return element
 
-    def __init__(self, family_id, profile_name, insertion_mode, delete_path=False,
-                 rotation_deg=0.0, continuous=False):
+
+def replace_sweep(family_id, profile_name, insertion_mode, rotation_deg,
+                  path_curve, path_element, model_ref, previous_handle):
+    """Rebuild the sweep preview: commit the new element, then drop the old one.
+
+    The statistics item is attached to the freshly committed element before the
+    previous preview is deleted, so a rebuild never double-counts.  Returns
+    ``(new_handle, result, deleted_previous)``.
+    """
+    family = steel_registry.require_available(family_id)
+    section_mm = steel_registry.get_section(family_id, profile_name)
+    element = _build_sweep_element(
+        family_id, section_mm, insertion_mode, rotation_deg,
+        path_curve, path_element, model_ref,
+    )
+    if BentleyStatus.eSUCCESS != element.AddToModel():
+        raise RuntimeError("扫掠实体没有写入当前 DGN 模型。")
+    length_mm = _path_length_mm(path_curve, model_ref)
+    attached = _attach_steel_items(element, family, profile_name, length_mm)
+    deleted = _delete_element(previous_handle)
+    result = {
+        "family_id": family_id,
+        "family_label": family.label,
+        "profile": profile_name,
+        "rotation_deg": float(rotation_deg),
+        "length_mm": length_mm,
+        "attached_items": attached,
+        "deleted_previous": bool(deleted),
+    }
+    _log(
+        "sweep preview: family={0} profile={1} length={2:.1f}mm "
+        "items={3} replaced={4}".format(
+            family_id, profile_name, length_mm, attached, bool(deleted)
+        )
+    )
+    return element, result, deleted
+
+
+def build_preview(family_id, profile_name, insertion_mode, rotation_deg,
+                  path_handle, previous_handle):
+    """Rebuild a sweep preview from a path element handle (Bentley-only).
+
+    Called from the dialog whenever the selected path or a section parameter
+    changes.  Raises ``RuntimeError`` with a user-facing message on failure.
+    """
+    model_ref = ISessionMgr.ActiveDgnModelRef
+    if model_ref is None:
+        raise RuntimeError("没有活动 DGN 模型。")
+    if not model_ref.Is3d():
+        raise RuntimeError("沿路径扫掠需要三维模型。")
+    path_curve = ICurvePathQuery.ElementToCurveVector(path_handle)
+    if path_curve is None or not path_curve.IsOpenPath():
+        raise RuntimeError("请选择一条非闭合的路径线。")
+    return replace_sweep(
+        family_id, profile_name, insertion_mode, rotation_deg,
+        path_curve, path_handle, model_ref, previous_handle,
+    )
+
+
+class SteelSectionSweepTool(DgnElementSetTool):
+    """Select one open path; the section is previewed until the user confirms.
+
+    The tool owns no section parameters.  It forwards the path selection to the
+    settings dialog, which rebuilds the preview whenever the user changes the
+    section type / profile / rotation.  Right-click Reset cancels the preview.
+    """
+
+    def __init__(self, settings):
         DgnElementSetTool.__init__(self, 0)
         self.m_self = self
-        self.family_id = family_id
-        self.profile_name = profile_name
-        self.insertion_mode = insertion_mode
-        self.delete_path = bool(delete_path)
-        self.rotation_deg = float(rotation_deg)
-        self.continuous = bool(continuous)
-        self.stopping = False
+        self.settings = settings
         self.cleaned = False
-        self.family = steel_registry.require_available(family_id)
-        self.section_mm = steel_registry.get_section(family_id, profile_name)
-        _log(
-            "sweep tool created: family={0} profile={1} insertion={2} "
-            "delete_path={3} rotation={4} continuous={5}".format(
-                family_id, profile_name, insertion_mode, self.delete_path,
-                self.rotation_deg, self.continuous,
-            )
-        )
+        self.stopping = False
+        _log("sweep tool created (preview/confirm mode)")
 
     def _GetToolName(self, name):
         return WString("Steel Section Sweep Tool")
@@ -669,9 +841,7 @@ class SteelSectionSweepTool(DgnElementSetTool):
         AccuSnap.GetInstance().EnableSnap(True)
         DgnElementSetTool._OnPostInstall(self)
         NotificationManager.OutputPrompt(
-            "请选择 {0} {1} 要沿其扫掠的路径线（右键 Reset 退出）".format(
-                self.family.label, self.profile_name
-            )
+            "请选择要沿其扫掠的路径线（预览后点【确定】保留，右键放弃）"
         )
 
     def _OnPostLocate(self, path, cant_accept_reason):
@@ -682,68 +852,48 @@ class SteelSectionSweepTool(DgnElementSetTool):
             curve = ICurvePathQuery.ElementToCurveVector(element_handle)
             if curve is None or not curve.IsOpenPath():
                 return False
+            # 悬停时记下稳定的 ElementHandle（普通 Python 状态），点击后用
+            # 它做预览；参数变化时也复用同一句柄，避免依赖瞬时编辑句柄。
+            if self.settings is not None:
+                self.settings.note_path(element_handle)
             return True
         except Exception:
             return False
 
     def _OnElementModify(self, eeh):
-        try:
-            NotificationManager.OutputPrompt(
-                "正在沿路径扫掠 {0} {1} ……".format(
-                    self.family.label, self.profile_name
-                )
-            )
-            self._perform_sweep(eeh)
-        except Exception as error:
-            _log_exception("sweep failed")
-            if str(error).startswith("沿路径扫掠失败"):
-                message = (
-                    "扫掠失败：所选路径不符合要求。\n"
-                    "可能原因：圆角半径过小、路径断开/自交、存在过短线段，"
-                    "或直线与圆弧不相切。\n"
-                    "请增大圆角半径、清理路径，或改用简单连续的开放折线。"
-                )
-            else:
-                message = (
-                    "扫掠失败：发生内部错误。请检查所选路径后重试。\n"
-                    "详细原因已写入调试日志。"
-                )
-            publish_status(message, True)
-            try:
-                NotificationManager.OutputPrompt(
-                    "扫掠失败，请查看型钢截面生成器窗口中的提示。"
-                )
-            except Exception:
-                pass
+        if self.settings is None:
             return BentleyStatus.eERROR
-        message = "已生成 {0} {1} 沿路径扫掠实体。".format(
-            self.family.label, self.profile_name
-        )
-        if self.delete_path:
-            message += " 已删除路径线。"
-        if not self.continuous:
-            message += " 扫掠工具已结束。"
-        _log("sweep ok: " + message)
-        publish_status(message, False)
-        NotificationManager.OutputPrompt(message)
-        return BentleyStatus.eSUCCESS
+        _log("sweep _OnElementModify: path selected")
+        try:
+            result = self.settings.regenerate(path_element=eeh)
+        except Exception:
+            _log_exception("sweep preview failed")
+            return BentleyStatus.eERROR
+        return (BentleyStatus.eSUCCESS if result is not None
+                else BentleyStatus.eERROR)
 
     def _OnResetButton(self, ev):
-        """Right-click Reset always means stop; never restart the sweep tool."""
-        _log("sweep reset button: exiting tool")
-        publish_status("已结束扫掠工具。可调整参数后重新选取路径。", False)
-        self.stop()
+        """Right-click Reset = give up the current preview (keep the dialog)."""
+        _log("sweep reset button: cancel preview")
+        if self.settings is not None:
+            self.settings.request_cancel()
         return True
 
     def _OnRestartTool(self):
-        if self.continuous and not self.stopping and not self.cleaned:
-            SteelSectionSweepTool.InstallNewInstance(
-                self.family_id, self.profile_name, self.insertion_mode,
-                self.delete_path, self.rotation_deg, self.continuous,
-            )
-        else:
-            self.stopping = True
-            _log("sweep restart skipped: one-shot or stopping")
+        """After a path selection the base tool restarts; keep the same dialog.
+
+        The settings reference is cleared on the outgoing instance *before*
+        reinstalling so its ``_OnCleanup`` does not discard the fresh preview.
+        A genuine stop (confirm / cancel / end) sets ``stopping`` and is not
+        restarted.
+        """
+        if self.stopping or self.cleaned:
+            _log("sweep restart skipped: stopping")
+            return
+        settings = self.settings
+        self.settings = None
+        _log("sweep restart: reinstalling preview tool")
+        SteelSectionSweepTool.InstallNewInstance(settings)
 
     def stop(self):
         if self.cleaned or self.stopping:
@@ -754,78 +904,25 @@ class SteelSectionSweepTool(DgnElementSetTool):
     def _OnCleanup(self):
         global _ACTIVE_TOOL
         self.cleaned = True
-        self.stopping = True
         if _ACTIVE_TOOL is self:
             _ACTIVE_TOOL = None
+        settings = self.settings
         self.m_self = None
-
-    def _perform_sweep(self, path_element):
-        model_ref = ISessionMgr.ActiveDgnModelRef
-        if model_ref is None:
-            raise RuntimeError("没有活动 DGN 模型。")
-        if not model_ref.Is3d():
-            raise RuntimeError("沿路径扫掠需要三维模型。")
-
-        path_curve = ICurvePathQuery.ElementToCurveVector(path_element)
-        if path_curve is None or not path_curve.IsOpenPath():
-            raise RuntimeError("请选择一条非闭合的路径线。")
-
-        start, tangent = _path_start_and_tangent(path_curve)
-        _log(
-            "sweep path: isOpen={0} start=({1:.3f},{2:.3f},{3:.3f}) "
-            "tangent=({4:.6f},{5:.6f},{6:.6f})".format(
-                path_curve.IsOpenPath(), start.x, start.y, start.z,
-                tangent.x, tangent.y, tangent.z,
-            )
-        )
-        _log_path_endpoints(path_curve)
-        _log_path_primitive_geometry(path_curve, model_ref)
-        frame = steel_sweep_geometry.sweep_frame(
-            (start.x, start.y, start.z),
-            (tangent.x, tangent.y, tangent.z),
-            UP_HINT,
-        )
-        frame = steel_sweep_geometry.rotate_frame(frame, self.rotation_deg)
-        profile_curve = _build_profile_curves(
-            self.family_id, self.section_mm, self.insertion_mode, model_ref, frame
-        )
-        body = _sweep_body(
-            profile_curve, path_curve, model_ref, frame.origin, frame.axis_y
-        )
-
-        result = EditElementHandle()
-        if BentleyStatus.eSUCCESS != SolidUtil.Convert.BodyToElement(
-                result, body, path_element, model_ref.GetDgnModel()):
-            raise RuntimeError("无法把扫掠实体写入元素。")
-        ElementPropertyUtils.ApplyActiveSettings(result)
-        if BentleyStatus.eSUCCESS != result.AddToModel():
-            raise RuntimeError("扫掠实体没有写入当前 DGN 模型。")
-
-        if self.delete_path:
-            _delete_element(path_element)
-
-    @staticmethod
-    def _error(message):
-        _log("ERROR: {0}".format(message))
+        if settings is None:
+            # 由 _OnRestartTool 主动移交：新实例仍在运行，不要丢弃预览。
+            return
+        self.settings = None
+        # 原生回调里不碰 Tcl：只置标志，由面板的常驻定时器处理。
         try:
-            MessageCenter.ShowErrorMessage("型钢截面生成器", message, False)
+            settings.request_cleanup()
         except Exception:
-            _log_exception("ShowErrorMessage failed")
+            _log_exception("sweep cleanup request failed")
 
     @staticmethod
-    def InstallNewInstance(family_id, profile_name, insertion_mode, delete_path=False,
-                           rotation_deg=0.0, continuous=False):
+    def InstallNewInstance(settings):
         global _ACTIVE_TOOL
-        _log(
-            "InstallNewInstance(sweep): family={0} profile={1} delete_path={2} "
-            "rotation={3} continuous={4}".format(
-                family_id, profile_name, delete_path, rotation_deg, continuous
-            )
-        )
-        tool = SteelSectionSweepTool(
-            family_id, profile_name, insertion_mode, delete_path, rotation_deg,
-            continuous,
-        )
+        _log("InstallNewInstance(sweep): preview/confirm mode")
+        tool = SteelSectionSweepTool(settings)
         status = tool.InstallTool()
         _log("InstallNewInstance(sweep): InstallTool status={0}".format(status))
         if BentleyStatus.eSUCCESS != status:
@@ -840,12 +937,9 @@ def start_placement(family_id, profile_name, insertion_mode):
     )
 
 
-def start_sweep(family_id, profile_name, insertion_mode, delete_path=False,
-                rotation_deg=0.0, continuous=False):
-    return SteelSectionSweepTool.InstallNewInstance(
-        family_id, profile_name, insertion_mode, delete_path, rotation_deg,
-        continuous,
-    )
+def start_sweep(settings):
+    """Install the interactive sweep tool driven by *settings* (the dialog)."""
+    return SteelSectionSweepTool.InstallNewInstance(settings)
 
 
 def has_active_tool():
