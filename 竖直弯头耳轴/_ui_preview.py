@@ -12,7 +12,7 @@ import os
 import sys
 import types
 
-STUB_MODULES = ("MSPyBentley", "MSPyBentleyGeom", "MSPyDgnPlatform",
+STUB_MODULES = ("MSPyBentley", "MSPyBentleyGeom", "MSPyECObjects", "MSPyDgnPlatform",
                 "MSPyDgnView", "MSPyMstnPlatform")
 
 
@@ -20,10 +20,13 @@ def _install_stubs():
     for name in STUB_MODULES:
         module = types.ModuleType(name)
         if name == "MSPyMstnPlatform":
-            class _DgnPrimitiveTool(object):
+            class _DgnElementSetTool(object):
+                eUSES_SS_None = 0
+
                 def __init__(self, *args, **kwargs):
                     pass
-            module.DgnPrimitiveTool = _DgnPrimitiveTool
+
+            module.DgnElementSetTool = _DgnElementSetTool
         sys.modules[name] = module
 
 
@@ -41,23 +44,35 @@ def main():
     _install_stubs()
     plugin = _load_plugin()
 
-    from PyQt5.QtWidgets import QApplication
-    app = QApplication.instance() or QApplication([])
-    dialog = plugin.TrunnionDialog()
+    panel = plugin.TrunnionPanel()
+    panel._selection.set(
+        "元素 32456｜LONG_RADIUS_90_DEGREE_PIPE_ELBOW\n"
+        "DN250 · 外径 273.0 mm → 耳轴 DN150（Ø168.3）\n"
+        "水平端 (13737.5, -7593.3, 0.0)｜竖直端 (13356.5, -7593.3, 381.0) mm"
+    )
+    panel._append_log(
+        "已生成｜元素 32456｜DN250｜H 1000.0 mm｜A 方形底板｜新图元 41001, 41002"
+    )
+    panel._apply_status("生成完成；可继续点选另一个竖直弯头。")
 
     if "--shot" in sys.argv:
-        dialog.show()
-        for _ in range(10):
-            app.processEvents()
-        image = dialog.grab()
+        from PIL import ImageGrab
+
+        panel.update_idletasks()
+        panel.update()
+        x = panel.winfo_rootx()
+        y = panel.winfo_rooty()
+        width = panel.winfo_width()
+        height = panel.winfo_height()
+        image = ImageGrab.grab(bbox=(x, y, x + width, y + height))
         out = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                            "preview.png")
         image.save(out)
+        panel.destroy()
         print("saved: %s" % out)
         return
 
-    dialog.show()
-    sys.exit(app.exec_())
+    panel.mainloop()
 
 
 if __name__ == "__main__":

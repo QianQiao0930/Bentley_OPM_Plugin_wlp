@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<KeyinTree xmlns="http://www.bentley.com/schemas/1.0/MicroStation/AddIn/KeyinTree.xsd">
+  <RootKeyinTable ID="root">
+    <Keyword SubtableRef="PYVPTRUN" CommandClass="MacroCommand" CommandWord="PYVPTRUN">
+      <Options Required="true" />
+    </Keyword>
+  </RootKeyinTable>
+  <SubKeyinTables>
+    <KeyinTable ID="PYVPTRUN">
+      <Keyword CommandWord="PLACE" />
+      <Keyword CommandWord="EXPORT" />
+    </KeyinTable>
+  </SubKeyinTables>
+  <KeyinHandlers>
+    <KeyinHandler Keyin="PYVPTRUN PLACE" Function="OpenVpTrunnion" />
+    <KeyinHandler Keyin="PYVPTRUN EXPORT" Function="ExportVpTrunnionBom" />
+  </KeyinHandlers>
+</KeyinTree>

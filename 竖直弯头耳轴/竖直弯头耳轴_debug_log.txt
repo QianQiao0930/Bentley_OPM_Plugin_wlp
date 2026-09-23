@@ -1,10 +1,12 @@
-created DN200 R300.0 H1000.0, trunnion DN100, base=A 方形底板, ids=(4674, 4716, 4730)
-created DN800 R1200.0 H1000.0, trunnion DN400, base=A 方形底板, ids=(4744, 4786)
-created DN200 R300.0 H1000.0, trunnion DN100, base=B 圆形底板, ids=(4800, 4842, 4850)
-created DN200 R300.0 H1000.0, trunnion DN100, base=A 方形底板, ids=(4864, 4906, 4920)
-created DN500 R750.0 H500.0, trunnion DN250, base=A 方形底板, ids=(4934, 4976, 4990)
-created DN200 R300.0 H1000.0, trunnion DN100, base=B 圆形底板, ids=(5004, 5046, 5054)
-created DN200 R300.0 H1000.0, trunnion DN100, base=B 圆形底板, ids=(5068, 5110)
-created DN200 R300.0 H805.0, trunnion DN100, base=A 方形底板, ids=(66403, 66445)
-created DN800 R1200.0 H1000.0, trunnion DN400, base=A 方形底板, ids=(20264, 20306)
-created DN800 R1200.0 H1000.0, trunnion DN400, base=A 方形底板, ids=(20320, 20362, 20376)
+
+elbow 32456 matrix missing=['M00', 'M01', 'M02', 'M03', 'M04', 'M05', 'M06', 'M07', 'M08', 'M09', 'M10', 'M11'] captured=[]
+selection/create exception for 32456: ValueError('弯头变换矩阵读取不完整，缺少：M00, M01, M02, M03, M04, M05, M06, M07, M08, M09, M10, M11。')
+selection/create exception for 31182: ValueError('所选元素不是 OpenPlant 弯头。')
+elbow 32456 matrix missing=['M00', 'M01', 'M02', 'M03', 'M04', 'M05', 'M06', 'M07', 'M08', 'M09', 'M10', 'M11'] captured=[]
+elbow 32456 matrix access strings=['MAJOR_RADIUS', 'MANUFACTURER', 'MATERIAL', 'MINOR_RADIUS', 'MODEL', 'MODULE', 'ModifiedBy', 'ModifyTime', 'TRANSFORMATION_MATRIX']
+selection/create exception for 32456: ValueError('弯头变换矩阵读取不完整，缺少：M00, M01, M02, M03, M04, M05, M06, M07, M08, M09, M10, M11。')
+selected elbow id=32456 class=LONG_RADIUS_90_DEGREE_PIPE_ELBOW DN=250 OD=273.000 horizontal=(13737.485250681857, -7593.257296403165, 0.0) vertical=(13356.485250681857, -7593.257296403165, 381.0)
+selection/create exception for 32456: RuntimeError('沿路径扫掠实体失败。')
+selection/create exception for 31182: ValueError('所选元素不是 OpenPlant 弯头。')
+selected elbow id=32456 class=LONG_RADIUS_90_DEGREE_PIPE_ELBOW DN=250 OD=273.000 horizontal=(13737.485250681857, -7593.257296403165, 0.0) vertical=(13356.485250681857, -7593.257296403165, 381.0)
+created from elbow 32456 DN250 H1000.0, trunnion DN150, base=A 方形底板, ids=(34497, 34539)
