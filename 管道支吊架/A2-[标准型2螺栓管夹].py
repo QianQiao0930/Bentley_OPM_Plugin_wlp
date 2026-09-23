@@ -124,7 +124,13 @@ from bentley_ui import (  # noqa: E402
     SlimScrollbar,
 )
 
-UI_TITLE = '标准型2螺栓管夹'
+# 接入公共支吊架库（统一统计 / 清单）；公共库在 模块/公共/。
+import 支吊架公共库 as psb  # noqa: E402
+
+
+UI_TITLE = 'A2-[标准型2螺栓管夹]'
+SUPPORT_TYPE = 'A2-[标准型2螺栓管夹]'
+SUPPORT_CODE = 'STD_2BOLT_CLAMP'
 DEBUG_LOG = os.path.join(_HERE, '模块', '日志', '标准型2螺栓管夹_debug_log.txt')
 try:
     os.makedirs(os.path.dirname(DEBUG_LOG), exist_ok=True)
@@ -388,6 +394,27 @@ def _frame(axis):
 # ---------------------------------------------------------------------------
 
 
+def _attach_support_items(cell, dn, row):
+    """把整组管夹写入共享支吊架库（整组记录 + 构件记录），供统一统计/清单。"""
+    body_spec = 'DN%d（%s，A=%.0f，C=%.0f，t=%.0f，w=%.0f）' % (
+        dn, row['nps'], float(row['A']), float(row['C']), float(row['t']),
+        float(row['w']))
+    components = [
+        {'code': 'Body', 'name': '管架本体', 'specification': body_spec,
+         'length': float(row['w']), 'quantity': 1, 'unit': '件'},
+        {'code': 'Bolt', 'name': '螺栓', 'specification': str(row['F']),
+         'length': 0.0, 'quantity': 2, 'unit': '套'},
+    ]
+    try:
+        return psb.attach_components(
+            cell, support_type=SUPPORT_TYPE, support_code=SUPPORT_CODE,
+            assembly_tag='DN%d' % dn, assembly_spec=body_spec,
+            components=components)
+    except Exception:
+        _log_exception('attach support items failed')
+        return 0
+
+
 def build_clamp(center_mm, axis, dn=None, insulation_mm=0.0, note=''):
     """沿管轴 ``axis`` 在 ``center_mm`` 处生成一组管夹，角度自动对齐。
 
@@ -478,6 +505,7 @@ def build_clamp(center_mm, axis, dn=None, insulation_mm=0.0, note=''):
         bodies.extend(_fastener_bodies(model, point, direction, uor, 0.0, y,
                                        box_width / 2.0, f_number, hole_radius))
     result = _assembly_element(model, bodies)
+    _attach_support_items(result, dn, row)
 
     message = ('已生成标准型2螺栓管夹（DN%d，%s，%s）：'
                '圆柱 φ%.1f（A+2t=%.0f+2×%.0f）、轴向长 %.0f；'

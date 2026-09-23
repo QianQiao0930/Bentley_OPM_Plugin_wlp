@@ -42,7 +42,7 @@ def _member_world(variant_key, member_kind, line, arm_length_mm,
                   heading_deg=0.0, rack_type=1):
     """返回 ``(origin, axis_z, length_mm, points)``（世界坐标）。
 
-    与 ``T形架.py`` 中 ``_build_member_element`` 的做法一致。
+    与 ``D12_G4-[T形_倒T形架].py`` 中 ``_build_member_element`` 的做法一致。
     """
     u_dir, v_dir, w_dir = geom.frame_axes(heading_deg)
     origin_uvw, length_mm = geom.member_origin_length(
@@ -453,6 +453,16 @@ class LoadTableTests(unittest.TestCase):
                              msg='%s Hmax' % key)
             self.assertEqual(geom.max_allowed_arm_length(key), arm,
                              msg='%s Lmax' % key)
+
+    def test_ground_anchor_lift_is_grout_plus_plate(self):
+        """地面固定时钢构架相对线端的抬升 = 灌浆梯台厚 + 锚板厚。"""
+        for key in sorted(geom.VARIANTS):
+            spec = geom.ground_anchor_spec(key)
+            self.assertAlmostEqual(
+                geom.ground_anchor_lift(key),
+                geom.GROUND_GROUT_THICKNESS_MM + spec['plate_t'], places=9)
+        # E 子项：25 + 16 = 41，正好解释 H=1600 时地面到横担顶的 1641。
+        self.assertAlmostEqual(geom.ground_anchor_lift('E'), 41.0, places=9)
 
     def test_height_rounds_down_conservatively(self):
         """H=1900 按表中 1000 取用（偏安全），而不是 2000。"""

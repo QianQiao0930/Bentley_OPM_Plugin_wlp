@@ -60,6 +60,39 @@ class NamingTests(unittest.TestCase):
         self.assertNotEqual(first, other)
 
 
+class PipeNumberAttachmentTests(unittest.TestCase):
+    def test_pipe_number_is_written_to_all_items_and_names_are_isolated(self):
+        original = psb._attach_item_with_defaults
+        calls = []
+
+        def capture(_element, name, defaults):
+            calls.append((name, defaults['PipeNumber']))
+            return True
+
+        psb._attach_item_with_defaults = capture
+        try:
+            kwargs = dict(support_type='竖直弯头的竖直耳轴',
+                          support_code='F2', assembly_tag='F2-100',
+                          components=[{'code': 'PIPE', 'name': '耳轴',
+                                       'length': 200.0}])
+            self.assertEqual(2, psb.attach_components(None, pipe_number=' P-101 ', **kwargs))
+            first = list(calls)
+            calls.clear()
+            self.assertEqual(2, psb.attach_components(None, pipe_number='P-102', **kwargs))
+            second = list(calls)
+            calls.clear()
+            self.assertEqual(2, psb.attach_components(None, **kwargs))
+            empty = list(calls)
+        finally:
+            psb._attach_item_with_defaults = original
+
+        self.assertEqual(['P-101', 'P-101'], [value for _, value in first])
+        self.assertEqual(['P-102', 'P-102'], [value for _, value in second])
+        self.assertEqual(['', ''], [value for _, value in empty])
+        self.assertNotEqual([name for name, _ in first], [name for name, _ in second])
+        self.assertNotEqual([name for name, _ in first], [name for name, _ in empty])
+
+
 class SummariseTests(unittest.TestCase):
     def _records(self):
         return [
@@ -142,7 +175,8 @@ class ExcelTests(unittest.TestCase):
                 {'recordKind': 'Assembly', 'supportType': u'端焊三角架',
                  'assemblyTag': u'D5-1-A-1000-1500', 'componentName': u'支吊架',
                  'specification': u'H125 + L100', 'unit': u'套',
-                 'quantity': 1, 'designLengthMm': 0.0, 'elementId': 11},
+                 'quantity': 1, 'designLengthMm': 0.0, 'elementId': 11,
+                 'pipeNumber': u'P-101'},
                 {'recordKind': 'Component', 'supportType': u'端焊三角架',
                  'assemblyTag': '', 'componentName': u'横担',
                  'specification': u'H125', 'unit': u'件',
@@ -155,7 +189,8 @@ class ExcelTests(unittest.TestCase):
         support_rows = sheets[1][1]
         self.assertEqual(u'序号', support_rows[0][0])
         self.assertEqual(1, support_rows[1][0])
-        self.assertIn(u'横担', support_rows[1][4])
+        self.assertEqual(u'P-101', support_rows[1][3])
+        self.assertIn(u'横担', support_rows[1][5])
 
 
 if __name__ == '__main__':

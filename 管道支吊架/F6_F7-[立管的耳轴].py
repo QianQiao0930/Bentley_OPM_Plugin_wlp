@@ -112,8 +112,8 @@ import 支吊架公共库 as psb  # noqa: E402
 # 常量
 # ---------------------------------------------------------------------------
 
-UI_TITLE = '立管的耳轴'
-SUPPORT_TYPE = '立管的耳轴'
+UI_TITLE = 'F6_F7-[立管的耳轴]'
+SUPPORT_TYPE = 'F6_F7-[立管的耳轴]'
 SUPPORT_CODE = 'VP_TRUNNION'
 _CELL_NAME = 'VP_TRUNNION'
 

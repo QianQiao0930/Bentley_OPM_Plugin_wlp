@@ -17,6 +17,8 @@
     DesignLengthMm  设计长度 / 特征尺寸
     Quantity        数量
     Unit            单位
+    PipeNumber      管道号（从所选管道读取时自动填写；无值时留空，也可在
+                    「属性 → Item Types」面板中自行填写）
 
 于是任何支吊架插件放置的实体都能被 :func:`export_combined_bom` 一次扫到：
 
@@ -25,7 +27,9 @@
 
 属性值写入 ItemType 的默认值（规避部分 MicroStation 版本
 ``ApplyCustomItem`` 返回值无法封送的问题），因此同一
-(类型, 构件, 规格/长度) 会复用同一个 ItemType。
+(类型, 构件, 规格/长度, 管道号) 会复用同一个 ItemType。带管道号时
+ItemType 名称附加管道号哈希，避免不同管线复用默认值而串号；无管道号时
+默认空串。用户也可在属性面板中逐实例修改。
 
 本模块不依赖任何具体插件；各插件把 ``管道支吊架/模块/公共`` 目录加入
 ``sys.path`` 后 ``import 支吊架公共库`` 即可。
@@ -84,7 +88,13 @@ PROPERTY_DEFINITIONS = (
     ('DesignLengthMm', _EC_DOUBLE),
     ('Quantity', _EC_INTEGER),
     ('Unit', _EC_STRING),
+    ('PipeNumber', _EC_STRING),
 )
+
+# 属性在 Bentley「属性 → Item Types」面板中的显示名（尽力而为，失败不影响写入）。
+PROPERTY_DISPLAY_LABELS = {
+    'PipeNumber': '管道号',
+}
 
 
 def _log(message):
@@ -113,6 +123,17 @@ def _new_ec_value(value):
     else:
         ec_value.SetInteger(int(value))
     return ec_value
+
+
+def _apply_display_label(item_property, property_name):
+    """给属性设置中文显示名（面板可见）；API 不支持时静默跳过。"""
+    label = PROPERTY_DISPLAY_LABELS.get(property_name)
+    if not label or not hasattr(item_property, 'SetDisplayLabel'):
+        return
+    try:
+        item_property.SetDisplayLabel(label)
+    except Exception:
+        pass
 
 
 def _ascii_token(text):
@@ -170,6 +191,7 @@ def _get_or_create_item_type(item_type_name, defaults):
                         _new_ec_value(defaults[property_name])):
                     _log('item type: failed to set default for %s' % property_name)
                     return None
+                _apply_display_label(item_property, property_name)
                 changed = True
 
         if changed and not item_library.Write():
@@ -202,7 +224,8 @@ def _attach_item_with_defaults(element, item_type_name, defaults):
 
 
 def attach_components(element, support_type, support_code, assembly_tag,
-                      components, assembly_spec='', assembly_unit='套'):
+                      components, assembly_spec='', assembly_unit='套',
+                      pipe_number=''):
     """把一组支吊架构件写入公共库并附加到 *element*（通常是一整组单元）。
 
     ``support_type`` 为中文显示名（如 '端焊三角架'）；``support_code`` 为
@@ -214,6 +237,8 @@ def attach_components(element, support_type, support_code, assembly_tag,
     返回成功附加的条目数。
     """
     attached = 0
+    pipe_number = str(pipe_number or '').strip()
+    pipe_suffix = '_P' + _short_hash(pipe_number) if pipe_number else ''
 
     assembly_defaults = {
         'RecordKind': 'Assembly',
@@ -224,9 +249,10 @@ def attach_components(element, support_type, support_code, assembly_tag,
         'DesignLengthMm': 0.0,
         'Quantity': 1,
         'Unit': str(assembly_unit or '套'),
+        'PipeNumber': pipe_number,
     }
     assembly_name = _assembly_item_type_name(
-        support_code, assembly_tag, assembly_spec)
+        support_code, assembly_tag, assembly_spec) + pipe_suffix
     if _attach_item_with_defaults(element, assembly_name, assembly_defaults):
         attached += 1
 
@@ -242,8 +268,9 @@ def attach_components(element, support_type, support_code, assembly_tag,
             'DesignLengthMm': length,
             'Quantity': int(item.get('quantity', 1)),
             'Unit': str(item.get('unit', '件')),
+            'PipeNumber': pipe_number,
         }
-        name = _component_item_type_name(support_code, code, length)
+        name = _component_item_type_name(support_code, code, length) + pipe_suffix
         if _attach_item_with_defaults(element, name, defaults):
             attached += 1
 
@@ -297,6 +324,7 @@ def _collect_records(item_library, dgn_file):
             'designLengthMm': _item_property_value(item, 'DesignLengthMm', 'double'),
             'quantity': _item_property_value(item, 'Quantity', 'integer'),
             'unit': _item_property_value(item, 'Unit', 'string'),
+            'pipeNumber': _item_property_value(item, 'PipeNumber', 'string'),
         }
         if not record['recordKind']:
             record['recordKind'] = ('Assembly'
@@ -575,7 +603,7 @@ def build_excel_sheets(statistics, timestamp=''):
         summary_rows.append([entry['supportType'], entry['assemblyCount'],
                              '、'.join(entry['assemblyTags'])])
 
-    support_rows = [[u'序号', u'支吊架类型', u'支吊架编号', u'规格',
+    support_rows = [[u'序号', u'支吊架类型', u'支吊架编号', u'管道号', u'规格',
                      u'构件明细', u'元素ID']]
     index = 0
     for record in records:
@@ -584,7 +612,7 @@ def build_excel_sheets(statistics, timestamp=''):
         index += 1
         support_rows.append([
             index, record.get('supportType') or '', record.get('assemblyTag') or '',
-            record.get('specification') or '',
+            record.get('pipeNumber') or '', record.get('specification') or '',
             '；'.join(components_by_element.get(record.get('elementId'), [])),
             record.get('elementId'),
         ])

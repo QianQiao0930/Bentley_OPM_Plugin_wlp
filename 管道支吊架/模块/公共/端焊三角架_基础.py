@@ -51,7 +51,7 @@ from PyQt5.QtWidgets import (QApplication, QCheckBox, QGridLayout, QHBoxLayout,
 # ---------------------------------------------------------------------------
 
 # VARIANTS 以子项代号为键。h_beam = (高, 宽, 腹板厚, 翼缘厚)，
-# angle = (肢宽, 肢厚)。插件入口 端焊三角架.py 会在导入后覆盖本表。
+# angle = (肢宽, 肢厚)。插件入口 端焊D5_D6-[三角架].py 会在导入后覆盖本表。
 VARIANTS = {
     'A': {
         'h_beam': (125.0, 125.0, 6.5, 9.0),

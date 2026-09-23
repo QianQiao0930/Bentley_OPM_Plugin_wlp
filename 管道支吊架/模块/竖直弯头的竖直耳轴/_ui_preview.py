@@ -27,13 +27,18 @@ def _install_stubs():
                     pass
 
             module.DgnElementSetTool = _DgnElementSetTool
+            module.DgnPrimitiveTool = _DgnElementSetTool
         sys.modules[name] = module
 
 
 def _load_plugin():
     import importlib.util
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                        "竖直弯头耳轴.py")
+    here = os.path.dirname(os.path.abspath(__file__))
+    if os.path.basename(os.path.dirname(here)) == '模块':
+        plugin_root = os.path.dirname(os.path.dirname(here))
+    else:
+        plugin_root = os.path.join(os.path.dirname(here), '管道支吊架')
+    path = os.path.join(plugin_root, 'F2-[竖直弯头的竖直耳轴].py')
     spec = importlib.util.spec_from_file_location("trunnion_plugin", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

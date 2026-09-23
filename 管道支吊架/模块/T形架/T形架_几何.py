@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
 # 【公共模块 · 请勿直接运行】
-# 本文件仅作为纯几何 / 数据逻辑库供 ``T形架.py`` 等插件 ``import`` 调用，
+# 本文件仅作为纯几何 / 数据逻辑库供 ``D12_G4-[T形_倒T形架].py`` 等插件 ``import`` 调用，
 # 没有独立入口。请勿在 OpenPlant Modeler / MicroStation 中直接加载运行。
 # =============================================================================
 """T 形架（类型 1）纯几何 / 数据逻辑（不依赖 Bentley 运行时可单测）。
@@ -682,7 +682,8 @@ GROUND_ANCHOR_TABLE = {
 }
 
 # 现场灌浆保护层：高度，以及相对锚板每边的斜向外扩量（mm）。
-# 顶面与锚板同尺寸 E×E，向下高 25，每边斜向外扩 20（≈45°），呈梯台（棱台）状。
+# 梯台在锚板下方、坐落于地面：底面（地面）较大、向上收窄，顶面与锚板同尺寸
+# E×E；高 25，每边斜向外扩 20（≈45°），呈梯台（棱台）状。
 GROUND_GROUT_THICKNESS_MM = 25.0
 GROUND_GROUT_FLARE_MM = 20.0
 
@@ -697,6 +698,17 @@ def ground_anchor_spec(variant_key):
     except KeyError:
         raise ValueError('子项 %s 没有地面固定用的锚板数据（表 2）。'
                          % variant_key)
+
+
+def ground_anchor_lift(variant_key):
+    """地面固定时钢构架相对所选竖直线下端的抬升量（mm）。
+
+    所选竖直线下端取**梯台底面（地面）**；自下而上依次为现场灌浆梯台
+    :data:`GROUND_GROUT_THICKNESS_MM` 与锚板厚 ``plate_t``，故立柱底面（锚板
+    顶面）比线端高 ``梯台厚 + 锚板厚``。立柱/横担据此整体抬升，而横担顶面仍
+    落在所选直线上端。
+    """
+    return GROUND_GROUT_THICKNESS_MM + ground_anchor_spec(variant_key)['plate_t']
 
 
 def ground_anchor_number(variant_key, height_mm, arm_length_mm,

@@ -124,7 +124,7 @@ pipe_reader.fill_mspy_symbols(
     globals())
 
 
-SUPPORT_TYPE = '保温管夹'
+SUPPORT_TYPE = 'T4-[高温隔热限位管托]'
 SUPPORT_CODE = 'INSULATED_PIPE_CLAMP'
 CELL_NAME = 'INSULATED_PIPE_CLAMP'
 
@@ -153,7 +153,7 @@ WASHER_THICKNESS_MM = 3.0
 BOLT_TIP_EXTRA_MM = 4.0
 
 DEBUG_LOG = os.path.join(HERE, '模块', '日志', '保温管夹_debug_log.txt')
-UI_TITLE = '保温管夹（高温隔热限位管托）'
+UI_TITLE = 'T4-[高温隔热限位管托]'
 UI_REVISION = 'point-select-1'
 
 DEFAULT_DN = 200

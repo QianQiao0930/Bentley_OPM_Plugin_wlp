@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
-"""导出当前 DGN 中**全部**管道支吊架的统一清单。
+"""管道支吊架统计（只读）。
 
-只读公共库 ``PipeSupportComponents``：凡是按共享契约写入该库的支吊架
-（三角架、L 型管架、门型架，以及今后接入的其它支吊架）都会被一次汇总，
-可导出：
+统计当前活动 DGN 中的**管道支吊架**（端焊三角架、L 型管架、门型架，以及今后
+接入的其它支吊架）——按类型统计套数，并可导出：
 
 * **Excel**：一张 .xlsx，含「汇总 / 支吊架表 / 材料汇总表」三个工作表；
 * **JSON**：统一清单（供程序读取）。
 
-面板用 **Tkinter**，外观沿用仓库共享的 ``bentley_ui``。
+本插件**不生成任何几何**，只读取公共库 ``PipeSupportComponents``。
+
+面板用 **Tkinter**，外观沿用仓库共享的 ``bentley_ui``（卡片 / 圆角按钮）。
 运行环境：OpenPlant / MicroStation MSPython。
 """
 
@@ -36,6 +37,7 @@ for _path in (REPO_ROOT, _COMMON_DIR):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
+# 共享 UI 工具箱在导入前强制重读一次，避免拿到 MicroStation 缓存的旧模块。
 try:
     import bentley_ui.glass as _glass_module  # noqa: F401
     import bentley_ui as _bentley_ui_module  # noqa: F401
@@ -61,13 +63,13 @@ from bentley_ui import (  # noqa: E402
 import 支吊架公共库 as psb  # noqa: E402
 
 
-DEBUG_LOG = os.path.join(HERE, '模块', '日志', '支吊架清单导出_debug_log.txt')
+DEBUG_LOG = os.path.join(HERE, '模块', '日志', '支吊架统计_debug_log.txt')
 try:
     os.makedirs(os.path.dirname(DEBUG_LOG), exist_ok=True)
 except Exception:
     pass
 
-UI_TITLE = '管道支吊架清单导出'
+UI_TITLE = '00-[支吊架统计]'
 DEFAULT_XLSX = os.path.join(HERE, '模块', '输出', '管道支吊架_bom.xlsx')
 DEFAULT_JSON = os.path.join(HERE, '模块', '输出', '管道支吊架_bom.json')
 
@@ -86,72 +88,85 @@ def _log_exception(title):
     _log('%s: %s' % (title, traceback.format_exc()))
 
 
-class _BomExportDialog(GlassDialog):
-    """导出全部管道支吊架清单（Excel / JSON）面板。"""
+class _SupportReportDialog(GlassDialog):
+    """统计结果 + 刷新 / 导出 Excel / 导出 JSON 面板。"""
 
-    STATE_KEY = 'SupportBomExport'
+    STATE_KEY = 'SupportStatistics'
 
     def __init__(self):
         GlassDialog.__init__(self, title=UI_TITLE)
         self.statistics = None
+        self._total = tk.StringVar(value='—')
+        self._detail = tk.StringVar(value='—')
         self._build()
         self.restore_position()
         try:
-            self.minsize(600, 380)
+            self.minsize(620, 480)
         except tk.TclError:
             pass
         _log('panel built file=%s' % os.path.abspath(__file__))
 
+    # -- 构建 --------------------------------------------------------------
+
     def _build(self):
         form = self.build_shell(
-            UI_TITLE, '读取当前活动 DGN 中的全部管道支吊架 · 导出统一清单')
+            UI_TITLE, '读取当前活动 DGN 中的管道支吊架 · 仅统计、不生成几何')
         form.columnconfigure(1, weight=1)
 
         tk.Label(
             form,
-            text='清单来自公共库 PipeSupportComponents，凡按共享契约写入的支吊架'
-                 '都会汇总。点下面的按钮导出；文件写到 模块/输出/ 目录，导出后'
-                 '状态区会显示完整路径。',
+            text='点击【刷新】读取当前活动文件；统计结果来自公共库 '
+                 'PipeSupportComponents，凡是按共享契约写入的支吊架都会汇总。',
             bg=CARD, fg=MUTED, font=UI_FONT_SMALL, justify='left',
-            wraplength=540).grid(row=0, column=0, columnspan=2, sticky='w')
+            wraplength=560).grid(row=0, column=0, columnspan=2, sticky='w')
 
-        ttk.Label(form, text='导出选项', style='Section.TLabel').grid(
+        ttk.Label(form, text='统计结果', style='Section.TLabel').grid(
             row=1, column=0, columnspan=2, sticky='w', pady=(8, 2))
-        tk.Label(form, text='Excel 清单', bg=CARD, fg=INK,
-                 font=UI_FONT_BOLD, anchor='w').grid(
+
+        ttk.Label(form, text='支吊架总套数', style='GlassMuted.TLabel').grid(
             row=2, column=0, sticky='w', pady=3)
-        tk.Label(form, text='汇总 / 支吊架表 / 材料汇总表 三个工作表',
-                 bg=CARD, fg=MUTED, font=UI_FONT_SMALL, anchor='w').grid(
-            row=2, column=1, sticky='w', padx=(10, 0), pady=3)
-        tk.Label(form, text='JSON 清单', bg=CARD, fg=INK,
+        tk.Label(form, textvariable=self._total, bg=CARD, fg=INK,
                  font=UI_FONT_BOLD, anchor='w').grid(
-            row=3, column=0, sticky='w', pady=3)
-        tk.Label(form, text='统一清单，供程序读取', bg=CARD, fg=MUTED,
-                 font=UI_FONT_SMALL, anchor='w').grid(
-            row=3, column=1, sticky='w', padx=(10, 0), pady=3)
+            row=2, column=1, sticky='w', padx=(10, 0), pady=3)
+
+        ttk.Label(form, text='按类型', style='GlassMuted.TLabel').grid(
+            row=3, column=0, sticky='nw', pady=3)
+        self._type_frame, self._type_text = self._text_field(form, height=4)
+        self._type_frame.grid(row=3, column=1, sticky='ew', padx=(10, 0),
+                              pady=3)
+
+        ttk.Label(form, text='记录数', style='GlassMuted.TLabel').grid(
+            row=4, column=0, sticky='w', pady=3)
+        tk.Label(form, textvariable=self._detail, bg=CARD, fg=INK,
+                 font=UI_FONT_BOLD, anchor='w').grid(
+            row=4, column=1, sticky='w', padx=(10, 0), pady=3)
 
         ttk.Label(form, text='状态', style='Section.TLabel').grid(
-            row=4, column=0, columnspan=2, sticky='w', pady=(8, 2))
-        self._status_frame, self._status_text = self._text_field(form, height=4)
-        self._status_frame.grid(row=5, column=0, columnspan=2, sticky='ew')
-        self._set_text(self._status_text, '点击下方按钮导出清单。')
+            row=5, column=0, columnspan=2, sticky='w', pady=(8, 2))
+        self._status_frame, self._status_text = self._text_field(form, height=3)
+        self._status_frame.grid(row=6, column=0, columnspan=2, sticky='ew')
+        self._set_text(self._status_text, '点击【刷新】读取当前活动文件。')
 
         buttons = tk.Frame(form, bg=CARD)
-        buttons.grid(row=6, column=0, columnspan=2, sticky='ew', pady=(10, 0))
+        buttons.grid(row=7, column=0, columnspan=2, sticky='ew', pady=(10, 0))
+        self.refresh_button = RoundButton(
+            buttons, '刷新', self.refresh, bg=CARD,
+            font=UI_FONT, font_bold=UI_FONT_BOLD)
         self.excel_button = RoundButton(
             buttons, '导出 Excel 清单', self.export_excel, primary=True,
             bg=CARD, font=UI_FONT, font_bold=UI_FONT_BOLD)
         self.json_button = RoundButton(
-            buttons, '导出 JSON 清单', self.export_json, bg=CARD,
+            buttons, '导出 JSON', self.export_json, bg=CARD,
             font=UI_FONT, font_bold=UI_FONT_BOLD)
         self.close_button = RoundButton(
-            buttons, '关闭', self.destroy, bg=CARD,
+            buttons, '关闭', self.close_report, bg=CARD,
             font=UI_FONT, font_bold=UI_FONT_BOLD)
         self.close_button.pack(side='right')
         self.json_button.pack(side='right', padx=(0, 8))
         self.excel_button.pack(side='right', padx=(0, 8))
+        self.refresh_button.pack(side='right', padx=(0, 8))
 
-    def _text_field(self, parent, height=4):
+    def _text_field(self, parent, height=3):
         frame = tk.Frame(parent, bg=CARD_SOFT, highlightbackground=BORDER,
                          highlightthickness=1)
         text = tk.Text(
@@ -180,17 +195,44 @@ class _BomExportDialog(GlassDialog):
     def set_status(self, message, is_error=False):
         self._set_text(getattr(self, '_status_text', None), message)
 
-    def _collect(self):
+    # -- 统计 / 导出 -------------------------------------------------------
+
+    def refresh(self):
         try:
             importlib.reload(psb)
         except Exception:
             pass
+        self.set_status('正在读取当前活动文件……')
         try:
-            return psb.collect_statistics()
+            self.update_idletasks()
+        except tk.TclError:
+            pass
+        try:
+            self.statistics = psb.collect_statistics()
         except Exception as error:
             _log_exception('collect statistics failed')
             self.set_status('读取失败：%s' % error, True)
-            return None
+            return
+        statistics = self.statistics
+        self._total.set('%d 套' % statistics['assemblyCount'])
+        if statistics['supportsByType']:
+            parts = ['%s %d 套' % (entry['supportType'], entry['assemblyCount'])
+                     for entry in statistics['supportsByType']]
+            self._set_text(self._type_text, '；'.join(parts))
+        else:
+            self._set_text(self._type_text, '（当前活动文件没有管道支吊架）')
+        self._detail.set(
+            '整组 %d 条，构件 %d 条，材料条目 %d 条。' % (
+                len([r for r in statistics['records']
+                     if r['recordKind'] == 'Assembly']),
+                statistics['componentRecordCount'],
+                len(statistics['materials'])))
+        if statistics['records']:
+            self.set_status('统计完成：共 %d 套管道支吊架。'
+                            % statistics['assemblyCount'])
+        else:
+            self.set_status('当前活动文件没有管道支吊架记录（先用三角架 / '
+                            'L 型管架 / 门型架插件放置）。')
 
     def _ask_save_path(self, default_path, title, kind):
         """弹原生「另存为」对话框，让用户选择保存位置；取消时返回 ''。"""
@@ -211,13 +253,8 @@ class _BomExportDialog(GlassDialog):
         return chosen or ''
 
     def export_excel(self):
-        self.set_status('正在读取当前活动文件……')
-        try:
-            self.update_idletasks()
-        except tk.TclError:
-            pass
-        statistics = self._collect()
-        if not statistics or not statistics['records']:
+        self.refresh()
+        if not self.statistics or not self.statistics['records']:
             self.set_status('没有可导出的管道支吊架。', True)
             return
         path = self._ask_save_path(DEFAULT_XLSX, '导出 Excel 清单', 'xlsx')
@@ -225,18 +262,13 @@ class _BomExportDialog(GlassDialog):
             self.set_status('已取消导出。')
             return
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        exported = psb.export_combined_xlsx(path, statistics, timestamp)
+        exported = psb.export_combined_xlsx(path, self.statistics, timestamp)
         if exported:
             self.set_status('Excel 清单已导出：%s' % exported)
 
     def export_json(self):
-        self.set_status('正在读取当前活动文件……')
-        try:
-            self.update_idletasks()
-        except tk.TclError:
-            pass
-        statistics = self._collect()
-        if not statistics or not statistics['records']:
+        self.refresh()
+        if not self.statistics or not self.statistics['records']:
             self.set_status('没有可导出的管道支吊架。', True)
             return
         path = self._ask_save_path(DEFAULT_JSON, '导出 JSON 清单', 'json')
@@ -247,11 +279,16 @@ class _BomExportDialog(GlassDialog):
         if exported:
             self.set_status('JSON 清单已导出：%s' % exported)
 
+    # -- 收尾 --------------------------------------------------------------
+
+    def close_report(self):
+        self.destroy()
+
 
 _active_settings = None
 
 
-def show_bom_export_dialog():
+def show_support_report():
     global _active_settings
     if _active_settings is not None:
         try:
@@ -260,9 +297,10 @@ def show_bom_export_dialog():
                 return None
         except tk.TclError:
             pass
-    dialog = _BomExportDialog()
+    dialog = _SupportReportDialog()
     _active_settings = dialog
     try:
+        dialog.refresh()
         dialog.run_bentley_loop()
         return dialog
     finally:
@@ -271,14 +309,14 @@ def show_bom_export_dialog():
 
 def PyMain():
     try:
-        show_bom_export_dialog()
+        show_support_report()
     except Exception as error:
         detail = traceback.format_exc()
-        _log_exception('bom export tool start failed')
-        print('管道支吊架清单导出启动失败：%s\n%s' % (error, detail))
+        _log_exception('report tool start failed')
+        print('管道支吊架统计启动失败：%s\n%s' % (error, detail))
         try:
             MessageCenter.ShowErrorMessage(
-                '管道支吊架清单导出启动失败：%s\n详见日志：%s' % (error, DEBUG_LOG),
+                '管道支吊架统计启动失败：%s\n详见日志：%s' % (error, DEBUG_LOG),
                 '', False)
         except Exception:
             pass
