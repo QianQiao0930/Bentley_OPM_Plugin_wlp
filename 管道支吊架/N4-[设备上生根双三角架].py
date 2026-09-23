@@ -12,7 +12,7 @@
 
 面板输入 H（≥MIN.H）、L2（≥MIN.L2）、L3、L4；类型 1/2 = 斜撑在下/在上。
 编号：``N4-类型-子项-H-L1-L2-L3-L4``。清单写入共享支吊架库
-``支吊架公共库``（``SupportType='N系列设备上生根管架'``）。
+``支吊架公共库``（``SupportType='N4-[设备上生根双三角架]'``）。
 
 运行环境：Bentley Power Platform Python（MSPy）。
 """
@@ -42,8 +42,8 @@ REPO_ROOT = os.path.dirname(HERE)
 GEOM_DIR = os.path.join(HERE, '模块', '双三角架')
 N3_DIR = os.path.join(HERE, '模块', '单三角架')
 PLATE_DIR = os.path.join(HERE, '模块', '连接板')
-SUPPORT_COMMON = os.path.join(REPO_ROOT, '管道支吊架', '模块', '公共')
-for _path in (REPO_ROOT, GEOM_DIR, N3_DIR, PLATE_DIR, SUPPORT_COMMON):
+COMMON_DIR = os.path.join(HERE, '模块', '公共')
+for _path in (COMMON_DIR, GEOM_DIR, N3_DIR, PLATE_DIR, REPO_ROOT):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
@@ -70,7 +70,7 @@ try:
 except Exception:
     pass
 
-UI_TITLE = 'N4-设备上生根的双三角架'
+UI_TITLE = 'N4-[设备上生根双三角架]'
 REGENERATE_DELAY_MS = 150
 TEXT_REGENERATE_DELAY_MS = 750
 
@@ -657,6 +657,12 @@ class DoubleBracketByLineTool(DgnElementSetTool):
                 pass
             print(message)
             return BentleyStatus.eERROR
+
+    def _OnRestartTool(self):
+        settings = self.tool_settings
+        self.tool_settings = None
+        DoubleBracketByLineTool.InstallNewInstance(
+            self.GetToolId(), settings, False)
 
     def _OnCleanup(self):
         settings = self.tool_settings

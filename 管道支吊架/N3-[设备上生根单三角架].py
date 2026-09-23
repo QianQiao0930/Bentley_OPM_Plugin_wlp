@@ -13,7 +13,7 @@
 （由上方连接板向下拉到横担）。H 为横担顶面到斜撑连接板中心的竖直距离。
 
 编号：``N3-类型-子项-H-L``。清单写入共享支吊架库
-``支吊架公共库``（``SupportType='N系列设备上生根管架'``）。
+``支吊架公共库``（``SupportType='N3-[设备上生根单三角架]'``）。
 
 建模逻辑在纯几何模块 ``模块/单三角架/单三角架_几何.py``；本文件只负责
 **Tkinter** 面板与交互工具，外观沿用仓库共享的 ``bentley_ui``。
@@ -47,8 +47,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(HERE)
 GEOM_DIR = os.path.join(HERE, '模块', '单三角架')
 PLATE_DIR = os.path.join(HERE, '模块', '连接板')
-SUPPORT_COMMON = os.path.join(REPO_ROOT, '管道支吊架', '模块', '公共')
-for _path in (REPO_ROOT, GEOM_DIR, PLATE_DIR, SUPPORT_COMMON):
+COMMON_DIR = os.path.join(HERE, '模块', '公共')
+for _path in (COMMON_DIR, GEOM_DIR, PLATE_DIR, REPO_ROOT):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
@@ -84,7 +84,7 @@ try:
 except Exception:
     pass
 
-UI_TITLE = 'N3-设备上生根的单三角架'
+UI_TITLE = 'N3-[设备上生根单三角架]'
 REGENERATE_DELAY_MS = 150
 TEXT_REGENERATE_DELAY_MS = 750
 
@@ -137,6 +137,7 @@ class _SingleBracketDialog(GlassDialog):
         self._subtype = tk.StringVar()
         self._height = tk.StringVar(value='')
         self._series = tk.StringVar(value=data.DEFAULT_SERIES)
+        self._keep_line = tk.BooleanVar(value=True)
         self._member_a = tk.StringVar(value='—')
         self._member_b = tk.StringVar(value='—')
         self._plate = tk.StringVar(value='—')
@@ -261,6 +262,12 @@ class _SingleBracketDialog(GlassDialog):
                  bg=CARD, fg=MUTED, font=UI_FONT_SMALL).pack(side='left',
                                                              padx=(8, 0))
 
+        self._keep_check = tk.Checkbutton(
+            form, text='创建后保留所选辅助线', variable=self._keep_line,
+            bg=CARD, fg=INK, activebackground=CARD, selectcolor=CARD,
+            font=UI_FONT_SMALL, highlightthickness=0, bd=0)
+        self._keep_check.grid(row=15, column=0, columnspan=2, sticky='w')
+
         ttk.Label(form, text='编号', style='GlassMuted.TLabel').grid(
             row=16, column=0, sticky='w', pady=5)
         tk.Label(form, textvariable=self._number, bg=CARD, fg=INK,
@@ -337,6 +344,8 @@ class _SingleBracketDialog(GlassDialog):
         series = state.get('series')
         if isinstance(series, str):
             self._series.set(series)
+        if isinstance(state.get('keep_line'), bool):
+            self._keep_line.set(state.get('keep_line'))
         self.refresh_spec()
 
     def persist_state(self, state):
@@ -345,6 +354,7 @@ class _SingleBracketDialog(GlassDialog):
             state['subtype'] = self.current_subtype()
             state['height'] = self._height.get()
             state['series'] = self._series.get()
+            state['keep_line'] = bool(self._keep_line.get())
         except Exception:
             pass
 
@@ -557,6 +567,8 @@ class _SingleBracketDialog(GlassDialog):
     def confirm_tool(self):
         self._cancel_pending_regeneration()
         self.confirmed = True
+        if self.preview_handle is not None and not self._keep_line.get():
+            self.delete_source_line()
         self.finish_tool()
 
     def cancel_tool(self):
@@ -641,6 +653,12 @@ class SingleBracketByLineTool(DgnElementSetTool):
                 pass
             print(message)
             return BentleyStatus.eERROR
+
+    def _OnRestartTool(self):
+        settings = self.tool_settings
+        self.tool_settings = None
+        SingleBracketByLineTool.InstallNewInstance(
+            self.GetToolId(), settings, False)
 
     def _OnCleanup(self):
         settings = self.tool_settings

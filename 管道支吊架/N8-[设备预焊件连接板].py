@@ -19,9 +19,9 @@
     import 连接板_几何 as geom
     cell, result = geom.draw_connection_plate(placement_point, options)
 
-几何复用仓库内 ``管道支吊架/模块/公共/混凝土锚板.py`` 的基础构件；清单写入
-共享支吊架库 ``支吊架公共库``（``SupportType='N系列设备上生根管架'``），可与
-其它管道支吊架一起统计。
+几何复用 ``模块/公共/混凝土锚板.py`` 的基础构件；清单写入共享支吊架库
+``支吊架公共库``（``SupportType='N8-[设备预焊件连接板]'``），可与其它管道
+支吊架一起统计。
 
 本文件只负责 **Tkinter** 面板与交互工具，外观沿用仓库共享的 ``bentley_ui``
 主题（卡片 / 圆角按钮），并自动记住上次窗口位置与类型 / 工况 / 安装面等。
@@ -54,10 +54,10 @@ from MSPyMstnPlatform import PythonKeyinManager  # noqa: E402,F811
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(HERE)
 # 仓库根提供共享 UI 工具箱 bentley_ui；本插件几何在 模块/连接板/；
-# 建模复用的公共库在 管道支吊架/模块/公共/。
+# 建模复用的公共库在 模块/公共/。
+COMMON_DIR = os.path.join(HERE, '模块', '公共')
 GEOM_DIR = os.path.join(HERE, '模块', '连接板')
-SUPPORT_COMMON = os.path.join(REPO_ROOT, '管道支吊架', '模块', '公共')
-for _path in (REPO_ROOT, GEOM_DIR, SUPPORT_COMMON):
+for _path in (COMMON_DIR, GEOM_DIR, REPO_ROOT):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
@@ -93,7 +93,7 @@ try:
 except Exception:
     pass
 
-UI_TITLE = 'N8-设备连接板（连接板 + 螺栓）'
+UI_TITLE = 'N8-[设备预焊件连接板]'
 
 # 选项变化后延迟重建的毫秒数：连点几下只重建一次。
 REGENERATE_DELAY_MS = 150        # 下拉框的防抖

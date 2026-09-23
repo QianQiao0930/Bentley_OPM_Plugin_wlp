@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
 # 【公共模块 · 请勿直接运行】
-# 本文件仅作为建模库供入口 ``单三角架.py`` 等插件 ``import`` 调用，没有独立入口。
+# 本文件仅作为建模库供入口 ``N3-[设备上生根单三角架].py`` 等插件 ``import`` 调用，没有独立入口。
 # 请勿在 OpenPlant Modeler / MicroStation 中直接加载本文件运行。
 # =============================================================================
 """N 系列设备上生根管架 —— 设备上生根的单三角架（N3）建模库（无界面）。
@@ -49,10 +49,9 @@ from MSPyMstnPlatform import *
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _PLUGIN_ROOT = os.path.dirname(os.path.dirname(_HERE))
-_REPO_ROOT = os.path.dirname(_PLUGIN_ROOT)
-_SUPPORT_COMMON = os.path.join(_REPO_ROOT, '管道支吊架', '模块', '公共')
+_COMMON_DIR = os.path.join(_PLUGIN_ROOT, '模块', '公共')
 _PLATE_DIR = os.path.join(_PLUGIN_ROOT, '模块', '连接板')
-for _path in (_HERE, _PLATE_DIR, _SUPPORT_COMMON):
+for _path in (_HERE, _PLATE_DIR, _COMMON_DIR):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
@@ -65,7 +64,7 @@ import 支吊架公共库 as psb  # noqa: E402
 
 CELL_NAME = 'EQUIPMENT_SINGLE_BRACKET'
 
-SUPPORT_TYPE = 'N系列设备上生根管架'
+SUPPORT_TYPE = 'N3-[设备上生根单三角架]'
 SUPPORT_CODE = 'N3_SINGLE_BRACKET'
 
 COMPONENT_A_NAME = '构件A（横担）'

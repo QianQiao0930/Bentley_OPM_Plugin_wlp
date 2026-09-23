@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
 # 【公共模块 · 请勿直接运行】
-# 本文件仅作为建模库供入口 ``连接板.py`` 等插件 ``import`` 调用，没有独立入口。
+# 本文件仅作为建模库供入口 ``N8-[设备预焊件连接板].py`` 等插件 ``import`` 调用，没有独立入口。
 # 请勿在 OpenPlant Modeler / MicroStation 中直接加载本文件运行。
 # =============================================================================
 """N 系列设备上生根管架 —— 设备预焊件用连接板 + 螺栓建模库（无界面）。
@@ -24,9 +24,9 @@
     +Y = 板面内水平方向（随 heading 绕外法向旋转）
     +Z = 竖直向上
 
-几何复用仓库内 ``管道支吊架/模块/公共/混凝土锚板.py`` 的坐标架与
-「带孔拉伸板 / 圆柱 / 六角拉伸」基础构件，清单写入共享支吊架库
-``支吊架公共库``（``SupportType='N系列设备上生根管架'``）。
+几何复用 ``模块/公共/混凝土锚板.py`` 的坐标架与「带孔拉伸板 / 圆柱 / 六角
+拉伸」基础构件，清单写入共享支吊架库 ``支吊架公共库``
+（``SupportType='N8-[设备预焊件连接板]'``）。
 
 主要接口::
 
@@ -48,13 +48,12 @@ from MSPyDgnView import *
 from MSPyMstnPlatform import *
 
 
-# 本文件位于 N系列设备上生根管架/模块/连接板/，插件根目录需上溯两级；
-# 建模库与公共清单库在仓库内 管道支吊架/模块/公共/。
+# 本文件位于 管道支吊架/模块/连接板/，插件根目录（管道支吊架/）需上溯两级；
+# 建模库与公共清单库在 模块/公共/。
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _PLUGIN_ROOT = os.path.dirname(os.path.dirname(_HERE))
-_REPO_ROOT = os.path.dirname(_PLUGIN_ROOT)
-_SUPPORT_COMMON = os.path.join(_REPO_ROOT, '管道支吊架', '模块', '公共')
-for _path in (_HERE, _SUPPORT_COMMON):
+_COMMON_DIR = os.path.join(_PLUGIN_ROOT, '模块', '公共')
+for _path in (_HERE, _COMMON_DIR):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
@@ -67,7 +66,7 @@ import 支吊架公共库 as psb  # noqa: E402
 CELL_NAME = 'EQUIPMENT_CONNECTION_PLATE'
 
 # 共享支吊架清单模块所需的类型标识。
-SUPPORT_TYPE = 'N系列设备上生根管架'
+SUPPORT_TYPE = 'N8-[设备预焊件连接板]'
 SUPPORT_CODE = 'N8_CONNECTION_PLATE'
 
 COMPONENT_PLATE_NAME = '连接板'
