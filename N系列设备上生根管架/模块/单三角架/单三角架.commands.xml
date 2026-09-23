@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<KeyinTree xmlns="http://www.bentley.com/schemas/1.0/MicroStation/AddIn/KeyinTree.xsd">
+  <RootKeyinTable ID="root">
+    <Keyword SubtableRef="PYNSINGLE" CommandClass="MacroCommand" CommandWord="PYNSINGLE">
+      <Options Required="true" />
+    </Keyword>
+  </RootKeyinTable>
+  <SubKeyinTables>
+    <KeyinTable ID="PYNSINGLE">
+      <Keyword CommandWord="PLACE" />
+      <Keyword CommandWord="EXPORT" />
+    </KeyinTable>
+  </SubKeyinTables>
+  <KeyinHandlers>
+    <KeyinHandler Keyin="PYNSINGLE PLACE" Function="OpenNSingle" />
+    <KeyinHandler Keyin="PYNSINGLE EXPORT" Function="ExportNSingleBom" />
+  </KeyinHandlers>
+</KeyinTree>
