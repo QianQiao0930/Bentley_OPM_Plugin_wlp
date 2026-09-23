@@ -440,10 +440,10 @@ def _build_ground_anchor_elements(dgn_model, line, variant_key, uor_per_mm):
 
     锚板参数取自 ``T形架_几何.GROUND_ANCHOR_TABLE``（表 2）：
     锚板 E×E×T，四角 4-φG 孔按 F×F 居中布置；锚栓沿孔位向下埋入；
-    锚板下方为现场灌浆保护层：顶面与锚板同尺寸、向下高
-    :data:`geom.GROUND_GROUT_THICKNESS_MM`、每边斜向外扩
+    锚板下方为现场灌浆保护层：底面与梯台同尺寸、向上高
+    :data:`geom.GROUND_GROUT_THICKNESS_MM`、每边斜向内收
     :data:`geom.GROUND_GROUT_FLARE_MM`（梯台/棱台状）。以所选竖直线的
-    下端（基座）为锚板**顶面中心**。
+    下端（基座）为**梯台底面（地面）中心**：线端向上依次为灌浆梯台、锚板。
     """
     spec = geom.ground_anchor_spec(variant_key)
     e = spec['plate_e'] * uor_per_mm
@@ -458,17 +458,21 @@ def _build_ground_anchor_elements(dgn_model, line, variant_key, uor_per_mm):
     bx, by, bz = _to_uor(line.base, uor_per_mm)
     hole_half = f / 2.0
     hole_r = g / 2.0
-    plate_bottom = bz - t
+    # 线端（基座）= 梯台底面（地面）；自下而上：梯台 grout_t → 锚板 t。
+    grout_bottom = bz
+    grout_top = bz + grout_t
+    plate_bottom = grout_top
+    plate_top = plate_bottom + t
 
     elements = []
 
-    # 锚板：顶面在基座高度，向下厚 T；四个螺栓孔。
+    # 锚板：底面在梯台顶面，向上厚 T；四个螺栓孔。
     holes = []
     for dx in (-hole_half, hole_half):
         for dy in (-hole_half, hole_half):
             holes.append((
                 DPoint3d.From(bx + dx, by + dy, plate_bottom - 2.0 * uor_per_mm),
-                DPoint3d.From(bx + dx, by + dy, bz + 2.0 * uor_per_mm),
+                DPoint3d.From(bx + dx, by + dy, plate_top + 2.0 * uor_per_mm),
                 hole_r,
             ))
     plate = anchor._prism_with_holes(
@@ -480,7 +484,7 @@ def _build_ground_anchor_elements(dgn_model, line, variant_key, uor_per_mm):
 
     # 膨胀锚栓：总长 L 不变；螺杆顶端高出螺母顶面 5 mm，底端按总长回算。
     nut_af, nut_h = _nut_size_for(spec['bolt_dia'])
-    bolt_top = bz + (nut_h + anchor.BOLT_PROTRUSION) * uor_per_mm
+    bolt_top = plate_top + (nut_h + anchor.BOLT_PROTRUSION) * uor_per_mm
     bolt_bottom = bolt_top - bolt_len
     for dx in (-hole_half, hole_half):
         for dy in (-hole_half, hole_half):
@@ -494,7 +498,8 @@ def _build_ground_anchor_elements(dgn_model, line, variant_key, uor_per_mm):
             elements.append(rod)
             # 螺母：坐在锚板顶面上方（局部 X = 世界 +Z 的竖直六棱柱）。
             frame = anchor._PlateFrame(
-                DPoint3d.From(bx + dx, by + dy, bz), uor_per_mm, 0.0, 'floor')
+                DPoint3d.From(bx + dx, by + dy, plate_top), uor_per_mm, 0.0,
+                'floor')
             nut = anchor._hex_prism(
                 dgn_model, frame, 0.0, 0.0, 0.0, nut_h, nut_af,
                 anchor.COLOR_NUT)
@@ -502,9 +507,7 @@ def _build_ground_anchor_elements(dgn_model, line, variant_key, uor_per_mm):
                 raise RuntimeError('螺母实体创建失败。')
             elements.append(nut)
 
-    # 现场灌浆保护层：锚板下方，顶面 E×E、底面 (E+2×外扩)×(...) 的梯台。
-    grout_top = plate_bottom
-    grout_bottom = plate_bottom - grout_t
+    # 现场灌浆保护层：锚板下方、坐落于地面，底面 (E+2×外扩)×(...)、顶面 E×E。
     grout_elements = _build_frustum_elements(
         dgn_model, bx, by, grout_bottom, e + 2.0 * grout_flare,
         grout_top, e, GROUND_GROUT_COLOR, '现场灌浆')
@@ -646,16 +649,28 @@ def _build_t_frame_cell(line, variant_key, rack_type, arm_length_mm,
 
     uor_per_mm = _uor_per_mm(dgn_model)
 
+    # 地面固定时钢构架整体抬升到锚板顶面：所选竖直线下端为梯台底面（地面），
+    # 立柱底面 = 线端 + (灌浆梯台厚 + 锚板厚)；横担顶面仍在所选直线上端。
+    member_line = line
+    anchor_spec = None
+    if ground_fixed:
+        anchor_spec = geom.ground_anchor_spec(variant_key)
+        lift = geom.ground_anchor_lift(variant_key)
+        member_line = geom.SelectedLine(
+            base=(line.base[0], line.base[1], line.base[2] + lift),
+            top=line.top,
+            length_mm=line.length_mm - lift)
+
     # 单根立柱：轴线即所选竖直线，截面外接矩形中心落在轴线上。
     post = _build_member_element(
-        variant_key, 'post', line, heading_deg, arm_length_mm,
+        variant_key, 'post', member_line, heading_deg, arm_length_mm,
         uor_per_mm, dgn_model, rack_type)
     if post is None:
         raise RuntimeError('立柱实体创建失败。')
 
     # 横担：以所选竖直线为中点、两端各 L/2，管位面水平。
     arm = _build_member_element(
-        variant_key, 'arm', line, heading_deg, arm_length_mm,
+        variant_key, 'arm', member_line, heading_deg, arm_length_mm,
         uor_per_mm, dgn_model, rack_type)
     if arm is None:
         raise RuntimeError('横担实体创建失败。')
@@ -673,7 +688,8 @@ def _build_t_frame_cell(line, variant_key, rack_type, arm_length_mm,
     builder.build()
 
     spec = geom.specification(variant_key)
-    post_cut_length = geom.post_length(variant_key, line.length_mm, rack_type)
+    post_cut_length = geom.post_length(
+        variant_key, member_line.length_mm, rack_type)
     weld_contact = geom.weld_contact_length(variant_key, rack_type)
     if ground_fixed:
         rack_number = geom.ground_anchor_number(
@@ -696,9 +712,7 @@ def _build_t_frame_cell(line, variant_key, rack_type, arm_length_mm,
          'specification': spec, 'length': arm_length_mm,
          'quantity': 1, 'unit': '根'},
     ]
-    anchor_spec = None
     if ground_fixed:
-        anchor_spec = geom.ground_anchor_spec(variant_key)
         plate_spec = ('E×E×T=%.0f×%.0f×%.0f，4-φ%.0f 孔（F=%.0f）'
                       % (anchor_spec['plate_e'], anchor_spec['plate_e'],
                          anchor_spec['plate_t'], anchor_spec['hole_dia_g'],
@@ -1326,9 +1340,13 @@ class _TFrameDialog(GlassDialog):
             return
         self._height.set('%.1f' % line.length_mm)
         variant_key = self.current_variant()
+        rack_type = self.current_rack_type()
+        post_height = line.length_mm
+        if self._ground_fixed.get() and not geom.hanger_type(rack_type):
+            post_height -= geom.ground_anchor_lift(variant_key)
         try:
             self._post_length.set(
-                '%.1f' % geom.post_length(variant_key, line.length_mm))
+                '%.1f' % geom.post_length(variant_key, post_height, rack_type))
         except ValueError as error:
             self._post_length.set('—')
             self._load_note.set(str(error))

@@ -142,7 +142,8 @@ class ExcelTests(unittest.TestCase):
                 {'recordKind': 'Assembly', 'supportType': u'端焊三角架',
                  'assemblyTag': u'D5-1-A-1000-1500', 'componentName': u'支吊架',
                  'specification': u'H125 + L100', 'unit': u'套',
-                 'quantity': 1, 'designLengthMm': 0.0, 'elementId': 11},
+                 'quantity': 1, 'designLengthMm': 0.0, 'elementId': 11,
+                 'pipeNumber': u'P-101'},
                 {'recordKind': 'Component', 'supportType': u'端焊三角架',
                  'assemblyTag': '', 'componentName': u'横担',
                  'specification': u'H125', 'unit': u'件',
@@ -155,7 +156,8 @@ class ExcelTests(unittest.TestCase):
         support_rows = sheets[1][1]
         self.assertEqual(u'序号', support_rows[0][0])
         self.assertEqual(1, support_rows[1][0])
-        self.assertIn(u'横担', support_rows[1][4])
+        self.assertEqual(u'P-101', support_rows[1][3])
+        self.assertIn(u'横担', support_rows[1][5])
 
 
 if __name__ == '__main__':

@@ -454,6 +454,16 @@ class LoadTableTests(unittest.TestCase):
             self.assertEqual(geom.max_allowed_arm_length(key), arm,
                              msg='%s Lmax' % key)
 
+    def test_ground_anchor_lift_is_grout_plus_plate(self):
+        """地面固定时钢构架相对线端的抬升 = 灌浆梯台厚 + 锚板厚。"""
+        for key in sorted(geom.VARIANTS):
+            spec = geom.ground_anchor_spec(key)
+            self.assertAlmostEqual(
+                geom.ground_anchor_lift(key),
+                geom.GROUND_GROUT_THICKNESS_MM + spec['plate_t'], places=9)
+        # E 子项：25 + 16 = 41，正好解释 H=1600 时地面到横担顶的 1641。
+        self.assertAlmostEqual(geom.ground_anchor_lift('E'), 41.0, places=9)
+
     def test_height_rounds_down_conservatively(self):
         """H=1900 按表中 1000 取用（偏安全），而不是 2000。"""
         result = geom.allowable_load('G', 1900.0, 500.0)
