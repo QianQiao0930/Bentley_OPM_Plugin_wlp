@@ -3,6 +3,7 @@ __pycache__/
 preview.png
 *_debug_log.txt
 debug_log.txt
+*.log
 *.bak
 ~$*
 管道支吊架/**/*.xlsx
