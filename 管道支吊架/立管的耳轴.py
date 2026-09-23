@@ -124,6 +124,8 @@ except Exception:
     pass
 
 _THROUGH_MARGIN_MM = 5.0
+# 耳轴外径与主管外径相等时两圆柱相切、布尔减会失败；刀具体放大此值避让。
+_SADDLE_CLEARANCE_MM = 0.5
 
 
 def _log(message):
@@ -249,7 +251,31 @@ def _make_mappers(center_mm, ex, ey, ez, uor):
             (center_mm[1] + x * ex[1] + y * ey[1] + z * ez[1]) * uor,
             (center_mm[2] + x * ex[2] + y * ey[2] + z * ez[2]) * uor)
 
-    return point
+    def direction(x, y, z):
+        return DVec3d(
+            (x * ex[0] + y * ey[0] + z * ez[0]) * uor,
+            (x * ex[1] + y * ey[1] + z * ez[1]) * uor,
+            (x * ex[2] + y * ey[2] + z * ez[2]) * uor)
+
+    return point, direction
+
+
+def _box_body(model, point, direction, x0, x1, y0, y1, z0, z1):
+    points = DPoint3dArray()
+    for y, z in ((y0, z0), (y1, z0), (y1, z1), (y0, z1)):
+        points.append(point(x0, y, z))
+    profile = EditElementHandle()
+    _check(ShapeHandler.CreateShapeElement(profile, None, points, True, model),
+           '创建长方体截面')
+    _check(profile.AddToModel(), '创建长方体临时截面')
+    try:
+        status, body = SolidUtil.Convert.ElementToBody(profile, True, True, False)
+        _check(status, '长方体截面转内核体')
+    finally:
+        _check(profile.DeleteFromModel(), '删除长方体临时截面')
+    _check(SolidUtil.Modify.SweepBody(body, direction(x1 - x0, 0.0, 0.0)),
+           '拉伸长方体')
+    return body
 
 
 # ---------------------------------------------------------------------------
@@ -281,10 +307,14 @@ def _build_trunnion(model, point, uor, layout):
         _check(SolidUtil.Modify.BooleanUnion(outer, _ptr_array(plate)), '端板与耳轴并')
 
     # 主管外圆柱（沿本地 Z）布尔减，切出弧形鞍口。
+    # 耳轴外径与主管外径相等/相近时两圆柱相切，布尔减会失败；此时刀具体略放大。
+    pipe_radius = layout.pipe_od / 2.0
+    if layout.trunnion_od >= layout.pipe_od - 1.0:
+        pipe_radius += _SADDLE_CLEARANCE_MM
     reach = length + layout.pipe_od
     pipe = _cylinder_between(
         model, point(0.0, 0.0, -reach), point(0.0, 0.0, reach),
-        layout.pipe_od / 2.0, uor)
+        pipe_radius, uor)
     _check(SolidUtil.Modify.BooleanSubtract(outer, _ptr_array(pipe)), '耳轴鞍口')
     return outer
 
@@ -294,12 +324,15 @@ def _build_trunnion(model, point, uor, layout):
 # ---------------------------------------------------------------------------
 
 
-def _build_pad(model, point, uor, layout):
+def _build_pad(model, point, direction, uor, layout):
     """补强板：贴主管外壁、围绕耳轴根部的弯曲圆形钢板。
 
     按用户口径：沿耳轴轴拉伸一个直径 = **耳轴外径 + 2W** 的圆柱（伸到管道轴线），
     与绕主管轴、由 ``R_pipe`` 到 ``R_pipe + t`` 的**管壁圆环**求交，只保留 5 mm
     厚的弯曲板。内核无布尔交，用恒等式 ``A∩B = A−(A−B)`` 以减法实现。
+
+    注 7：当补强板越过主管中心线（即绕管超过半圈）时，用「过管轴、垂直于耳轴」
+    的平面（本地 ``x = 0``）把越过的部分切掉，使其与主管中心线平齐。
     """
     r_pipe = layout.pipe_od / 2.0
     t_pad = layout.pad_thickness_mm
@@ -330,6 +363,13 @@ def _build_pad(model, point, uor, layout):
         disc_b, _ptr_array(shell_outer)), '补强板求交-补')
     _check(SolidUtil.Modify.BooleanSubtract(
         disc_a, _ptr_array(disc_b)), '补强板求交')
+
+    # 注 7：切掉越过主管中心线的部分（保留本地 x >= 0 的半边）。
+    reach = r_disc + r_pipe + _THROUGH_MARGIN_MM
+    half_space = _box_body(model, point, direction,
+                           -reach, 0.0, -reach, reach, -reach, reach)
+    _check(SolidUtil.Modify.BooleanSubtract(disc_a, _ptr_array(half_space)),
+           '补强板中心线齐平')
     return disc_a
 
 
@@ -345,10 +385,11 @@ def build_trunnion_assembly(layout, base_point_mm, axis):
     bodies = []
     for index, azimuth in enumerate(geom.trunnion_azimuths(layout), start=1):
         ex, ey, ez = _frame(axis, azimuth)
-        point = _make_mappers(center, ex, ey, ez, uor)
+        point, direction = _make_mappers(center, ex, ey, ez, uor)
         bodies.append(('耳轴%d' % index, _build_trunnion(model, point, uor, layout)))
         if layout.has_pad:
-            bodies.append(('补强板%d' % index, _build_pad(model, point, uor, layout)))
+            bodies.append(('补强板%d' % index,
+                           _build_pad(model, point, direction, uor, layout)))
     return _assembly_element(model, bodies)
 
 
@@ -403,6 +444,9 @@ def build_on_pick(placement, click_mm, params):
 
     material_code = params['material_code']
     pad_thickness = params['pad_thickness_mm']
+    if not params.get('build_pad', True):
+        # 用户不勾选「建补强板」：整段补强板逻辑跳过。
+        pad_thickness = 0.0
     if geom.pad_required(material_code) and (not pad_thickness or pad_thickness <= 0.0):
         pad_thickness = geom.DEFAULT_PAD_THICKNESS_MM
 
@@ -428,6 +472,8 @@ def build_on_pick(placement, click_mm, params):
 
     parts = ['已生成：%s' % geom.describe(layout)]
     parts.append('已写入统计 %d 条。' % attached)
+    if geom.pad_required(material_code) and not params.get('build_pad', True):
+        parts.append('（材料代码 S1 按注 12 强制建补强板。）')
     if not is_pipe:
         parts.append('（按所选直线作为立管轴线，管径用面板 DN%d。）' % pipe_dn)
     else:
@@ -460,6 +506,7 @@ class _VpTrunnionPanel(GlassDialog):
         self._azimuth = tk.StringVar(value='0')
         self._pad_thickness = tk.StringVar(value=str(geom.DEFAULT_PAD_THICKNESS_MM))
         self._wall = tk.StringVar(value='')
+        self._build_pad = tk.BooleanVar(value=True)
         self._type_by_label = {}
         self._pipe_dn_by_label = {}
         self._trunnion_dn_by_label = {}
@@ -561,9 +608,23 @@ class _VpTrunnionPanel(GlassDialog):
         self._azimuth_entry = self._entry_row(
             form, 11, '方位角', self._azimuth, width=8,
             hint='°（0°=+Y，顺时针；F7 只标较小值）')
-        self._pad_entry = self._entry_row(
-            form, 12, '补强板厚度', self._pad_thickness, width=8,
-            hint='mm（空/0 = 不建；S1 强制建）')
+
+        pad_row = tk.Frame(form, bg=CARD)
+        pad_row.grid(row=12, column=0, sticky='w', pady=(6, 0))
+        self._pad_check = tk.Checkbutton(
+            pad_row, text='建补强板', variable=self._build_pad, bg=CARD, fg=INK,
+            activebackground=CARD, selectcolor=CARD, font=UI_FONT_BOLD,
+            highlightthickness=0, bd=0, command=self._on_build_pad_changed)
+        self._pad_check.pack(side='left')
+        self._pad_entry = tk.Entry(
+            pad_row, textvariable=self._pad_thickness, width=8, font=UI_FONT,
+            fg=INK, bg=FIELD, relief='flat', highlightthickness=1,
+            highlightbackground=BORDER, highlightcolor='#9FB4CC',
+            insertbackground=INK, justify='center')
+        self._pad_entry.pack(side='left', padx=(10, 0), ipady=3)
+        tk.Label(pad_row, text='mm 厚（不勾选 = 不建；S1 强制建）',
+                 bg=CARD, fg=MUTED, font=UI_FONT_SMALL).pack(
+                     side='left', padx=(6, 0))
 
         ttk.Label(form, text='生成记录', style='Section.TLabel').grid(
             row=13, column=0, sticky='w', pady=(8, 2))
@@ -628,6 +689,14 @@ class _VpTrunnionPanel(GlassDialog):
     def _on_type_changed(self, event=None):
         pass
 
+    def _on_build_pad_changed(self):
+        """不勾选「建补强板」时灰显并禁用补强板厚度输入。"""
+        try:
+            self._pad_entry.configure(
+                state='normal' if self._build_pad.get() else 'disabled')
+        except tk.TclError:
+            pass
+
     def _on_pipe_dn_changed(self, event=None):
         """主管管径变化时刷新耳轴候选（表 1）。"""
         pipe_dn = self.current_pipe_dn()
@@ -684,6 +753,9 @@ class _VpTrunnionPanel(GlassDialog):
             value = state.get(name)
             if isinstance(value, str) and value.strip():
                 var.set(value)
+        if isinstance(state.get('build_pad'), bool):
+            self._build_pad.set(state.get('build_pad'))
+        self._on_build_pad_changed()
 
     @staticmethod
     def _first(by_label):
@@ -702,6 +774,7 @@ class _VpTrunnionPanel(GlassDialog):
             state['azimuth'] = self._azimuth.get()
             state['pad_thickness'] = self._pad_thickness.get()
             state['wall'] = self._wall.get()
+            state['build_pad'] = bool(self._build_pad.get())
         except Exception:
             pass
 
@@ -761,6 +834,7 @@ class _VpTrunnionPanel(GlassDialog):
             'end_type': self.current_end_type(),
             'azimuth_deg': self.current_azimuth(),
             'pad_thickness_mm': self.current_pad_thickness(),
+            'build_pad': bool(self._build_pad.get()),
             'trunnion_wall_mm': self.current_wall_override(),
         }
 
