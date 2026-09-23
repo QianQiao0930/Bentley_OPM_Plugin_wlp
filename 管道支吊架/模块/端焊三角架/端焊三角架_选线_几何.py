@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
 # 【公共模块 · 请勿直接运行】
-# 本文件仅作为纯几何 / 数据逻辑库供 ``三角架.py`` 等插件 ``import`` 调用，
+# 本文件仅作为几何 / 数据逻辑库供 ``D5_D6-[三角架].py`` 等插件 ``import`` 调用，
 # 没有独立入口。请勿在 OpenPlant Modeler / MicroStation 中直接加载运行。
 # =============================================================================
-"""端焊三角架（选线版 + 可选端板）纯几何 / 数据模块（无界面依赖）。
+"""端焊三角架（选线版 + 可选端板）几何 / 数据模块（无界面依赖）。
 
 集中「点选一条水平直线 → 横担上表面，可选在起点创建端板（横担 + 斜撑各
 一块，含 4 根膨胀锚栓）」的全部建模逻辑：
@@ -13,11 +13,12 @@
 * 斜撑位置 L1 = L2 − 肢宽×√2/2 − E；
 * 勾选端板时横担起点顺延端板厚、长度改为 ``L2 − 端板厚``，斜撑仍从焊接面
   按 L1 起算；横担端板 + 斜撑端板完全同规格，孔距 S 按横担截面自动取整；
-* 整组（横担 + 斜撑 + 可选两块端板 + 8 根锚栓）写成一个普通单元。
+* 整组（横担 + 斜撑 + 可选两块端板 + 8 根锚栓）的各子元素由本模块构建，
+  由入口 ``D5_D6-[三角架].py`` 拼装成一个普通单元并写入 ``支吊架公共库``。
 
 本模块不含任何 PyQt5 / Tkinter 界面代码，也不再依赖早期插件
 ``端焊三角架_选线版.py`` 或 PyQt5 基础模块 ``端焊三角架_基础.py``；
-端板 / 锚栓几何复用 ``混凝土锚板.py``，清单写入 ``支吊架公共库``。
+端板 / 锚栓几何复用 ``混凝土锚板.py``；单元拼装与清单写入由入口负责。
 """
 
 from __future__ import division
@@ -43,7 +44,6 @@ if _COMMON_DIR not in sys.path:
     sys.path.insert(0, _COMMON_DIR)
 
 import 混凝土锚板 as anchor  # noqa: E402
-import 支吊架公共库 as psb  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -72,7 +72,7 @@ DEFAULT_PLATE_SUBTYPE = 'A'
 CELL_NAME = 'END_WELDED_TRIANGLE_BRACKET_WITH_PLATE'
 
 # 共享支吊架清单模块所需的类型标识。
-SUPPORT_TYPE = '端焊三角架'
+SUPPORT_TYPE = 'D5_D6-[三角架]'
 SUPPORT_CODE = 'TRIANGLE_BRACKET'
 
 VARIANTS = {
@@ -588,252 +588,3 @@ def _brace_end_face_center(brace_origin, angle_width, mirror_z):
     if mirror_z is not None:
         center_z = 2.0 * mirror_z - center_z
     return (0.0, center_y, center_z)
-
-
-# ---------------------------------------------------------------------------
-# 单元封装
-# ---------------------------------------------------------------------------
-
-
-class _TriangleBracketCellBuilder(object):
-    """收集端焊三角架子元素，全部成功后一次性写入一个普通单元。"""
-
-    def __init__(self, dgn_model, cell_name=None):
-        self.dgn_model = dgn_model
-        self.cell_name = cell_name or CELL_NAME
-        self.cell = EditElementHandle()
-        self.child_count = 0
-        self.warnings = []
-        NormalCellHeaderHandler.CreateOrphanCellElement(
-            self.cell, self.cell_name, dgn_model.Is3d(), dgn_model)
-
-    def add(self, child):
-        if child is None:
-            raise RuntimeError('三角架子元素创建失败。')
-        status = NormalCellHeaderHandler.AddChildElement(self.cell, child)
-        if not _succeeded(status):
-            raise RuntimeError('无法将三角架子元素加入普通单元。')
-        self.child_count += 1
-
-    def note(self, message):
-        if message not in self.warnings:
-            self.warnings.append(message)
-
-    def build(self):
-        status = NormalCellHeaderHandler.AddChildComplete(self.cell)
-        if not _succeeded(status):
-            raise RuntimeError('无法完成端焊三角架单元。')
-        return self.child_count
-
-    def commit(self):
-        if not _succeeded(self.cell.AddToModel()):
-            raise RuntimeError('无法将端焊三角架单元写入活动模型。')
-        return self.cell
-
-
-def _delete_preview(handle):
-    if handle is None:
-        return False
-    try:
-        if not handle.IsValid():
-            return False
-        handle.DeleteFromModel()
-        return True
-    except Exception:
-        return False
-
-
-# ---------------------------------------------------------------------------
-# 构建整组（选线版 + 可选端板）
-# ---------------------------------------------------------------------------
-
-
-def _build_triangle_bracket_cell(line, end_overhang,
-                                 variant_key=DEFAULT_VARIANT,
-                                 brace_down=True, rack_number=None,
-                                 add_end_plate=False,
-                                 plate_subtype=DEFAULT_PLATE_SUBTYPE):
-    """按所选直线与端板选项构建整组单元但**不写入模型**。
-
-    返回 ``(builder, 统计字典)``。
-    """
-    spec, line_length, end_overhang, brace_sweep_projection = _validate(
-        line, end_overhang, variant_key)
-    angle_width = spec['angle'][0]
-    h_beam_height = spec['h_beam'][0]
-
-    dgn_model = ISessionMgr.GetActiveDgnModel()
-    if not dgn_model.Is3d():
-        raise RuntimeError('请先激活一个三维 DGN 模型。')
-
-    resolved_plate = None
-    plate_t = 0.0
-    if add_end_plate:
-        resolved_plate = _resolve_plate_options(plate_subtype,
-                                                line['heading_deg'],
-                                                spec['h_beam'])
-        plate_t = float(resolved_plate['plate_t'])
-
-    beam_start_x = plate_t
-    beam_length = float(line_length) - beam_start_x
-    if beam_length <= 0.0:
-        raise ValueError('扣除端板厚度 %.0f mm 后横担长度 %.1f mm 不足，'
-                         '请换用更长的直线或更薄的端板。'
-                         % (plate_t, beam_length))
-
-    l1 = resolve_l1(line_length, end_overhang, variant_key)
-
-    to_world, to_world_vector = _make_frame(line['start_mm'],
-                                            line['heading_deg'])
-    heading = math.radians(line['heading_deg'])
-    beam_start_mm = (line['start_mm'][0] + beam_start_x * math.cos(heading),
-                     line['start_mm'][1] + beam_start_x * math.sin(heading),
-                     line['start_mm'][2])
-    beam_to_world, _ = _make_frame(beam_start_mm, line['heading_deg'])
-
-    brace_top_z = -h_beam_height
-    brace_origin = (0.0, -angle_width / 2.0,
-                    brace_top_z - brace_sweep_projection)
-    mirror_z = None if brace_down else (-h_beam_height / 2.0)
-
-    builder = _TriangleBracketCellBuilder(dgn_model)
-    brace = _create_angle_brace_element(
-        brace_sweep_projection, brace_sweep_projection, brace_origin,
-        spec['angle'], dgn_model, to_world, to_world_vector, mirror_z)
-    if brace is None:
-        raise RuntimeError('斜撑实体创建失败。')
-    builder.add(brace)
-
-    beam = _create_h_beam_element(
-        beam_length, spec['h_beam'], dgn_model, beam_to_world,
-        to_world_vector)
-    if beam is None:
-        raise RuntimeError('横担实体创建失败。')
-    builder.add(beam)
-
-    if resolved_plate is not None:
-        _add_end_plate_at(builder, resolved_plate, line,
-                          (0.0, 0.0, -h_beam_height / 2.0),
-                          dgn_model, to_world)
-        brace_center = _brace_end_face_center(brace_origin, angle_width,
-                                              mirror_z)
-        _add_end_plate_at(builder, resolved_plate, line, brace_center,
-                          dgn_model, to_world)
-
-    builder.build()
-    brace_length = math.hypot(brace_sweep_projection, brace_sweep_projection)
-    bom_items = [
-        {'code': 'HBeam', 'name': COMPONENT_A_NAME,
-         'specification': spec['h_beam_specification'],
-         'length': beam_length},
-        {'code': 'AngleBrace', 'name': COMPONENT_B_NAME,
-         'specification': spec['angle_specification'],
-         'length': brace_length},
-    ]
-    if resolved_plate is not None:
-        plate_spec = '%.0f×%.0f×%.0f（S=%.0f，4-φ%.0f）' % (
-            resolved_plate['plate_side'], resolved_plate['plate_side'],
-            resolved_plate['plate_t'], resolved_plate['spacing'],
-            resolved_plate['hole_dia'])
-        bolt_spec = 'M%.0f×%.0f' % (
-            resolved_plate['bolt_dia'], resolved_plate['bolt_length'])
-        bom_items.append({
-            'code': 'EndPlate', 'name': COMPONENT_PLATE_NAME,
-            'specification': plate_spec, 'length': resolved_plate['plate_t'],
-            'quantity': 1, 'unit': '件',
-        })
-        bom_items.append({
-            'code': 'BraceEndPlate', 'name': COMPONENT_BRACE_PLATE_NAME,
-            'specification': plate_spec, 'length': resolved_plate['plate_t'],
-            'quantity': 1, 'unit': '件',
-        })
-        bom_items.append({
-            'code': 'AnchorBolt', 'name': COMPONENT_BOLT_NAME,
-            'specification': bolt_spec,
-            'length': resolved_plate['bolt_length'],
-            'quantity': 4, 'unit': '件',
-        })
-        bom_items.append({
-            'code': 'BraceAnchorBolt', 'name': COMPONENT_BRACE_BOLT_NAME,
-            'specification': bolt_spec,
-            'length': resolved_plate['bolt_length'],
-            'quantity': 4, 'unit': '件',
-        })
-
-    result = {
-        'variant': variant_key,
-        'child_count': builder.child_count,
-        'line_length': line_length,
-        'end_overhang': end_overhang,
-        'l1': l1,
-        'heading_deg': line['heading_deg'],
-        'brace_length': brace_length,
-        'brace_down': bool(brace_down),
-        'rack_type': 1 if brace_down else 2,
-        'pipe_rack_number': rack_number or '',
-        'beam_start_x': beam_start_x,
-        'beam_length': beam_length,
-        'end_plate': (dict(resolved_plate) if resolved_plate else None),
-        'brace_end_plate': (dict(resolved_plate) if resolved_plate else None),
-        'h_beam_specification': spec['h_beam_specification'],
-        'angle_specification': spec['angle_specification'],
-        'bom_items': bom_items,
-        'warnings': list(builder.warnings),
-    }
-    _log('bracket by line with plate: variant=%s, type=%d, L2=%.1f, E=%.1f, '
-         'L1=%.1f, beamStart=%.1f, beamLen=%.1f, plate=%s, heading=%.2f, '
-         'cells=%d, rack=%s' %
-         (variant_key, result['rack_type'], line_length, end_overhang, l1,
-          beam_start_x, beam_length,
-          plate_subtype if resolved_plate else '-', line['heading_deg'],
-          builder.child_count, result['pipe_rack_number'] or '-'))
-    return builder, result
-
-
-def _attach_result_items(cell, result):
-    """把整组三角架写入共享支吊架库（整组记录 + 各构件记录）。"""
-    return psb.attach_components(
-        cell,
-        support_type=SUPPORT_TYPE,
-        support_code=SUPPORT_CODE,
-        assembly_tag=result.get('pipe_rack_number', ''),
-        assembly_spec='%s + %s' % (result.get('h_beam_specification', ''),
-                                   result.get('angle_specification', '')),
-        components=result.get('bom_items', ()),
-    )
-
-
-def replace_end_welded_triangle_bracket(line, end_overhang, previous_handle,
-                                        variant_key=DEFAULT_VARIANT,
-                                        brace_down=True, rack_number=None,
-                                        add_end_plate=False,
-                                        plate_subtype=DEFAULT_PLATE_SUBTYPE):
-    """重建整组：先建新的一版并写入，成功后再删除上一版预览。"""
-    builder, result = _build_triangle_bracket_cell(
-        line, end_overhang, variant_key, brace_down, rack_number,
-        add_end_plate, plate_subtype)
-    new_handle = builder.commit()
-    _attach_result_items(new_handle, result)
-    deleted = _delete_preview(previous_handle)
-    return new_handle, result, deleted
-
-
-def draw_end_welded_triangle_bracket(line, end_overhang,
-                                     variant_key=DEFAULT_VARIANT,
-                                     brace_down=True, rack_number=None,
-                                     add_end_plate=False,
-                                     plate_subtype=DEFAULT_PLATE_SUBTYPE):
-    """直接创建整组单元并写入模型，返回 (cell, 统计字典)。"""
-    builder, result = _build_triangle_bracket_cell(
-        line, end_overhang, variant_key, brace_down, rack_number,
-        add_end_plate, plate_subtype)
-    cell = builder.commit()
-    _attach_result_items(cell, result)
-    return cell, result
-
-
-def export_bom_json(output_path=None):
-    """导出**全部**管道支吊架的统一清单（共享库），返回文件路径。"""
-    if output_path is None:
-        output_path = os.path.join(_PLUGIN_ROOT, '模块', '输出', '三角架_bom.json')
-    return psb.export_combined_bom(output_path)

@@ -1,21 +1,22 @@
 # -*- coding: utf-8 -*-
-"""Bentley OpenPlant Modeler 竖直弯头耳轴参数化建模工具。
+"""Bentley OpenPlant Modeler F4 竖直弯头的水平耳轴放置工具。
 
-在 OPM / MicroStation Python Editor 中运行本文件。用户输入测试高度 H 后，
-在三维模型中选择一个已有的 OpenPlant 90° 竖直弯头即可生成：
+在 OPM / MicroStation Python Editor 中运行本文件。先在三维模型中选择一个
+已有的 OpenPlant 90° 竖直弯头，沿主管水平段延长方向拉伸确定长度 L。
 
-* 按标准表选取管径的竖直耳轴；
+* 沿用 F2 自动管径的水平耳轴；
 * 用弯头外包络真实布尔切出的耳轴鞍口；
-* A 型方底板、B 型圆底板或 C 型无底板；
-* 耳轴下部直径 6 mm 的横向通气孔。
+* A 型 6 mm 端板、B 型按表 2 端板或 C 型无端板；
+* 耳轴外端附近直径 6 mm 的通气孔。
 
-H 是底板上表面至所选弯头水平端中心线的竖向距离。弯头 DN、外径、
+L 是弯头竖直段中心线到耳轴最外端的水平距离。弯头 DN、外径、
 两端中心距、端口坐标及水平方向均从 EC 属性与变换矩阵自动读取。
 """
 
 from __future__ import division
 
 import importlib
+import ctypes
 import math
 import os
 import re
@@ -32,7 +33,11 @@ from MSPyMstnPlatform import *
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(SCRIPT_DIR)
-for _path in (REPO_ROOT, SCRIPT_DIR):
+COMMON_DIR = os.path.join(SCRIPT_DIR, '模块', '公共')
+GEOM_DIR = os.path.join(SCRIPT_DIR, '模块', '竖直弯头的竖直耳轴')
+if not os.path.isdir(COMMON_DIR):
+    COMMON_DIR = os.path.join(REPO_ROOT, '管道支吊架', '模块', '公共')
+for _path in (REPO_ROOT, SCRIPT_DIR, COMMON_DIR, GEOM_DIR):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
@@ -59,16 +64,33 @@ from bentley_ui import (
     SlimScrollbar,
 )
 
+import 支吊架公共库 as psb
+# OPM 的 Python 进程会跨脚本运行缓存公共库；刷新后才能使用新增参数。
+psb = importlib.reload(psb)
+
 import elbow_selection_logic as _elbow_selection_logic
 
 _elbow_selection_logic = importlib.reload(_elbow_selection_logic)
 dimension_scale_to_mm = _elbow_selection_logic.dimension_scale_to_mm
 elbow_frame_from_matrix = _elbow_selection_logic.elbow_frame_from_matrix
-support_base_from_height = _elbow_selection_logic.support_base_from_height
+height_from_view_drag = _elbow_selection_logic.height_from_view_drag
+moved_from_selection_view = _elbow_selection_logic.moved_from_selection_view
+f4_number = _elbow_selection_logic.f4_number
+f4_axis_points = _elbow_selection_logic.f4_axis_points
+f4_pipe_axis_origin = _elbow_selection_logic.f4_pipe_axis_origin
+f4_alignment_offset = _elbow_selection_logic.f4_alignment_offset
+f4_end_plate_thickness = _elbow_selection_logic.f4_end_plate_thickness
 
 
-DEBUG_LOG = os.path.join(SCRIPT_DIR, "竖直弯头耳轴_debug_log.txt")
+DEBUG_LOG = os.path.join(SCRIPT_DIR, '模块', '日志',
+                         '竖直弯头的水平耳轴_debug_log.txt')
+SUPPORT_TYPE = 'F4-[竖直弯头的水平耳轴]'
+SUPPORT_CODE = 'F4_VERTICAL_ELBOW_HORIZONTAL_TRUNNION'
 SUCCESS = 0
+
+
+class AttachmentIncompleteError(RuntimeError):
+    """几何已写入模型，但清单 ItemType 未完整附加。"""
 
 # 常用钢管外径及 Sch40 壁厚（mm）。所选弯头外径从 EC 读取；
 # 表内壁厚用于自动选型后的空心耳轴。
@@ -77,16 +99,16 @@ PIPE_DATA = {
     32: (42.4, 3.56), 40: (48.3, 3.68), 50: (60.3, 3.91),
     65: (76.1, 5.16), 80: (88.9, 5.49), 100: (114.3, 6.02),
     125: (139.7, 6.55), 150: (168.3, 7.11), 200: (219.1, 8.18),
-    250: (273.0, 9.27), 300: (323.9, 10.31), 350: (355.6, 11.13),
-    400: (406.4, 12.70), 450: (457.2, 14.27), 500: (508.0, 15.09),
-    550: (559.0, 15.88), 600: (610.0, 17.48), 650: (660.0, 18.89),
+    250: (273.0, 9.27), 300: (323.9, 9.53), 350: (355.6, 9.53),
+    400: (406.4, 9.53), 450: (457.2, 9.53), 500: (508.0, 9.53),
+    550: (559.0, 9.53), 600: (610.0, 9.53), 650: (660.0, 18.89),
     700: (711.0, 19.05), 750: (762.0, 19.05), 800: (813.0, 19.05),
     850: (864.0, 19.05), 900: (914.0, 19.05), 950: (965.0, 19.05),
     1000: (1016.0, 19.05), 1050: (1067.0, 19.05),
     1100: (1118.0, 19.05), 1200: (1219.2, 19.05),
 }
 
-# 图片表 1 的逐档映射：主弯头 DN 上限、耳轴 DN、A 型方底板边长、底板厚度。
+# 沿用 F2 的自动管径映射：主弯头 DN 上限、耳轴 DN 及保留的 F2 底板参数。
 SUPPORT_TABLE = (
     (50, None, 200.0, 10.0),
     (100, 50, 200.0, 10.0),
@@ -167,11 +189,12 @@ ELBOW_NUMBER_PROPERTIES = (
     "DESIGN_LENGTH_CENTER_TO_RUN_END_EFFECTIVE",
     "DESIGN_LENGTH_CENTER_TO_OUTLET_END_EFFECTIVE",
 ) + tuple("TRANSFORMATION_MATRIX.M%02d" % index for index in range(12))
-ELBOW_TEXT_PROPERTIES = ("UNIT_OF_MEASURE", "COMPONENT_NAME", "NAME")
+ELBOW_TEXT_PROPERTIES = ("UNIT_OF_MEASURE", "COMPONENT_NAME", "NAME", "LINENUMBER")
 
 
 def _log(message):
     try:
+        os.makedirs(os.path.dirname(DEBUG_LOG), exist_ok=True)
         with open(DEBUG_LOG, "a", encoding="utf-8") as stream:
             stream.write(str(message) + "\n")
     except Exception:
@@ -517,7 +540,7 @@ def read_selected_elbow(element_id):
     model_ref = ISessionMgr.ActiveDgnModelRef
     frame = elbow_frame_from_matrix(
         matrix, _uor_per_mm(model_ref), run_raw * scale_mm,
-        outlet_raw * scale_mm
+        outlet_raw * scale_mm, allow_downward=True
     )
     result = {
         "element_id": int(element_id),
@@ -530,6 +553,9 @@ def read_selected_elbow(element_id):
                               * scale_mm),
         "frame": frame,
         "component_name": texts.get("COMPONENT_NAME") or texts.get("NAME"),
+        "pipe_number": next((str(r.get("texts", {}).get("LINENUMBER")).strip()
+                             for r in [record] + records if r.get("texts", {}).get("LINENUMBER")
+                             and str(r.get("schema") or "").upper().startswith("OPENPLANT")), ""),
     }
     _log("selected elbow id=%s class=%s DN=%s OD=%.3f horizontal=%s vertical=%s" % (
         element_id, class_name, main_dn, outside_mm,
@@ -539,7 +565,7 @@ def read_selected_elbow(element_id):
 
 
 def support_dimensions(main_dn):
-    """按表 1 返回耳轴 DN、外径、壁厚、方底板边长和板厚。"""
+    """按 F2 自动选型表返回耳轴 DN、外径和壁厚。"""
     for maximum_dn, trunnion_dn, plate_size, plate_thickness in SUPPORT_TABLE:
         if main_dn <= maximum_dn:
             selected_dn = main_dn if trunnion_dn is None else trunnion_dn
@@ -714,133 +740,171 @@ def _element_from_body(model_ref, body, color, label):
     return element
 
 
-class VerticalElbowTrunnionBuilder(object):
-    """根据一个已存在的 OpenPlant 竖直弯头构造耳轴及底板。"""
+class HorizontalTrunnionBuilder(object):
+    """F4：可选同中心线或底平；底平标 FB1/FB2。"""
 
-    def __init__(self, height_h_mm, base_type, hollow_trunnion=True):
-        self.height_h_mm = float(height_h_mm)
-        self.base_type = base_type
+    def __init__(self, length_l_mm, end_plate_type, alignment_type,
+                 hollow_trunnion=True, material_code='C1',
+                 wall_override_mm=None):
+        self.length_l_mm = float(length_l_mm)
+        self.end_plate_type = str(end_plate_type)[0]
+        self.alignment_type = alignment_type
         self.hollow_trunnion = bool(hollow_trunnion)
+        self.material_code = str(material_code).upper()
+        self.wall_override_mm = (None if wall_override_mm is None
+                                 else float(wall_override_mm))
+        self.number = ''
 
     def _validate(self):
-        if self.height_h_mm <= 0.0:
-            raise ValueError("高度 H 必须大于 0。")
-        if self.base_type not in ("A 方形底板", "B 圆形底板", "C 无底板"):
-            raise ValueError("未知底板类型。")
+        if self.length_l_mm <= 0.0 or self.length_l_mm > 20000.0:
+            raise ValueError('长度 L 必须在 0～20000 mm 之间。')
+        if self.end_plate_type not in ('A', 'B', 'C'):
+            raise ValueError('未知端板类型。')
+        if self.alignment_type not in ALIGNMENT_TYPES:
+            raise ValueError('未知耳轴对齐类型。')
+        if self.material_code not in _elbow_selection_logic.MATERIAL_CODES:
+            raise ValueError('未知材料代码。')
+        if self.wall_override_mm is not None and self.wall_override_mm <= 0.0:
+            raise ValueError('指定的耳轴壁厚必须大于 0。')
 
     def create_from_elbow(self, elbow_info):
         self._validate()
         model_ref = ISessionMgr.ActiveDgnModelRef
         if model_ref is None or not model_ref.Is3d():
-            raise RuntimeError("请在 OPM 三维模型中运行本工具。")
+            raise RuntimeError('请在 OPM 三维模型中运行本工具。')
 
         scale = _uor_per_mm(model_ref)
-        main_dn = elbow_info["main_dn"]
-        main_od = elbow_info["outside_diameter_mm"]
-        if self.height_h_mm <= main_od / 2.0:
-            raise ValueError("高度 H 过小，应大于弯头外半径 %.1f mm。" % (
-                main_od / 2.0))
-        dims = support_dimensions(main_dn)
-        trunnion_od = dims["trunnion_od"]
-        trunnion_wall = dims["trunnion_wall"]
-        plate_t = 0.0 if self.base_type == "C 无底板" else dims["plate_thickness"]
-        frame = elbow_info["frame"]
-        placement = support_base_from_height(
-            frame, self.height_h_mm, plate_t
-        )
-        horizontal_direction = frame["horizontal_direction"]
+        main_dn = elbow_info['main_dn']
+        main_od = elbow_info['outside_diameter_mm']
+        dims = support_dimensions(main_dn)  # 按用户要求沿用 F2 自动管径
+        trunnion_od = dims['trunnion_od']
+        wall = dims['trunnion_wall'] if self.wall_override_mm is None else self.wall_override_mm
+        if wall >= trunnion_od / 2.0:
+            raise ValueError('耳轴壁厚必须小于耳轴半径。')
+        plate_t = f4_end_plate_thickness(dims['trunnion_dn'], self.end_plate_type)
+        if self.length_l_mm <= main_od / 2.0 + trunnion_od + plate_t + 20.0:
+            raise ValueError('长度 L 过短，必须容纳鞍口、通气孔和端板。')
 
-        start = _dpoint_from_mm(frame["horizontal_port_mm"], scale)
-        center = _dpoint_from_mm(frame["arc_center_mm"], scale)
-        end = _dpoint_from_mm(frame["vertical_port_mm"], scale)
-        tangent = _dvec_from_unit(horizontal_direction)
+        frame = elbow_info['frame']
+        alignment = ('CENTER' if self.alignment_type == ALIGNMENT_TYPES[0]
+                     else 'BOTTOM')
+        offset = f4_alignment_offset(main_od, trunnion_od, alignment)
+        points = f4_axis_points(frame, self.length_l_mm, plate_t, offset)
+        direction = frame['horizontal_direction']
+        self.number = f4_number(main_dn, dims['trunnion_dn'], wall,
+                                dims['trunnion_wall'], self.material_code,
+                                self.length_l_mm, self.end_plate_type,
+                                frame['flat_bend_code'] if alignment == 'BOTTOM'
+                                else '')
+        _log('F4 build: elbow=%s alignment=%s offset=%.3f origin=%s '
+             'tube_start=%s tube_end=%s L=%.3f' % (
+                 elbow_info['element_id'], alignment, offset,
+                 points['origin_mm'], points['tube_start_mm'],
+                 points['tube_end_mm'], self.length_l_mm))
 
-        # 1. 按所选弯头的真实端口坐标重建实心外包络，只作为鞍口刀具体。
-        elbow_cutter = _elbow_outer_body(
-            model_ref, start, center, end, tangent, main_od * scale / 2.0
-        )
+        # 重建选中弯头的实心外包络作为鞍口刀具，保持主管原件不变。
+        _log('F4 kernel: create elbow cutter')
+        cutter = _elbow_outer_body(
+            model_ref,
+            _dpoint_from_mm(frame['horizontal_port_mm'], scale),
+            _dpoint_from_mm(frame['arc_center_mm'], scale),
+            _dpoint_from_mm(frame['vertical_port_mm'], scale),
+            _dvec_from_unit(direction), main_od * scale / 2.0)
 
-        # 2. 耳轴轴线通过竖直端中心，毛坯延伸至该中心，再由外包络切出鞍口。
-        trunnion_bottom = _dpoint_from_mm(
-            placement["trunnion_bottom_mm"], scale
-        )
-        trunnion_top = _dpoint_from_mm(placement["trunnion_top_mm"], scale)
-        trunnion_body = _cylinder_body(
-            model_ref, trunnion_bottom, trunnion_top,
-            trunnion_od * scale / 2.0
-        )
-        _subtract(trunnion_body, elbow_cutter)
-
+        _log('F4 kernel: create tube')
+        tube_start = _dpoint_from_mm(points['tube_start_mm'], scale)
+        tube_end = _dpoint_from_mm(points['tube_end_mm'], scale)
+        tube = _cylinder_body(model_ref, tube_start, tube_end,
+                              trunnion_od * scale / 2.0)
+        _log('F4 kernel: subtract elbow cutter')
+        _subtract(tube, cutter)
         if self.hollow_trunnion:
-            inner_radius = (trunnion_od / 2.0 - trunnion_wall) * scale
-            if inner_radius <= 0.0:
-                raise ValueError("耳轴壁厚数据无效。")
-            bottom_mm = placement["trunnion_bottom_mm"]
-            top_mm = placement["trunnion_top_mm"]
-            inner_start = _dpoint_from_mm(
-                (bottom_mm[0], bottom_mm[1], bottom_mm[2] - 1.0), scale
-            )
-            inner_end = _dpoint_from_mm(
-                (top_mm[0], top_mm[1], top_mm[2] + 1.0), scale
-            )
-            _subtract(trunnion_body, _cylinder_body(
-                model_ref, inner_start, inner_end, inner_radius
-            ))
+            inner_radius = (trunnion_od / 2.0 - wall) * scale
+            bore_start = _dpoint_from_mm(_frame_point(
+                points['tube_start_mm'], -1.0, 0.0, 0.0, direction), scale)
+            bore_end = _dpoint_from_mm(_frame_point(
+                points['tube_end_mm'], 1.0, 0.0, 0.0, direction), scale)
+            _log('F4 kernel: subtract bore')
+            _subtract(tube, _cylinder_body(model_ref, bore_start, bore_end,
+                                           inner_radius))
 
-        # 3. 图示 Ø6 横向通气孔，孔中心位于耳轴底端上方 20 mm。
-        hole_z = (placement["plate_top_z_mm"]
-                  + min(20.0, max(8.0, self.height_h_mm * 0.08)))
-        hole_center = (placement["trunnion_bottom_mm"][0],
-                       placement["trunnion_bottom_mm"][1], hole_z)
-        hole_start = _dpoint_from_mm(_frame_point(
-            hole_center, 0.0, -trunnion_od, 0.0, horizontal_direction
-        ), scale)
-        hole_end = _dpoint_from_mm(_frame_point(
-            hole_center, 0.0, trunnion_od, 0.0, horizontal_direction
-        ), scale)
-        _subtract(trunnion_body, _cylinder_body(
-            model_ref, hole_start, hole_end, 3.0 * scale
-        ))
+        # Ø6 通气孔，靠近耳轴外端，孔轴沿世界 Z。
+        hole_x = max(main_od / 2.0 + trunnion_od / 2.0,
+                     self.length_l_mm - plate_t - 20.0)
+        hole_center = _frame_point(points['origin_mm'], hole_x, 0.0, 0.0, direction)
+        hole_start = _dpoint_from_mm((hole_center[0], hole_center[1],
+                                      hole_center[2] - trunnion_od), scale)
+        hole_end = _dpoint_from_mm((hole_center[0], hole_center[1],
+                                    hole_center[2] + trunnion_od), scale)
+        _log('F4 kernel: subtract vent hole')
+        _subtract(tube, _cylinder_body(model_ref, hole_start, hole_end,
+                                       3.0 * scale))
 
-        bodies = [(trunnion_body, 3, "竖直耳轴")]
+        bodies = [(tube, 3, '水平耳轴')]
+        if plate_t > 0.0:
+            plate = _cylinder_body(
+                model_ref, tube_end,
+                _dpoint_from_mm(points['outer_end_mm'], scale),
+                (trunnion_od + 25.0) * scale / 2.0)
+            bodies.append((plate, 4, self.end_plate_type + ' 型端板'))
 
-        # 4. 底板类型。B 型直径按图为耳轴外径 + 25 mm。
-        if self.base_type == "A 方形底板":
-            bodies.append((_box_body_in_frame(
-                model_ref, placement["base_bottom_mm"],
-                dims["plate_size"] / 2.0, plate_t,
-                horizontal_direction, scale
-            ), 4, "A 型方形底板"))
-        elif self.base_type == "B 圆形底板":
-            base_mm = placement["base_bottom_mm"]
-            plate_start = _dpoint_from_mm(base_mm, scale)
-            plate_end = _dpoint_from_mm(
-                (base_mm[0], base_mm[1], base_mm[2] + plate_t), scale
-            )
-            bodies.append((_cylinder_body(
-                model_ref, plate_start, plate_end,
-                (trunnion_od + 25.0) * scale / 2.0
-            ), 4, "B 型圆形底板"))
-
-        # 所选弯头本身保持不变；所有新几何成功后再写 DGN。
-        elements = []
-        for body, color, label in bodies:
-            elements.append(_element_from_body(model_ref, body, color, label))
+        elements = [_element_from_body(model_ref, body, color, label)
+                    for body, color, label in bodies]
+        cell = EditElementHandle()
+        NormalCellHeaderHandler.CreateOrphanCellElement(
+            cell, SUPPORT_CODE, True, model_ref.GetDgnModel())
         for element in elements:
-            status = element.AddToModel()
+            status = NormalCellHeaderHandler.AddChildElement(cell, element)
             if not _succeeded(status):
-                raise RuntimeError("实体写入当前模型失败（状态：%s）。" % status)
+                raise RuntimeError('耳轴构件加入单元失败（状态：%s）。' % status)
+        status = NormalCellHeaderHandler.AddChildComplete(cell)
+        if not _succeeded(status):
+            raise RuntimeError('耳轴单元完成失败（状态：%s）。' % status)
+        status = cell.AddToModel()
+        if not _succeeded(status):
+            raise RuntimeError('耳轴单元写入当前模型失败（状态：%s）。' % status)
 
-        _log("created from elbow %s DN%d H%.1f, trunnion DN%d, base=%s, ids=%s" % (
-            elbow_info["element_id"], main_dn, self.height_h_mm,
-            dims["trunnion_dn"], self.base_type,
-            tuple(item.GetElementId() for item in elements)
-        ))
-        return elements
+        components = [{
+            'code': 'F4_PIPE_DN%d_W%s_%s' % (
+                dims['trunnion_dn'], str(wall).replace('.', '_'), self.material_code),
+            'name': '水平耳轴钢管' if self.hollow_trunnion else '水平耳轴圆钢',
+            'specification': 'DN%d Ø%g × %g mm，%s' % (
+                dims['trunnion_dn'], trunnion_od, wall, self.material_code),
+            'length': points['tube_length_mm'],
+            'quantity': 1, 'unit': '件',
+        }]
+        if plate_t > 0.0:
+            components.append({
+                'code': 'F4_END_%s_DN%d_T%g' % (
+                    self.end_plate_type, dims['trunnion_dn'], plate_t),
+                'name': self.end_plate_type + ' 型端板',
+                'specification': 'Ø%g × %g mm' % (trunnion_od + 25.0, plate_t),
+                'length': plate_t, 'quantity': 1, 'unit': '件',
+            })
+        try:
+            attached = psb.attach_components(
+                cell, support_type=SUPPORT_TYPE, support_code=SUPPORT_CODE,
+                assembly_tag=self.number,
+                assembly_spec='%s；DN%d；L %g mm；端板 %s' % (
+                    self.number, main_dn, self.length_l_mm, self.end_plate_type),
+                components=components,
+                pipe_number=elbow_info.get('pipe_number') or '')
+        except Exception as error:
+            raise AttachmentIncompleteError(
+                '耳轴单元 %s 已生成，但附加项写入失败：%s。请勿重复建模。'
+                % (cell.GetElementId(), error))
+        if attached < len(components) + 1:
+            raise AttachmentIncompleteError(
+                '耳轴单元 %s 已生成，但附加项仅写入 %d/%d。请勿重复建模。'
+                % (cell.GetElementId(), attached, len(components) + 1))
+        _log('created F4 from elbow %s: %s, cell=%s' % (
+            elbow_info['element_id'], self.number, cell.GetElementId()))
+        return [cell]
 
 
-UI_TITLE = "竖直弯头耳轴"
-BASE_TYPES = ("A 方形底板", "B 圆形底板", "C 无底板")
+UI_TITLE = 'F4-[竖直弯头的水平耳轴]'
+BASE_TYPES = ("A 6 mm 端板", "B 表 2 端板", "C 无端板")
+ALIGNMENT_TYPES = ("相同中心线", "底平（FB1/FB2）")
 _ACTIVE_PLACEMENT_TOOL = None
 _ACTIVE_PANEL = None
 
@@ -858,19 +922,25 @@ def _read_element_id(element_handle):
 class TrunnionPanel(GlassDialog):
     """与支吊架插件一致的常驻参数面板和 Bentley 点选主循环。"""
 
-    STATE_KEY = "VerticalElbowTrunnion"
+    STATE_KEY = "VerticalElbowHorizontalTrunnion"
 
     def __init__(self):
         GlassDialog.__init__(self, title=UI_TITLE)
         self.pending = []
+        self._live_height = None
         self.processing = False
         self._pending_status = None
         self._pending_status_is_error = False
         self._close_requested = False
         self._height = tk.StringVar(value="1000.0")
         self._base_type = tk.StringVar(value=BASE_TYPES[0])
+        self._alignment = tk.StringVar(value=ALIGNMENT_TYPES[0])
         self._hollow = tk.BooleanVar(value=True)
-        self._status = tk.StringVar(value="请在模型中点选一个竖直端朝上的 90° 弯头。")
+        self._material = tk.StringVar(value='C1')
+        self._wall_override = tk.StringVar(value='')
+        self._number = tk.StringVar(value='F4 编号：选弯头后显示')
+        self._selected_elbow_info = None
+        self._status = tk.StringVar(value="请在模型中点选一个向上或向下的竖直 90° 弯头。")
         self._selection = tk.StringVar(
             value="等待点选｜将自动读取 EC 规格、端口坐标和水平方向。"
         )
@@ -886,7 +956,7 @@ class TrunnionPanel(GlassDialog):
     def _build(self):
         form = self.build_shell(
             UI_TITLE,
-            "点选已有 OpenPlant 90° 竖直弯头，自动识别规格、坐标与方向；右键退出",
+            "点选弯头后自动进入拉伸和 AccuDraw；移动预览，左键确认",
         )
         form.columnconfigure(0, weight=1)
 
@@ -895,8 +965,8 @@ class TrunnionPanel(GlassDialog):
         hint.grid(row=0, column=0, sticky="ew")
         tk.Label(
             hint,
-            text=("在模型中点选弯头主单元。H 为底板上表面到弯头水平端中心线的"
-                  "竖向距离；所选弯头保持不变，插件只新增耳轴和底板。"),
+            text=("点选弯头后沿水平管延长方向拉伸，移动光标预览耳轴。"
+                  "L 从竖直段中心线量到耳轴最外端；底平时按朝向标 FB1/FB2。"),
             bg=CARD_SOFT, fg=INK, font=UI_FONT_SMALL, justify="left",
             wraplength=410,
         ).pack(anchor="w", padx=12, pady=9)
@@ -904,18 +974,47 @@ class TrunnionPanel(GlassDialog):
         ttk.Label(form, text="1. 放置参数", style="Section.TLabel").grid(
             row=1, column=0, sticky="w", pady=(12, 3)
         )
-        self._entry_row(form, 2, "高度 H", self._height, "mm")
-        self._combo_row(form, 3, "底板类型", self._base_type, BASE_TYPES)
+        height_entry = self._entry_row(form, 2, "实时长度 L", self._height, "mm")
+        height_entry.configure(state="readonly")
+        self._combo_row(form, 3, "端板类型", self._base_type, BASE_TYPES)
 
         check_row = tk.Frame(form, bg=CARD)
-        check_row.grid(row=4, column=0, sticky="w", pady=(8, 0))
+        check_row.grid(row=4, column=0, sticky="ew", pady=(8, 0))
+        alignment_row = tk.Frame(check_row, bg=CARD)
+        alignment_row.pack(anchor='w', pady=(0, 7))
+        tk.Label(alignment_row, text='耳轴位置', bg=CARD, fg=INK,
+                 font=UI_FONT_BOLD).pack(side='left')
+        alignment_combo = ttk.Combobox(
+            alignment_row, textvariable=self._alignment,
+            values=ALIGNMENT_TYPES, state='readonly', width=20,
+            style='Glass.TCombobox')
+        alignment_combo.pack(side='left', padx=(12, 0))
+        alignment_combo.bind('<<ComboboxSelected>>',
+                             lambda _event: self._update_number_from_current())
         tk.Checkbutton(
             check_row, text="耳轴按钢管建模（取消则为实心圆钢）",
             variable=self._hollow, bg=CARD, fg=INK, activebackground=CARD,
             activeforeground=INK, selectcolor=FIELD, font=UI_FONT,
             highlightthickness=0, bd=0,
         ).pack(anchor="w")
-
+        material_row = tk.Frame(check_row, bg=CARD)
+        material_row.pack(anchor='w', pady=(7, 0))
+        tk.Label(material_row, text='材料代码', bg=CARD, fg=INK,
+                 font=UI_FONT_BOLD).pack(side='left')
+        ttk.Combobox(
+            material_row, textvariable=self._material,
+            values=_elbow_selection_logic.MATERIAL_CODES,
+            state='readonly', width=7, style='Glass.TCombobox').pack(
+                side='left', padx=(10, 12))
+        tk.Label(material_row, text='耳轴壁厚', bg=CARD, fg=INK,
+                 font=UI_FONT_BOLD).pack(side='left')
+        tk.Entry(material_row, textvariable=self._wall_override, width=8,
+                 font=UI_FONT, fg=INK, bg=FIELD, relief='flat',
+                 highlightthickness=1, highlightbackground=BORDER,
+                 insertbackground=INK, justify='center').pack(
+                     side='left', padx=(8, 5), ipady=3)
+        tk.Label(material_row, text='mm（空 = STD）', bg=CARD, fg=MUTED,
+                 font=UI_FONT_SMALL).pack(side='left')
         ttk.Separator(form, orient="horizontal").grid(
             row=5, column=0, sticky="ew", pady=12
         )
@@ -931,6 +1030,9 @@ class TrunnionPanel(GlassDialog):
             fg="#1F5F99", font=UI_FONT_SMALL, justify="left",
             wraplength=410,
         ).pack(anchor="w", padx=12, pady=9)
+        tk.Label(selection_card, textvariable=self._number, bg=CARD_SOFT,
+                 fg=INK, font=UI_FONT_BOLD, justify='left',
+                 wraplength=410).pack(anchor='w', padx=12, pady=(0, 9))
 
         ttk.Label(form, text="生成记录", style="Section.TLabel").grid(
             row=8, column=0, sticky="w", pady=(12, 3)
@@ -1001,43 +1103,93 @@ class TrunnionPanel(GlassDialog):
         return combo
 
     def restore_state(self):
-        height = self.ui_state.get("height_h")
+        height = self.ui_state.get("length_l")
         if isinstance(height, (int, float)) and 0.0 < height <= 20000.0:
             self._height.set("%.1f" % height)
-        base_type = self.ui_state.get("base_type")
+        base_type = self.ui_state.get("end_plate_type")
         if base_type in BASE_TYPES:
             self._base_type.set(base_type)
+        alignment = self.ui_state.get('alignment_type')
+        if alignment in ALIGNMENT_TYPES:
+            self._alignment.set(alignment)
         hollow = self.ui_state.get("hollow_trunnion")
         if isinstance(hollow, bool):
             self._hollow.set(hollow)
+        material = self.ui_state.get('material_code')
+        if material in _elbow_selection_logic.MATERIAL_CODES:
+            self._material.set(material)
+        self._wall_override.set(str(self.ui_state.get('wall_override_mm') or ''))
 
     def persist_state(self, state):
         try:
-            state["height_h"] = float(self._height.get().strip())
+            state["length_l"] = float(self._height.get().strip())
         except (TypeError, ValueError):
-            state["height_h"] = 1000.0
-        state["base_type"] = self._base_type.get()
+            state["length_l"] = 1000.0
+        state["end_plate_type"] = self._base_type.get()
+        state['alignment_type'] = self._alignment.get()
         state["hollow_trunnion"] = bool(self._hollow.get())
+        state['material_code'] = self._material.get()
+        state['wall_override_mm'] = self._wall_override.get().strip()
 
-    def builder(self):
-        text = self._height.get().strip().replace(",", "")
+    def builder(self, length):
+        if not 50.0 <= length <= 20000.0:
+            raise ValueError('长度 L 必须在 50～20000 mm 之间。')
+        wall_text = self._wall_override.get().strip().replace(',', '')
         try:
-            height = float(text)
+            wall = None if not wall_text else float(wall_text)
         except (TypeError, ValueError):
-            raise ValueError("高度 H 必须是有效数字。")
-        if not 50.0 <= height <= 20000.0:
-            raise ValueError("高度 H 必须在 50～20000 mm 之间。")
-        builder = VerticalElbowTrunnionBuilder(
-            height, self._base_type.get(), bool(self._hollow.get())
-        )
+            raise ValueError('耳轴壁厚必须是有效数字，或留空采用 STD。')
+        builder = HorizontalTrunnionBuilder(
+            length, self._base_type.get(), self._alignment.get(),
+            bool(self._hollow.get()),
+            self._material.get(), wall)
         builder._validate()
         return builder
 
-    def queue_pick(self, element_id):
+    def queue_pick(self, element_id, pick_view_position):
         """原生工具回调只入队；不在回调内访问 EC 或 Tk 控件。"""
         if self.processing or self.pending:
             return
-        self.pending.append(element_id)
+        self.pending.append(("pick", element_id, pick_view_position))
+
+    def queue_height(self, elbow_info, height):
+        """数据点回调只提交纯 Python 数据，实体创建留给主循环。"""
+        self.pending.append(("height", elbow_info, height))
+
+    def queue_cancel_height(self):
+        self.pending.append(("cancel_height",))
+
+    def show_live_height(self, height):
+        self._live_height = height
+        try:
+            self._height.set("%.1f" % height)
+            self._update_number(height)
+        except tk.TclError:
+            pass
+
+    def _update_number(self, length):
+        info = self._selected_elbow_info
+        if info is None:
+            return
+        try:
+            dims = support_dimensions(info['main_dn'])
+            wall_text = self._wall_override.get().strip().replace(',', '')
+            wall = dims['trunnion_wall'] if not wall_text else float(wall_text)
+            bend_code = (info['frame']['flat_bend_code']
+                         if self._alignment.get() == ALIGNMENT_TYPES[1] else '')
+            number = f4_number(
+                info['main_dn'], dims['trunnion_dn'], wall,
+                dims['trunnion_wall'], self._material.get(), length,
+                self._base_type.get()[0], bend_code)
+            self._number.set('F4 编号：' + number)
+        except (ValueError, TypeError, IndexError) as error:
+            self._number.set('F4 编号：' + str(error))
+
+    def _update_number_from_current(self):
+        try:
+            self._update_number(float(self._height.get()))
+        except (TypeError, ValueError, tk.TclError):
+            pass
 
     def set_status(self, message, is_error=False):
         self._pending_status = message
@@ -1080,37 +1232,67 @@ class TrunnionPanel(GlassDialog):
         vertical = frame["vertical_port_mm"]
         return (
             "元素 %s｜%s\nDN%d · 外径 %.1f mm → 耳轴 DN%d（Ø%.1f）\n"
-            "水平端 (%.1f, %.1f, %.1f)｜竖直端 (%.1f, %.1f, %.1f) mm"
+            "水平端 (%.1f, %.1f, %.1f)｜竖直端 (%.1f, %.1f, %.1f) mm｜底平标记 %s"
             % ((elbow_info["element_id"], elbow_info["class"],
                 elbow_info["main_dn"], elbow_info["outside_diameter_mm"],
                 dims["trunnion_dn"], dims["trunnion_od"])
-               + tuple(horizontal) + tuple(vertical))
+               + tuple(horizontal) + tuple(vertical)
+               + (frame['flat_bend_code'],))
         )
 
-    def _process(self, element_id):
+    def _process_pick(self, element_id, pick_view_position):
         self.processing = True
         try:
-            builder = self.builder()
             elbow_info = read_selected_elbow(element_id)
-            elements = builder.create_from_elbow(elbow_info)
+            self._selected_elbow_info = elbow_info
             self._selection.set(self._selection_text(elbow_info))
-            self._append_log(
-                "已生成｜元素 %s｜DN%d｜H %.1f mm｜%s｜新图元 %s"
-                % (element_id, elbow_info["main_dn"], builder.height_h_mm,
-                   builder.base_type,
-                   ", ".join(str(item.GetElementId()) for item in elements))
-            )
-            self.set_status("生成完成；可继续点选另一个竖直弯头。")
+            TrunnionHeightTool.InstallNewInstance(
+                0, self, elbow_info, pick_view_position)
+            self.set_status("已进入水平拉伸：移动光标预览，左键确认生成；右键取消。")
         except Exception as error:
-            _log("selection/create exception for %s: %r" % (element_id, error))
+            _log("selection exception for %s: %r" % (element_id, error))
             self.set_status("%s；请重新点选有效的竖直弯头。" % error, True)
+            if not isinstance(_ACTIVE_PLACEMENT_TOOL, TrunnionPlacementTool):
+                self.restart_selection(False)
         finally:
             self.processing = False
 
+    def _process_height(self, elbow_info, height):
+        self.processing = True
+        try:
+            builder = self.builder(height)
+            elements = builder.create_from_elbow(elbow_info)
+            self._height.set("%.1f" % height)
+            self._number.set('F4 编号：' + builder.number)
+            self._append_log(
+                "已生成｜%s｜元素 %s｜DN%d｜L %.1f mm｜端板 %s｜单元 %s"
+                % (builder.number, elbow_info["element_id"], elbow_info["main_dn"], builder.length_l_mm,
+                   builder.end_plate_type,
+                   ", ".join(str(item.GetElementId()) for item in elements))
+            )
+            self.set_status("生成完成；可继续点选另一个竖直弯头。")
+        except AttachmentIncompleteError as error:
+            _log("height/attachment exception for %s: %r" % (elbow_info["element_id"], error))
+            self.set_status(str(error), True)
+        except Exception as error:
+            _log("height/create exception for %s: %r" % (elbow_info["element_id"], error))
+            self.set_status("%s；请重新点选弯头后拉伸。" % error, True)
+        finally:
+            self.processing = False
+            self.restart_selection(False)
+
     def _run_pending(self):
         pending, self.pending = self.pending, []
-        for element_id in pending:
-            self._process(element_id)
+        for item in pending:
+            if item[0] == "pick":
+                self._process_pick(item[1], item[2])
+            elif item[0] == "height":
+                self._process_height(item[1], item[2])
+            elif item[0] == "cancel_height":
+                self.restart_selection()
+        if self._live_height is not None:
+            self._height.set("%.1f" % self._live_height)
+            self._live_height = None
         if self._pending_status is not None:
             message = self._pending_status
             is_error = self._pending_status_is_error
@@ -1118,10 +1300,11 @@ class TrunnionPanel(GlassDialog):
             self._pending_status_is_error = False
             self._apply_status(message, is_error)
 
-    def restart_selection(self):
+    def restart_selection(self, announce=True):
         try:
             TrunnionPlacementTool.InstallNewInstance(0, self, False)
-            self.set_status("请在模型中点选一个 OpenPlant 90° 竖直弯头。")
+            if announce:
+                self.set_status("请在模型中点选一个 OpenPlant 90° 竖直弯头。")
         except Exception as error:
             self.set_status("点选工具启动失败：%s" % error, True)
 
@@ -1166,7 +1349,7 @@ class TrunnionPlacementTool(DgnElementSetTool):
         self._located_id = None
 
     def _GetToolName(self, name):
-        return WString("SelectVerticalElbowForTrunnion")
+        return WString("SelectVerticalElbowForHorizontalTrunnion")
 
     def _DoGroups(self):
         return False
@@ -1183,10 +1366,6 @@ class TrunnionPlacementTool(DgnElementSetTool):
     def _OnPostInstall(self):
         AccuSnap.GetInstance().EnableSnap(True)
         DgnElementSetTool._OnPostInstall(self)
-        if self.panel is not None:
-            self.panel.set_status(
-                "请在模型中点选一个已有的 OpenPlant 90° 竖直弯头。"
-            )
 
     def _OnPostLocate(self, path, cant_accept_reason):
         if not DgnElementSetTool._OnPostLocate(self, path, cant_accept_reason):
@@ -1210,7 +1389,9 @@ class TrunnionPlacementTool(DgnElementSetTool):
             return True
         element_id = self._located_id
         self._located_id = None
-        self.panel.queue_pick(element_id)
+        pick_point = event.GetViewPoint()
+        self.panel.queue_pick(element_id, (
+            int(event.GetViewNum()), float(pick_point.x), float(pick_point.y)))
         return True
 
     def _OnResetButton(self, event):
@@ -1233,6 +1414,212 @@ class TrunnionPlacementTool(DgnElementSetTool):
         _ACTIVE_PLACEMENT_TOOL.InstallTool()
         if start_loop and panel is not None:
             panel.run_dialog_loop()
+        return _ACTIVE_PLACEMENT_TOOL
+
+
+def _left_mouse_button_is_down():
+    """只用物理按键状态判断选取点击是否已释放，不使用时间阈值。"""
+    return bool(ctypes.windll.user32.GetAsyncKeyState(0x01) & 0x8000)
+
+
+class TrunnionHeightTool(DgnPrimitiveTool):
+    """选中弯头后立即动态预览；下一个数据点确认建模。"""
+
+    def __init__(self, tool_id, panel, elbow_info, pick_view_position):
+        DgnPrimitiveTool.__init__(self, tool_id, tool_id)
+        self.panel = panel
+        self.elbow_info = elbow_info
+        self.m_self = self
+        self._has_preview = False
+        self._pick_view_position = pick_view_position
+        self._pick_button_released = False
+        self._accept_armed = False
+
+    def _moved_from_pick(self, event):
+        point = event.GetViewPoint()
+        return moved_from_selection_view(
+            self._pick_view_position, event.GetViewNum(),
+            (point.x, point.y))
+
+    def _GetToolName(self, name):
+        return WString("DragHorizontalTrunnionLength")
+
+    def _OnPostInstall(self):
+        DgnPrimitiveTool._OnPostInstall(self)
+        AccuSnap.GetInstance().EnableSnap(True)
+
+    def _start_drag(self):
+        """选取数据点结束后启动水平拉伸及 AccuDraw。"""
+        self._BeginDynamics()
+        if not self.GetDynamicsStarted():
+            raise RuntimeError('Bentley 动态绘图未启动。')
+        try:
+            frame = self.elbow_info['frame']
+            scale = _uor_per_mm(ISessionMgr.ActiveDgnModelRef)
+            anchor = _dpoint_from_mm(f4_pipe_axis_origin(frame), scale)
+            direction = frame['horizontal_direction']
+            accu_draw = AccuDraw.GetInstance()
+            accu_draw.Activate()
+            accu_draw.SetContext(AccuDrawFlags.eACCUDRAW_SetOrigin, anchor)
+            accu_draw.SetContext(AccuDrawFlags.eACCUDRAW_SetXAxis, None,
+                                 _dvec_from_unit(direction))
+            accu_draw.SetContext(AccuDrawFlags.eACCUDRAW_SetFocus)
+        except Exception as error:
+            _log('AccuDraw horizontal context exception: %r' % error)
+
+    def _height_from_event(self, event):
+        scale = _uor_per_mm(ISessionMgr.ActiveDgnModelRef)
+        frame = self.elbow_info['frame']
+        origin = f4_pipe_axis_origin(frame)
+        direction = frame['horizontal_direction']
+        if event.GetCoordSource() in (
+                DgnButtonEvent.eFROM_Precision,
+                DgnButtonEvent.eFROM_ElemSnap,
+                DgnButtonEvent.eFROM_TentativePoint):
+            point = event.GetPoint()
+            return ((point.x / scale - origin[0]) * direction[0]
+                    + (point.y / scale - origin[1]) * direction[1])
+        anchor = _dpoint_from_mm(origin, scale)
+        one_meter = _dpoint_from_mm(_frame_point(
+            origin, 1000.0, 0.0, 0.0, direction), scale)
+        viewport = event.GetViewport()
+        anchor_view, meter_view, cursor_view = DPoint3d(), DPoint3d(), DPoint3d()
+        viewport.ActiveToView(anchor_view, anchor)
+        viewport.ActiveToView(meter_view, one_meter)
+        viewport.ActiveToView(cursor_view, event.GetRawPoint())
+        return height_from_view_drag(
+            (anchor_view.x, anchor_view.y),
+            (meter_view.x, meter_view.y),
+            (cursor_view.x, cursor_view.y))
+
+    def _plate_thickness(self):
+        dn = support_dimensions(self.elbow_info['main_dn'])['trunnion_dn']
+        return f4_end_plate_thickness(dn, self.panel._base_type.get()[0])
+
+    def _minimum_height(self):
+        dims = support_dimensions(self.elbow_info['main_dn'])
+        return (self.elbow_info['outside_diameter_mm'] / 2.0
+                + dims['trunnion_od'] + self._plate_thickness() + 20.0)
+
+    def _OnDynamicFrame(self, event):
+        try:
+            length = max(self._minimum_height(),
+                         min(20000.0, self._height_from_event(event)))
+            frame = self.elbow_info['frame']
+            direction = frame['horizontal_direction']
+            plate_t = self._plate_thickness()
+            scale = _uor_per_mm(ISessionMgr.ActiveDgnModelRef)
+            dims = support_dimensions(self.elbow_info['main_dn'])
+            alignment = ('CENTER' if self.panel._alignment.get() == ALIGNMENT_TYPES[0]
+                         else 'BOTTOM')
+            offset = f4_alignment_offset(
+                self.elbow_info['outside_diameter_mm'],
+                dims['trunnion_od'], alignment)
+            points = f4_axis_points(frame, length, plate_t, offset)
+            radius = dims['trunnion_od'] / 2.0
+            origin = points['origin_mm']
+            tube_start = points['tube_start_mm']
+            tube_end = points['tube_end_mm']
+            outer_end = points['outer_end_mm']
+            lines = [(_dpoint_from_mm(origin, scale),
+                      _dpoint_from_mm(outer_end, scale)),
+                     (_dpoint_from_mm(tube_start, scale),
+                      _dpoint_from_mm(tube_end, scale))]
+            for sign in (-1.0, 1.0):
+                side_start = _frame_point(tube_start, 0.0, sign * radius, 0.0,
+                                          direction)
+                side_end = _frame_point(tube_end, 0.0, sign * radius, 0.0,
+                                        direction)
+                lines.append((_dpoint_from_mm(side_start, scale),
+                              _dpoint_from_mm(side_end, scale)))
+                vertical_start = (tube_start[0], tube_start[1],
+                                  tube_start[2] + sign * radius)
+                vertical_end = (tube_end[0], tube_end[1],
+                                tube_end[2] + sign * radius)
+                lines.append((_dpoint_from_mm(vertical_start, scale),
+                              _dpoint_from_mm(vertical_end, scale)))
+            if plate_t > 0.0:
+                plate_radius = (dims['trunnion_od'] + 25.0) / 2.0
+                for sign in (-1.0, 1.0):
+                    a = _frame_point(tube_end, 0.0, sign * plate_radius,
+                                     0.0, direction)
+                    b = _frame_point(outer_end, 0.0, sign * plate_radius,
+                                     0.0, direction)
+                    lines.append((_dpoint_from_mm(a, scale),
+                                  _dpoint_from_mm(b, scale)))
+                    vertical_a = (tube_end[0], tube_end[1],
+                                  tube_end[2] + sign * plate_radius)
+                    vertical_b = (outer_end[0], outer_end[1],
+                                  outer_end[2] + sign * plate_radius)
+                    lines.append((_dpoint_from_mm(vertical_a, scale),
+                                  _dpoint_from_mm(vertical_b, scale)))
+            redraw = RedrawElems()
+            redraw.SetDynamicsViews(IViewManager.GetActiveViewSet(), event.GetViewport())
+            redraw.SetDrawMode(eDRAW_MODE_TempDraw)
+            redraw.SetDrawPurpose(DrawPurpose.eDynamics)
+            drawn = 0
+            for start, end in lines:
+                element = EditElementHandle()
+                curve = ICurvePrimitive.CreateLine(DSegment3d(start, end))
+                status = DraftingElementSchema.ToElement(
+                    element, curve, None, ISessionMgr.ActiveDgnModelRef.Is3d(),
+                    ISessionMgr.ActiveDgnModelRef)
+                if _succeeded(status):
+                    redraw.DoRedraw(element)
+                    drawn += 1
+            if drawn == 0:
+                raise RuntimeError('动态轮廓无法绘制。')
+            self._has_preview = True
+            self.panel.show_live_height(length)
+            if not _left_mouse_button_is_down():
+                self._pick_button_released = True
+            if self._pick_button_released and self._moved_from_pick(event):
+                self._accept_armed = True
+        except Exception as error:
+            _log('length dynamics exception: %r' % error)
+            self.panel.set_status('拉伸预览失败：%s' % error, True)
+
+    def _OnDataButton(self, event):
+        moved = self._moved_from_pick(event)
+        if (not self._has_preview or not self._pick_button_released
+                or not self._accept_armed or not moved):
+            _log("height accept suppressed: preview=%s released=%s armed=%s "
+                 "moved=%s source=%s" % (
+                     self._has_preview, self._pick_button_released,
+                     self._accept_armed, moved, event.GetButtonSource()))
+            self.panel.set_status(
+                "请先松开选取弯头的左键，移动光标预览长度，然后再左键确认。", True)
+            return False
+        try:
+            height = self._height_from_event(event)
+            height = max(self._minimum_height(), min(20000.0, height))
+            _log("height accepted: H=%.3f source=%s" % (
+                height, event.GetButtonSource()))
+            self.panel.queue_height(self.elbow_info, height)
+            return True
+        except Exception as error:
+            _log("height accept exception: %r" % error)
+            self.panel.set_status("无法读取拉伸长度：%s" % error, True)
+            return False
+
+    def _OnResetButton(self, event):
+        if self.panel is not None:
+            self.panel.queue_cancel_height()
+        return True
+
+    def _OnRestartTool(self):
+        if self.panel is not None and not self.panel._close_requested:
+            self.panel.restart_selection()
+
+    @staticmethod
+    def InstallNewInstance(tool_id, panel, elbow_info, pick_view_position):
+        global _ACTIVE_PLACEMENT_TOOL
+        _ACTIVE_PLACEMENT_TOOL = TrunnionHeightTool(
+            tool_id, panel, elbow_info, pick_view_position)
+        status = _ACTIVE_PLACEMENT_TOOL.InstallTool()
+        if not _succeeded(status):
+            raise RuntimeError("耳轴拉伸工具安装失败（状态：%s）。" % status)
+        _ACTIVE_PLACEMENT_TOOL._start_drag()
         return _ACTIVE_PLACEMENT_TOOL
 
 

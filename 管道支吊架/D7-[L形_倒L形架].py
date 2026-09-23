@@ -84,7 +84,7 @@ from steel_sections import steel_sweep_geometry  # noqa: E402
 
 
 # 支吊架公共清单模块所需的类型标识。
-SUPPORT_TYPE = 'L型管架'
+SUPPORT_TYPE = 'D7-[L形_倒L形架]'
 SUPPORT_CODE = 'L_PIPE_RACK'
 
 
@@ -98,7 +98,7 @@ try:
 except Exception:
     pass
 
-UI_TITLE = 'L 型管架'
+UI_TITLE = 'D7-[L形_倒L形架]'
 
 # 整组构件写入的普通单元名。
 CELL_NAME = 'L_PIPE_RACK'

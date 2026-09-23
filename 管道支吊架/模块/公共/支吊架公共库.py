@@ -17,7 +17,7 @@
     DesignLengthMm  设计长度 / 特征尺寸
     Quantity        数量
     Unit            单位
-    PipeNumber      管道号（记录使用该支架的管道；默认空白，用户可在元素的
+    PipeNumber      管道号（从所选管道读取时自动填写；无值时留空，也可在
                     「属性 → Item Types」面板中自行填写）
 
 于是任何支吊架插件放置的实体都能被 :func:`export_combined_bom` 一次扫到：
@@ -27,9 +27,9 @@
 
 属性值写入 ItemType 的默认值（规避部分 MicroStation 版本
 ``ApplyCustomItem`` 返回值无法封送的问题），因此同一
-(类型, 构件, 规格/长度) 会复用同一个 ItemType。``PipeNumber`` 默认空串；
-用户想要逐实例填写时，在元素属性面板中修改会写成**实例值**（不是默认值），
-故各支架互不影响。
+(类型, 构件, 规格/长度, 管道号) 会复用同一个 ItemType。带管道号时
+ItemType 名称附加管道号哈希，避免不同管线复用默认值而串号；无管道号时
+默认空串。用户也可在属性面板中逐实例修改。
 
 本模块不依赖任何具体插件；各插件把 ``管道支吊架/模块/公共`` 目录加入
 ``sys.path`` 后 ``import 支吊架公共库`` 即可。
@@ -224,7 +224,8 @@ def _attach_item_with_defaults(element, item_type_name, defaults):
 
 
 def attach_components(element, support_type, support_code, assembly_tag,
-                      components, assembly_spec='', assembly_unit='套'):
+                      components, assembly_spec='', assembly_unit='套',
+                      pipe_number=''):
     """把一组支吊架构件写入公共库并附加到 *element*（通常是一整组单元）。
 
     ``support_type`` 为中文显示名（如 '端焊三角架'）；``support_code`` 为
@@ -236,6 +237,8 @@ def attach_components(element, support_type, support_code, assembly_tag,
     返回成功附加的条目数。
     """
     attached = 0
+    pipe_number = str(pipe_number or '').strip()
+    pipe_suffix = '_P' + _short_hash(pipe_number) if pipe_number else ''
 
     assembly_defaults = {
         'RecordKind': 'Assembly',
@@ -246,10 +249,10 @@ def attach_components(element, support_type, support_code, assembly_tag,
         'DesignLengthMm': 0.0,
         'Quantity': 1,
         'Unit': str(assembly_unit or '套'),
-        'PipeNumber': '',
+        'PipeNumber': pipe_number,
     }
     assembly_name = _assembly_item_type_name(
-        support_code, assembly_tag, assembly_spec)
+        support_code, assembly_tag, assembly_spec) + pipe_suffix
     if _attach_item_with_defaults(element, assembly_name, assembly_defaults):
         attached += 1
 
@@ -265,9 +268,9 @@ def attach_components(element, support_type, support_code, assembly_tag,
             'DesignLengthMm': length,
             'Quantity': int(item.get('quantity', 1)),
             'Unit': str(item.get('unit', '件')),
-            'PipeNumber': '',
+            'PipeNumber': pipe_number,
         }
-        name = _component_item_type_name(support_code, code, length)
+        name = _component_item_type_name(support_code, code, length) + pipe_suffix
         if _attach_item_with_defaults(element, name, defaults):
             attached += 1
 

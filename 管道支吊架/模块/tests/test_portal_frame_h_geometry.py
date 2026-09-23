@@ -62,7 +62,7 @@ def _member_world(variant_key, member_kind, post, arm_length_mm,
     """返回 ``(origin, axis_z, length_mm, world_points)``。
 
     ``world_points`` 是截面轮廓（未扫掠）映射到世界的点列，与
-    ``门型架（H型钢）.py`` 中 ``_build_member_element`` 的做法一致。
+    ``D13-[门型架_倒门型架（H型钢）].py`` 中 ``_build_member_element`` 的做法一致。
     """
     run_dir, v_dir = _plane_dirs(heading_deg)
     origin_uvw, length_mm = geom.member_origin_length(

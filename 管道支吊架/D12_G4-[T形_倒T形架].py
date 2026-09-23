@@ -102,7 +102,7 @@ from steel_sections import steel_sweep_geometry  # noqa: E402
 
 
 # 支吊架公共清单模块所需的类型标识。
-SUPPORT_TYPE = 'T形架'
+SUPPORT_TYPE = 'D12_G4-[T形_倒T形架]'
 SUPPORT_CODE = 'T_FRAME'
 
 
@@ -116,7 +116,7 @@ try:
 except Exception:
     pass
 
-UI_TITLE = 'T形架'
+UI_TITLE = 'D12_G4-[T形_倒T形架]'
 
 # 整组构件写入的普通单元名。
 CELL_NAME = 'T_FRAME'

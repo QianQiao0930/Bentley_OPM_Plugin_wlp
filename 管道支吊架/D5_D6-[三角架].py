@@ -11,8 +11,9 @@
 孔距 S 按横担截面自动取整，横担相应缩短端板厚度。整组写成一个普通单元，
 清单写入**管道支吊架公共库**，可导出 JSON / Excel。
 
-几何 / 数据逻辑集中在纯模块 ``模块/端焊三角架/端焊三角架_选线_几何.py``，
-本文件只负责 Tkinter 面板与交互工具，外观沿用仓库共享的 ``bentley_ui``。
+几何 / 数据逻辑集中在 ``模块/端焊三角架/端焊三角架_选线_几何.py``；本文件负责
+Tkinter 面板与交互工具、拼装整组单元并写入公共支吊架库，外观沿用仓库共享的
+``bentley_ui``。
 本文件不依赖早期插件 ``端焊三角架_选线版.py``，也不再使用 PyQt5。
 
 运行环境：Bentley Power Platform Python（MSPy）。
@@ -22,6 +23,7 @@ from __future__ import division
 
 import faulthandler
 import importlib
+import math
 import os
 import sys
 import time
@@ -76,9 +78,10 @@ from bentley_ui import (  # noqa: E402
 
 import 端焊三角架_选线_几何 as geom  # noqa: E402
 import 混凝土锚板 as anchor  # noqa: E402
+import 支吊架公共库 as psb  # noqa: E402
 
 
-UI_TITLE = '三角架（选线·带端板）'
+UI_TITLE = 'D5_D6-[三角架]'
 UI_REVISION = 'tk-1'
 
 DEBUG_LOG = os.path.join(HERE, '模块', '日志', '三角架_debug_log.txt')
@@ -144,6 +147,255 @@ def _reload_runtime_modules():
 # ---------------------------------------------------------------------------
 # 面板（Tkinter / bentley_ui）
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# 单元封装
+# ---------------------------------------------------------------------------
+
+
+class _TriangleBracketCellBuilder(object):
+    """收集端焊三角架子元素，全部成功后一次性写入一个普通单元。"""
+
+    def __init__(self, dgn_model, cell_name=None):
+        self.dgn_model = dgn_model
+        self.cell_name = cell_name or geom.CELL_NAME
+        self.cell = EditElementHandle()
+        self.child_count = 0
+        self.warnings = []
+        NormalCellHeaderHandler.CreateOrphanCellElement(
+            self.cell, self.cell_name, dgn_model.Is3d(), dgn_model)
+
+    def add(self, child):
+        if child is None:
+            raise RuntimeError('三角架子元素创建失败。')
+        status = NormalCellHeaderHandler.AddChildElement(self.cell, child)
+        if not geom._succeeded(status):
+            raise RuntimeError('无法将三角架子元素加入普通单元。')
+        self.child_count += 1
+
+    def note(self, message):
+        if message not in self.warnings:
+            self.warnings.append(message)
+
+    def build(self):
+        status = NormalCellHeaderHandler.AddChildComplete(self.cell)
+        if not geom._succeeded(status):
+            raise RuntimeError('无法完成端焊三角架单元。')
+        return self.child_count
+
+    def commit(self):
+        if not geom._succeeded(self.cell.AddToModel()):
+            raise RuntimeError('无法将端焊三角架单元写入活动模型。')
+        return self.cell
+
+
+def _delete_preview(handle):
+    if handle is None:
+        return False
+    try:
+        if not handle.IsValid():
+            return False
+        handle.DeleteFromModel()
+        return True
+    except Exception:
+        return False
+
+
+# ---------------------------------------------------------------------------
+# 构建整组（选线版 + 可选端板）
+# ---------------------------------------------------------------------------
+
+
+def _build_triangle_bracket_cell(line, end_overhang,
+                                 variant_key=geom.DEFAULT_VARIANT,
+                                 brace_down=True, rack_number=None,
+                                 add_end_plate=False,
+                                 plate_subtype=geom.DEFAULT_PLATE_SUBTYPE):
+    """按所选直线与端板选项构建整组单元但**不写入模型**。
+
+    返回 ``(builder, 统计字典)``。
+    """
+    spec, line_length, end_overhang, brace_sweep_projection = geom._validate(
+        line, end_overhang, variant_key)
+    angle_width = spec['angle'][0]
+    h_beam_height = spec['h_beam'][0]
+
+    dgn_model = ISessionMgr.GetActiveDgnModel()
+    if not dgn_model.Is3d():
+        raise RuntimeError('请先激活一个三维 DGN 模型。')
+
+    resolved_plate = None
+    plate_t = 0.0
+    if add_end_plate:
+        resolved_plate = geom._resolve_plate_options(plate_subtype,
+                                                line['heading_deg'],
+                                                spec['h_beam'])
+        plate_t = float(resolved_plate['plate_t'])
+
+    beam_start_x = plate_t
+    beam_length = float(line_length) - beam_start_x
+    if beam_length <= 0.0:
+        raise ValueError('扣除端板厚度 %.0f mm 后横担长度 %.1f mm 不足，'
+                         '请换用更长的直线或更薄的端板。'
+                         % (plate_t, beam_length))
+
+    l1 = geom.resolve_l1(line_length, end_overhang, variant_key)
+
+    to_world, to_world_vector = geom._make_frame(line['start_mm'],
+                                            line['heading_deg'])
+    heading = math.radians(line['heading_deg'])
+    beam_start_mm = (line['start_mm'][0] + beam_start_x * math.cos(heading),
+                     line['start_mm'][1] + beam_start_x * math.sin(heading),
+                     line['start_mm'][2])
+    beam_to_world, _ = geom._make_frame(beam_start_mm, line['heading_deg'])
+
+    brace_top_z = -h_beam_height
+    brace_origin = (0.0, -angle_width / 2.0,
+                    brace_top_z - brace_sweep_projection)
+    mirror_z = None if brace_down else (-h_beam_height / 2.0)
+
+    builder = _TriangleBracketCellBuilder(dgn_model)
+    brace = geom._create_angle_brace_element(
+        brace_sweep_projection, brace_sweep_projection, brace_origin,
+        spec['angle'], dgn_model, to_world, to_world_vector, mirror_z)
+    if brace is None:
+        raise RuntimeError('斜撑实体创建失败。')
+    builder.add(brace)
+
+    beam = geom._create_h_beam_element(
+        beam_length, spec['h_beam'], dgn_model, beam_to_world,
+        to_world_vector)
+    if beam is None:
+        raise RuntimeError('横担实体创建失败。')
+    builder.add(beam)
+
+    if resolved_plate is not None:
+        geom._add_end_plate_at(builder, resolved_plate, line,
+                          (0.0, 0.0, -h_beam_height / 2.0),
+                          dgn_model, to_world)
+        brace_center = geom._brace_end_face_center(brace_origin, angle_width,
+                                              mirror_z)
+        geom._add_end_plate_at(builder, resolved_plate, line, brace_center,
+                          dgn_model, to_world)
+
+    builder.build()
+    brace_length = math.hypot(brace_sweep_projection, brace_sweep_projection)
+    bom_items = [
+        {'code': 'HBeam', 'name': geom.COMPONENT_A_NAME,
+         'specification': spec['h_beam_specification'],
+         'length': beam_length},
+        {'code': 'AngleBrace', 'name': geom.COMPONENT_B_NAME,
+         'specification': spec['angle_specification'],
+         'length': brace_length},
+    ]
+    if resolved_plate is not None:
+        plate_spec = '%.0f×%.0f×%.0f（S=%.0f，4-φ%.0f）' % (
+            resolved_plate['plate_side'], resolved_plate['plate_side'],
+            resolved_plate['plate_t'], resolved_plate['spacing'],
+            resolved_plate['hole_dia'])
+        bolt_spec = 'M%.0f×%.0f' % (
+            resolved_plate['bolt_dia'], resolved_plate['bolt_length'])
+        bom_items.append({
+            'code': 'EndPlate', 'name': geom.COMPONENT_PLATE_NAME,
+            'specification': plate_spec, 'length': resolved_plate['plate_t'],
+            'quantity': 1, 'unit': '件',
+        })
+        bom_items.append({
+            'code': 'BraceEndPlate', 'name': geom.COMPONENT_BRACE_PLATE_NAME,
+            'specification': plate_spec, 'length': resolved_plate['plate_t'],
+            'quantity': 1, 'unit': '件',
+        })
+        bom_items.append({
+            'code': 'AnchorBolt', 'name': geom.COMPONENT_BOLT_NAME,
+            'specification': bolt_spec,
+            'length': resolved_plate['bolt_length'],
+            'quantity': 4, 'unit': '件',
+        })
+        bom_items.append({
+            'code': 'BraceAnchorBolt', 'name': geom.COMPONENT_BRACE_BOLT_NAME,
+            'specification': bolt_spec,
+            'length': resolved_plate['bolt_length'],
+            'quantity': 4, 'unit': '件',
+        })
+
+    result = {
+        'variant': variant_key,
+        'child_count': builder.child_count,
+        'line_length': line_length,
+        'end_overhang': end_overhang,
+        'l1': l1,
+        'heading_deg': line['heading_deg'],
+        'brace_length': brace_length,
+        'brace_down': bool(brace_down),
+        'rack_type': 1 if brace_down else 2,
+        'pipe_rack_number': rack_number or '',
+        'beam_start_x': beam_start_x,
+        'beam_length': beam_length,
+        'end_plate': (dict(resolved_plate) if resolved_plate else None),
+        'brace_end_plate': (dict(resolved_plate) if resolved_plate else None),
+        'h_beam_specification': spec['h_beam_specification'],
+        'angle_specification': spec['angle_specification'],
+        'bom_items': bom_items,
+        'warnings': list(builder.warnings),
+    }
+    _log('bracket by line with plate: variant=%s, type=%d, L2=%.1f, E=%.1f, '
+         'L1=%.1f, beamStart=%.1f, beamLen=%.1f, plate=%s, heading=%.2f, '
+         'cells=%d, rack=%s' %
+         (variant_key, result['rack_type'], line_length, end_overhang, l1,
+          beam_start_x, beam_length,
+          plate_subtype if resolved_plate else '-', line['heading_deg'],
+          builder.child_count, result['pipe_rack_number'] or '-'))
+    return builder, result
+
+
+def _attach_result_items(cell, result):
+    """把整组三角架写入共享支吊架库（整组记录 + 各构件记录）。"""
+    return psb.attach_components(
+        cell,
+        support_type=geom.SUPPORT_TYPE,
+        support_code=geom.SUPPORT_CODE,
+        assembly_tag=result.get('pipe_rack_number', ''),
+        assembly_spec='%s + %s' % (result.get('h_beam_specification', ''),
+                                   result.get('angle_specification', '')),
+        components=result.get('bom_items', ()),
+    )
+
+
+def replace_end_welded_triangle_bracket(line, end_overhang, previous_handle,
+                                        variant_key=geom.DEFAULT_VARIANT,
+                                        brace_down=True, rack_number=None,
+                                        add_end_plate=False,
+                                        plate_subtype=geom.DEFAULT_PLATE_SUBTYPE):
+    """重建整组：先建新的一版并写入，成功后再删除上一版预览。"""
+    builder, result = _build_triangle_bracket_cell(
+        line, end_overhang, variant_key, brace_down, rack_number,
+        add_end_plate, plate_subtype)
+    new_handle = builder.commit()
+    _attach_result_items(new_handle, result)
+    deleted = _delete_preview(previous_handle)
+    return new_handle, result, deleted
+
+
+def draw_end_welded_triangle_bracket(line, end_overhang,
+                                     variant_key=geom.DEFAULT_VARIANT,
+                                     brace_down=True, rack_number=None,
+                                     add_end_plate=False,
+                                     plate_subtype=geom.DEFAULT_PLATE_SUBTYPE):
+    """直接创建整组单元并写入模型，返回 (cell, 统计字典)。"""
+    builder, result = _build_triangle_bracket_cell(
+        line, end_overhang, variant_key, brace_down, rack_number,
+        add_end_plate, plate_subtype)
+    cell = builder.commit()
+    _attach_result_items(cell, result)
+    return cell, result
+
+
+def export_bom_json(output_path=None):
+    """导出**全部**管道支吊架的统一清单（共享库），返回文件路径。"""
+    if output_path is None:
+        output_path = os.path.join(HERE, '模块', '输出', '三角架_bom.json')
+    return psb.export_combined_bom(output_path)
 
 
 class _TriangleBracketDialog(GlassDialog):
@@ -773,7 +1025,7 @@ class _TriangleBracketDialog(GlassDialog):
         rack_number = self.current_rack_number()
         _log('regenerate: options=%s rack=%s' % (options, rack_number or '-'))
         try:
-            handle, result, deleted = geom.replace_end_welded_triangle_bracket(
+            handle, result, deleted = replace_end_welded_triangle_bracket(
                 self.line, options['end_overhang'], self.preview_handle,
                 options['variant'], options['brace_down'], rack_number,
                 options['add_end_plate'], options['plate_subtype'])
@@ -819,7 +1071,7 @@ class _TriangleBracketDialog(GlassDialog):
         handle = self.preview_handle
         self.preview_handle = None
         self.preview_result = None
-        return geom._delete_preview(handle)
+        return _delete_preview(handle)
 
     def delete_source_line(self):
         handle = self.line_handle
@@ -836,7 +1088,7 @@ class _TriangleBracketDialog(GlassDialog):
         return False
 
     def export_bom(self):
-        output_path = geom.export_bom_json()
+        output_path = export_bom_json()
         if output_path is not None:
             self.set_status('清单已导出：%s' % output_path)
 

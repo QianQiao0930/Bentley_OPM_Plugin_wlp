@@ -119,8 +119,8 @@ import 支吊架公共库 as psb  # noqa: E402
 # 常量
 # ---------------------------------------------------------------------------
 
-UI_TITLE = '小管径立管耳板'
-SUPPORT_TYPE = '小管径立管耳板'
+UI_TITLE = 'F10-[小管径立管耳板]'
+SUPPORT_TYPE = 'F10-[小管径立管耳板]'
 SUPPORT_CODE = 'VP_EAR_PLATE'
 _CELL_NAME = 'VP_EAR_PLATE'
 

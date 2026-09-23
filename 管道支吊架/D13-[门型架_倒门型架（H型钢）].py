@@ -93,7 +93,7 @@ from steel_sections import steel_sweep_geometry  # noqa: E402
 
 
 # 支吊架公共清单模块所需的类型标识。
-SUPPORT_TYPE = '门型架（H型钢）'
+SUPPORT_TYPE = 'D13-[门型架_倒门型架（H型钢）]'
 SUPPORT_CODE = 'PORTAL_FRAME_H'
 
 
@@ -125,7 +125,7 @@ try:
 except Exception:
     pass
 
-UI_TITLE = '门型架（H型钢）'
+UI_TITLE = 'D13-[门型架_倒门型架（H型钢）]'
 UI_REVISION = 'line-select-tk-5'
 
 # 整组构件写入的普通单元名。

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<KeyinTree xmlns="http://www.bentley.com/schemas/1.0/MicroStation/AddIn/KeyinTree.xsd">
+  <RootKeyinTable ID="root">
+    <Keyword SubtableRef="PYE1RACK" CommandClass="MacroCommand" CommandWord="PYE1RACK">
+      <Options Required="true" />
+    </Keyword>
+  </RootKeyinTable>
+  <SubKeyinTables>
+    <KeyinTable ID="PYE1RACK">
+      <Keyword CommandWord="PLACE" />
+      <Keyword CommandWord="EXPORT" />
+    </KeyinTable>
+  </SubKeyinTables>
+  <KeyinHandlers>
+    <KeyinHandler Keyin="PYE1RACK PLACE" Function="OpenE1Rack" />
+    <KeyinHandler Keyin="PYE1RACK EXPORT" Function="ExportE1RackBom" />
+  </KeyinHandlers>
+</KeyinTree>

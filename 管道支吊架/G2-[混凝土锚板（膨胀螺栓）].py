@@ -83,6 +83,8 @@ from bentley_ui import (  # noqa: E402
     RoundButton,
 )
 
+import 支吊架公共库 as psb  # noqa: E402  写入统一统计 / 清单
+
 # 建模库按文件路径强制重读：避免拿到 MicroStation 缓存里的旧版本
 # （旧版本没有 MOUNT_OPTIONS 等新接口）。
 geometry = _load_module('混凝土锚板', os.path.join(_COMMON_DIR, '混凝土锚板.py'))
@@ -95,7 +97,9 @@ try:
 except Exception:
     pass
 
-UI_TITLE = 'G2-混凝土锚板（锚板 + 膨胀锚栓）'
+UI_TITLE = 'G2-[混凝土锚板（膨胀螺栓）]'
+SUPPORT_TYPE = 'G2-[混凝土锚板（膨胀螺栓）]'
+SUPPORT_CODE = 'G2_ANCHOR_PLATE'
 DEFAULT_SUBTYPE = 'A'
 DEFAULT_HEADING = 0.0
 
@@ -125,6 +129,33 @@ def _subtype_label(subtype):
     return ('%s  |  M%.0f×%.0f  |  板厚 %.0f  |  孔 φ%.0f'
             % (subtype, table['bolt_dia'], table['length'],
                table['plate_t'], table['hole_dia']))
+
+
+def _attach_support_items(cell, result):
+    """把锚板整组写入共享支吊架库（整组记录 + 构件记录），供统一统计 / 清单。"""
+    subtype = result.get('subtype', DEFAULT_SUBTYPE)
+    plate_spec = '%.0f×%.0f×%.0f（S=%.0f，4-φ%.0f）' % (
+        float(result.get('plate_side', 0.0)), float(result.get('plate_side', 0.0)),
+        float(result.get('plate_t', 0.0)), float(result.get('spacing', 0.0)),
+        float(result.get('hole_dia', 0.0)))
+    bolt_spec = 'M%.0f×%.0f' % (
+        float(result.get('bolt_dia', 0.0)), float(result.get('bolt_length', 0.0)))
+    assembly_spec = 'G2-%s：锚板 %s，膨胀锚栓 %s ×4' % (
+        subtype, plate_spec, bolt_spec)
+    components = [
+        {'code': 'AnchorPlate', 'name': '锚板', 'specification': plate_spec,
+         'length': float(result.get('plate_t', 0.0)), 'quantity': 1, 'unit': '块'},
+        {'code': 'AnchorBolt', 'name': '膨胀锚栓', 'specification': bolt_spec,
+         'length': float(result.get('bolt_length', 0.0)), 'quantity': 4, 'unit': '套'},
+    ]
+    try:
+        return psb.attach_components(
+            cell, support_type=SUPPORT_TYPE, support_code=SUPPORT_CODE,
+            assembly_tag='G2-%s' % subtype, assembly_spec=assembly_spec,
+            components=components)
+    except Exception:
+        _log_exception('attach support items failed')
+        return 0
 
 
 # ---------------------------------------------------------------------------
@@ -475,6 +506,7 @@ class _AnchorPlateDialog(GlassDialog):
 
         self.preview_handle = handle
         self.preview_result = result
+        _attach_support_items(handle, result)
         self.set_result(result)
         message = (
             '预览已更新：%s 子项，锚板 %.0f×%.0f×%.0f，M%.0f×%.0f 锚栓 ×4，'

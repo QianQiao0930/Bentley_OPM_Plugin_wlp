@@ -60,6 +60,39 @@ class NamingTests(unittest.TestCase):
         self.assertNotEqual(first, other)
 
 
+class PipeNumberAttachmentTests(unittest.TestCase):
+    def test_pipe_number_is_written_to_all_items_and_names_are_isolated(self):
+        original = psb._attach_item_with_defaults
+        calls = []
+
+        def capture(_element, name, defaults):
+            calls.append((name, defaults['PipeNumber']))
+            return True
+
+        psb._attach_item_with_defaults = capture
+        try:
+            kwargs = dict(support_type='竖直弯头的竖直耳轴',
+                          support_code='F2', assembly_tag='F2-100',
+                          components=[{'code': 'PIPE', 'name': '耳轴',
+                                       'length': 200.0}])
+            self.assertEqual(2, psb.attach_components(None, pipe_number=' P-101 ', **kwargs))
+            first = list(calls)
+            calls.clear()
+            self.assertEqual(2, psb.attach_components(None, pipe_number='P-102', **kwargs))
+            second = list(calls)
+            calls.clear()
+            self.assertEqual(2, psb.attach_components(None, **kwargs))
+            empty = list(calls)
+        finally:
+            psb._attach_item_with_defaults = original
+
+        self.assertEqual(['P-101', 'P-101'], [value for _, value in first])
+        self.assertEqual(['P-102', 'P-102'], [value for _, value in second])
+        self.assertEqual(['', ''], [value for _, value in empty])
+        self.assertNotEqual([name for name, _ in first], [name for name, _ in second])
+        self.assertNotEqual([name for name, _ in first], [name for name, _ in empty])
+
+
 class SummariseTests(unittest.TestCase):
     def _records(self):
         return [
