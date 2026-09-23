@@ -1637,7 +1637,8 @@ class TrunnionHeightTool(DgnPrimitiveTool):
                 raise RuntimeError("动态轮廓无法绘制。")
             self._has_preview = True
             self.panel.show_live_height(height)
-            if not _left_mouse_button_is_down():
+            pick_released = not _left_mouse_button_is_down()
+            if pick_released:
                 self._pick_button_released = True
             if self._pick_button_released and self._moved_from_pick(event):
                 self._accept_armed = True
@@ -1646,14 +1647,13 @@ class TrunnionHeightTool(DgnPrimitiveTool):
             self.panel.set_status("拉伸预览失败：%s" % error, True)
 
     def _OnDataButton(self, event):
-        physical_click = _left_mouse_button_is_down()
-        if (not self._has_preview or not self._accept_armed
-                or not self._moved_from_pick(event) or not physical_click):
+        moved = self._moved_from_pick(event)
+        if (not self._has_preview or not self._pick_button_released
+                or not self._accept_armed or not moved):
             _log("height accept suppressed: preview=%s released=%s armed=%s "
-                 "moved=%s physical_click=%s source=%s" % (
+                 "moved=%s source=%s" % (
                      self._has_preview, self._pick_button_released,
-                     self._accept_armed, self._moved_from_pick(event),
-                     physical_click, event.GetButtonSource()))
+                     self._accept_armed, moved, event.GetButtonSource()))
             self.panel.set_status(
                 "请先松开选取弯头的左键，移动光标预览高度，然后再左键确认。", True)
             return False
