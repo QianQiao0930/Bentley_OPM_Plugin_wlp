@@ -346,7 +346,7 @@ class _PipeInfoDialog(GlassDialog):
         buttons = tk.Frame(form, bg=CARD)
         buttons.grid(row=4, column=0, sticky='ew', pady=(10, 0))
         self._pick_button = RoundButton(
-            buttons, '点取管道', self.start_pick, primary=True, bg=CARD,
+            buttons, '点取构件', self.start_pick, primary=True, bg=CARD,
             font=UI_FONT, font_bold=UI_FONT_BOLD)
         self._dump_button = RoundButton(
             buttons, '全部属性', self.show_dump, bg=CARD,

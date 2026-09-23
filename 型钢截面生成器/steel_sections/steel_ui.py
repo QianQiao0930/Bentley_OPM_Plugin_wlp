@@ -190,15 +190,15 @@ class SteelSectionDialog(GlassDialog):
         self._confirm_button = RoundButton(
             button_bar, "确定", self.confirm_tool, primary=True, bg=CARD,
             font=UI_FONT, font_bold=UI_FONT_BOLD)
-        self._cancel_button = RoundButton(
-            button_bar, "取消", self.cancel_tool, bg=CARD,
+        self._close_button = RoundButton(
+            button_bar, "关闭", self.close_tool, bg=CARD,
             font=UI_FONT, font_bold=UI_FONT_BOLD)
         self._end_button = RoundButton(
             button_bar, "结束工具", self._end_tool, bg=CARD,
             font=UI_FONT, font_bold=UI_FONT_BOLD)
         self._end_button.pack(side="left")
         self._start_button.pack(side="right")
-        self._cancel_button.pack(side="right", padx=(0, 8))
+        self._close_button.pack(side="right", padx=(0, 8))
         self._confirm_button.pack(side="right", padx=(0, 8))
         self._start_button.set_enabled(False)
         self._confirm_button.set_enabled(False)
@@ -402,8 +402,8 @@ class SteelSectionDialog(GlassDialog):
         except tk.TclError:
             pass
 
-    def cancel_tool(self):
-        """【取消】：放弃预览、结束工具并关闭面板。"""
+    def close_tool(self):
+        """【关闭】：放弃未确认预览、结束工具并关闭面板。"""
         self.confirmed = False
         self.discard_preview()
         self.destroy()
