@@ -1,0 +1,938 @@
+{
+  "itemTypeLibrary": "PipeSupportComponents",
+  "assemblyCount": 12,
+  "componentRecordCount": 43,
+  "supportsByType": [
+    {
+      "supportType": "L型管架",
+      "assemblyCount": 1,
+      "assemblyTags": [
+        "D5-1-E-1346-437"
+      ]
+    },
+    {
+      "supportType": "T形架",
+      "assemblyCount": 2,
+      "assemblyTags": [
+        "D12-1-D-1800-500",
+        "D12-2-E-1036-500"
+      ]
+    },
+    {
+      "supportType": "保温管夹",
+      "assemblyCount": 4,
+      "assemblyTags": []
+    },
+    {
+      "supportType": "端焊三角架",
+      "assemblyCount": 1,
+      "assemblyTags": [
+        "D5-1-A-173-393"
+      ]
+    },
+    {
+      "supportType": "门型架（H型钢）",
+      "assemblyCount": 2,
+      "assemblyTags": [
+        "D13-1-A-1800-1000",
+        "D13-1-C-1000-1000"
+      ]
+    },
+    {
+      "supportType": "门型架（角钢和槽钢）",
+      "assemblyCount": 2,
+      "assemblyTags": [
+        "D8-1-D-1036-810",
+        "D8-1-E-1500-930"
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "supportType": "L型管架",
+      "componentName": "横担",
+      "specification": "H125×125×6.5×9",
+      "unit": "件",
+      "quantity": 1,
+      "totalDesignLengthMm": 514.456
+    },
+    {
+      "supportType": "L型管架",
+      "componentName": "立杆",
+      "specification": "H125×125×6.5×9",
+      "unit": "件",
+      "quantity": 1,
+      "totalDesignLengthMm": 1221.336
+    },
+    {
+      "supportType": "T形架",
+      "componentName": "横担",
+      "specification": "∠75×7",
+      "unit": "件",
+      "quantity": 2,
+      "totalDesignLengthMm": 1000.0
+    },
+    {
+      "supportType": "T形架",
+      "componentName": "立柱",
+      "specification": "H100×100×6×8",
+      "unit": "件",
+      "quantity": 1,
+      "totalDesignLengthMm": 1700.0
+    },
+    {
+      "supportType": "T形架",
+      "componentName": "立柱",
+      "specification": "H150×150×7×10",
+      "unit": "件",
+      "quantity": 1,
+      "totalDesignLengthMm": 1035.754
+    },
+    {
+      "supportType": "保温管夹",
+      "componentName": "保温层",
+      "specification": "B=50",
+      "unit": "件",
+      "quantity": 2,
+      "totalDesignLengthMm": 600.0
+    },
+    {
+      "supportType": "保温管夹",
+      "componentName": "保温层",
+      "specification": "B=80",
+      "unit": "件",
+      "quantity": 1,
+      "totalDesignLengthMm": 500.0
+    },
+    {
+      "supportType": "保温管夹",
+      "componentName": "承重板（上半）",
+      "specification": "T3=10",
+      "unit": "件",
+      "quantity": 3,
+      "totalDesignLengthMm": 900.0
+    },
+    {
+      "supportType": "保温管夹",
+      "componentName": "承重板（上半）",
+      "specification": "T3=12",
+      "unit": "件",
+      "quantity": 1,
+      "totalDesignLengthMm": 500.0
+    },
+    {
+      "supportType": "保温管夹",
+      "componentName": "承重板（下半）",
+      "specification": "T3=10",
+      "unit": "件",
+      "quantity": 3,
+      "totalDesignLengthMm": 900.0
+    },
+    {
+      "supportType": "保温管夹",
+      "componentName": "承重板（下半）",
+      "specification": "T3=12",
+      "unit": "件",
+      "quantity": 1,
+      "totalDesignLengthMm": 500.0
+    },
+    {
+      "supportType": "保温管夹",
+      "componentName": "管夹底座",
+      "specification": "W=150 / T2=8",
+      "unit": "件",
+      "quantity": 3,
+      "totalDesignLengthMm": 900.0
+    },
+    {
+      "supportType": "保温管夹",
+      "componentName": "管夹底座",
+      "specification": "W=200 / T2=12",
+      "unit": "件",
+      "quantity": 1,
+      "totalDesignLengthMm": 500.0
+    },
+    {
+      "supportType": "保温管夹",
+      "componentName": "耳板",
+      "specification": "60×60×20",
+      "unit": "件",
+      "quantity": 32,
+      "totalDesignLengthMm": 0.0
+    },
+    {
+      "supportType": "保温管夹",
+      "componentName": "螺栓",
+      "specification": "M20",
+      "unit": "件",
+      "quantity": 16,
+      "totalDesignLengthMm": 1040.0
+    },
+    {
+      "supportType": "端焊三角架",
+      "componentName": "斜撑端板",
+      "specification": "250×250×10（S=150，4-φ10）",
+      "unit": "件",
+      "quantity": 1,
+      "totalDesignLengthMm": 10.0
+    },
+    {
+      "supportType": "端焊三角架",
+      "componentName": "斜撑膨胀锚栓",
+      "specification": "M8×80",
+      "unit": "件",
+      "quantity": 4,
+      "totalDesignLengthMm": 320.0
+    },
+    {
+      "supportType": "端焊三角架",
+      "componentName": "构件A（横担）",
+      "specification": "H125×125×6.5×9",
+      "unit": "件",
+      "quantity": 1,
+      "totalDesignLengthMm": 383.237
+    },
+    {
+      "supportType": "端焊三角架",
+      "componentName": "构件B（斜撑）",
+      "specification": "∠100×10",
+      "unit": "件",
+      "quantity": 1,
+      "totalDesignLengthMm": 143.989
+    },
+    {
+      "supportType": "端焊三角架",
+      "componentName": "端板",
+      "specification": "250×250×10（S=150，4-φ10）",
+      "unit": "件",
+      "quantity": 1,
+      "totalDesignLengthMm": 10.0
+    },
+    {
+      "supportType": "端焊三角架",
+      "componentName": "膨胀锚栓",
+      "specification": "M8×80",
+      "unit": "件",
+      "quantity": 4,
+      "totalDesignLengthMm": 320.0
+    },
+    {
+      "supportType": "门型架（H型钢）",
+      "componentName": "横担",
+      "specification": "H100×100×6×8",
+      "unit": "件",
+      "quantity": 2,
+      "totalDesignLengthMm": 2000.0
+    },
+    {
+      "supportType": "门型架（H型钢）",
+      "componentName": "立柱",
+      "specification": "H100×100×6×8",
+      "unit": "件",
+      "quantity": 2,
+      "totalDesignLengthMm": 3400.0
+    },
+    {
+      "supportType": "门型架（H型钢）",
+      "componentName": "立柱",
+      "specification": "H200×200×8×12",
+      "unit": "件",
+      "quantity": 2,
+      "totalDesignLengthMm": 1600.0
+    },
+    {
+      "supportType": "门型架（角钢和槽钢）",
+      "componentName": "横担",
+      "specification": "[14a",
+      "unit": "件",
+      "quantity": 1,
+      "totalDesignLengthMm": 810.0
+    },
+    {
+      "supportType": "门型架（角钢和槽钢）",
+      "componentName": "横担",
+      "specification": "[20a",
+      "unit": "件",
+      "quantity": 1,
+      "totalDesignLengthMm": 930.0
+    },
+    {
+      "supportType": "门型架（角钢和槽钢）",
+      "componentName": "立柱",
+      "specification": "[14a",
+      "unit": "件",
+      "quantity": 2,
+      "totalDesignLengthMm": 2032.508
+    },
+    {
+      "supportType": "门型架（角钢和槽钢）",
+      "componentName": "立柱",
+      "specification": "[20a",
+      "unit": "件",
+      "quantity": 2,
+      "totalDesignLengthMm": 2958.0
+    }
+  ],
+  "records": [
+    {
+      "elementId": 14887,
+      "itemType": "PipeSupportAssembly_L_PIPE_RACK_0d7b5f7196",
+      "recordKind": "Assembly",
+      "supportType": "L型管架",
+      "assemblyTag": "D5-1-E-1346-437",
+      "componentName": "支吊架",
+      "specification": "H125×125×6.5×9",
+      "designLengthMm": 0.0,
+      "quantity": 1,
+      "unit": "套"
+    },
+    {
+      "elementId": 14887,
+      "itemType": "PipeSupportComponent_L_PIPE_RACK_Post_L1221_336",
+      "recordKind": "Component",
+      "supportType": "L型管架",
+      "assemblyTag": "",
+      "componentName": "立杆",
+      "specification": "H125×125×6.5×9",
+      "designLengthMm": 1221.3357845334954,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 14887,
+      "itemType": "PipeSupportComponent_L_PIPE_RACK_Arm_L514_456",
+      "recordKind": "Component",
+      "supportType": "L型管架",
+      "assemblyTag": "",
+      "componentName": "横担",
+      "specification": "H125×125×6.5×9",
+      "designLengthMm": 514.4559351965627,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 7518,
+      "itemType": "PipeSupportAssembly_T_FRAME_81ec89aa11",
+      "recordKind": "Assembly",
+      "supportType": "T形架",
+      "assemblyTag": "D12-1-D-1800-500",
+      "componentName": "支吊架",
+      "specification": "H100×100×6×8",
+      "designLengthMm": 0.0,
+      "quantity": 1,
+      "unit": "套"
+    },
+    {
+      "elementId": 7518,
+      "itemType": "PipeSupportComponent_T_FRAME_Post_L1700_000",
+      "recordKind": "Component",
+      "supportType": "T形架",
+      "assemblyTag": "",
+      "componentName": "立柱",
+      "specification": "H100×100×6×8",
+      "designLengthMm": 1699.9999999999998,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 7518,
+      "itemType": "PipeSupportComponent_T_FRAME_Arm_L500_000",
+      "recordKind": "Component",
+      "supportType": "T形架",
+      "assemblyTag": "",
+      "componentName": "横担",
+      "specification": "∠75×7",
+      "designLengthMm": 500.0,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 15325,
+      "itemType": "PipeSupportAssembly_T_FRAME_4884349180",
+      "recordKind": "Assembly",
+      "supportType": "T形架",
+      "assemblyTag": "D12-2-E-1036-500",
+      "componentName": "支吊架",
+      "specification": "H150×150×7×10",
+      "designLengthMm": 0.0,
+      "quantity": 1,
+      "unit": "套"
+    },
+    {
+      "elementId": 15325,
+      "itemType": "PipeSupportComponent_T_FRAME_Post_L1035_754",
+      "recordKind": "Component",
+      "supportType": "T形架",
+      "assemblyTag": "",
+      "componentName": "立柱",
+      "specification": "H150×150×7×10",
+      "designLengthMm": 1035.753974407893,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 15325,
+      "itemType": "PipeSupportComponent_T_FRAME_Arm_L500_000",
+      "recordKind": "Component",
+      "supportType": "T形架",
+      "assemblyTag": "",
+      "componentName": "横担",
+      "specification": "∠75×7",
+      "designLengthMm": 500.0,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 8617,
+      "itemType": "PipeSupportAssembly_INSULATED_PIPE_CLAMP_884c847c56",
+      "recordKind": "Assembly",
+      "supportType": "保温管夹",
+      "assemblyTag": "",
+      "componentName": "支吊架",
+      "specification": "DN200",
+      "designLengthMm": 0.0,
+      "quantity": 1,
+      "unit": "套"
+    },
+    {
+      "elementId": 8617,
+      "itemType": "PipeSupportComponent_INSULATED_PIPE_CLAMP_Insulation_L500_000",
+      "recordKind": "Component",
+      "supportType": "保温管夹",
+      "assemblyTag": "",
+      "componentName": "保温层",
+      "specification": "B=80",
+      "designLengthMm": 500.0,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 8617,
+      "itemType": "PipeSupportComponent_INSULATED_PIPE_CLAMP_ClampUpper_L500_000",
+      "recordKind": "Component",
+      "supportType": "保温管夹",
+      "assemblyTag": "",
+      "componentName": "承重板（上半）",
+      "specification": "T3=12",
+      "designLengthMm": 500.0,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 8617,
+      "itemType": "PipeSupportComponent_INSULATED_PIPE_CLAMP_ClampLower_L500_000",
+      "recordKind": "Component",
+      "supportType": "保温管夹",
+      "assemblyTag": "",
+      "componentName": "承重板（下半）",
+      "specification": "T3=12",
+      "designLengthMm": 500.0,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 8617,
+      "itemType": "PipeSupportComponent_INSULATED_PIPE_CLAMP_Base_L500_000",
+      "recordKind": "Component",
+      "supportType": "保温管夹",
+      "assemblyTag": "",
+      "componentName": "管夹底座",
+      "specification": "W=200 / T2=12",
+      "designLengthMm": 500.0,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 8617,
+      "itemType": "PipeSupportComponent_INSULATED_PIPE_CLAMP_Ear_L0_000",
+      "recordKind": "Component",
+      "supportType": "保温管夹",
+      "assemblyTag": "",
+      "componentName": "耳板",
+      "specification": "60×60×20",
+      "designLengthMm": 0.0,
+      "quantity": 8,
+      "unit": "件"
+    },
+    {
+      "elementId": 8617,
+      "itemType": "PipeSupportComponent_INSULATED_PIPE_CLAMP_Bolt_L65_000",
+      "recordKind": "Component",
+      "supportType": "保温管夹",
+      "assemblyTag": "",
+      "componentName": "螺栓",
+      "specification": "M20",
+      "designLengthMm": 65.0,
+      "quantity": 4,
+      "unit": "件"
+    },
+    {
+      "elementId": 10159,
+      "itemType": "PipeSupportAssembly_INSULATED_PIPE_CLAMP_1307e269f0",
+      "recordKind": "Assembly",
+      "supportType": "保温管夹",
+      "assemblyTag": "",
+      "componentName": "支吊架",
+      "specification": "DN250",
+      "designLengthMm": 0.0,
+      "quantity": 1,
+      "unit": "套"
+    },
+    {
+      "elementId": 10159,
+      "itemType": "PipeSupportComponent_INSULATED_PIPE_CLAMP_Insulation_L300_000",
+      "recordKind": "Component",
+      "supportType": "保温管夹",
+      "assemblyTag": "",
+      "componentName": "保温层",
+      "specification": "B=50",
+      "designLengthMm": 300.0,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 10159,
+      "itemType": "PipeSupportComponent_INSULATED_PIPE_CLAMP_ClampUpper_L300_000",
+      "recordKind": "Component",
+      "supportType": "保温管夹",
+      "assemblyTag": "",
+      "componentName": "承重板（上半）",
+      "specification": "T3=10",
+      "designLengthMm": 300.0,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 10159,
+      "itemType": "PipeSupportComponent_INSULATED_PIPE_CLAMP_ClampLower_L300_000",
+      "recordKind": "Component",
+      "supportType": "保温管夹",
+      "assemblyTag": "",
+      "componentName": "承重板（下半）",
+      "specification": "T3=10",
+      "designLengthMm": 300.0,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 10159,
+      "itemType": "PipeSupportComponent_INSULATED_PIPE_CLAMP_Base_L300_000",
+      "recordKind": "Component",
+      "supportType": "保温管夹",
+      "assemblyTag": "",
+      "componentName": "管夹底座",
+      "specification": "W=150 / T2=8",
+      "designLengthMm": 300.0,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 10159,
+      "itemType": "PipeSupportComponent_INSULATED_PIPE_CLAMP_Ear_L0_000",
+      "recordKind": "Component",
+      "supportType": "保温管夹",
+      "assemblyTag": "",
+      "componentName": "耳板",
+      "specification": "60×60×20",
+      "designLengthMm": 0.0,
+      "quantity": 8,
+      "unit": "件"
+    },
+    {
+      "elementId": 10159,
+      "itemType": "PipeSupportComponent_INSULATED_PIPE_CLAMP_Bolt_L65_000",
+      "recordKind": "Component",
+      "supportType": "保温管夹",
+      "assemblyTag": "",
+      "componentName": "螺栓",
+      "specification": "M20",
+      "designLengthMm": 65.0,
+      "quantity": 4,
+      "unit": "件"
+    },
+    {
+      "elementId": 12092,
+      "itemType": "PipeSupportAssembly_INSULATED_PIPE_CLAMP_1307e269f0",
+      "recordKind": "Assembly",
+      "supportType": "保温管夹",
+      "assemblyTag": "",
+      "componentName": "支吊架",
+      "specification": "DN250",
+      "designLengthMm": 0.0,
+      "quantity": 1,
+      "unit": "套"
+    },
+    {
+      "elementId": 12092,
+      "itemType": "PipeSupportComponent_INSULATED_PIPE_CLAMP_Insulation_L300_000",
+      "recordKind": "Component",
+      "supportType": "保温管夹",
+      "assemblyTag": "",
+      "componentName": "保温层",
+      "specification": "B=50",
+      "designLengthMm": 300.0,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 12092,
+      "itemType": "PipeSupportComponent_INSULATED_PIPE_CLAMP_ClampUpper_L300_000",
+      "recordKind": "Component",
+      "supportType": "保温管夹",
+      "assemblyTag": "",
+      "componentName": "承重板（上半）",
+      "specification": "T3=10",
+      "designLengthMm": 300.0,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 12092,
+      "itemType": "PipeSupportComponent_INSULATED_PIPE_CLAMP_ClampLower_L300_000",
+      "recordKind": "Component",
+      "supportType": "保温管夹",
+      "assemblyTag": "",
+      "componentName": "承重板（下半）",
+      "specification": "T3=10",
+      "designLengthMm": 300.0,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 12092,
+      "itemType": "PipeSupportComponent_INSULATED_PIPE_CLAMP_Base_L300_000",
+      "recordKind": "Component",
+      "supportType": "保温管夹",
+      "assemblyTag": "",
+      "componentName": "管夹底座",
+      "specification": "W=150 / T2=8",
+      "designLengthMm": 300.0,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 12092,
+      "itemType": "PipeSupportComponent_INSULATED_PIPE_CLAMP_Ear_L0_000",
+      "recordKind": "Component",
+      "supportType": "保温管夹",
+      "assemblyTag": "",
+      "componentName": "耳板",
+      "specification": "60×60×20",
+      "designLengthMm": 0.0,
+      "quantity": 8,
+      "unit": "件"
+    },
+    {
+      "elementId": 12092,
+      "itemType": "PipeSupportComponent_INSULATED_PIPE_CLAMP_Bolt_L65_000",
+      "recordKind": "Component",
+      "supportType": "保温管夹",
+      "assemblyTag": "",
+      "componentName": "螺栓",
+      "specification": "M20",
+      "designLengthMm": 65.0,
+      "quantity": 4,
+      "unit": "件"
+    },
+    {
+      "elementId": 14324,
+      "itemType": "PipeSupportAssembly_INSULATED_PIPE_CLAMP_884c847c56",
+      "recordKind": "Assembly",
+      "supportType": "保温管夹",
+      "assemblyTag": "",
+      "componentName": "支吊架",
+      "specification": "DN200",
+      "designLengthMm": 0.0,
+      "quantity": 1,
+      "unit": "套"
+    },
+    {
+      "elementId": 14324,
+      "itemType": "PipeSupportComponent_INSULATED_PIPE_CLAMP_ClampUpper_L300_000",
+      "recordKind": "Component",
+      "supportType": "保温管夹",
+      "assemblyTag": "",
+      "componentName": "承重板（上半）",
+      "specification": "T3=10",
+      "designLengthMm": 300.0,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 14324,
+      "itemType": "PipeSupportComponent_INSULATED_PIPE_CLAMP_ClampLower_L300_000",
+      "recordKind": "Component",
+      "supportType": "保温管夹",
+      "assemblyTag": "",
+      "componentName": "承重板（下半）",
+      "specification": "T3=10",
+      "designLengthMm": 300.0,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 14324,
+      "itemType": "PipeSupportComponent_INSULATED_PIPE_CLAMP_Base_L300_000",
+      "recordKind": "Component",
+      "supportType": "保温管夹",
+      "assemblyTag": "",
+      "componentName": "管夹底座",
+      "specification": "W=150 / T2=8",
+      "designLengthMm": 300.0,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 14324,
+      "itemType": "PipeSupportComponent_INSULATED_PIPE_CLAMP_Ear_L0_000",
+      "recordKind": "Component",
+      "supportType": "保温管夹",
+      "assemblyTag": "",
+      "componentName": "耳板",
+      "specification": "60×60×20",
+      "designLengthMm": 0.0,
+      "quantity": 8,
+      "unit": "件"
+    },
+    {
+      "elementId": 14324,
+      "itemType": "PipeSupportComponent_INSULATED_PIPE_CLAMP_Bolt_L65_000",
+      "recordKind": "Component",
+      "supportType": "保温管夹",
+      "assemblyTag": "",
+      "componentName": "螺栓",
+      "specification": "M20",
+      "designLengthMm": 65.0,
+      "quantity": 4,
+      "unit": "件"
+    },
+    {
+      "elementId": 17275,
+      "itemType": "PipeSupportAssembly_TRIANGLE_BRACKET_cf0871af69",
+      "recordKind": "Assembly",
+      "supportType": "端焊三角架",
+      "assemblyTag": "D5-1-A-173-393",
+      "componentName": "支吊架",
+      "specification": "H125×125×6.5×9 + ∠100×10",
+      "designLengthMm": 0.0,
+      "quantity": 1,
+      "unit": "套"
+    },
+    {
+      "elementId": 17275,
+      "itemType": "PipeSupportComponent_TRIANGLE_BRACKET_HBeam_L383_237",
+      "recordKind": "Component",
+      "supportType": "端焊三角架",
+      "assemblyTag": "",
+      "componentName": "构件A（横担）",
+      "specification": "H125×125×6.5×9",
+      "designLengthMm": 383.2369348527547,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 17275,
+      "itemType": "PipeSupportComponent_TRIANGLE_BRACKET_AngleBrace_L143_989",
+      "recordKind": "Component",
+      "supportType": "端焊三角架",
+      "assemblyTag": "",
+      "componentName": "构件B（斜撑）",
+      "specification": "∠100×10",
+      "designLengthMm": 143.98897213882665,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 17275,
+      "itemType": "PipeSupportComponent_TRIANGLE_BRACKET_EndPlate_L10_000",
+      "recordKind": "Component",
+      "supportType": "端焊三角架",
+      "assemblyTag": "",
+      "componentName": "端板",
+      "specification": "250×250×10（S=150，4-φ10）",
+      "designLengthMm": 10.0,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 17275,
+      "itemType": "PipeSupportComponent_TRIANGLE_BRACKET_BraceEndPlate_L10_000",
+      "recordKind": "Component",
+      "supportType": "端焊三角架",
+      "assemblyTag": "",
+      "componentName": "斜撑端板",
+      "specification": "250×250×10（S=150，4-φ10）",
+      "designLengthMm": 10.0,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 17275,
+      "itemType": "PipeSupportComponent_TRIANGLE_BRACKET_AnchorBolt_L80_000",
+      "recordKind": "Component",
+      "supportType": "端焊三角架",
+      "assemblyTag": "",
+      "componentName": "膨胀锚栓",
+      "specification": "M8×80",
+      "designLengthMm": 80.0,
+      "quantity": 4,
+      "unit": "件"
+    },
+    {
+      "elementId": 17275,
+      "itemType": "PipeSupportComponent_TRIANGLE_BRACKET_BraceAnchorBolt_L80_000",
+      "recordKind": "Component",
+      "supportType": "端焊三角架",
+      "assemblyTag": "",
+      "componentName": "斜撑膨胀锚栓",
+      "specification": "M8×80",
+      "designLengthMm": 80.0,
+      "quantity": 4,
+      "unit": "件"
+    },
+    {
+      "elementId": 7257,
+      "itemType": "PipeSupportAssembly_PORTAL_FRAME_H_c4d4e8b4c0",
+      "recordKind": "Assembly",
+      "supportType": "门型架（H型钢）",
+      "assemblyTag": "D13-1-A-1800-1000",
+      "componentName": "支吊架",
+      "specification": "H100×100×6×8",
+      "designLengthMm": 0.0,
+      "quantity": 1,
+      "unit": "套"
+    },
+    {
+      "elementId": 7257,
+      "itemType": "PipeSupportComponent_PORTAL_FRAME_H_Post_L1700_000",
+      "recordKind": "Component",
+      "supportType": "门型架（H型钢）",
+      "assemblyTag": "",
+      "componentName": "立柱",
+      "specification": "H100×100×6×8",
+      "designLengthMm": 1699.9999999999998,
+      "quantity": 2,
+      "unit": "件"
+    },
+    {
+      "elementId": 7257,
+      "itemType": "PipeSupportComponent_PORTAL_FRAME_H_Arm_L1000_000",
+      "recordKind": "Component",
+      "supportType": "门型架（H型钢）",
+      "assemblyTag": "",
+      "componentName": "横担",
+      "specification": "H100×100×6×8",
+      "designLengthMm": 1000.0,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 14025,
+      "itemType": "PipeSupportAssembly_PORTAL_FRAME_H_b7b6873490",
+      "recordKind": "Assembly",
+      "supportType": "门型架（H型钢）",
+      "assemblyTag": "D13-1-C-1000-1000",
+      "componentName": "支吊架",
+      "specification": "H200×200×8×12",
+      "designLengthMm": 0.0,
+      "quantity": 1,
+      "unit": "套"
+    },
+    {
+      "elementId": 14025,
+      "itemType": "PipeSupportComponent_PORTAL_FRAME_H_Post_L800_000",
+      "recordKind": "Component",
+      "supportType": "门型架（H型钢）",
+      "assemblyTag": "",
+      "componentName": "立柱",
+      "specification": "H200×200×8×12",
+      "designLengthMm": 800.0,
+      "quantity": 2,
+      "unit": "件"
+    },
+    {
+      "elementId": 14025,
+      "itemType": "PipeSupportComponent_PORTAL_FRAME_H_Arm_L1000_000",
+      "recordKind": "Component",
+      "supportType": "门型架（H型钢）",
+      "assemblyTag": "",
+      "componentName": "横担",
+      "specification": "H100×100×6×8",
+      "designLengthMm": 1000.0,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 7414,
+      "itemType": "PipeSupportAssembly_PORTAL_FRAME_ecbfe23c55",
+      "recordKind": "Assembly",
+      "supportType": "门型架（角钢和槽钢）",
+      "assemblyTag": "D8-1-E-1500-930",
+      "componentName": "支吊架",
+      "specification": "[20a",
+      "designLengthMm": 0.0,
+      "quantity": 1,
+      "unit": "套"
+    },
+    {
+      "elementId": 7414,
+      "itemType": "PipeSupportComponent_PORTAL_FRAME_Post_L1479_000",
+      "recordKind": "Component",
+      "supportType": "门型架（角钢和槽钢）",
+      "assemblyTag": "",
+      "componentName": "立柱",
+      "specification": "[20a",
+      "designLengthMm": 1479.0,
+      "quantity": 2,
+      "unit": "件"
+    },
+    {
+      "elementId": 7414,
+      "itemType": "PipeSupportComponent_PORTAL_FRAME_Arm_L930_000",
+      "recordKind": "Component",
+      "supportType": "门型架（角钢和槽钢）",
+      "assemblyTag": "",
+      "componentName": "横担",
+      "specification": "[20a",
+      "designLengthMm": 930.0,
+      "quantity": 1,
+      "unit": "件"
+    },
+    {
+      "elementId": 14193,
+      "itemType": "PipeSupportAssembly_PORTAL_FRAME_3fc595af5e",
+      "recordKind": "Assembly",
+      "supportType": "门型架（角钢和槽钢）",
+      "assemblyTag": "D8-1-D-1036-810",
+      "componentName": "支吊架",
+      "specification": "[14a",
+      "designLengthMm": 0.0,
+      "quantity": 1,
+      "unit": "套"
+    },
+    {
+      "elementId": 14193,
+      "itemType": "PipeSupportComponent_PORTAL_FRAME_Post_L1016_254",
+      "recordKind": "Component",
+      "supportType": "门型架（角钢和槽钢）",
+      "assemblyTag": "",
+      "componentName": "立柱",
+      "specification": "[14a",
+      "designLengthMm": 1016.2539744078931,
+      "quantity": 2,
+      "unit": "件"
+    },
+    {
+      "elementId": 14193,
+      "itemType": "PipeSupportComponent_PORTAL_FRAME_Arm_L810_000",
+      "recordKind": "Component",
+      "supportType": "门型架（角钢和槽钢）",
+      "assemblyTag": "",
+      "componentName": "横担",
+      "specification": "[14a",
+      "designLengthMm": 810.0,
+      "quantity": 1,
+      "unit": "件"
+    }
+  ]
+}

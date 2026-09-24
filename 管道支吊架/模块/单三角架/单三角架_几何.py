@@ -6,7 +6,13 @@
 # =============================================================================
 """N 系列设备上生根管架 —— 设备上生根的单三角架（N3）建模库（无界面）。
 
-用户在模型中绘制一条**水平辅助线**作为**管底**（＝横担顶面），据此生成：
+用户在模型中绘制一条**水平辅助线**作为**管底**（＝横担顶面）。N3
+以辅助线起点 P0、连接板外表面 P1、斜撑交点 P2、线终点 P3 和斜撑
+板中心 P4 定位各构件；横担从 P1 扫掠到 P3。
+
+辅助线**起点恒为设备表面**；直线画反了时传 ``options['reverse'] = True``，
+由 ``单三角架_数据.orient_line()`` 交换两端（起点改用另一端、朝向反转
+180°），P0…P4 与全部构件一起翻到正确一侧。
 
     * 构件A（横担）：截面沿辅助线方向扫掠，**顶面落在辅助线上**；
     * 构件B（斜撑）：45°，连接设备上的连接板与横担；
@@ -20,8 +26,8 @@
 类型 1：斜撑在下（由下方连接板向上撑到横担下缘）；
 类型 2：斜撑在上（由上方连接板向下拉到横担顶面）。
 
-连接板连同螺栓螺母**整体镜像**放置：连接板落在设备一侧（x ∈ [-T, 0]，外表面
-与设备面 x=0 齐平），螺栓头朝外、螺母朝设备内。
+N3 连接板从设备面 P0 向外放置（x ∈ [0, T]），外表面位于 P1，
+螺栓头朝外。
 
 构件实体用「截面轮廓 → 实体 → 沿轴扫掠」构造（与端焊三角架一致），这样端面
 可用布尔运算切割。清单写入共享支吊架库 ``支吊架公共库``。
@@ -335,18 +341,29 @@ def _to_world_local(local_mm, start_mm, heading_deg):
 def _build_brace(spec, line, resolved, dgn_model):
     """斜撑（构件B）：45°，两端分别切至设备面与横担面。"""
     type_key = resolved['type']
-    height = resolved['H']
     depth_a = resolved['section_a']['height']
     depth_b = resolved['section_b']['height']
-    axis, up = _brace_axes(type_key)
-    plate_z = -height if type_key == 1 else height
-    run = resolved['brace_run']
-    length = math.hypot(run, run)
+    if 'points' in resolved:
+        start = resolved['points']['P4']
+        end = resolved['points']['P2']
+        dx, dz = end[0] - start[0], end[2] - start[2]
+        length = math.hypot(dx, dz)
+        axis = (dx / length, 0.0, dz / length)
+        up = (-axis[2], 0.0, axis[0])
+        start_x, plate_z = start[0], start[2]
+    else:
+        # N4 仍使用原有子线起点和斜撑参数。
+        axis, up = _brace_axes(type_key)
+        plate_z = -resolved['H'] if type_key == 1 else resolved['H']
+        start_x = 0.0
+        run = resolved['brace_run']
+        length = math.hypot(run, run)
     # 两端各预留一小段供布尔切割；切割失败时伸出量也不至于过大。
     overrun = 50.0
 
     # 轴心起点（局部），沿轴预留 overrun 以便切割。
-    local_origin = (-axis[0] * overrun, 0.0, plate_z - axis[2] * overrun)
+    local_origin = (start_x - axis[0] * overrun, 0.0,
+                    plate_z - axis[2] * overrun)
     origin_world = _to_world_local(local_origin, line['start_mm'],
                                    line['heading_deg'])
     # 世界方向。
@@ -369,7 +386,8 @@ def _build_brace(spec, line, resolved, dgn_model):
 
     to_world = _make_frame(line['start_mm'], line['heading_deg'])
     big = 2000.0
-    cutter = _box_body(-big, -big, -big, 0.0, big, big, to_world, dgn_model)
+    cutter = _box_body(-big, -big, -big, start_x, big, big, to_world,
+                       dgn_model)
     if not _subtract_body(body, cutter):
         _log('brace: equipment-face cut failed')
     if type_key == 1:
@@ -447,17 +465,19 @@ def _union_body(target_body, tool_body):
     return BentleyStatus.eSUCCESS == status
 
 
-def _add_plate_at(builder, line, center_mm, plate_resolved, dgn_model):
-    """在设备面（x=0）上的 center_mm 处放一块 N8 连接板 + 螺栓（整体镜像）。
+def _add_plate_at(builder, line, center_mm, plate_resolved, dgn_model,
+                  outward=False):
+    """在 center_mm 放置 N8 连接板 + 螺栓。
 
-    连接板落在设备一侧（x ∈ [-T, 0]，外表面与 x=0 齐平），螺栓头朝外。
+    ``outward`` 为 N3 五点布局：整体沿 +x 平移 T，使板占 x∈[0,T]，
+    螺栓头朝外；默认保留 N4 的原位置。
     """
     to_world = _make_frame(line['start_mm'], line['heading_deg'])
-    origin_mm = to_world(center_mm)
+    plate_x = center_mm[0] + (plate_resolved['T'] if outward else 0.0)
+    origin_mm = to_world((plate_x, center_mm[1], center_mm[2]))
     uor = _uor(dgn_model)
     origin = DPoint3d.From(origin_mm[0] * uor, origin_mm[1] * uor,
                            origin_mm[2] * uor)
-    # 朝向 +180°，使连接板沿 -x 方向（设备一侧）伸出。
     frame = anchor._PlateFrame(origin, uor, line['heading_deg'] + 180.0)
     plate_geom._add_plate(builder, frame, dgn_model, plate_resolved)
     for hole_y, hole_z in plate_resolved['holes']:
@@ -477,7 +497,7 @@ def _build_bom_items(resolved, plate_resolved):
         plate_resolved['bolt_dia'], plate_resolved['bolt_length'])
     return [
         {'code': 'MemberA', 'name': COMPONENT_A_NAME,
-         'specification': resolved['comp_a'], 'length': resolved['L'],
+         'specification': resolved['comp_a'], 'length': resolved['beam_length'],
          'quantity': 1, 'unit': '件'},
         {'code': 'MemberB', 'name': COMPONENT_B_NAME,
          'specification': resolved['comp_b'],
@@ -521,13 +541,20 @@ def build_single_bracket_cell(line, options=None, number=''):
         raise RuntimeError('请先激活一个三维 DGN 模型。')
 
     resolved = data.resolve_options(options, line['length_mm'])
+    # 反向：交换辅助线两端，使起点恒为设备表面（P0…P4 与构件一起翻转）。
+    line = data.orient_line(line, resolved['reverse'])
     plate_resolved = plate_data.resolve_options({
         'type': resolved['plate_type'], 'mode': 'H',
         'heading_deg': line['heading_deg'], 'mount': 'wall'})
+    points = resolved['points']
+    beam_line = dict(line)
+    beam_line['start_mm'] = _make_frame(line['start_mm'], line['heading_deg'])(
+        points['P1'])
 
     builder = anchor._AnchorPlateCellBuilder(dgn_model, CELL_NAME)
 
-    crossbeam = _build_crossbeam(resolved['comp_a'], line, resolved['L'],
+    crossbeam = _build_crossbeam(resolved['comp_a'], beam_line,
+                                 resolved['beam_length'],
                                  dgn_model)
     if crossbeam is None:
         raise RuntimeError('横担（构件A）创建失败。')
@@ -544,11 +571,9 @@ def build_single_bracket_cell(line, options=None, number=''):
 
     depth_a = resolved['section_a']['height']
     _add_plate_at(builder, line, (0.0, 0.0, -depth_a / 2.0),
-                  plate_resolved, dgn_model)
-    brace_center_z = (-resolved['H'] if resolved['type'] == 1
-                      else resolved['H'])
-    _add_plate_at(builder, line, (0.0, 0.0, brace_center_z),
-                  plate_resolved, dgn_model)
+                  plate_resolved, dgn_model, outward=True)
+    _add_plate_at(builder, line, (0.0, 0.0, points['P4'][2]),
+                  plate_resolved, dgn_model, outward=True)
 
     builder.build()
     result = dict(resolved)
@@ -557,11 +582,12 @@ def build_single_bracket_cell(line, options=None, number=''):
     result['number'] = str(number or '')
     result['plate_resolved'] = dict(plate_resolved)
     result['bom_items'] = _build_bom_items(resolved, plate_resolved)
-    _log('single bracket: subtype=%s type=%d H=%.0f L=%.0f run=%.0f '
+    _log('single bracket: subtype=%s type=%d rev=%d H=%.0f L=%.0f run=%.0f '
          'overhang=%.0f plate=%d cells=%d number=%s'
-         % (resolved['subtype'], resolved['type'], resolved['H'],
-            resolved['L'], resolved['brace_run'], resolved['end_overhang'],
-            resolved['plate_type'], builder.child_count, result['number'] or '-'))
+         % (resolved['subtype'], resolved['type'], int(resolved['reverse']),
+            resolved['H'], resolved['L'], resolved['brace_run'],
+            resolved['end_overhang'], resolved['plate_type'],
+            builder.child_count, result['number'] or '-'))
     return builder, result
 
 

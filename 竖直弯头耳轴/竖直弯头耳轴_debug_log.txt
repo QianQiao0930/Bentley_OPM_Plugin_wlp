@@ -10,3 +10,36 @@ selection/create exception for 32456: RuntimeError('沿路径扫掠实体失败�
 selection/create exception for 31182: ValueError('所选元素不是 OpenPlant 弯头。')
 selected elbow id=32456 class=LONG_RADIUS_90_DEGREE_PIPE_ELBOW DN=250 OD=273.000 horizontal=(13737.485250681857, -7593.257296403165, 0.0) vertical=(13356.485250681857, -7593.257296403165, 381.0)
 created from elbow 32456 DN250 H1000.0, trunnion DN150, base=A 方形底板, ids=(34497, 34539)
+selected elbow id=36396 class=LONG_RADIUS_90_DEGREE_PIPE_ELBOW DN=400 OD=406.400 horizontal=(20177.944378867003, 12831.92917926452, -3.437888142796871e-13) vertical=(20787.944378867003, 12831.92917926452, 609.9999999999997)
+created from elbow 36396 DN400 H1000.0, trunnion DN200, base=A 方形底板, ids=(36428, 36470)
+selected elbow id=36396 class=LONG_RADIUS_90_DEGREE_PIPE_ELBOW DN=400 OD=406.400 horizontal=(20177.944378867003, 12831.92917926452, -3.437888142796871e-13) vertical=(20787.944378867003, 12831.92917926452, 609.9999999999997)
+created from elbow 36396 DN400 H15124.8, trunnion DN200, base=A 方形底板, ids=(36485, 36527)
+selection exception for 36485: ValueError('所选元素不是 OpenPlant 弯头。')
+selection exception for 36485: ValueError('所选元素不是 OpenPlant 弯头。')
+selected elbow id=36396 class=LONG_RADIUS_90_DEGREE_PIPE_ELBOW DN=400 OD=406.400 horizontal=(20177.944378867003, 12831.92917926452, -3.437888142796871e-13) vertical=(20787.944378867003, 12831.92917926452, 609.9999999999997)
+created from elbow 36396 DN400 H3695.8, trunnion DN200, base=A 方形底板, ids=(36541, 36583)
+selection exception for 36541: ValueError('所选元素不是 OpenPlant 弯头。')
+selected elbow id=38429 class=LONG_RADIUS_90_DEGREE_PIPE_ELBOW DN=400 OD=406.400 horizontal=(11727.23665004785, 23883.351324822725, 0.0) vertical=(11117.23665004785, 23883.351324822725, 610.0)
+created from elbow 38429 DN400 H1004.2, trunnion DN200, base=A 方形底板, ids=(38461, 38503)
+selected elbow id=38429 class=LONG_RADIUS_90_DEGREE_PIPE_ELBOW DN=400 OD=406.400 horizontal=(11727.23665004785, 23883.351324822725, 0.0) vertical=(11117.23665004785, 23883.351324822725, 610.0)
+created from elbow 38429 DN400 H501.7, trunnion DN200, base=A 方形底板, ids=(38518, 38560)
+selected elbow id=38429 class=LONG_RADIUS_90_DEGREE_PIPE_ELBOW DN=400 OD=406.400 horizontal=(11727.23665004785, 23883.351324822725, 0.0) vertical=(11117.23665004785, 23883.351324822725, 610.0)
+selected elbow id=38429 class=LONG_RADIUS_90_DEGREE_PIPE_ELBOW DN=400 OD=406.400 horizontal=(11727.23665004785, 23883.351324822725, 0.0) vertical=(11117.23665004785, 23883.351324822725, 610.0)
+created from elbow 38429 DN400 H652.6, trunnion DN200, base=A 方形底板, ids=(38574, 38616)
+selected elbow id=38429 class=LONG_RADIUS_90_DEGREE_PIPE_ELBOW DN=400 OD=406.400 horizontal=(11727.23665004785, 23883.351324822725, 0.0) vertical=(11117.23665004785, 23883.351324822725, 610.0)
+created from elbow 38429 DN400 H204.2, trunnion DN200, base=A 方形底板, ids=(38630, 38672)
+selected elbow id=38429 class=LONG_RADIUS_90_DEGREE_PIPE_ELBOW DN=400 OD=406.400 horizontal=(11727.23665004785, 23883.351324822725, 0.0) vertical=(11117.23665004785, 23883.351324822725, 610.0)
+created from elbow 38429 DN400 H204.2, trunnion DN200, base=A 方形底板, ids=(38686, 38728)
+selected elbow id=38429 class=LONG_RADIUS_90_DEGREE_PIPE_ELBOW DN=400 OD=406.400 horizontal=(11727.23665004785, 23883.351324822725, 0.0) vertical=(11117.23665004785, 23883.351324822725, 610.0)
+height accept suppressed: preview=True released=True armed=True moved=False physical_click=False source=400
+height accepted: H=1380.372 source=400
+created from elbow 38429 DN400 H1380.4, trunnion DN200, base=A 方形底板, ids=(38742, 38784)
+selected elbow id=38429 class=LONG_RADIUS_90_DEGREE_PIPE_ELBOW DN=400 OD=406.400 horizontal=(11727.23665004785, 23883.351324822725, 0.0) vertical=(11117.23665004785, 23883.351324822725, 610.0)
+height accept suppressed: preview=True released=True armed=True moved=False physical_click=False source=400
+selected elbow id=38429 class=LONG_RADIUS_90_DEGREE_PIPE_ELBOW DN=400 OD=406.400 horizontal=(11727.23665004785, 23883.351324822725, 0.0) vertical=(11117.23665004785, 23883.351324822725, 610.0)
+height accepted: H=1200.000 source=400
+created from elbow 38429 DN400 H1200.0, trunnion DN200, base=A 方形底板, ids=(38798, 38840)
+selected elbow id=38429 class=LONG_RADIUS_90_DEGREE_PIPE_ELBOW DN=400 OD=406.400 horizontal=(11727.23665004785, 23883.351324822725, 0.0) vertical=(11117.23665004785, 23883.351324822725, 610.0)
+height accept suppressed: preview=True released=True armed=True moved=False physical_click=False source=400
+height accepted: H=1200.000 source=400
+created from elbow 38429 DN400 H1200.0, trunnion DN200, base=A 方形底板, ids=(38854, 38896)

@@ -3,8 +3,11 @@
 
 在模型中绘制一条**水平辅助线**作为**管底**（＝三角架横担／构件A 的顶面）：
 
-    线长 = 横担全长 L；线起点 = 横担靠设备一端的顶面点（设备表面所在竖直面）；
-    线方向 = 由设备向外。
+    线长 = P0 至 P3 的总长 L；线起点 P0 = 设备表面；线方向 = 由设备向外。
+    连接板占 P0 至 P1（厚 T），横担从 P1 至 P3，实体长度 L-T。
+
+直线画反了（起点落在管外侧）时勾选面板的**「反向」**：起点改用直线另一端、
+朝向反转 180°，P0…P4 与整组构件一起翻到正确一侧。
 
 据此生成整组单三角架：横担（构件A）+ 斜撑（构件B，45°）+ 两块 N8 连接板
 （规格按表 2 自动取）+ 交点 10mm 筋板，整组写成一个普通单元。
@@ -138,6 +141,7 @@ class _SingleBracketDialog(GlassDialog):
         self._height = tk.StringVar(value='')
         self._series = tk.StringVar(value=data.DEFAULT_SERIES)
         self._keep_line = tk.BooleanVar(value=True)
+        self._reverse = tk.BooleanVar(value=False)
         self._member_a = tk.StringVar(value='—')
         self._member_b = tk.StringVar(value='—')
         self._plate = tk.StringVar(value='—')
@@ -164,9 +168,10 @@ class _SingleBracketDialog(GlassDialog):
 
         tk.Label(
             form,
-            text='绘制并点选一条水平直线作为管底（＝横担顶面）：线长＝横担全长 L，'
-                 '线起点＝横担靠设备一端的顶面。点选后可改类型 / 子项 / H / '
-                 '编号，预览会自动重建；点【确定】保留，点【取消】或右键放弃。',
+            text='绘制并点选一条水平直线作为管底（＝横担顶面）：线长＝P0 到 P3 的 L，'
+                 '起点 P0＝设备面，横担从板外表面 P1 开始。直线画反了（起点落在管外侧）'
+                 '时勾选【反向】把起点换到另一端。点选后可改类型 / 子项 / H / 编号，'
+                 '预览会自动重建；点【确定】保留，点【取消】或右键放弃。',
             bg=CARD, fg=MUTED, font=UI_FONT_SMALL, justify='left',
             wraplength=470).grid(row=0, column=0, columnspan=2, sticky='w')
 
@@ -262,11 +267,20 @@ class _SingleBracketDialog(GlassDialog):
                  bg=CARD, fg=MUTED, font=UI_FONT_SMALL).pack(side='left',
                                                              padx=(8, 0))
 
+        checks = tk.Frame(form, bg=CARD)
+        checks.grid(row=15, column=0, columnspan=2, sticky='w')
         self._keep_check = tk.Checkbutton(
-            form, text='创建后保留所选辅助线', variable=self._keep_line,
+            checks, text='创建后保留所选辅助线', variable=self._keep_line,
             bg=CARD, fg=INK, activebackground=CARD, selectcolor=CARD,
             font=UI_FONT_SMALL, highlightthickness=0, bd=0)
-        self._keep_check.grid(row=15, column=0, columnspan=2, sticky='w')
+        self._keep_check.pack(side='left')
+        # 反向：直线画反了（起点落在管外侧）时交换两端，整组构件的生成方向随之翻转。
+        self._reverse_check = tk.Checkbutton(
+            checks, text='反向（起点取直线另一端）', variable=self._reverse,
+            command=self.on_options_changed,
+            bg=CARD, fg=INK, activebackground=CARD, selectcolor=CARD,
+            font=UI_FONT_SMALL, highlightthickness=0, bd=0)
+        self._reverse_check.pack(side='left', padx=(12, 0))
 
         ttk.Label(form, text='编号', style='GlassMuted.TLabel').grid(
             row=16, column=0, sticky='w', pady=5)
@@ -346,6 +360,8 @@ class _SingleBracketDialog(GlassDialog):
             self._series.set(series)
         if isinstance(state.get('keep_line'), bool):
             self._keep_line.set(state.get('keep_line'))
+        if isinstance(state.get('reverse'), bool):
+            self._reverse.set(state.get('reverse'))
         self.refresh_spec()
 
     def persist_state(self, state):
@@ -355,6 +371,7 @@ class _SingleBracketDialog(GlassDialog):
             state['height'] = self._height.get()
             state['series'] = self._series.get()
             state['keep_line'] = bool(self._keep_line.get())
+            state['reverse'] = bool(self._reverse.get())
         except Exception:
             pass
 
@@ -373,7 +390,8 @@ class _SingleBracketDialog(GlassDialog):
         except (TypeError, ValueError):
             raise ValueError('H 必须是数字（mm）。')
         return {'subtype': self.current_subtype(), 'type': self.current_type(),
-                'height_mm': height, 'series': self._series.get()}
+                'height_mm': height, 'series': self._series.get(),
+                'reverse': bool(self._reverse.get())}
 
     def current_number(self, line=None):
         line = line if line is not None else self.line
@@ -433,8 +451,12 @@ class _SingleBracketDialog(GlassDialog):
         else:
             self._load.set('%.0f kN（a=%.0f）' % (load,
                                                  resolved['allowable_load_span']))
-        self._dims.set('L=%.0f，斜撑投影 %.0f，端部余量 %.0f（≥150）' % (
-            resolved['L'], resolved['brace_run'], resolved['end_overhang']))
+        dims = ('L=%.0f，横担长 %.0f，斜撑投影 %.0f，端部余量 %.0f（≥150）' % (
+            resolved['L'], resolved['beam_length'], resolved['brace_run'],
+            resolved['end_overhang']))
+        if resolved.get('reverse'):
+            dims = '已反向｜' + dims
+        self._dims.set(dims)
         self._spec.set(data.describe_spec(resolved))
         number = self.current_number()
         self._number.set(number if number else '（系列留空，不附加编号）')
@@ -528,10 +550,11 @@ class _SingleBracketDialog(GlassDialog):
         self.preview_result = result
         self.set_result(result)
         self.refresh_spec()
-        message = ('预览已更新：子项 %s，类型 %d，H=%.0f，L=%.0f，端部余量 %.0f，'
+        message = ('预览已更新%s：子项 %s，类型 %d，H=%.0f，L=%.0f，端部余量 %.0f，'
                    '连接板类型 %d，单元含 %d 个子元素，编号 %s。%s改参数会自动'
                    '重建；点【确定】保留，点【取消】放弃。'
-                   % (result['subtype'], result['type'], result['H'],
+                   % ('（已反向）' if result.get('reverse') else '',
+                      result['subtype'], result['type'], result['H'],
                       result['L'], result['end_overhang'], result['plate_type'],
                       result['child_count'], result.get('number') or '—',
                       '已替换上一版预览。' if deleted else ''))
@@ -624,8 +647,8 @@ class SingleBracketByLineTool(DgnElementSetTool):
         AccuSnap.GetInstance().EnableSnap(True)
         DgnElementSetTool._OnPostInstall(self)
         NotificationManager.OutputPrompt(
-            '请点选一条水平直线段作为管底（＝横担顶面）：线长为横担全长 L，'
-            '起点为横担靠设备一端的顶面。右键放弃。')
+            '请点选一条水平直线段作为管底（＝横担顶面）：线长为设备面 P0 到横担末端 P3 的 L，'
+            '起点为设备面；画反了可在面板勾选【反向】。右键放弃。')
 
     def _OnResetButton(self, event):
         settings = self.tool_settings

@@ -8,8 +8,12 @@
 
 用户在模型中绘制一条**水平辅助线**，作为**管底**（＝三角架横担／构件A 的顶面）：
 
-    线长 = 横担全长 L；线起点 = 横担靠设备一端的顶面点（设备表面所在竖直面）；
-    线方向 = 由设备向外。
+    线长 = P0 至 P3 的总长 L；线起点 P0 = 设备表面，线方向 = 由设备向外。
+    N8 连接板厚 T 占 P0 至 P1；横担从 P1 扫掠至 P3，实体长度 L-T。
+
+直线画反了（起点落在管外侧）时用 ``options['reverse'] = True`` **交换两端**：
+起点改用直线另一端，方向随之反转 180°，P0…P4 与全部构件一起翻转
+（见 ``orient_line()``）。
 
 三角架由两根构件与两块连接板（复用 N8 连接板）组成：
 
@@ -38,6 +42,13 @@
 from __future__ import division
 
 import math
+import os
+import sys
+
+_PLATE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), '连接板')
+if _PLATE_DIR not in sys.path:
+    sys.path.insert(0, _PLATE_DIR)
+import 连接板_数据 as plate_data  # noqa: E402
 
 # 系列默认代号（编号首段）。
 DEFAULT_SERIES = 'N3'
@@ -107,6 +118,7 @@ DEFAULT_OPTIONS = {
     'type': 1,
     'height_mm': None,     # None 取该子项 MIN.H
     'series': DEFAULT_SERIES,
+    'reverse': False,      # True 交换辅助线两端（起点改用另一端＝设备面）
 }
 
 
@@ -149,6 +161,44 @@ def allowable_load(subtype, span_mm):
 
 
 # ---------------------------------------------------------------------------
+# 辅助线方向
+# ---------------------------------------------------------------------------
+
+
+def orient_line(line, reverse=False):
+    """按「起点＝设备面」的口径返回辅助线**副本**。
+
+    辅助线约定**起点**为设备表面、**方向**为由设备向外；直线画反了
+    （起点落在管外侧）时用 ``reverse=True`` 交换两端：起点取原终点、
+    方向反转 180°，于是 P0…P4 与全部构件一起翻到正确一侧。
+
+    ``length_mm`` / ``z_mm`` 不变；不修改传入的字典（``reverse=False`` 时
+    也返回副本）。
+    """
+    oriented = dict(line)
+    if not reverse:
+        return oriented
+
+    start = line.get('start_mm')
+    end = line.get('end_mm')
+    if start is not None and end is not None:
+        oriented['start_mm'] = tuple(end)
+        oriented['end_mm'] = tuple(start)
+
+    try:
+        heading = float(line.get('heading_deg') or 0.0) + 180.0
+    except (TypeError, ValueError):
+        heading = 0.0
+    # 归一化到 (-180, 180]，与 extract_horizontal_line() 的 atan2 取值域一致。
+    while heading > 180.0:
+        heading -= 360.0
+    while heading <= -180.0:
+        heading += 360.0
+    oriented['heading_deg'] = heading
+    return oriented
+
+
+# ---------------------------------------------------------------------------
 # 参数解析
 # ---------------------------------------------------------------------------
 
@@ -156,7 +206,7 @@ def allowable_load(subtype, span_mm):
 def resolve_options(options, line_length):
     """合并默认值、校验选项，并算出本次生成用的全部毫米尺寸。
 
-    ``line_length`` 为所选辅助线长度（＝横担全长 L）。
+    ``line_length`` 为 P0 到 P3 的辅助线长度 L；横担从 P1 开始。
     """
     resolved = dict(DEFAULT_OPTIONS)
     if options:
@@ -171,6 +221,7 @@ def resolve_options(options, line_length):
     info = SUBTYPES[subtype]
     section_a = section_dims(info['comp_a'])
     section_b = section_dims(info['comp_b'])
+    plate_thickness = float(plate_data.PLATE_TABLE[info['plate_type']]['T'])
 
     try:
         type_key = int(resolved['type'])
@@ -178,6 +229,9 @@ def resolve_options(options, line_length):
         raise ValueError('类型必须是 1 或 2。')
     if type_key not in TYPE_KEYS:
         raise ValueError('类型只支持 1（斜撑在下）/ 2（斜撑在上）。')
+
+    # 反向：交换辅助线两端（起点改用另一端＝设备面），坐标点随之翻转。
+    reverse = bool(resolved['reverse'])
 
     try:
         line_length = float(line_length)
@@ -208,7 +262,20 @@ def resolve_options(options, line_length):
         raise ValueError('H=%.0f mm 过小：斜撑水平投影 %.1f mm 非正。'
                          % (height, run))
 
-    end_overhang = line_length - run
+    # 五点坐标均相对辅助线起点 P0，单位 mm：
+    # P0 设备面，P1 连接板外表面，P3 辅助线终点，P4 斜撑板中心高度。
+    # P2 位于横担接触面，类型 1 为下缘，类型 2 为顶面。
+    beam_length = line_length - plate_thickness
+    if beam_length <= 0.0:
+        raise ValueError('辅助线长度 L 必须大于连接板厚度 %.0f mm。'
+                         % plate_thickness)
+    p0 = (0.0, 0.0, 0.0)
+    p1 = (plate_thickness, 0.0, 0.0)
+    p2 = (plate_thickness + run, 0.0, attach_z)
+    p3 = (line_length, 0.0, 0.0)
+    p4 = (plate_thickness, 0.0,
+          -height if type_key == 1 else height)
+    end_overhang = p3[0] - p2[0]
     if end_overhang < MIN_END_OVERHANG - 1.0e-9:
         raise ValueError(
             '横担外端余量 %.0f mm 小于 %.0f mm：请增大辅助线长 L 或减小 H。'
@@ -221,7 +288,12 @@ def resolve_options(options, line_length):
         'subtype': subtype,
         'type': type_key,
         'series': str(resolved['series'] or ''),
+        'reverse': reverse,
         'L': line_length,
+        'beam_length': beam_length,
+        'plate_thickness': plate_thickness,
+        'points': {'P0': p0, 'P1': p1, 'P2': p2, 'P3': p3, 'P4': p4},
+        'beam_start_x': p1[0],
         'H': height,
         'min_h': info['min_h'],
         'plate_type': info['plate_type'],
@@ -232,7 +304,7 @@ def resolve_options(options, line_length):
         'brace_angle_deg': BRACE_ANGLE_DEG,
         'brace_run': run,
         'brace_length': brace_length,
-        'attach_x': run,
+        'attach_x': p2[0],
         'attach_z': attach_z,
         'end_overhang': end_overhang,
         'stiffener_t': STIFFENER_T,
@@ -260,8 +332,12 @@ def describe_spec(resolved):
         load_text = '允许荷载 %.0f kN（按 a=%.0f 查表）' % (
             load, resolved.get('allowable_load_span') or resolved['brace_run'])
     return ('子项 %s：构件A %s，构件B %s，连接板类型 %d；类型 %d；'
-            'H=%.0f（≥%.0f），L=%.0f，斜撑投影 %.0f，端部余量 %.0f；%s。'
+            'H=%.0f（≥%.0f），L=%.0f，板厚 %.0f，横担长 %.0f，'
+            '斜撑投影 %.0f，端部余量 %.0f；%s。'
             % (resolved['subtype'], resolved['comp_a'], resolved['comp_b'],
                resolved['plate_type'], resolved['type'], resolved['H'],
-               resolved['min_h'], resolved['L'], resolved['brace_run'],
-               resolved['end_overhang'], load_text))
+               resolved['min_h'], resolved['L'], resolved['plate_thickness'],
+               resolved['beam_length'], resolved['brace_run'],
+               resolved['end_overhang'], load_text)
+            + ('辅助线已反向（起点取直线另一端）。'
+               if resolved.get('reverse') else ''))

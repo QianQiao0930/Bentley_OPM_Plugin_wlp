@@ -2,7 +2,7 @@
 """N 系列 —— 单三角架（N3）纯数据 / 逻辑单测（不依赖 Bentley 运行时）。
 
 覆盖：表 2 子项、截面尺寸、H / 端部余量校验、类型 1/2 的斜撑几何、表 1 荷载
-查值、管架编号 ``N3-名称-类型-子项-H-L``。
+查值、辅助线反向（``orient_line``）、管架编号 ``N3-名称-类型-子项-H-L``。
 """
 
 from __future__ import division
@@ -63,14 +63,23 @@ class ResolveTests(unittest.TestCase):
         resolved = data.resolve_options(
             {'subtype': 'A', 'type': 1, 'height_mm': 500.0}, 1500.0)
         self.assertAlmostEqual(resolved['brace_run'], 500.0 - 140.0)
-        self.assertAlmostEqual(resolved['attach_x'], 360.0)
-        self.assertAlmostEqual(resolved['end_overhang'], 1500.0 - 360.0)
+        self.assertAlmostEqual(resolved['plate_thickness'], 16.0)
+        self.assertAlmostEqual(resolved['beam_length'], 1484.0)
+        self.assertEqual(resolved['points']['P0'], (0.0, 0.0, 0.0))
+        self.assertEqual(resolved['points']['P1'], (16.0, 0.0, 0.0))
+        self.assertEqual(resolved['points']['P2'], (376.0, 0.0, -140.0))
+        self.assertEqual(resolved['points']['P3'], (1500.0, 0.0, 0.0))
+        self.assertEqual(resolved['points']['P4'], (16.0, 0.0, -500.0))
+        self.assertAlmostEqual(resolved['attach_x'], 376.0)
+        self.assertAlmostEqual(resolved['end_overhang'], 1124.0)
 
     def test_type_two_brace_run(self):
         resolved = data.resolve_options(
             {'subtype': 'A', 'type': 2, 'height_mm': 500.0}, 1500.0)
         self.assertAlmostEqual(resolved['brace_run'], 500.0)
-        self.assertAlmostEqual(resolved['end_overhang'], 1000.0)
+        self.assertEqual(resolved['points']['P2'], (516.0, 0.0, 0.0))
+        self.assertEqual(resolved['points']['P4'], (16.0, 0.0, 500.0))
+        self.assertAlmostEqual(resolved['end_overhang'], 984.0)
 
     def test_brace_is_forty_five_degrees(self):
         resolved = data.resolve_options(
@@ -109,6 +118,15 @@ class ResolveTests(unittest.TestCase):
             resolved = data.resolve_options(
                 {'subtype': key, 'type': 1}, 3000.0)
             self.assertEqual(resolved['plate_type'], expected[2])
+            self.assertEqual(
+                resolved['plate_thickness'],
+                data.plate_data.PLATE_TABLE[expected[2]]['T'])
+
+    def test_plate_thickness_is_included_in_overhang_check(self):
+        # 旧坐标的余量恰为 150；板前移 16 mm 后应被拒绝。
+        with self.assertRaises(ValueError):
+            data.resolve_options(
+                {'subtype': 'A', 'type': 1, 'height_mm': 500.0}, 510.0)
 
 
 class LoadTests(unittest.TestCase):
@@ -152,6 +170,71 @@ class NumberingTests(unittest.TestCase):
     def test_empty_series_produces_no_number(self):
         self.assertEqual(data.build_number('', 1, 'A', 390.0, 1200.0), '')
         self.assertEqual(data.build_number('  ', 1, 'A', 390.0, 1200.0), '')
+
+
+class OrientLineTests(unittest.TestCase):
+    """辅助线反向：交换两端、朝向反转 180°，长度与标高不变。"""
+
+    LINE = {'start_mm': (0.0, 0.0, 5000.0), 'end_mm': (1200.0, 0.0, 5000.0),
+            'length_mm': 1200.0, 'heading_deg': 0.0, 'z_mm': 5000.0}
+
+    def test_forward_keeps_ends(self):
+        line = data.orient_line(self.LINE, False)
+        self.assertEqual(line['start_mm'], (0.0, 0.0, 5000.0))
+        self.assertEqual(line['end_mm'], (1200.0, 0.0, 5000.0))
+        self.assertAlmostEqual(line['heading_deg'], 0.0)
+        self.assertAlmostEqual(line['length_mm'], 1200.0)
+        self.assertAlmostEqual(line['z_mm'], 5000.0)
+
+    def test_reverse_swaps_ends_and_flips_heading(self):
+        line = data.orient_line(self.LINE, True)
+        self.assertEqual(line['start_mm'], (1200.0, 0.0, 5000.0))
+        self.assertEqual(line['end_mm'], (0.0, 0.0, 5000.0))
+        self.assertAlmostEqual(line['heading_deg'], 180.0)
+        # 长度与标高与方向无关。
+        self.assertAlmostEqual(line['length_mm'], 1200.0)
+        self.assertAlmostEqual(line['z_mm'], 5000.0)
+
+    def test_reverse_normalises_heading_into_atan2_range(self):
+        line = dict(self.LINE, heading_deg=170.0)
+        self.assertAlmostEqual(
+            data.orient_line(line, True)['heading_deg'], -10.0)
+        line = dict(self.LINE, heading_deg=-170.0)
+        self.assertAlmostEqual(
+            data.orient_line(line, True)['heading_deg'], 10.0)
+        line = dict(self.LINE, heading_deg=90.0)
+        self.assertAlmostEqual(
+            data.orient_line(line, True)['heading_deg'], -90.0)
+
+    def test_reverse_does_not_mutate_source_line(self):
+        data.orient_line(self.LINE, True)
+        self.assertEqual(self.LINE['start_mm'], (0.0, 0.0, 5000.0))
+        self.assertEqual(self.LINE['end_mm'], (1200.0, 0.0, 5000.0))
+        self.assertAlmostEqual(self.LINE['heading_deg'], 0.0)
+
+    def test_reverse_defaults_to_false(self):
+        resolved = data.resolve_options({'subtype': 'A', 'type': 1}, 1500.0)
+        self.assertIs(resolved['reverse'], False)
+
+    def test_reverse_option_is_accepted(self):
+        # 不能再报「未知选项」，且类型 1/2 的局部坐标点不随反向变化
+        # （反向只作用在辅助线坐标架上）。
+        forward = data.resolve_options(
+            {'subtype': 'A', 'type': 1, 'height_mm': 500.0}, 1500.0)
+        reversed_ = data.resolve_options(
+            {'subtype': 'A', 'type': 1, 'height_mm': 500.0, 'reverse': True},
+            1500.0)
+        self.assertIs(reversed_['reverse'], True)
+        self.assertEqual(forward['points'], reversed_['points'])
+        self.assertAlmostEqual(forward['beam_length'],
+                               reversed_['beam_length'])
+
+    def test_describe_spec_mentions_reverse(self):
+        resolved = data.resolve_options(
+            {'subtype': 'A', 'type': 1, 'reverse': True}, 1500.0)
+        self.assertIn('已反向', data.describe_spec(resolved))
+        resolved = data.resolve_options({'subtype': 'A', 'type': 1}, 1500.0)
+        self.assertNotIn('已反向', data.describe_spec(resolved))
 
 
 if __name__ == '__main__':
