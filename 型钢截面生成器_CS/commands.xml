@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<KeyinTree xmlns="http://www.bentley.com/schemas/1.0/MicroStation/AddIn/KeyinTree.xsd">
+  <RootKeyinTable ID="root"><Keyword SubtableRef="Steel" CommandClass="MacroCommand" CommandWord="STEELPROBE"><Options Required="true"/></Keyword></RootKeyinTable>
+  <SubKeyinTables><KeyinTable ID="Steel"><Keyword CommandWord="SHOW"/><Keyword CommandWord="PLACE"/></KeyinTable></SubKeyinTables>
+  <KeyinHandlers><KeyinHandler Keyin="STEELPROBE SHOW" Function="SteelSectionProbe.Keyins.Show"/><KeyinHandler Keyin="STEELPROBE PLACE" Function="SteelSectionProbe.Keyins.Place"/></KeyinHandlers>
+</KeyinTree>

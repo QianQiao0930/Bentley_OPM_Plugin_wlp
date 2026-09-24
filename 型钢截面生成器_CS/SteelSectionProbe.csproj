@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <OutputType>Library</OutputType>
+    <PlatformTarget>x64</PlatformTarget>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <LangVersion>7.3</LangVersion>
+    <BentleyRoot Condition="'$(BentleyRoot)' == ''">C:\Program Files\Bentley\OpenPlant 2024\OpenPlantModeler</BentleyRoot>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="ustation"><HintPath>$(BentleyRoot)\ustation.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.Interop.MicroStationDGN"><HintPath>$(BentleyRoot)\Assemblies\Bentley.Interop.MicroStationDGN.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="bentley.microstation.interfaces.1.0"><HintPath>$(BentleyRoot)\Assemblies\bentley.microstation.interfaces.1.0.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.GeometryNET"><HintPath>$(BentleyRoot)\Bentley.GeometryNET.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.GeometryNET.Structs"><HintPath>$(BentleyRoot)\Bentley.GeometryNET.Structs.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.DgnPlatformNET"><HintPath>$(BentleyRoot)\Bentley.DgnPlatformNET.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="bentley.microstation"><HintPath>$(BentleyRoot)\Assemblies\bentley.microstation.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.Windowing"><HintPath>$(BentleyRoot)\Assemblies\ECFramework\Bentley.Windowing.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.General.1.0"><HintPath>$(BentleyRoot)\Assemblies\ECFramework\Bentley.General.1.0.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.ECObjects3"><HintPath>$(BentleyRoot)\Assemblies\ECFramework\Bentley.ECObjects3.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="System.Windows.Forms" />
+  </ItemGroup>
+  <ItemGroup><EmbeddedResource Include="commands.xml" LogicalName="CommandTable.xml" /></ItemGroup>
+  <ItemGroup><EmbeddedResource Include="profiles.bin" LogicalName="SteelSectionProbe.profiles.bin" /></ItemGroup>
+</Project>
