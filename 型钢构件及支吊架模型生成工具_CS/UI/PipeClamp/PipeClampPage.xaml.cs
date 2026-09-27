@@ -350,6 +350,8 @@ namespace SteelSectionProbe
                             SourceNote(selection.IsPipe,selection.NominalMm,selection.InsulationMm);
                     }
                 }
+                if(selection!=null && !string.IsNullOrEmpty(selection.AxisNote))
+                    PreviewText.Text+="　"+selection.AxisNote;
                 ConfirmButton.IsEnabled=true;
                 Status("管夹预览已生成；确定后写入支吊架材料清单。",false);
             }
@@ -389,6 +391,8 @@ namespace SteelSectionProbe
                 catch(Exception ex)
                 {
                     selection=null; ConfirmButton.IsEnabled=false;
+                    // 诊断尾巴较长，状态栏一行会截断 —— 同时写进可换行的预览行。
+                    PreviewText.Text="点取失败："+ex.Message;
                     Status("点取失败："+ex.Message,true);
                 }
             }),DispatcherPriority.Background);

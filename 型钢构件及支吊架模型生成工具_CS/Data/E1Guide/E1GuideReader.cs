@@ -18,6 +18,8 @@ namespace SteelSectionProbe
         internal bool IsPipe;
         /// <summary>所选元素是否来自参考文件（reference）。</summary>
         internal bool IsFromReference;
+        /// <summary>轴线相关的提示（如"已按元素范围最长边近似管轴"）；无提示时为空。</summary>
+        internal string AxisNote;
         internal string PipeNumber;
     }
     /// <summary>
@@ -50,15 +52,6 @@ namespace SteelSectionProbe
             var curve=CurvePathQuery.ElementToCurveVector(element);
             bool openCurve=curve!=null && curve.GetBoundaryType()==CurveVector.BoundaryType.Open;
             var segments=openCurve?StraightSegments(curve,mmPerUor):new List<E1GuideSegment>();
-            if(!pipe && !openCurve)
-                throw new InvalidOperationException("请选择直线、多段线或 OpenPlant 直管。　诊断："+
-                    (LocatedElement.IsReference(modelRef)?"参考文件":"活动模型")+
-                    "，元素 id="+id.ToString(CultureInfo.InvariantCulture)+
-                    "，EC 类="+(string.IsNullOrEmpty(snapshot.ClassName)?"（空）":snapshot.ClassName)+
-                    "，EC 属性 "+(snapshot.AllProperties==null?0:snapshot.AllProperties.Count)+" 条"+
-                    "，曲线="+(curve==null?"无":"有")+
-                    "，几何来源="+(string.IsNullOrEmpty(snapshot.GeometrySource)?"（空）":snapshot.GeometrySource)+
-                    (string.IsNullOrEmpty(snapshot.ReadWarning)?"":"，提示="+snapshot.ReadWarning));
             bool isStraightLine=openCurve && segments.Count==1;
             var selection=new E1GuideSelection {ElementId=id,
                 IsPipe=pipe,
@@ -82,26 +75,32 @@ namespace SteelSectionProbe
                 selection.StartZ=snapshot.StartZ.Value;selection.EndX=snapshot.EndX.Value;
                 selection.EndY=snapshot.EndY.Value;selection.EndZ=snapshot.EndZ.Value;
             }
+            else if(CanUseRange(snapshot))
+            {
+                // 包围盒兜底：**取最长边方向当管轴**，与 Python 的 axis_from_bbox 完全一致。
+                // ⚠️ 这里不要加"必须水平"的限制：竖直管道同样要靠这条兜底（A2 / E1 / T4 本来就支持
+                // 竖直管，只有 K1 自己限制 ≤5°）。按水平假设会把手里的竖直管一律拒掉，
+                // 而 Python 版本正是靠"最长边"把竖直管也算出来的。
+                // 包围盒会丢坡向，所以只给近似提示（AxisNote）而不是报错 —— 与 Python 的 warnings 一致。
+                double x=snapshot.CenterXmm.Value,y=snapshot.CenterYmm.Value,z=snapshot.CenterZMm.Value;
+                double rx=snapshot.RangeXmm.Value,ry=snapshot.RangeYmm.Value,rz=snapshot.RangeZmm.Value;
+                int index=rz>=rx && rz>=ry?2:(ry>=rx?1:0);
+                double span=index==0?rx:(index==1?ry:rz);
+                if(span<=1.0e-9)
+                    throw new InvalidOperationException("所选元素的元素范围为零，无法确定管轴。"+
+                        Diagnostics(modelRef,id,snapshot,curve));
+                double half=span/2.0;
+                selection.StartX=x-(index==0?half:0.0);selection.EndX=x+(index==0?half:0.0);
+                selection.StartY=y-(index==1?half:0.0);selection.EndY=y+(index==1?half:0.0);
+                selection.StartZ=z-(index==2?half:0.0);selection.EndZ=z+(index==2?half:0.0);
+                selection.AxisNote="该元素没有中心线曲线，已按元素范围最长边近似管轴定位"+
+                    "（仅对与世界坐标轴平行的直管段可靠；斜管、弯头 / 阀门请勿使用）。";
+            }
             else
             {
-                if(!pipe)throw new InvalidOperationException("该直线没有可读取的轴线。");
-                // 没有真实中心线的管道：用元素范围近似（仅对与世界坐标轴平行的直管段可靠）。
-                if(!snapshot.RangeXmm.HasValue || !snapshot.CenterXmm.HasValue ||
-                    !snapshot.CenterYmm.HasValue || !snapshot.CenterZMm.HasValue)
-                    throw new InvalidOperationException(
-                        "该管道没有可读取的中心线；请沿管轴绘制辅助线后点取。");
-                double x=snapshot.CenterXmm.Value,y=snapshot.CenterYmm.Value;
-                double z=snapshot.CenterZMm.Value;
-                double rx=snapshot.RangeXmm.Value,ry=snapshot.RangeYmm.Value,rz=snapshot.RangeZmm.Value;
-                if(Math.Max(rx,ry)<Math.Max(50,rz*2))
-                    throw new InvalidOperationException("无法从管道范围可靠判断水平轴线，请选择辅助线。");
-                // A bounding box loses the sign of the slope; never treat a clearly sloped pipe as level.
-                double crossSpan=Math.Min(rx,ry);
-                if(rz>Math.Max(50,crossSpan*1.5))
-                    throw new InvalidOperationException("该斜管没有可读取的真实中心线；请沿管轴绘制辅助线后点取。");
-                selection.StartX=x-(rx>=ry?rx/2:0);selection.EndX=x+(rx>=ry?rx/2:0);
-                selection.StartY=y-(ry>rx?ry/2:0);selection.EndY=y+(ry>rx?ry/2:0);
-                selection.StartZ=z;selection.EndZ=z;
+                throw new InvalidOperationException((pipe?"该管道":"所选元素")+
+                    "没有可读取的中心线，也没有可用的元素范围，无法定位；"+
+                    "请选择直线、多段线或 OpenPlant 直管。"+Diagnostics(modelRef,id,snapshot,curve));
             }
             if(pipe)
             {
@@ -130,6 +129,33 @@ namespace SteelSectionProbe
         {
             selection.StartX=segment.StartX;selection.StartY=segment.StartY;selection.StartZ=segment.StartZ;
             selection.EndX=segment.EndX;selection.EndY=segment.EndY;selection.EndZ=segment.EndZ;
+        }
+
+        /// <summary>元素范围（包围盒）是否完整可用 —— 完整才允许走"最长边当管轴"的兜底。</summary>
+        private static bool CanUseRange(ComponentSnapshot snapshot)
+        {
+            return snapshot!=null && snapshot.RangeXmm.HasValue && snapshot.RangeYmm.HasValue &&
+                snapshot.RangeZmm.HasValue && snapshot.CenterXmm.HasValue &&
+                snapshot.CenterYmm.HasValue && snapshot.CenterZMm.HasValue;
+        }
+
+        /// <summary>
+        /// 失败时的诊断尾巴。状态栏一行会被截断，所以调用方应把它显示在能换行的文本区。
+        /// </summary>
+        private static string Diagnostics(DgnModelRef modelRef,ulong id,ComponentSnapshot snapshot,
+            CurveVector curve)
+        {
+            return "　诊断："+(LocatedElement.IsReference(modelRef)?"参考文件":"活动模型")+
+                "，元素 id="+id.ToString(CultureInfo.InvariantCulture)+
+                "，EC 类="+(snapshot==null || string.IsNullOrEmpty(snapshot.ClassName)
+                    ?"（空）":snapshot.ClassName)+
+                "，EC 属性 "+((snapshot==null || snapshot.AllProperties==null)
+                    ?0:snapshot.AllProperties.Count)+" 条"+
+                "，曲线="+(curve==null?"无":"有")+
+                "，几何来源="+(snapshot==null || string.IsNullOrEmpty(snapshot.GeometrySource)
+                    ?"（空）":snapshot.GeometrySource)+
+                ((snapshot==null || string.IsNullOrEmpty(snapshot.ReadWarning))
+                    ?"":"，提示="+snapshot.ReadWarning);
         }
 
         /// <summary>

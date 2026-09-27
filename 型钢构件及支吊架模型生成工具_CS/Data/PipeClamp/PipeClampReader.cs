@@ -14,6 +14,8 @@ namespace SteelSectionProbe
         internal bool IsAuxiliaryLine;
         /// <summary>所选元素是否来自参考文件（reference）。</summary>
         internal bool IsFromReference;
+        /// <summary>轴线相关的提示（如"已按元素范围最长边近似管轴"）；无提示时为空。</summary>
+        internal string AxisNote="";
         internal double? NominalMm,OutsideMm,InsulationMm;
         internal string PipeNumber="";
 
@@ -62,6 +64,7 @@ namespace SteelSectionProbe
                 ClickX=axis.ClickX,ClickY=axis.ClickY,ClickZ=axis.ClickZ,
                 IsPipe=axis.IsPipe,IsAuxiliaryLine=axis.IsAuxiliaryLine,
                 IsFromReference=axis.IsFromReference,
+                AxisNote=axis.AxisNote??"",
                 PipeNumber=axis.PipeNumber??"",
                 NominalMm=Number(snapshot,"NOMINAL_DIAMETER"),
                 OutsideMm=Number(snapshot,"OUTSIDE_DIAMETER"),
