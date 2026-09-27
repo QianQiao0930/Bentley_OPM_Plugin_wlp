@@ -44,17 +44,21 @@ namespace SteelSectionProbe
             var info=model.GetModelInfo();
             double mmPerUor=1000.0/info.UorPerMeter;
             var snapshot=ComponentPropertyReader.Read(modelRef,id);
-            bool pipe=(!string.IsNullOrEmpty(snapshot.ClassName) &&
-                snapshot.ClassName.IndexOf("PIPE",StringComparison.OrdinalIgnoreCase)>=0) ||
-                snapshot.AllProperties.Any(x=>x.Key.IndexOf(".PIPE.",StringComparison.OrdinalIgnoreCase)>=0 ||
-                    x.Key.IndexOf(".PIPE_",StringComparison.OrdinalIgnoreCase)>=0);
+            bool pipe=LooksLikeOpenPlantPipe(snapshot);
             var element=model.FindElementById(new ElementId(ref id));
             if(element==null)throw new InvalidOperationException("无法读取所选元素。");
             var curve=CurvePathQuery.ElementToCurveVector(element);
             bool openCurve=curve!=null && curve.GetBoundaryType()==CurveVector.BoundaryType.Open;
             var segments=openCurve?StraightSegments(curve,mmPerUor):new List<E1GuideSegment>();
             if(!pipe && !openCurve)
-                throw new InvalidOperationException("请选择直线、多段线或 OpenPlant 直管。");
+                throw new InvalidOperationException("请选择直线、多段线或 OpenPlant 直管。　诊断："+
+                    (LocatedElement.IsReference(modelRef)?"参考文件":"活动模型")+
+                    "，元素 id="+id.ToString(CultureInfo.InvariantCulture)+
+                    "，EC 类="+(string.IsNullOrEmpty(snapshot.ClassName)?"（空）":snapshot.ClassName)+
+                    "，EC 属性 "+(snapshot.AllProperties==null?0:snapshot.AllProperties.Count)+" 条"+
+                    "，曲线="+(curve==null?"无":"有")+
+                    "，几何来源="+(string.IsNullOrEmpty(snapshot.GeometrySource)?"（空）":snapshot.GeometrySource)+
+                    (string.IsNullOrEmpty(snapshot.ReadWarning)?"":"，提示="+snapshot.ReadWarning));
             bool isStraightLine=openCurve && segments.Count==1;
             var selection=new E1GuideSelection {ElementId=id,
                 IsPipe=pipe,
@@ -126,6 +130,42 @@ namespace SteelSectionProbe
         {
             selection.StartX=segment.StartX;selection.StartY=segment.StartY;selection.StartZ=segment.StartZ;
             selection.EndX=segment.EndX;selection.EndY=segment.EndY;selection.EndZ=segment.EndZ;
+        }
+
+        /// <summary>
+        /// 判断所选元素是不是 OpenPlant 的管道（管段）。
+        /// <para>
+        /// **不能只认 "PIPE" 这个子串** —— 实际模型里管道类常叫 PIPING_xxx、SEGMENT 之类，
+        /// 只认 "PIPE" 会把它们全判成"不是管道"，于是落到"请选择直线、多段线或 OpenPlant 直管"
+        /// 这条误导性报错上。因此这里再补一条结构性判据：
+        /// **OpenPlant 架构 + 同时带公称直径与外径**，就是管道类构件。
+        /// </para>
+        /// </summary>
+        private static bool LooksLikeOpenPlantPipe(ComponentSnapshot snapshot)
+        {
+            if(snapshot==null) return false;
+            if(!string.IsNullOrEmpty(snapshot.ClassName) &&
+                snapshot.ClassName.IndexOf("PIP",StringComparison.OrdinalIgnoreCase)>=0) return true;
+            if(!string.IsNullOrEmpty(snapshot.Schema) &&
+                snapshot.Schema.IndexOf("PIP",StringComparison.OrdinalIgnoreCase)>=0) return true;
+            if(snapshot.AllProperties!=null &&
+                snapshot.AllProperties.Any(x=>x.Key.IndexOf(".PIP",StringComparison.OrdinalIgnoreCase)>=0))
+                return true;
+            if(!string.IsNullOrEmpty(snapshot.Schema) &&
+                snapshot.Schema.StartsWith("OpenPlant",StringComparison.OrdinalIgnoreCase) &&
+                HasProperty(snapshot,"NOMINAL_DIAMETER") && HasProperty(snapshot,"OUTSIDE_DIAMETER"))
+                return true;
+            return false;
+        }
+
+        /// <summary>EC 属性名大小写不敏感的存在性判断（属性字典本身是大小写敏感的）。</summary>
+        private static bool HasProperty(ComponentSnapshot snapshot,string name)
+        {
+            if(snapshot==null || snapshot.Properties==null) return false;
+            if(snapshot.Properties.ContainsKey(name)) return true;
+            foreach(string key in snapshot.Properties.Keys)
+                if(string.Equals(key,name,StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
         }
         /// <summary>
         /// 逐段收集曲线里的直线段（.NET 几何坐标为 UOR，按 mmPerUor 转毫米）。

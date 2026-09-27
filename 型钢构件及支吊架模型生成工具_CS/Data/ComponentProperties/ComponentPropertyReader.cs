@@ -63,14 +63,19 @@ namespace SteelSectionProbe
 
         private static void ReadGeometry(Element element,ulong id,ComponentSnapshot snapshot)
         {
-            var model=ResolveModel(element.DgnModelRef);
+            var modelRef=element==null?null:element.DgnModelRef;
+            var model=ResolveModel(modelRef);
             if(model==null) return;
             var modelInfo=model.GetModelInfo();
             double uorPerMm=modelInfo.UorPerMeter/1000.0;
             if(uorPerMm<=0) return;
             // 活动模型里的元素继续走 COM（能力最全，含 Cell 的范围）；参考文件的元素在
             // ActiveModelReference 里查不到，改用 .NET 曲线查询。
-            if(TryReadGeometryFromCom(id,snapshot,modelInfo,uorPerMm)) return;
+            // ⚠️ 必须**按模型身份**选路径，不能"先试 COM"：ComApp.ActiveModelReference 只认活动模型，
+            // 而元素 ID 是两个文件各自编号的 —— 活动模型里很可能存在同号的另一个元素，
+            // 那样会读出**另一个构件**的几何（表现为"信息有值、放置位置却完全不对"）。
+            if(!LocatedElement.IsReference(modelRef) &&
+                TryReadGeometryFromCom(id,snapshot,modelInfo,uorPerMm)) return;
             ReadGeometryFromCurve(element,snapshot,uorPerMm);
         }
 
@@ -117,28 +122,44 @@ namespace SteelSectionProbe
         }
 
         /// <summary>
-        /// 参考文件元素的几何：走 .NET 曲线查询。.NET 几何坐标是 UOR，
-        /// 因此直接除以 uorPerMm 即为毫米（COM 的坐标是 master 单位，两者换算不同）。
+        /// 参考文件元素的几何。优先走 .NET 曲线查询；曲线查不到时改走"显示几何"通道 ——
+        /// OpenPlant 的管道/管件多是实体，没有曲线路径，只有显示几何通道拿得到。
+        /// .NET 几何坐标是 UOR，因此直接除以 uorPerMm 即为毫米
+        /// （COM 的坐标是 master 单位，两者换算不同）。
         /// </summary>
         private static void ReadGeometryFromCurve(Element element,ComponentSnapshot snapshot,
             double uorPerMm)
         {
-            var curve=CurvePathQuery.ElementToCurveVector(element);
-            if(curve==null) return;
             double mmPerUor=1.0/uorPerMm;
-            DRange3d range;
-            if(curve.GetRange(out range) && range.High.X>=range.Low.X)
+            var curve=CurvePathQuery.ElementToCurveVector(element);
+            bool openCurve=curve!=null && curve.GetBoundaryType()==CurveVector.BoundaryType.Open;
+            bool haveRange=false;
+            if(!openCurve)
             {
-                snapshot.RangeXmm=(range.High.X-range.Low.X)*mmPerUor;
-                snapshot.RangeYmm=(range.High.Y-range.Low.Y)*mmPerUor;
-                snapshot.RangeZmm=(range.High.Z-range.Low.Z)*mmPerUor;
-                snapshot.CenterXmm=(range.Low.X+range.High.X)*mmPerUor/2;
-                snapshot.CenterYmm=(range.Low.Y+range.High.Y)*mmPerUor/2;
-                snapshot.CenterZMm=(range.Low.Z+range.High.Z)*mmPerUor/2;
-                snapshot.LengthMm=Math.Max(snapshot.RangeXmm.Value,Math.Max(snapshot.RangeYmm.Value,snapshot.RangeZmm.Value));
-                snapshot.GeometrySource="元素范围（参考文件）";
+                DRange3d displayRange;
+                CurveVector displayCurve;
+                if(TryReadDisplayGeometry(element,out displayRange,out displayCurve))
+                {
+                    if(displayCurve!=null &&
+                        displayCurve.GetBoundaryType()==CurveVector.BoundaryType.Open)
+                    {
+                        curve=displayCurve;
+                        openCurve=true;
+                    }
+                    if(displayRange.High.X>=displayRange.Low.X)
+                    {
+                        FillRange(snapshot,displayRange,mmPerUor,"显示几何（参考文件）");
+                        haveRange=true;
+                    }
+                }
             }
-            if(curve.GetBoundaryType()!=CurveVector.BoundaryType.Open) return;
+            if(!haveRange && curve!=null)
+            {
+                DRange3d range;
+                if(curve.GetRange(out range) && range.High.X>=range.Low.X)
+                    FillRange(snapshot,range,mmPerUor,"元素范围（参考文件）");
+            }
+            if(!openCurve || curve==null) return;
             DPoint3d start,end;
             if(!curve.GetStartEnd(out start,out end)) return;
             double dx=start.X-end.X,dy=start.Y-end.Y,dz=start.Z-end.Z;
@@ -152,6 +173,64 @@ namespace SteelSectionProbe
             snapshot.LengthMm=Math.Sqrt(dx*dx+dy*dy+dz*dz)*mmPerUor;
             snapshot.CenterZMm=(snapshot.StartZ+snapshot.EndZ)/2;
             snapshot.GeometrySource="开放曲线（参考文件）";
+        }
+
+        private static void FillRange(ComponentSnapshot snapshot,DRange3d range,double mmPerUor,
+            string source)
+        {
+            snapshot.RangeXmm=(range.High.X-range.Low.X)*mmPerUor;
+            snapshot.RangeYmm=(range.High.Y-range.Low.Y)*mmPerUor;
+            snapshot.RangeZmm=(range.High.Z-range.Low.Z)*mmPerUor;
+            snapshot.CenterXmm=(range.Low.X+range.High.X)*mmPerUor/2;
+            snapshot.CenterYmm=(range.Low.Y+range.High.Y)*mmPerUor/2;
+            snapshot.CenterZMm=(range.Low.Z+range.High.Z)*mmPerUor/2;
+            snapshot.LengthMm=Math.Max(snapshot.RangeXmm.Value,
+                Math.Max(snapshot.RangeYmm.Value,snapshot.RangeZmm.Value));
+            snapshot.GeometrySource=source;
+        }
+
+        /// <summary>
+        /// 显示几何通道：<see cref="ElementGraphicsOutput.Process"/> 会把元素的**显示几何**
+        /// 交给处理器，这条通道与元素所在模型无关 —— 参考文件里的元素同样能拿到，
+        /// 因此它正是曲线查询对参考元素失效时的兜底。
+        /// </summary>
+        private static bool TryReadDisplayGeometry(Element element,out DRange3d range,
+            out CurveVector openCurve)
+        {
+            range=DRange3d.NullRange;
+            openCurve=null;
+            if(element==null) return false;
+            try
+            {
+                var accumulator=new GeometryAccumulator();
+                ElementGraphicsOutput.Process(element,accumulator);
+                range=accumulator.Range;
+                openCurve=accumulator.OpenCurve;
+                return true;
+            }
+            catch { return false; }
+        }
+
+        /// <summary>收集显示几何的包围盒，并记住第一条开放曲线（可当作轴线）。</summary>
+        private sealed class GeometryAccumulator : ElementGraphicsProcessor
+        {
+            internal DRange3d Range=DRange3d.NullRange;
+            internal CurveVector OpenCurve;
+
+            public override BentleyStatus ProcessCurveVector(CurveVector curves,bool isClosed)
+            {
+                if(curves!=null)
+                {
+                    DRange3d range;
+                    if(curves.GetRange(out range))
+                    {
+                        Range.Extend(range.Low);
+                        Range.Extend(range.High);
+                    }
+                    if(!isClosed && OpenCurve==null) OpenCurve=curves;
+                }
+                return BentleyStatus.Success;
+            }
         }
 
         private static void ReadEc(Element element, ComponentSnapshot snapshot)
