@@ -615,3 +615,17 @@ bin/Release/net48_full/SteelSectionProbe.dll
 补充：`Element` 没有 `ElementRange` / `ModelRef` 属性，但**有 `DgnModelRef` 与 `DgnModel`**；`HitPath` 也没有 `GetHeadElementRef`。需要查 Bentley API 真实签名时，用 `_apidump` 那类"只读元数据"的办法（`PEReader` + `MetadataReader`，可打印完整签名）—— 注意 **`DgnElementSetTool` 在 `Bentley.DgnDisplayNet.dll` 里，不在 `Bentley.DgnPlatformNET.dll`**，按类型名找 DLL 时先 `grep -a` 一下。**不要用 PowerShell 的 `Reflection.Assembly.LoadFrom`**（被安全策略拦截），也不要用"故意编译报错"的探针去猜不存在的成员：编译器的函数体分析会被声明级错误压制，可能给出"看起来没报错"的假象。
 
 破坏性操作（删除辅助线等）必须排除参考元素：参考元素的 ID 在活动模型里删不掉，应提前禁用选项并说明原因。
+
+## 26. 点选参考文件元素时的"临时辅助线"流程（放置管夹）
+
+点选**参考文件（reference）**里的管道时，放置管夹不直接拿参考元素去生成，而是：
+
+1. 用 `PipeClampReader.Read(modelRef, id, …)` 读出参考管道的**管轴**（起终点）与管道属性（公称直径 / 保温 / 管道号）；
+2. 用 `Services/PipeClamp/TempAxisLine.cs` 在**活动文件**里按这段轴线建一条普通 `LineElement`；
+3. 用**已验证的按线路径**（`PipeClampReader.Read(lineId, clickUor…)`）重新读一遍这条线；
+4. 把参考元素读到的管道属性**并到这条线的选择结果上**（`IsPipe` / `NominalMm` / `InsulationMm` / `PipeNumber` / `IsFromReference=true`，并把 `IsAuxiliaryLine` 置 false —— 临时线由插件自己清理，不交给用户勾选的"删除辅助线"）；
+5. 确认 / 取消 / 结束点取 / 切换类型 / 离开页面时调用 `TempAxisLine.Delete(id)` 删掉它。
+
+**为什么这样做**：把"参考元素"的影响面收敛成**一次轴线读取**，生成那一段完全走活动文件里已经跑通的路径，避免"参考元素写不进 / 删不掉 / 几何读不稳"整类问题。新增管夹类型时，只要把选择结果喂进各自 Calculator 即可，无需再为参考元素写第二套生成逻辑。
+
+实现约束：临时线 id 存在 `PipeClampPage.tempAxisLineId`，**每次点选前先删旧的**（`ReadSelection` 开头）；建线失败要**退回直接读取的结果**而不是抛错（不能因为辅助线失败挡住生成）；删除失败只发状态栏提示，不影响已确认的管夹。异常退出（宿主崩溃）时可能残留一条普通直线 —— 这一点已在 README 里向用户说明。
