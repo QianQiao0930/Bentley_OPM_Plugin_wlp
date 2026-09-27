@@ -38,7 +38,15 @@ namespace SteelSectionProbe
         internal static event Action Ended;
         internal static void Begin()
         {
-            End();
+            if(active!=null)
+            {
+                // 已经在点取中：只重新确保捕捉/定位可用，**不要"结束再安装"** ——
+                // 结束再安装会先触发一次 Ended（页面据此清空状态），新实例还可能被上一个
+                // 实例的延迟清理带掉并再次触发；也不要在此时重新记录用户原始捕捉状态。
+                AccuSnap.SnapEnabled=true;
+                AccuSnap.LocateEnabled=true;
+                return;
+            }
             var tool=new ElbowTrunnionLocateTool();
             oldSnap=AccuSnap.SnapEnabled;
             oldLocate=AccuSnap.LocateEnabled;

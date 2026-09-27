@@ -372,6 +372,14 @@ namespace SteelSectionProbe
             {
                 var model=Session.Instance.GetActiveDgnModel();
                 if(model==null || !model.Is3d) throw new InvalidOperationException("请先打开三维模型。");
+                if(PipeClampLocateTool.IsActive)
+                {
+                    // 工具还装着（例如刚"确定生成"过）：只恢复页面状态，**不要重新安装** ——
+                    // 重装会先"结束再安装"，白丢一次状态，也容易踩到延迟清理的竞态。
+                    locating=true;
+                    Status("已在点取中：直接在模型里点取下一处即可；要停止请点「结束点取」。",false);
+                    return;
+                }
                 RefreshSpecification();
                 PipeClampLocateTool.Begin(); locating=true;
                 Status("悬停选择管道、直线或多段线，左键在点击处生成管夹预览；右键结束。",false);
@@ -501,8 +509,8 @@ namespace SteelSectionProbe
                     DeleteElement(current.ElementId);
                 selection=null; ConfirmButton.IsEnabled=false;
                 ResetAuxiliaryLineOption();
-                PreviewText.Text="已确认生成并写入支吊架材料清单，可继续点取下一处。";
-                Status("管夹已生成。",false);
+                PreviewText.Text="已确认生成并写入支吊架材料清单。点取仍在进行中，可直接点取下一处（无需再点「开始点取」）；要停止请点「结束点取」。";
+                Status("管夹已生成；可继续点取下一处。",false);
             }
             catch(Exception ex) { Status("确认失败："+ex.Message,true); }
         }

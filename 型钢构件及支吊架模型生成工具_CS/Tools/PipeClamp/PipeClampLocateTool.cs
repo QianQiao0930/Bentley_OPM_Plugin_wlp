@@ -14,6 +14,8 @@ namespace SteelSectionProbe
         private static bool oldSnap,oldLocate;
         internal static event Action<LocatedElement> Picked;
         internal static event Action Ended;
+        /// <summary>点取工具当前是否已安装（页面据此避免"重复安装"，那会白丢一次状态）。</summary>
+        internal static bool IsActive { get { return active!=null; } }
 
         private PipeClampLocateTool() : base(0,0) { }
 
@@ -44,13 +46,25 @@ namespace SteelSectionProbe
 
         internal static void Begin()
         {
-            End();
-            var tool=new PipeClampLocateTool();
+            var tool=active;
+            if(tool!=null)
+            {
+                // 已经在点取中：**只重新确保捕捉/定位可用，不要"结束再安装"**。
+                // 结束再安装会在 Begin 内部先触发一次 Ended（页面据此清空选择并提示
+                // "已结束点取"），而紧接着安装的新实例还可能被上一个实例的延迟清理
+                // （OnCleanup）带掉并再次触发 Ended —— 表现就是"再点一次开始点取后，
+                // 第一次点击被当成结束，得再点一次才真正进入点取"。
+                // 另外这里**不能重新记录 oldSnap/oldLocate**，否则会把"被强制打开"的状态
+                // 当成用户的原始状态保存，退出时恢复不回去。
+                AccuSnap.SnapEnabled=true; AccuSnap.LocateEnabled=true;
+                return;
+            }
+            var created=new PipeClampLocateTool();
             oldSnap=AccuSnap.SnapEnabled; oldLocate=AccuSnap.LocateEnabled;
-            active=tool;
+            active=created;
             try
             {
-                tool.InstallTool();
+                created.InstallTool();
                 AccuSnap.SnapEnabled=true; AccuSnap.LocateEnabled=true;
             }
             catch { active=null; AccuSnap.SnapEnabled=oldSnap; AccuSnap.LocateEnabled=oldLocate; throw; }
