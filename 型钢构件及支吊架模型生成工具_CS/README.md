@@ -210,6 +210,8 @@ MicroStation 的参考文件（reference attachment）里的元素，其 Element
 
 现在所有"点选元素"的功能都支持参考文件：定位回调把元素与**它所属的模型引用**一起上报（`Data/LocatedElement.cs`），读取器用那个模型去查元素、读几何与 EC。几何读取分两条路径：元素属于活动模型时仍走原 COM 路径（行为不变）；元素来自参考文件时改用 .NET 曲线查询（`CurvePathQuery.ElementToCurveVector` + `CurveVector.GetRange / GetStartEnd`），因为 COM 的 `ActiveModelReference` 只认活动模型。
 
+还有一道与 ID 无关的关卡：MicroStation **默认不把参考元素交给元素集合工具**，所以即使读得到几何，点上去仍会报"元素位于只读参考文件之中"。这是工具层的策略，不是元素读取的问题，也**不取决于参考附件的类型或设置**（参考文件本身在 MicroStation 里永远不可编辑，没有"改成可写"这种选项）。修法是覆写 `DgnElementSetTool.GetReferenceLocateOptions()` 返回 `RefLocateOption.TreatAsElement`（把参考元素当普通元素来定位），并在 `OnPostLocate` 里加一层兜底放行。三个点选工具（放置管夹 / 构件特性查询 / 弯头耳轴）都已覆写。
+
 适用功能：放置管夹（A2 / E1 / K1 / T4）、G2 混凝土锚板、弯头耳轴、构件特性查询。点取到参考元素时，界面会在元素信息与尺寸来源说明里标注"（参考文件）"。
 
 两个前提：该参考附件的 **Locate** 开关必须打开（否则连点都点不到），要用捕捉画辅助线时 **Snap** 也要打开。另外"确认后删除辅助线"只对**活动文件**里的直线生效 —— 参考文件里的直线不会提供该选项，也不会被执行删除。

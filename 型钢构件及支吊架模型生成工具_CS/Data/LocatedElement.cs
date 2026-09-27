@@ -30,11 +30,24 @@ namespace SteelSectionProbe
         }
 
         /// <summary>该元素是否来自参考文件（不属于活动模型）。</summary>
-        internal bool IsFromReference()
+        internal bool IsFromReference() { return IsReference(ModelRef); }
+
+        /// <summary>判断某个模型引用是不是参考文件（不是活动模型）。</summary>
+        internal static bool IsReference(DgnModelRef modelRef)
         {
-            var model=ModelRef==null?null:ModelRef.GetDgnModel();
+            var model=modelRef==null?null:modelRef.GetDgnModel();
             var active=Bentley.MstnPlatformNET.Session.Instance.GetActiveDgnModel();
             return model!=null && active!=null && !ReferenceEquals(model,active);
+        }
+
+        /// <summary>
+        /// 判断任意元素是否来自参考文件。定位回调里用来识别参考元素 ——
+        /// 参考元素在 MicroStation 里默认不可定位（报"元素位于只读参考文件之中"），
+        /// 这类只读读取必须由 <c>OnPostLocate</c> 显式放行。
+        /// </summary>
+        internal static bool IsReference(Element element)
+        {
+            return element!=null && IsReference(element.DgnModelRef);
         }
     }
 }

@@ -609,8 +609,9 @@ bin/Release/net48_full/SteelSectionProbe.dll
 - **工具**：在定位回调内 `LocatedElement.From(element)` 取 `element.DgnModelRef` 与 `ElementId`（不要把 Bentley 的 `Element` 对象带出回调），点击点放进 `ClickX/Y/Z`；
 - **读取器**：签名统一为 `Read(DgnModelRef modelRef, ulong id, …)`，并保留 `Read(id, …)` 作为"活动模型"的快捷转发；内部用 `ComponentPropertyReader.ResolveModel(modelRef)` 拿到正确的模型；
 - **几何**：**活动模型走原 COM 路径，参考元素走 .NET 曲线查询**（`CurvePathQuery.ElementToCurveVector` + `CurveVector.GetRange / GetStartEnd`）。COM 的 `ActiveModelReference` 只认活动模型，**绝不能用它读参考元素** —— 这是"点不到参考文件里的管道"的根因；
-- **单位**：COM 坐标是 master 单位（`× UorPerMaster / uorPerMm`），.NET 几何坐标是 UOR（`/ uorPerMm`），两者换算不同，不要混用。
+- **单位**：COM 坐标是 master 单位（`× UorPerMaster / uorPerMm`），.NET 几何坐标是 UOR（`/ uorPerMm`），两者换算不同，不要混用；
+- **定位策略**：MicroStation **默认不把参考元素交给 `DgnElementSetTool`**，点上去会报"元素位于只读参考文件之中" —— 这道关卡与 ElementId 无关、也与参考附件的类型/设置无关（参考文件在 MicroStation 里永远不可编辑）。凡是只需要**读取**的定位工具，都必须覆写 `protected override RefLocateOption GetReferenceLocateOptions()` 并返回 `RefLocateOption.TreatAsElement`（枚举是标志位：`Normal=0 / SelfAttachment=1 / Editable=2 / TreatAsElement=4`），再加一层 `OnPostLocate` 兜底（基类拒绝且元素来自参考文件时返回 true）。**`SetRefLocateOption` 在 C# 侧不存在**，别照 Python/C++ 的写法找。
 
-补充：`Element` 没有 `ElementRange` / `ModelRef` 属性，但**有 `DgnModelRef` 与 `DgnModel`**；`HitPath` 也没有 `GetHeadElementRef`。需要查 Bentley API 真实签名时，直接用 `_apidump` 那类"只读元数据"的办法（`PEReader` + `MetadataReader` 打印类型成员），比猜签名快得多。
+补充：`Element` 没有 `ElementRange` / `ModelRef` 属性，但**有 `DgnModelRef` 与 `DgnModel`**；`HitPath` 也没有 `GetHeadElementRef`。需要查 Bentley API 真实签名时，用 `_apidump` 那类"只读元数据"的办法（`PEReader` + `MetadataReader`，可打印完整签名）—— 注意 **`DgnElementSetTool` 在 `Bentley.DgnDisplayNet.dll` 里，不在 `Bentley.DgnPlatformNET.dll`**，按类型名找 DLL 时先 `grep -a` 一下。**不要用 PowerShell 的 `Reflection.Assembly.LoadFrom`**（被安全策略拦截），也不要用"故意编译报错"的探针去猜不存在的成员：编译器的函数体分析会被声明级错误压制，可能给出"看起来没报错"的假象。
 
 破坏性操作（删除辅助线等）必须排除参考元素：参考元素的 ID 在活动模型里删不掉，应提前禁用选项并说明原因。
