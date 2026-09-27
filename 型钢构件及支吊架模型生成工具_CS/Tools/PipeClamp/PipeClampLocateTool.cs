@@ -12,7 +12,7 @@ namespace SteelSectionProbe
     {
         private static PipeClampLocateTool active;
         private static bool oldSnap,oldLocate;
-        internal static event Action<ulong,double,double,double> Picked;
+        internal static event Action<LocatedElement> Picked;
         internal static event Action Ended;
 
         private PipeClampLocateTool() : base(0,0) { }
@@ -54,7 +54,14 @@ namespace SteelSectionProbe
             if(element==null || !element.IsValid)
             { NotificationManager.OutputPrompt("未找到管道或直线，请重新点取。"); return true; }
             var picked=Picked;
-            if(picked!=null) picked((ulong)element.ElementId,ev.Point.X,ev.Point.Y,ev.Point.Z);
+            if(picked!=null)
+            {
+                var located=LocatedElement.From(element);
+                located.ClickX=ev.Point.X;
+                located.ClickY=ev.Point.Y;
+                located.ClickZ=ev.Point.Z;
+                picked(located);
+            }
             return true;
         }
         protected override bool OnResetButton(DgnButtonEvent ev) { End(); return true; }

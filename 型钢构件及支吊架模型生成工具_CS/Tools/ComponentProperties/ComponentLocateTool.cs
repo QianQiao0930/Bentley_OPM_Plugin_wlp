@@ -14,7 +14,7 @@ namespace SteelSectionProbe
 
         private ComponentLocateTool() : base(0, 0) { }
 
-        internal static event Action<ulong> ElementPicked;
+        internal static event Action<LocatedElement> ElementPicked;
         internal static event Action SelectionEnded;
         internal static bool IsActive { get { return active != null; } }
 
@@ -69,7 +69,7 @@ namespace SteelSectionProbe
                 return true;
             }
             var handler = ElementPicked;
-            if (handler != null) handler((ulong)element.ElementId);
+            if (handler != null) handler(LocatedElement.From(element));
             return true;
         }
 

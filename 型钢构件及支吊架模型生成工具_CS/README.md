@@ -203,3 +203,15 @@ dotnet build SteelSupportModeler.csproj -c Release /p:OutputPath=bin\Release\net
 
 实现分布于 `Domain/G2Anchor/`、`Data/G2Anchor/`、`Services/G2Anchor/`、`Tools/G2Anchor/` 和 `UI/G2Anchor/`。局部坐标轴定义集中在 `G2AnchorCalculator.Axes`（纯计算），`G2AnchorFrame` 与纯计算检查工程共用同一份，避免两份朝向定义。纯计算检查：`dotnet run --project Development/G2AnchorCheck/G2AnchorCheck.csproj -c Release`，覆盖表 1 四子项尺寸与埋深自检、间距 S 与非法输入拒绝、三种安装面在多个朝向角下的三轴正交与右手系。Bentley 点取、普通 Cell 写入、预览删除与 ItemType 附加仍需在 OPM 2024 中实测。
 
+
+## 点选参考文件里的元素
+
+MicroStation 的参考文件（reference attachment）里的元素，其 ElementId 属于**参考文件自己那个文件的 ID 空间**，按 ID 在活动文件里查不到 —— 这正是早期版本点选参考元素会报"所选元素已不存在"的原因。
+
+现在所有"点选元素"的功能都支持参考文件：定位回调把元素与**它所属的模型引用**一起上报（`Data/LocatedElement.cs`），读取器用那个模型去查元素、读几何与 EC。几何读取分两条路径：元素属于活动模型时仍走原 COM 路径（行为不变）；元素来自参考文件时改用 .NET 曲线查询（`CurvePathQuery.ElementToCurveVector` + `CurveVector.GetRange / GetStartEnd`），因为 COM 的 `ActiveModelReference` 只认活动模型。
+
+适用功能：放置管夹（A2 / E1 / K1 / T4）、G2 混凝土锚板、弯头耳轴、构件特性查询。点取到参考元素时，界面会在元素信息与尺寸来源说明里标注"（参考文件）"。
+
+两个前提：该参考附件的 **Locate** 开关必须打开（否则连点都点不到），要用捕捉画辅助线时 **Snap** 也要打开。另外"确认后删除辅助线"只对**活动文件**里的直线生效 —— 参考文件里的直线不会提供该选项，也不会被执行删除。
+
+单位换算要留意的差别：COM 的坐标是 master 单位（`× UorPerMaster / uorPerMm`），.NET 几何坐标是 UOR（`/ uorPerMm`），两者不能混用。

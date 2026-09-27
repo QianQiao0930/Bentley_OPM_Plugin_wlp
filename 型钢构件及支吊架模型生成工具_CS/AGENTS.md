@@ -601,3 +601,16 @@ bin/Release/net48_full/SteelSectionProbe.dll
 - **E1**：面板并入本页，数据 / 计算 / 建模仍在 `Data/E1Guide/`、`Domain/E1Guide/`、`Services/E1Guide/`。“确认后删除辅助线”只对单根普通直线有效，删除前要核对源元素仍是直线，且管道与多段线始终保留。
 
 型钢轮廓的三连查找统一走 `Data/ProfileLookup.cs`（纯查表，接受 `FamilyData[]`，因此纯计算检查工程也能链接），不要在功能里另写一套。新增管夹时若需要新增型钢规格，仍走 `Development/profile_catalog/` + `export_profiles.py` 的既有流程。
+
+## 25. 点选元素的功能必须传递元素所属的模型（参考文件支持）
+
+参考文件（reference）里的元素，其 ElementId 属于**它自己那个文件的 ID 空间**，按 ID 去活动模型里查是查不到的。因此所有"点选元素"的工具都必须上报 `LocatedElement`，读取器必须接受并透传 `DgnModelRef`：
+
+- **工具**：在定位回调内 `LocatedElement.From(element)` 取 `element.DgnModelRef` 与 `ElementId`（不要把 Bentley 的 `Element` 对象带出回调），点击点放进 `ClickX/Y/Z`；
+- **读取器**：签名统一为 `Read(DgnModelRef modelRef, ulong id, …)`，并保留 `Read(id, …)` 作为"活动模型"的快捷转发；内部用 `ComponentPropertyReader.ResolveModel(modelRef)` 拿到正确的模型；
+- **几何**：**活动模型走原 COM 路径，参考元素走 .NET 曲线查询**（`CurvePathQuery.ElementToCurveVector` + `CurveVector.GetRange / GetStartEnd`）。COM 的 `ActiveModelReference` 只认活动模型，**绝不能用它读参考元素** —— 这是"点不到参考文件里的管道"的根因；
+- **单位**：COM 坐标是 master 单位（`× UorPerMaster / uorPerMm`），.NET 几何坐标是 UOR（`/ uorPerMm`），两者换算不同，不要混用。
+
+补充：`Element` 没有 `ElementRange` / `ModelRef` 属性，但**有 `DgnModelRef` 与 `DgnModel`**；`HitPath` 也没有 `GetHeadElementRef`。需要查 Bentley API 真实签名时，直接用 `_apidump` 那类"只读元数据"的办法（`PEReader` + `MetadataReader` 打印类型成员），比猜签名快得多。
+
+破坏性操作（删除辅助线等）必须排除参考元素：参考元素的 ID 在活动模型里删不掉，应提前禁用选项并说明原因。

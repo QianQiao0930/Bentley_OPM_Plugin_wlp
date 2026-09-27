@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using Bentley.DgnPlatformNET;
 
 namespace SteelSectionProbe
 {
@@ -11,6 +12,8 @@ namespace SteelSectionProbe
         /// <summary>是否识别为 OpenPlant 管道（否则按普通直线 / 多段线处理）。</summary>
         internal bool IsPipe;
         internal bool IsAuxiliaryLine;
+        /// <summary>所选元素是否来自参考文件（reference）。</summary>
+        internal bool IsFromReference;
         internal double? NominalMm,OutsideMm,InsulationMm;
         internal string PipeNumber="";
 
@@ -40,14 +43,25 @@ namespace SteelSectionProbe
         internal static PipeClampSelection Read(ulong id,double clickXUor,double clickYUor,
             double clickZUor)
         {
-            var axis=E1GuideReader.Read(id,clickXUor,clickYUor,clickZUor);
-            var snapshot=ComponentPropertyReader.Read(id);
+            return Read(null,id,clickXUor,clickYUor,clickZUor);
+        }
+
+        /// <summary>
+        /// 读取所选元素。<paramref name="modelRef"/> 为元素所属的模型引用
+        /// （参考文件里的元素必须传，见 <see cref="LocatedElement"/>）；null 表示活动模型。
+        /// </summary>
+        internal static PipeClampSelection Read(DgnModelRef modelRef,ulong id,double clickXUor,
+            double clickYUor,double clickZUor)
+        {
+            var axis=E1GuideReader.Read(modelRef,id,clickXUor,clickYUor,clickZUor);
+            var snapshot=ComponentPropertyReader.Read(modelRef,id);
             return new PipeClampSelection {
                 ElementId=axis.ElementId,
                 StartX=axis.StartX,StartY=axis.StartY,StartZ=axis.StartZ,
                 EndX=axis.EndX,EndY=axis.EndY,EndZ=axis.EndZ,
                 ClickX=axis.ClickX,ClickY=axis.ClickY,ClickZ=axis.ClickZ,
                 IsPipe=axis.IsPipe,IsAuxiliaryLine=axis.IsAuxiliaryLine,
+                IsFromReference=axis.IsFromReference,
                 PipeNumber=axis.PipeNumber??"",
                 NominalMm=Number(snapshot,"NOMINAL_DIAMETER"),
                 OutsideMm=Number(snapshot,"OUTSIDE_DIAMETER"),

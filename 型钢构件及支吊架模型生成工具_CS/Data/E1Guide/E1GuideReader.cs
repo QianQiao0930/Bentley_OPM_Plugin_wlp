@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using Bentley.Interop.MicroStationDGN;
+using Bentley.DgnPlatformNET;
+using Bentley.DgnPlatformNET.Elements;
+using Bentley.GeometryNET;
 using Bentley.MstnPlatformNET;
 namespace SteelSectionProbe
 {
@@ -14,39 +16,60 @@ namespace SteelSectionProbe
         internal bool IsAuxiliaryLine;
         /// <summary>所选元素是否识别为 OpenPlant 管道（供管夹类功能判断按管道还是按面板参数取径）。</summary>
         internal bool IsPipe;
+        /// <summary>所选元素是否来自参考文件（reference）。</summary>
+        internal bool IsFromReference;
         internal string PipeNumber;
     }
+    /// <summary>
+    /// 读所选元素（管道 / 直线 / 多段线）的轴线与管道号。
+    /// <para>
+    /// 支持参考文件里的元素：调用方需把元素所属的模型引用传进来（见 <see cref="LocatedElement"/>）。
+    /// 元素类型判断与多段线顶点改用 .NET 曲线查询（<c>CurvePathQuery</c>），
+    /// 因为它对活动模型与参考模型一视同仁；旧代码用的 COM 引用只认活动模型。
+    /// </para>
+    /// </summary>
     internal static class E1GuideReader
     {
+        /// <summary>在活动模型里读取（兼容原有调用）。</summary>
         internal static E1GuideSelection Read(ulong id,double clickXUor,double clickYUor,double clickZUor)
         {
-            var model=Session.Instance.GetActiveDgnModel();
+            return Read(null,id,clickXUor,clickYUor,clickZUor);
+        }
+
+        internal static E1GuideSelection Read(DgnModelRef modelRef,ulong id,
+            double clickXUor,double clickYUor,double clickZUor)
+        {
+            var model=ComponentPropertyReader.ResolveModel(modelRef);
             if(model==null || !model.Is3d)throw new InvalidOperationException("请选择活动三维模型。");
             var info=model.GetModelInfo();
             double mmPerUor=1000.0/info.UorPerMeter;
-            double mmPerMaster=info.UorPerMaster*mmPerUor;
-            var snapshot=ComponentPropertyReader.Read(id);
+            var snapshot=ComponentPropertyReader.Read(modelRef,id);
             bool pipe=(!string.IsNullOrEmpty(snapshot.ClassName) &&
                 snapshot.ClassName.IndexOf("PIPE",StringComparison.OrdinalIgnoreCase)>=0) ||
                 snapshot.AllProperties.Any(x=>x.Key.IndexOf(".PIPE.",StringComparison.OrdinalIgnoreCase)>=0 ||
                     x.Key.IndexOf(".PIPE_",StringComparison.OrdinalIgnoreCase)>=0);
-            var com=Bentley.MstnPlatformNET.InteropServices.Utilities.ComApp.ActiveModelReference.GetElementByID64(checked((long)id));
-            if(com==null)throw new InvalidOperationException("无法读取所选元素。");
-            bool polyline=com.Type==MsdElementType.LineString || com.Type==MsdElementType.ComplexString;
-            if(!pipe && com.Type!=MsdElementType.Line && !polyline)
+            var element=model.FindElementById(new ElementId(ref id));
+            if(element==null)throw new InvalidOperationException("无法读取所选元素。");
+            var curve=CurvePathQuery.ElementToCurveVector(element);
+            bool openCurve=curve!=null && curve.GetBoundaryType()==CurveVector.BoundaryType.Open;
+            var segments=openCurve?StraightSegments(curve,mmPerUor):new List<E1GuideSegment>();
+            if(!pipe && !openCurve)
                 throw new InvalidOperationException("请选择直线、多段线或 OpenPlant 直管。");
+            bool isStraightLine=openCurve && segments.Count==1;
             var selection=new E1GuideSelection {ElementId=id,
                 IsPipe=pipe,
+                IsFromReference=modelRef!=null && !ReferenceEquals(model,
+                    Session.Instance.GetActiveDgnModel()),
                 ClickX=clickXUor*mmPerUor,ClickY=clickYUor*mmPerUor,ClickZ=clickZUor*mmPerUor,
-                PipeNumber="",IsAuxiliaryLine=com.Type==MsdElementType.Line && !pipe &&
+                PipeNumber="",IsAuxiliaryLine=isStraightLine && !pipe &&
                     (string.IsNullOrEmpty(snapshot.Schema) ||
                         !snapshot.Schema.StartsWith("OpenPlant",StringComparison.OrdinalIgnoreCase)) &&
                     !snapshot.AllProperties.Any(x=>x.Key.StartsWith("OpenPlant",StringComparison.OrdinalIgnoreCase)) &&
                     string.IsNullOrEmpty(snapshot.ReadWarning)};
-            if(polyline)
+            if(segments.Count>1)
             {
-                var selected=E1GuideSegmentSelector.Nearest(
-                    StraightSegments(com,mmPerMaster),selection.ClickX,selection.ClickY,selection.ClickZ);
+                var selected=E1GuideSegmentSelector.Nearest(segments,
+                    selection.ClickX,selection.ClickY,selection.ClickZ);
                 CopySegment(selected,selection);
             }
             else if(snapshot.StartX.HasValue && snapshot.EndX.HasValue)
@@ -58,13 +81,14 @@ namespace SteelSectionProbe
             else
             {
                 if(!pipe)throw new InvalidOperationException("该直线没有可读取的轴线。");
-                var range=com.Range;
-                double x=(range.Low.X+range.High.X)/2*mmPerMaster;
-                double y=(range.Low.Y+range.High.Y)/2*mmPerMaster;
-                double z=(range.Low.Z+range.High.Z)/2*mmPerMaster;
-                double rx=(range.High.X-range.Low.X)*mmPerMaster;
-                double ry=(range.High.Y-range.Low.Y)*mmPerMaster;
-                double rz=(range.High.Z-range.Low.Z)*mmPerMaster;
+                // 没有真实中心线的管道：用元素范围近似（仅对与世界坐标轴平行的直管段可靠）。
+                if(!snapshot.RangeXmm.HasValue || !snapshot.CenterXmm.HasValue ||
+                    !snapshot.CenterYmm.HasValue || !snapshot.CenterZMm.HasValue)
+                    throw new InvalidOperationException(
+                        "该管道没有可读取的中心线；请沿管轴绘制辅助线后点取。");
+                double x=snapshot.CenterXmm.Value,y=snapshot.CenterYmm.Value;
+                double z=snapshot.CenterZMm.Value;
+                double rx=snapshot.RangeXmm.Value,ry=snapshot.RangeYmm.Value,rz=snapshot.RangeZmm.Value;
                 if(Math.Max(rx,ry)<Math.Max(50,rz*2))
                     throw new InvalidOperationException("无法从管道范围可靠判断水平轴线，请选择辅助线。");
                 // A bounding box loses the sign of the slope; never treat a clearly sloped pipe as level.
@@ -103,35 +127,26 @@ namespace SteelSectionProbe
             selection.StartX=segment.StartX;selection.StartY=segment.StartY;selection.StartZ=segment.StartZ;
             selection.EndX=segment.EndX;selection.EndY=segment.EndY;selection.EndZ=segment.EndZ;
         }
-        private static IList<E1GuideSegment> StraightSegments(Element element,double mmPerMaster)
+        /// <summary>
+        /// 逐段收集曲线里的直线段（.NET 几何坐标为 UOR，按 mmPerUor 转毫米）。
+        /// 圆弧段会被跳过 —— 与"只取直线段"的既有语义一致。
+        /// </summary>
+        private static IList<E1GuideSegment> StraightSegments(CurveVector curve,double mmPerUor)
         {
             var segments=new List<E1GuideSegment>();
-            if(element.Type==MsdElementType.LineString)
+            int count=curve.Count;
+            for(int index=0;index<count;index++)
             {
-                AddVertices(element.AsVertexList().GetVertices(),mmPerMaster,segments);
-            }
-            else if(element.Type==MsdElementType.ComplexString)
-            {
-                var children=element.AsComplexStringElement().GetSubElements();
-                while(children.MoveNext())
-                {
-                    var part=children.Current;
-                    if(part.Type!=MsdElementType.Line && part.Type!=MsdElementType.LineString)
-                        throw new InvalidOperationException("组合多段线含曲线段；请选择仅由直线构成的多段线。");
-                    AddVertices(part.AsVertexList().GetVertices(),mmPerMaster,segments);
-                }
+                var primitive=curve.GetPrimitive(index);
+                if(primitive==null)continue;
+                DSegment3d line;
+                if(!primitive.TryGetLine(out line))continue;
+                DPoint3d a,b;
+                if(!primitive.GetStartEnd(out a,out b))continue;
+                segments.Add(new E1GuideSegment(a.X*mmPerUor,a.Y*mmPerUor,a.Z*mmPerUor,
+                    b.X*mmPerUor,b.Y*mmPerUor,b.Z*mmPerUor));
             }
             return segments;
-        }
-        private static void AddVertices(Point3d[] vertices,double scale,ICollection<E1GuideSegment> segments)
-        {
-            if(vertices==null)return;
-            for(int i=0;i+1<vertices.Length;i++)
-            {
-                var a=vertices[i];var b=vertices[i+1];
-                segments.Add(new E1GuideSegment(a.X*scale,a.Y*scale,a.Z*scale,
-                    b.X*scale,b.Y*scale,b.Z*scale));
-            }
         }
     }
 }

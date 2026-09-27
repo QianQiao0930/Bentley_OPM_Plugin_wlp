@@ -9,7 +9,7 @@ namespace SteelSectionProbe
         private static ElbowTrunnionLocateTool active;
         private static bool oldSnap,oldLocate;
         private ElbowTrunnionLocateTool() : base(0,0) { }
-        internal static event Action<ulong,int,double,double> Picked;
+        internal static event Action<LocatedElement,int,double,double> Picked;
         internal static event Action Ended;
         internal static void Begin()
         {
@@ -59,11 +59,11 @@ namespace SteelSectionProbe
                 NotificationManager.OutputPrompt("未定位到弯头，请重新点选。");
                 return true;
             }
-            ulong id=(ulong)element.ElementId;
+            var located=LocatedElement.From(element);
             int view=ev.ViewNumber;
             var point=ev.ViewPoint;
             End();
-            var picked=Picked; if (picked!=null) picked(id,view,point.X,point.Y);
+            var picked=Picked; if (picked!=null) picked(located,view,point.X,point.Y);
             return true;
         }
         protected override bool OnResetButton(DgnButtonEvent ev) { End(); return true; }

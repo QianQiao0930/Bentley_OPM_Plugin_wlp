@@ -219,7 +219,8 @@ namespace SteelSectionProbe
                 :"未读到公称直径（用面板 DN）");
             if(insulation.HasValue)
                 parts.Add("保温厚度 "+insulation.Value.ToString("0.#",CultureInfo.InvariantCulture)+" mm");
-            return "　本次按管道："+string.Join("、",parts.ToArray())+"。";
+            return "　本次按管道"+(selection.IsFromReference?"（参考文件）":"")+"："+
+                string.Join("、",parts.ToArray())+"。";
         }
 
         private void SaveLastChoice()
@@ -309,7 +310,10 @@ namespace SteelSectionProbe
                         selection.ClickX,selection.ClickY,selection.ClickZ,
                         selection.PipeNumber,selection.ElementId,selection.IsAuxiliaryLine);
                     preview.ShowE1(plan);
-                    E1DeleteLineCheck.IsEnabled=selection.IsAuxiliaryLine&&!selection.IsPipe;
+                    // 参考文件里的直线不参与"删除辅助线"：它的 ID 属于参考文件的 ID 空间，
+                    // 在活动模型里删不掉，只能由用户在源文件里处理。
+                    E1DeleteLineCheck.IsEnabled=selection.IsAuxiliaryLine&&!selection.IsPipe&&
+                        !selection.IsFromReference;
                     PreviewText.Text="预览已生成："+plan.Number+"，DN"+plan.Dn+"。"+
                         (E1DeleteLineCheck.IsEnabled?"勾选「确认后删除辅助线」可删除所选直线。":"");
                 }
@@ -368,16 +372,17 @@ namespace SteelSectionProbe
             }
             catch(Exception ex) { Status("无法开始点取："+ex.Message,true); }
         }
-        private void OnPicked(ulong id,double x,double y,double z)
+        private void OnPicked(LocatedElement located)
         {
-            if(!active || !locating) return;
+            if(!active || !locating || located==null) return;
             Dispatcher.BeginInvoke(new Action(delegate
             {
                 if(!active || !locating) return;
                 try
                 {
                     ResetAuxiliaryLineOption();
-                    selection=PipeClampReader.Read(id,x,y,z);
+                    selection=PipeClampReader.Read(located.ModelRef,located.ElementId,
+                        located.ClickX,located.ClickY,located.ClickZ);
                     RefreshSpecification();   // 规格行与预览用同一套参数来源
                     Regenerate();
                 }
@@ -415,7 +420,7 @@ namespace SteelSectionProbe
             try
             {
                 bool deleteAuxiliary=E1DeleteLineCheck.IsChecked==true && selection!=null &&
-                    selection.IsAuxiliaryLine && !selection.IsPipe;
+                    selection.IsAuxiliaryLine && !selection.IsPipe && !selection.IsFromReference;
                 var kind=CurrentKind();
                 var current=selection;
                 preview.Confirm();
