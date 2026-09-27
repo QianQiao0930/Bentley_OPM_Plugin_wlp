@@ -558,9 +558,9 @@ check('吊杆直径表 MANWAY × ASA', module.DAVIT_DIA_TABLE == expected_table,
 
 # 2. 选项解析默认值 ---------------------------------------------------------
 resolved = module._resolve_options()
-check('默认 20"/150# → 吊杆 φ40',
-      resolved['nominal_size'] == 20 and resolved['rating'] == 150
-      and resolved['dims']['davit_dia'] == 40.0)
+check('默认 24"/150# → 吊杆 φ45（默认 DN600）',
+      resolved['nominal_size'] == 24 and resolved['rating'] == 150
+      and resolved['dims']['davit_dia'] == 45.0)
 check('24"/600# → 吊杆 φ65',
       module._resolve_options({'nominal_size': 24, 'rating': 600})['dims']
       ['davit_dia'] == 65.0)
@@ -582,7 +582,8 @@ for bad, label in (
     except ValueError:
         check('拒绝非法选项：%s' % label, True)
 
-# 4. 站位与半径 -------------------------------------------------------------
+# 4. 站位与半径（固定用 20"/150# 检查，与后面各段的构建选项一致）----------------
+resolved = module._resolve_options({'nominal_size': 20, 'rating': 150})
 layout = module._manway_layout(resolved['dims'])
 expected_layout = {
     'x_flange_back': 150.0, 'x_flange_front': 200.0,
@@ -704,10 +705,13 @@ try:
         'nominal_size': 20, 'rating': 150, 'mode': 'davit',
     })
 except NotImplementedError as davit_skipped:
-    # 桩件无法重建内核棱/顶点拓扑（BlendEdges 圆角、棱查询），
-    # 吊杆模式需在 OPM 中实机验证；这里显式跳过，不假装通过。
-    print('[SKIP] 吊杆模式：%s —— 请在 OPM 中验证，其余检查继续。'
-          % davit_skipped)
+    # 桩件无法重建内核棱/顶点拓扑（BlendEdges 圆角、棱查询），回转支撑件建不出来；
+    # 把该函数置空后重建，其余吊杆构件（立柱/弯臂/扁头/放样/盖板连接）照常检查。
+    print('[SKIP] 回转支撑件：%s —— 该件需在 OPM 中验证' % davit_skipped)
+    module._add_davit_pivot_support = lambda *args, **kwargs: None
+    davit_builder, davit_result = build({
+        'nominal_size': 20, 'rating': 150, 'mode': 'davit',
+    })
 
 if davit_builder is not None:
     # 8. 吊杆模式（扁头落到盖板顶部）-----------------------------------------
@@ -761,11 +765,26 @@ if davit_builder is not None:
 
     # 8.2 立柱 / R220 弯头 / 水平臂
     z_arm = layout['z_arm']
+    # 头部子坐标系（弯臂平面沿斜向吊点旋转），水平臂/扁头/放样都在这个坐标系里。
+    frame0 = module._ManholeFrame(DPoint3d(0.0, 0.0, 0.0), 1.0, 0.0)
+    head_frame, arm_reach = module._davit_arm_frame(frame0, layout)
+    origin_head = frame0.point(layout['x_davit'], 0.0, z_arm)
+
+    def to_head_local(point):
+        dx = point.x - origin_head.x
+        dy = point.y - origin_head.y
+        return (dx * head_frame.u[0] + dy * head_frame.u[1],
+                dx * head_frame.v[0] + dy * head_frame.v[1],
+                point.z - origin_head.z)
+
+    post_bottom = -(module.DAVIT_SUPPORT_CLEAR_HEIGHT / 2.0
+                    + module.DAVIT_SUPPORT_THICKNESS) - module.DAVIT_SUPPORT_END_BELOW
     post = [e for e in cones()
             if close(e.data.radius, 20.0)
             and close(to_local(e.data.start)[1], layout['y_post'])
-            and close(to_local(e.data.start)[2], module.DAVIT_POST_BOTTOM)]
-    check('吊杆：立柱 φ40 从 z = -160 起', len(post) == 1)
+            and close(to_local(e.data.start)[2], post_bottom)]
+    check('吊杆：立柱 φ40 从支撑件下沿再伸出 %g（z = %g）'
+          % (module.DAVIT_SUPPORT_END_BELOW, post_bottom), len(post) == 1)
     if post:
         check('吊杆：立柱上端 = 起弯点（臂高 - R220）',
               close(to_local(post[0].data.end)[2], layout['z_post_top']),
@@ -779,40 +798,45 @@ if davit_builder is not None:
     check('吊杆：水平臂 1 根（z = 盖板顶边 + 140）', len(arm) == 1,
           [to_local(e.data.start) for e in arm])
     if arm:
-        check('吊杆：水平臂从弯头末端 y = 220 伸到放样圆端 y = 120',
-              close(to_local(arm[0].data.start)[1], 220.0)
-              and close(to_local(arm[0].data.end)[1], 120.0),
-              (to_local(arm[0].data.start)[1], to_local(arm[0].data.end)[1]))
+        expected_start = head_frame.point(0.0, arm_reach - module.DAVIT_BEND_RADIUS, 0.0)
+        expected_end = head_frame.point(0.0, module.FLAT_HEAD_LENGTH / 2.0
+                                        + davit_result['davit_dia']
+                                        * module.LOFT_LENGTH_FACTOR, 0.0)
+        check('吊杆：水平臂从弯头末端伸到放样圆端（头部坐标系）',
+              point_close(arm[0].data.start,
+                          (expected_start.x, expected_start.y, expected_start.z))
+              and point_close(arm[0].data.end,
+                              (expected_end.x, expected_end.y, expected_end.z)),
+              (to_local(arm[0].data.start), to_local(arm[0].data.end)))
 
     # 8.3 扁头（长圆孔在正中）与圆→矩形放样
     flat_heads = []
     for element in shapes():
         holes = cutters(element)
         if len(holes) == 1 and isinstance(holes[0].data, list) and len(holes[0].data) >= 20:
-            ys = [to_local(p)[1] for p in element.data]
+            ys = [to_head_local(p)[1] for p in element.data]
             if close(min(ys), -60.0) and close(max(ys), 60.0):
                 flat_heads.append(element)
-    check('吊杆：扁头 120 长（y = ∓60，长圆孔在正中）', len(flat_heads) == 1)
+    check('吊杆：扁头 120 长（头部坐标系 y = ∓60，长圆孔在正中）', len(flat_heads) == 1)
     if flat_heads:
-        points = [to_local(p) for p in flat_heads[0].data]
+        points = [to_head_local(p) for p in flat_heads[0].data]
         xs = [p[0] for p in points]
-        zs = [p[2] for p in points]
-        check('吊杆：扁头 100 宽（x = ∓50）',
-              close(min(xs), layout['x_davit'] - 50.0)
-              and close(max(xs), layout['x_davit'] + 50.0), (min(xs), max(xs)))
+        zs = [p[2] + origin_head.z for p in points]
+        check('吊杆：扁头 100 宽（头部坐标系 x = ∓50）',
+              close(min(xs), -50.0) and close(max(xs), 50.0), (min(xs), max(xs)))
         check('吊杆：扁头厚 D/2 = 20（底面在臂高 - 10，中面在臂高）',
               close(min(zs), z_arm - 10.0)
               and close(thicken_of(flat_heads[0]), 20.0),
               (min(zs), thicken_of(flat_heads[0])))
-        slot = [to_local(p) for p in cutters(flat_heads[0])[0].data]
+        slot = [to_head_local(p) for p in cutters(flat_heads[0])[0].data]
         su = [round(p[1], 3) for p in slot]
-        sv = [round(p[0] - layout['x_davit'], 3) for p in slot]
+        sv = [round(p[0], 3) for p in slot]
         check('吊杆：扁头长圆孔 40×22（x = ∓11、y = ∓20）',
               close(min(sv), -11.0) and close(max(sv), 11.0)
               and close(min(su), -20.0) and close(max(su), 20.0),
               (min(sv), max(sv), min(su), max(su)))
-        right_side = set((round(p[0] - layout['x_davit'], 3), round(p[1], 3))
-                         for p in slot if close(abs(p[0] - layout['x_davit']), 11.0))
+        right_side = set((round(p[0], 3), round(p[1], 3))
+                         for p in slot if close(abs(p[0]), 11.0))
         check('吊杆：长圆孔两条长边为直线（x = ±11 上各只有 y = ±9 两个端点）',
               len(right_side) == 4
               and all(abs(abs(p[1]) - 9.0) < 1e-9 for p in right_side),
@@ -842,6 +866,24 @@ if davit_builder is not None:
                   for s in spans), spans)
         check('吊杆：吊耳只焊到盖板边缘（后端不越过人孔法兰前面）',
               all(s[0] >= layout['x_flange_front'] for s in spans), spans)
+        check('吊杆：螺柱孔位于耳板轴向正中（板对称于 x_davit）',
+              all(close((s[0] + s[1]) / 2.0, layout['x_davit'], 0.11) for s in spans), spans)
+        # 前下角 35mm×45° 倒角：直角点 (前缘, 底边) 不存在，改为 (前缘-35, 底边) 与
+        # (前缘, 底边+35) 两个倒角点。
+        chamfer = module.COVER_LUG_BOTTOM_CHAMFER
+        chamfer_ok = True
+        for element in lugs:
+            pts = [to_local(p) for p in element.data]
+            x_front_lug = max(p[0] for p in pts)
+            z_low_lug = min(p[2] for p in pts)
+            has_corner = any(close(p[0], x_front_lug) and close(p[2], z_low_lug)
+                             for p in pts)
+            has_cut = (any(close(p[0], x_front_lug - chamfer)
+                           and close(p[2], z_low_lug) for p in pts)
+                       and any(close(p[0], x_front_lug)
+                               and close(p[2], z_low_lug + chamfer) for p in pts))
+            chamfer_ok &= (not has_corner) and has_cut
+        check('吊杆：吊耳前下角 35mm 倒角', chamfer_ok)
         lug_face = sorted(set(round(to_local(p)[1], 3) for e in lugs for p in e.data))
         check('吊杆：两只吊耳左右对称（占据 y = ±17..±33）',
               close(lug_face[0], -module.COVER_LUG_GAP / 2.0)
@@ -858,8 +900,7 @@ if davit_builder is not None:
               and close(to_local(studs[0].data.end)[1], 59.0),
               (to_local(studs[0].data.start)[1], to_local(studs[0].data.end)[1]))
     stud_nut_h = module.STUD_DIA * module.NUT_HEIGHT_FACTOR
-    stud_span = (module.COVER_LUG_GAP / 2.0 + module.COVER_LUG_THICKNESS
-                 + module.STUD_END_LENGTH)
+    lug_face = module.COVER_LUG_GAP / 2.0 + module.COVER_LUG_THICKNESS
     stud_nuts = []
     for element in shapes():
         if cutters(element) or len(element.data) != 7:
@@ -867,9 +908,9 @@ if davit_builder is not None:
         if not close(thicken_of(element), stud_nut_h):
             continue
         faces = set(round(abs(to_local(p)[1]), 3) for p in element.data)
-        if len(faces) == 1 and stud_span - stud_nut_h - 1e-6 <= faces.pop() <= stud_span + 1e-6:
+        if len(faces) == 1 and lug_face - 1e-6 <= faces.pop() <= lug_face + stud_nut_h + 1e-6:
             stud_nuts.append(element)
-    check('吊杆：螺柱两端各 1 个螺母（共 2 个）', len(stud_nuts) == 2, len(stud_nuts))
+    check('吊杆：螺母贴着耳板外表面（两端各 1 个）', len(stud_nuts) == 2, len(stud_nuts))
 
     rings = [t for t in tori() if close(t.major, 25.0) and close(t.minor, 10.0)]
     check('吊杆：M20 吊环 1 个（major = 孔半径 + 圆钢半径 = 25）', len(rings) == 1)

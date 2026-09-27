@@ -97,7 +97,7 @@ from bentley_ui import (  # noqa: E402
 
 import T形架_几何 as geom  # noqa: E402
 import 支吊架公共库 as psb  # noqa: E402
-import 混凝土锚板 as anchor  # noqa: E402  地面固定的锚板 / 锚栓基元
+import 混凝土锚板 as anchor  # noqa: E402  G4 地面生根的锚板 / 锚栓基元
 from steel_sections import steel_sweep_geometry  # noqa: E402
 
 
@@ -436,9 +436,9 @@ def _nut_size_for(bolt_dia):
 
 
 def _build_ground_anchor_elements(dgn_model, line, variant_key, uor_per_mm):
-    """地面固定：锚板 + 4 根膨胀锚栓 + 现场灌浆保护层（返回元素列表）。
+    """G4 地面生根：锚板 + 4 根膨胀锚栓 + 现场灌浆保护层（返回元素列表）。
 
-    锚板参数取自 ``T形架_几何.GROUND_ANCHOR_TABLE``（表 2）：
+    锚板参数取自 ``T形架_几何.GROUND_ANCHOR_TABLE``（G4 的锚板表）：
     锚板 E×E×T，四角 4-φG 孔按 F×F 居中布置；锚栓沿孔位向下埋入；
     锚板下方为现场灌浆保护层：底面与梯台同尺寸、向上高
     :data:`geom.GROUND_GROUT_THICKNESS_MM`、每边斜向内收
@@ -606,29 +606,32 @@ def _attach_support_items(cell, result):
 # ---------------------------------------------------------------------------
 
 
-def _validate_limits(variant_key, height_mm, arm_length_mm):
-    """校验子项的最大允许 H / L。"""
-    max_height = geom.max_allowed_height(variant_key)
+def _validate_limits(variant_key, height_mm, arm_length_mm, method):
+    """按所选生根方式校验子项的最大允许 H / L。"""
+    max_height = geom.max_allowed_height(variant_key, method)
     if max_height is not None and height_mm > max_height + geom.LOAD_TOLERANCE_MM:
         raise ValueError(
-            '立柱长 H=%.0f mm 超过子项 %s 的最大允许 H=%d mm。'
-            % (height_mm, variant_key, max_height))
-    max_arm = geom.max_allowed_arm_length(variant_key)
+            '%s 生根的子项 %s 最大允许立柱长 H=%d mm，当前 H=%.0f mm 超限。'
+            % (method, variant_key, max_height, height_mm))
+    max_arm = geom.max_allowed_arm_length(variant_key, method)
     if max_arm is not None and arm_length_mm > max_arm + geom.LOAD_TOLERANCE_MM:
         raise ValueError(
-            '横担长 L=%.0f mm 超过子项 %s 的最大允许 L=%d mm。'
-            % (arm_length_mm, variant_key, max_arm))
+            '%s 生根的子项 %s 最大允许横担长 L=%d mm，当前 L=%.0f mm 超限。'
+            % (method, variant_key, max_arm, arm_length_mm))
 
 
 def _build_t_frame_cell(line, variant_key, rack_type, arm_length_mm,
-                        heading_deg, rack_name=None, ground_fixed=False):
+                        heading_deg, method=geom.ROOT_METHOD_STEEL):
     """按所选竖直线与横担长 L 构建 T形架单元但**不写入模型**。
 
-    ``ground_fixed=True`` 时额外生成地面固定的锚板 + 膨胀锚栓 + 现场灌浆
-    保护层，并使用 ``G4-子项-H-L`` 编号（名称固定为 G4）。
+    ``method`` 为生根方式：``'D12'`` 立柱生根在已有钢结构上；``'G4'`` 地面生根，
+    额外生成锚板 + 膨胀锚栓 + 现场灌浆保护层，并使用 ``G4-子项-H-L`` 编号。
+    两种方式各自查自己的允许荷载表与最大允许 H / L。
 
     返回 ``(builder, 统计字典)``。
     """
+    method = geom.root_method(method)
+    ground_fixed = (method == geom.ROOT_METHOD_GROUND)
     if not geom.variant_supports_type(variant_key, rack_type):
         raise ValueError(
             '本插件仅实现类型 %s；子项 %s 不适用于类型 %s。'
@@ -639,9 +642,13 @@ def _build_t_frame_cell(line, variant_key, rack_type, arm_length_mm,
     if arm_length_mm < geom.MIN_ARM_LENGTH_MM:
         raise ValueError('横担长 L=%.1f mm 过小，要求 ≥ %.0f mm。'
                          % (arm_length_mm, geom.MIN_ARM_LENGTH_MM))
-    _validate_limits(variant_key, line.length_mm, arm_length_mm)
+    _validate_limits(variant_key, line.length_mm, arm_length_mm, method)
+    if not geom.variant_supports_method(variant_key, method):
+        raise ValueError(
+            '%s 生根不支持子项 %s；可用子项为 %s。'
+            % (method, variant_key, '/'.join(geom.variant_keys(method))))
     if ground_fixed and geom.hanger_type(rack_type):
-        raise ValueError('地面固定（生成锚板）只适用于类型 1（立柱在下）。')
+        raise ValueError('地面生根（G4，生成锚板）只适用于类型 1（立柱在下）。')
 
     dgn_model = ISessionMgr.GetActiveDgnModel()
     if not dgn_model.Is3d():
@@ -649,7 +656,7 @@ def _build_t_frame_cell(line, variant_key, rack_type, arm_length_mm,
 
     uor_per_mm = _uor_per_mm(dgn_model)
 
-    # 地面固定时钢构架整体抬升到锚板顶面：所选竖直线下端为梯台底面（地面），
+    # 地面生根时钢构架整体抬升到锚板顶面：所选竖直线下端为梯台底面（地面），
     # 立柱底面 = 线端 + (灌浆梯台厚 + 锚板厚)；横担顶面仍在所选直线上端。
     member_line = line
     anchor_spec = None
@@ -679,7 +686,7 @@ def _build_t_frame_cell(line, variant_key, rack_type, arm_length_mm,
     builder.add(post)
     builder.add(arm)
 
-    # 地面固定：锚板 + 膨胀锚栓 + 现场灌浆保护层。
+    # 地面生根（G4）：锚板 + 膨胀锚栓 + 现场灌浆保护层。
     if ground_fixed:
         for element in _build_ground_anchor_elements(
                 dgn_model, line, variant_key, uor_per_mm):
@@ -691,16 +698,10 @@ def _build_t_frame_cell(line, variant_key, rack_type, arm_length_mm,
     post_cut_length = geom.post_length(
         variant_key, member_line.length_mm, rack_type)
     weld_contact = geom.weld_contact_length(variant_key, rack_type)
-    if ground_fixed:
-        rack_number = geom.ground_anchor_number(
-            variant_key, line.length_mm, arm_length_mm,
-            geom.GROUND_ANCHOR_NAME)
-    else:
-        rack_number = geom.build_pipe_rack_number(
-            rack_name or '', rack_type, variant_key, line.length_mm,
-            arm_length_mm)
+    rack_number = geom.build_pipe_rack_number(
+        rack_type, variant_key, line.length_mm, arm_length_mm, method)
 
-    load = geom.allowable_load(variant_key, line.length_mm, arm_length_mm)
+    load = geom.allowable_load(variant_key, line.length_mm, arm_length_mm, method)
     if load.value is None:
         builder.note('允许垂直荷载未取到：%s' % load.message)
 
@@ -751,17 +752,19 @@ def _build_t_frame_cell(line, variant_key, rack_type, arm_length_mm,
         'heading_deg': float(heading_deg),
         'specification': spec,
         'allowable_load': load.value,
-        'max_height': geom.max_allowed_height(variant_key),
-        'max_arm_length': geom.max_allowed_arm_length(variant_key),
+        'max_height': geom.max_allowed_height(variant_key, method),
+        'max_arm_length': geom.max_allowed_arm_length(variant_key, method),
         'pipe_rack_number': rack_number or '',
+        'rooting_method': method,
         'ground_fixed': bool(ground_fixed),
         'ground_anchor': anchor_spec,
         'bom_items': bom_items,
         'warnings': list(builder.warnings),
     }
-    _log('t frame built: variant=%s, type=%d, H=%.1f, L=%.1f, post=%.1f, '
-         'weld=%.1f, hbeam=%s, heading=%.2f, ground=%s, cells=%d, number=%s' %
-         (variant_key, int(rack_type), line.length_mm, arm_length_mm,
+    _log('t frame built: method=%s, variant=%s, type=%d, H=%.1f, L=%.1f, '
+         'post=%.1f, weld=%.1f, hbeam=%s, heading=%.2f, ground=%s, cells=%d, '
+         'number=%s' %
+         (method, variant_key, int(rack_type), line.length_mm, arm_length_mm,
           post_cut_length, weld_contact, result['is_hbeam'],
           float(heading_deg), bool(ground_fixed), builder.child_count,
           result['pipe_rack_number'] or '-'))
@@ -770,12 +773,12 @@ def _build_t_frame_cell(line, variant_key, rack_type, arm_length_mm,
 
 def replace_t_frame(line, variant_key, previous_handle, rack_type=1,
                     arm_length_mm=DEFAULT_ARM_LENGTH_MM,
-                    heading_deg=DEFAULT_HEADING_DEG, rack_name=None,
-                    ground_fixed=False):
+                    heading_deg=DEFAULT_HEADING_DEG,
+                    rooting_method=geom.ROOT_METHOD_STEEL):
     """重建 T形架：先建新的一版并写入，成功后再删除上一版预览。"""
     builder, result = _build_t_frame_cell(
-        line, variant_key, rack_type, arm_length_mm, heading_deg, rack_name,
-        ground_fixed)
+        line, variant_key, rack_type, arm_length_mm, heading_deg,
+        rooting_method)
     new_handle = builder.commit()
     _attach_support_items(new_handle, result)
     deleted = _delete_preview(previous_handle)
@@ -784,12 +787,12 @@ def replace_t_frame(line, variant_key, previous_handle, rack_type=1,
 
 def draw_t_frame(line, variant_key, rack_type=1,
                  arm_length_mm=DEFAULT_ARM_LENGTH_MM,
-                 heading_deg=DEFAULT_HEADING_DEG, rack_name=None,
-                 ground_fixed=False):
+                 heading_deg=DEFAULT_HEADING_DEG,
+                 rooting_method=geom.ROOT_METHOD_STEEL):
     """直接创建整组单元并写入模型，返回 (cell, 统计字典)。"""
     builder, result = _build_t_frame_cell(
-        line, variant_key, rack_type, arm_length_mm, heading_deg, rack_name,
-        ground_fixed)
+        line, variant_key, rack_type, arm_length_mm, heading_deg,
+        rooting_method)
     cell = builder.commit()
     _attach_support_items(cell, result)
     return cell, result
@@ -844,12 +847,14 @@ class _TFrameDialog(GlassDialog):
 
         self._variant = tk.StringVar()
         self._rack_type = tk.StringVar()
-        self._rack_name = tk.StringVar(value='D12')
+        # 生根方式：D12 钢结构生根 / G4 地面生根。必须先于子项选定，
+        # 子项的最大允许 H / L 与允许荷载表都随它切换。
+        self._rooting_method = tk.StringVar(
+            value=geom.root_method_label(geom.ROOT_METHOD_STEEL))
+        self._rooting_note = tk.StringVar(value='')
         self._arm = tk.StringVar(value='%.0f' % DEFAULT_ARM_LENGTH_MM)
         self._heading = tk.StringVar(value='%.0f' % DEFAULT_HEADING_DEG)
         self._keep_line = tk.BooleanVar(value=True)
-        self._ground_fixed = tk.BooleanVar(value=False)
-        self._name_before_ground = 'D12'
         self._spec = tk.StringVar(value='—')
         self._width = tk.StringVar(value='—')
         self._connection = tk.StringVar(value='—')
@@ -897,25 +902,49 @@ class _TFrameDialog(GlassDialog):
             wraplength=520,
         ).grid(row=0, column=0, sticky='ew')
 
-        ttk.Label(body, text='构件规格（表 3）', style='Section.TLabel').grid(
+        # -- 生根方式：本功能的第一选项，子项与其允许值都随它切换 --------------
+        ttk.Label(body, text='生根方式', style='Section.TLabel').grid(
             row=1, column=0, sticky='w', pady=(12, 5))
 
+        root_box = tk.Frame(body, bg=CARD)
+        root_box.grid(row=2, column=0, sticky='ew')
+        root_box.columnconfigure(0, weight=1)
+
+        self._rooting_by_label = {}
+        root_labels = []
+        for method, label in geom.root_method_choices():
+            root_labels.append(label)
+            self._rooting_by_label[label] = method
+        self._rooting_combo = ttk.Combobox(
+            root_box, textvariable=self._rooting_method, state='readonly',
+            style='Glass.TCombobox', values=root_labels)
+        self._rooting_combo.grid(row=0, column=0, sticky='ew')
+        self._rooting_combo.bind('<<ComboboxSelected>>',
+                                 self.on_rooting_method_changed)
+        tk.Label(root_box, textvariable=self._rooting_note, bg=CARD, fg=MUTED,
+                 font=UI_FONT_SMALL, justify='left', wraplength=520,
+                 anchor='w').grid(row=1, column=0, sticky='ew', pady=(3, 0))
+
+        ttk.Separator(body, orient='horizontal').grid(
+            row=3, column=0, sticky='ew', pady=10)
+
+        ttk.Label(body, text='构件规格（表 3）', style='Section.TLabel').grid(
+            row=4, column=0, sticky='w', pady=(0, 5))
+
         specification = tk.Frame(body, bg=CARD)
-        specification.grid(row=2, column=0, sticky='ew')
+        specification.grid(row=5, column=0, sticky='ew')
         specification.columnconfigure(0, weight=1)
 
         ttk.Label(specification, text='子项', style='GlassMuted.TLabel').grid(
             row=0, column=0, sticky='w', pady=(0, 3))
-        labels = []
-        for key, label in geom.variant_choices():
-            labels.append(label)
-            self._variant_by_label[label] = key
+        self._variant_by_label = {}
         self._variant_combo = ttk.Combobox(
             specification, textvariable=self._variant, state='readonly',
-            style='Glass.TCombobox', values=labels)
+            style='Glass.TCombobox')
         self._variant_combo.grid(row=1, column=0, sticky='ew')
         self._variant_combo.bind('<<ComboboxSelected>>', self.on_options_changed)
-        self._variant.set(self._label_for_variant(geom.DEFAULT_VARIANT, labels))
+        # 子项列表随生根方式收敛（当前两种方式都是 A~G）。
+        self.refresh_variant_choices()
 
         specification_data = tk.Frame(specification, bg=CARD)
         specification_data.grid(row=2, column=0, sticky='ew', pady=(7, 0))
@@ -931,13 +960,13 @@ class _TFrameDialog(GlassDialog):
             columnspan=2)
 
         ttk.Separator(body, orient='horizontal').grid(
-            row=3, column=0, sticky='ew', pady=10)
+            row=6, column=0, sticky='ew', pady=10)
 
         ttk.Label(body, text='尺寸参数', style='Section.TLabel').grid(
-            row=4, column=0, sticky='w', pady=(0, 5))
+            row=7, column=0, sticky='w', pady=(0, 5))
 
         dimensions = tk.Frame(body, bg=CARD)
-        dimensions.grid(row=5, column=0, sticky='ew')
+        dimensions.grid(row=8, column=0, sticky='ew')
         dimensions.columnconfigure(0, weight=1, uniform='dimension')
         dimensions.columnconfigure(1, weight=1, uniform='dimension')
 
@@ -954,7 +983,7 @@ class _TFrameDialog(GlassDialog):
             unit='mm', note='由所选直线自动读取')
         self._compact_value(
             dimensions, 1, 1, '最大允许 H', self._max_height,
-            unit='mm', note='表 1 / 表 2')
+            unit='mm', note='按所选生根方式：D12 / G4 各自查表')
         self._compact_value(
             dimensions, 2, 0, '最大允许 L', self._max_arm,
             unit='mm', note='表 1 / 表 2')
@@ -968,22 +997,18 @@ class _TFrameDialog(GlassDialog):
             columnspan=2)
 
         ttk.Separator(body, orient='horizontal').grid(
-            row=6, column=0, sticky='ew', pady=10)
+            row=9, column=0, sticky='ew', pady=10)
 
         ttk.Label(body, text='管架编号', style='Section.TLabel').grid(
-            row=7, column=0, sticky='w', pady=(0, 5))
+            row=10, column=0, sticky='w', pady=(0, 5))
 
         numbering = tk.Frame(body, bg=CARD)
-        numbering.grid(row=8, column=0, sticky='ew')
-        numbering.columnconfigure(0, weight=2, uniform='numbering')
-        numbering.columnconfigure(1, weight=3, uniform='numbering')
-
-        self._rack_name_entry = self._compact_entry(
-            numbering, 0, 0, '名称', self._rack_name, 12,
-            note='管架系列代号；留空则不附加编号')
+        numbering.grid(row=11, column=0, sticky='ew')
+        numbering.columnconfigure(0, weight=1, uniform='numbering')
+        numbering.columnconfigure(1, weight=1, uniform='numbering')
 
         type_cell = tk.Frame(numbering, bg=CARD)
-        type_cell.grid(row=0, column=1, sticky='nsew', padx=(8, 0))
+        type_cell.grid(row=0, column=0, sticky='nsew')
         ttk.Label(type_cell, text='类型', style='GlassMuted.TLabel').pack(
             anchor='w')
         type_labels = []
@@ -999,11 +1024,12 @@ class _TFrameDialog(GlassDialog):
         self._rack_type.set(type_labels[0])
 
         self._compact_value(
-            numbering, 1, 0, '编号', self._rack_number,
-            note='名称-类型-子项-H-L（整数）', columnspan=2)
+            numbering, 0, 1, '编号', self._rack_number,
+            note='D12：D12-类型-子项-H-L；G4：G4-子项-H-L',
+            columnspan=1)
 
         ttk.Separator(body, orient='horizontal').grid(
-            row=9, column=0, sticky='ew', pady=10)
+            row=12, column=0, sticky='ew', pady=10)
 
         # 构造方式长说明不再占用界面；保留变量和控件供既有校验逻辑使用。
         self._spec_info_label = tk.Label(
@@ -1012,7 +1038,7 @@ class _TFrameDialog(GlassDialog):
 
         preview = tk.Frame(body, bg=CARD_SOFT, highlightbackground=BORDER,
                            highlightthickness=1)
-        preview.grid(row=10, column=0, sticky='ew')
+        preview.grid(row=13, column=0, sticky='ew')
         tk.Label(preview, textvariable=self._preview_info, bg=CARD_SOFT, fg=INK,
                  font=UI_FONT_BOLD, justify='left', anchor='w',
                  wraplength=500).pack(fill='x', padx=10, pady=7)
@@ -1029,12 +1055,6 @@ class _TFrameDialog(GlassDialog):
         # -- 钉在底部：创建选项 + 按钮 --------------------------------------
         creation_options = tk.Frame(form, bg=CARD)
         creation_options.grid(row=2, column=0, sticky='ew', pady=(6, 0))
-        self._ground_check = tk.Checkbutton(
-            creation_options, text='地面固定（生成锚板与现场灌浆保护层）',
-            variable=self._ground_fixed, command=self.on_ground_fixed_changed,
-            bg=CARD, fg=INK, activebackground=CARD, selectcolor=CARD,
-            font=UI_FONT, highlightthickness=0, bd=0)
-        self._ground_check.pack(side='left')
 
         self._keep_check = tk.Checkbutton(
             creation_options, text='创建后保留所选直线', variable=self._keep_line,
@@ -1059,7 +1079,6 @@ class _TFrameDialog(GlassDialog):
 
         self._arm.trace_add('write', self.on_text_changed)
         self._heading.trace_add('write', self.on_text_changed)
-        self._rack_name.trace_add('write', self.on_text_changed)
 
     def _compact_value(self, parent, row, column, name, textvariable,
                        unit='', note='', notevariable=None, columnspan=1):
@@ -1163,9 +1182,9 @@ class _TFrameDialog(GlassDialog):
             self._variant.set(label)
         # 类型每次打开都从类型 1 开始，不恢复上次会话的类型选择。
         self._rack_type.set(RACK_TYPE_OPTIONS[0][1])
-        rack_name = state.get('rack_name')
-        if isinstance(rack_name, str):
-            self._rack_name.set(rack_name)
+        rooting = state.get('rooting_method')
+        if isinstance(rooting, str) and rooting in self._rooting_by_label:
+            self._rooting_method.set(rooting)
         arm = state.get('arm')
         if isinstance(arm, str) and arm.strip():
             self._arm.set(arm)
@@ -1174,23 +1193,25 @@ class _TFrameDialog(GlassDialog):
             self._heading.set(heading)
         if isinstance(state.get('keep_line'), bool):
             self._keep_line.set(state.get('keep_line'))
-        if isinstance(state.get('ground_fixed'), bool):
-            self._ground_fixed.set(state.get('ground_fixed'))
         self.refresh_spec()
 
     def persist_state(self, state):
         try:
             state['variant'] = self.current_variant()
             state['rack_type'] = self.current_rack_type()
-            state['rack_name'] = self._rack_name.get()
+            state['rooting_method'] = self._rooting_method.get()
             state['arm'] = self._arm.get()
             state['heading'] = self._heading.get()
             state['keep_line'] = bool(self._keep_line.get())
-            state['ground_fixed'] = bool(self._ground_fixed.get())
         except Exception:
             pass
 
     # -- 选项 --------------------------------------------------------------
+
+    def current_method(self):
+        """当前生根方式（``'D12'`` / ``'G4'``）。"""
+        return self._rooting_by_label.get(
+            self._rooting_method.get(), geom.ROOT_METHOD_STEEL)
 
     def current_variant(self):
         return self._variant_by_label.get(self._variant.get(),
@@ -1198,6 +1219,42 @@ class _TFrameDialog(GlassDialog):
 
     def current_rack_type(self):
         return self._type_by_label.get(self._rack_type.get(), 1)
+
+    def refresh_variant_choices(self):
+        """按当前生根方式重建子项下拉框，并保证当前选择仍然有效。
+
+        两种生根方式的可选子项都由 ``geom.METHOD_VARIANTS`` 给出；当前若不在
+        新列表中，则回落到该方式下的默认子项。
+        """
+        method = self.current_method()
+        self._variant_by_label = {}
+        labels = []
+        for key, label in geom.variant_choices(method):
+            labels.append(label)
+            self._variant_by_label[label] = key
+        if not labels:
+            return
+        self._variant_combo.configure(values=labels)
+        if self.current_variant() not in geom.variant_keys(method):
+            self._variant.set(
+                self._label_for_variant(geom.default_variant(method), labels))
+        elif not self._variant.get():
+            self._variant.set(
+                self._label_for_variant(geom.default_variant(method), labels))
+
+    def refresh_rooting_note(self):
+        """生根方式下方的说明：适用的子项、类型与查表口径。"""
+        method = self.current_method()
+        if method == geom.ROOT_METHOD_GROUND:
+            self._rooting_note.set(
+                'G4 地面生根：立柱落在锚板顶面，另建锚板 / 4 套膨胀锚栓 / '
+                '螺母 / 现场灌浆梯台，编号 G4-子项-H-L；仅适用类型 1。'
+                '允许荷载与最大允许 H / L 按 G4 表 1（H 型钢只到 L≤1000）。')
+        else:
+            self._rooting_note.set(
+                'D12 钢结构生根：立柱底面落在已有钢结构上，不建锚板；'
+                '编号 D12-类型-子项-H-L。允许荷载按 D12 图 表 1（角钢）与 '
+                '表 2（H 型钢，L 可到 ≤2000）。')
 
     def current_arm_length(self):
         try:
@@ -1219,31 +1276,26 @@ class _TFrameDialog(GlassDialog):
         return {
             'variant': variant_key,
             'rack_type': rack_type,
-            'rack_name': (self._rack_name.get() or '').strip(),
+            'rooting_method': self.current_method(),
             'arm_length': self.current_arm_length(),
             'heading': self.current_heading(),
-            'ground_fixed': bool(self._ground_fixed.get()),
         }
 
     def current_rack_number(self, line=None):
         line = line if line is not None else self.line
         if line is None:
             return ''
-        if self._ground_fixed.get():
-            return geom.ground_anchor_number(
-                self.current_variant(), line.length_mm,
-                self.current_arm_length(), geom.GROUND_ANCHOR_NAME)
         return geom.build_pipe_rack_number(
-            self._rack_name.get(), self.current_rack_type(),
-            self.current_variant(), line.length_mm, self.current_arm_length())
+            self.current_rack_type(), self.current_variant(), line.length_mm,
+            self.current_arm_length(), self.current_method())
 
-    def on_ground_fixed_changed(self):
-        """切换"地面固定"：名称在 D12 / G4 之间联动，并重建预览。"""
-        if self._ground_fixed.get():
-            self._name_before_ground = self._rack_name.get() or 'D12'
-            self._rack_name.set(geom.GROUND_ANCHOR_NAME)
-        elif self._rack_name.get() == geom.GROUND_ANCHOR_NAME:
-            self._rack_name.set(self._name_before_ground or 'D12')
+    def on_rooting_method_changed(self, event=None):
+        """切换生根方式（D12 / G4）：收敛子项、更新说明、按新表校验并重建。
+
+        Tk 的 ``<<ComboboxSelected>>`` 会带一个 event 参数，必须接收。
+        """
+        self.refresh_variant_choices()
+        self.refresh_rooting_note()
         self.on_options_changed()
 
     def set_status(self, message, is_error=False, flush=True):
@@ -1272,7 +1324,7 @@ class _TFrameDialog(GlassDialog):
         if result.get('ground_fixed'):
             spec = result.get('ground_anchor') or {}
             text += (
-                '\n地面固定：锚板 %.0f×%.0f×%.0f，4-φ%.0f 孔（F=%.0f），'
+                '\n地面生根（G4）：锚板 %.0f×%.0f×%.0f，4-φ%.0f 孔（F=%.0f），'
                 'M%.0f×%.0f 膨胀锚栓 ×4（h_ef=%.0f），现场灌浆梯台高 %.0f、'
                 '每边外扩 %.0f。' % (
                     spec.get('plate_e', 0.0), spec.get('plate_e', 0.0),
@@ -1287,13 +1339,15 @@ class _TFrameDialog(GlassDialog):
 
     def refresh_spec(self):
         variant_key = self.current_variant()
+        self.refresh_rooting_note()
         self._spec.set(geom.specification(variant_key))
         self._width.set('%.0f' % geom.inplane_width(variant_key))
         self._connection.set(
             'H 型钢端面焊接（腹板共面）' if geom.variant_is_hbeam(variant_key)
             else '角钢背靠背（非通长、顶端留 10 焊缝间隙）')
-        max_height = geom.max_allowed_height(variant_key)
-        max_arm = geom.max_allowed_arm_length(variant_key)
+        max_height = geom.max_allowed_height(variant_key, self.current_method())
+        max_arm = geom.max_allowed_arm_length(variant_key,
+                                              self.current_method())
         self._max_height.set('—' if max_height is None else '%.0f' % max_height)
         self._max_arm.set('—' if max_arm is None else '%.0f' % max_arm)
         if self._options_valid():
@@ -1308,11 +1362,11 @@ class _TFrameDialog(GlassDialog):
             text = ('构件A：立柱与横担同规格 %s（%s）；%s'
                     % (geom.specification(variant_key),
                        _family_description(variant_key), type_text))
-            if self._ground_fixed.get():
+            if self.current_method() == geom.ROOT_METHOD_GROUND:
                 aspec = geom.ground_anchor_spec(variant_key)
-                text += (' 地面固定：锚板 %.0f×%.0f×%.0f，4-φ%.0f 孔（F=%.0f），'
-                         'M%.0f×%.0f 膨胀锚栓（h_ef=%.0f），现场灌浆梯台高 %.0f、'
-                         '每边外扩 %.0f。'
+                text += (' 地面生根（G4）：锚板 %.0f×%.0f×%.0f，4-φ%.0f 孔'
+                         '（F=%.0f），M%.0f×%.0f 膨胀锚栓（h_ef=%.0f），'
+                         '现场灌浆梯台高 %.0f、每边外扩 %.0f。'
                          % (aspec['plate_e'], aspec['plate_e'], aspec['plate_t'],
                             aspec['hole_dia_g'], aspec['hole_spacing_f'],
                             aspec['bolt_dia'], aspec['bolt_len'],
@@ -1321,11 +1375,11 @@ class _TFrameDialog(GlassDialog):
             self._spec_info.set(text)
         else:
             self._spec_info_label.configure(fg='#b42318')
-            if (self._ground_fixed.get()
+            if (self.current_method() == geom.ROOT_METHOD_GROUND
                     and geom.hanger_type(self.current_rack_type())):
                 self._spec_info.set(
-                    '地面固定（生成锚板）只适用于类型 1（立柱在下）；'
-                    '请改选类型 1 或取消地面固定。')
+                    'G4 地面生根（生成锚板）只适用于类型 1（立柱在下）；'
+                    '请改选类型 1 或改用 D12 钢结构生根。')
             else:
                 self._spec_info.set(self._invalid_message())
         self.refresh_line_labels()
@@ -1342,7 +1396,8 @@ class _TFrameDialog(GlassDialog):
         variant_key = self.current_variant()
         rack_type = self.current_rack_type()
         post_height = line.length_mm
-        if self._ground_fixed.get() and not geom.hanger_type(rack_type):
+        if (self.current_method() == geom.ROOT_METHOD_GROUND
+                and not geom.hanger_type(rack_type)):
             post_height -= geom.ground_anchor_lift(variant_key)
         try:
             self._post_length.set(
@@ -1352,15 +1407,15 @@ class _TFrameDialog(GlassDialog):
             self._load_note.set(str(error))
 
         result = geom.allowable_load(
-            variant_key, line.length_mm, self.current_arm_length())
+            variant_key, line.length_mm, self.current_arm_length(),
+            self.current_method())
         if result.value is None:
             self._load.set('—')
         else:
             self._load.set('%.2f' % result.value)
         self._load_note.set(result.message or '')
 
-        number = self.current_rack_number(line)
-        self._rack_number.set(number if number else '（名称留空，不附加）')
+        self._rack_number.set(self.current_rack_number(line) or '—')
 
     def refresh_line_labels(self):
         self._show_line_values(self.line)
@@ -1378,7 +1433,10 @@ class _TFrameDialog(GlassDialog):
         if not geom.variant_supports_type(
                 self.current_variant(), self.current_rack_type()):
             return False
-        if (self._ground_fixed.get()
+        if not geom.variant_supports_method(
+                self.current_variant(), self.current_method()):
+            return False
+        if (self.current_method() == geom.ROOT_METHOD_GROUND
                 and geom.hanger_type(self.current_rack_type())):
             return False
         return True
@@ -1509,8 +1567,7 @@ class _TFrameDialog(GlassDialog):
             handle, result, deleted = replace_t_frame(
                 self.line, options['variant'], self.preview_handle,
                 options['rack_type'], options['arm_length'],
-                options['heading'], options['rack_name'],
-                options['ground_fixed'])
+                options['heading'], options['rooting_method'])
         except Exception as error:
             # 超限 / 几何失败只写面板状态，不向控制台输出，避免干扰使用。
             message = 'T形架生成失败：%s' % error

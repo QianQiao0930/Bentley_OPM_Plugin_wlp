@@ -84,6 +84,14 @@ LOAD_TOLERANCE_MM = 1.0
 ALL_RACK_TYPES = (1, 2)
 HANGER_RACK_TYPES = (2,)
 
+# 生根方式：D12 立柱生根在已有钢结构上；G4 地面生根（另生成锚板 / 膨胀锚栓 /
+# 现场灌浆保护层）。两种方式各有独立的允许荷载表与最大允许立柱长 H，必须先选定。
+ROOT_METHOD_STEEL = 'D12'
+ROOT_METHOD_GROUND = 'G4'
+ALL_ROOT_METHODS = (ROOT_METHOD_STEEL, ROOT_METHOD_GROUND)
+# 地面生根（G4）的立柱下探、锚板与灌浆只对类型 1（立柱在下）成立。
+GROUND_ONLY_RACK_TYPES = (1,)
+
 
 def hanger_type(rack_type):
     """是否为类型 2（立柱在横担上的吊架）。"""
@@ -151,10 +159,54 @@ _FAMILIES = {
     },
 }
 
+# 各生根方式可用的子项（图 表 3）。目前两种方式的图纸都给出 A~G 全部子项，
+# G4 的锚板表也覆盖 A~G，故两者相同；**若将来某种生根方式只允许部分子项，
+# 只改这里即可**，面板下拉框与校验会自动跟随。
+METHOD_VARIANTS = {
+    ROOT_METHOD_STEEL: ('A', 'B', 'C', 'D', 'E', 'F', 'G'),
+    ROOT_METHOD_GROUND: ('A', 'B', 'C', 'D', 'E', 'F', 'G'),
+}
 
-def variant_choices():
-    """返回 ``(代号, 显示文本)``，按代号排序，供下拉框使用。"""
-    return tuple((key, variant_label(key)) for key in sorted(VARIANTS))
+
+def variant_choices(method=None):
+    """返回 ``(代号, 显示文本)``，按代号排序，供下拉框使用。
+
+    给定 ``method`` 时只返回该生根方式可用的子项，使面板的子项下拉框随
+    生根方式切换而收敛。
+    """
+    keys = variant_keys(method) if method is not None else sorted(VARIANTS)
+    return tuple((key, variant_label(key)) for key in keys)
+
+
+def variant_keys(method=ROOT_METHOD_STEEL):
+    """该生根方式可用的子项代号（已排序）。
+
+    两侧目前都是图 表 3 的全部子项 A~G；G4 的锚板表也覆盖 A~G。若将来某种
+    生根方式只允许部分子项，**只需改 ``METHOD_VARIANTS``**，面板下拉框、
+    默认值与校验会自动跟随。
+    """
+    method = root_method(method)
+    keys = METHOD_VARIANTS.get(method)
+    if keys is None:
+        keys = tuple(sorted(VARIANTS))
+    return tuple(keys)
+
+
+def variant_supports_method(variant_key, method):
+    """该子项是否可用于该生根方式。"""
+    try:
+        key = str(variant_key).upper()
+    except (TypeError, ValueError):
+        return False
+    return key in variant_keys(method)
+
+
+def default_variant(method=ROOT_METHOD_STEEL):
+    """该生根方式下的默认子项：优先 ``DEFAULT_VARIANT``，否则取第一个可用项。"""
+    keys = variant_keys(method)
+    if DEFAULT_VARIANT in keys:
+        return DEFAULT_VARIANT
+    return keys[0] if keys else DEFAULT_VARIANT
 
 
 def variant_label(variant_key):
@@ -519,11 +571,19 @@ def _norm(vector):
 
 
 # ---------------------------------------------------------------------------
-# 允许垂直荷载（表 1 / 表 2，单位 kN；None 表示表格中的「—」）
+# 允许荷载表（按生根方式分开，单位 kN；None 表示表格中的「—」）
 # ---------------------------------------------------------------------------
+#
+# ``LOAD_TABLE[生根方式][子项][H] = {L 列: 荷载 kN 或 None}``。
+# **两种生根方式各有独立的一张表，不得混用。**
+#
+# * D12（钢结构生根）：图 表 1（角钢 A~C，列 L≤250/500/750/1000）与
+#   表 2（H 型钢 D~G，列 L≤500/1000/1500/2000）。
+# * G4（地面生根）：图 表 1，A~G 同一张表，列 L≤250/500/750/1000；
+#   H 型钢也只到 L≤1000，且最大允许 H 一律不高于 D12。
 
-# 表 1：角钢子项 A~C，列 L ≤ 250 / 500 / 750 / 1000。
-LOAD_TABLE = {
+# D12 表 1：角钢子项 A~C，列 L ≤ 250 / 500 / 750 / 1000。
+D12_LOAD_TABLE = {
     'A': {
         500: {250: 1.0, 500: None, 750: None, 1000: None},
         1000: {250: 0.5, 500: None, 750: None, 1000: None},
@@ -537,7 +597,7 @@ LOAD_TABLE = {
         1000: {250: 2.4, 500: 1.6, 750: 1.2, 1000: 0.9},
         1500: {250: 1.8, 500: 1.2, 750: 0.9, 1000: 0.6},
     },
-    # 表 2：H 型钢子项 D~G，列 L ≤ 500 / 1000 / 1500 / 2000。
+    # D12 表 2：H 型钢子项 D~G，列 L ≤ 500 / 1000 / 1500 / 2000。
     'D': {
         1000: {500: 20.0, 1000: 10.0, 1500: None, 2000: None},
         2000: {500: 5.0, 1000: 5.0, 1500: None, 2000: None},
@@ -564,12 +624,90 @@ LOAD_TABLE = {
     },
 }
 
+# G4 表 1：A~G 同一张表，列 L ≤ 250 / 500 / 750 / 1000。
+G4_LOAD_TABLE = {
+    'A': {
+        500: {250: 1.0, 500: None, 750: None, 1000: None},
+    },
+    'B': {
+        500: {250: 2.0, 500: 1.0, 750: None, 1000: None},
+        1000: {250: 1.0, 500: 0.5, 750: None, 1000: None},
+    },
+    'C': {
+        500: {250: 4.0, 500: 2.0, 750: None, 1000: None},
+        1000: {250: 2.0, 500: 1.0, 750: None, 1000: None},
+    },
+    'D': {
+        1000: {250: 10.0, 500: 5.0, 750: None, 1000: None},
+        1500: {250: 4.0, 500: 4.0, 750: None, 1000: None},
+    },
+    'E': {
+        1000: {250: 20.0, 500: 20.0, 750: 10.0, 1000: 10.0},
+        2000: {250: 10.0, 500: 10.0, 750: 10.0, 1000: 10.0},
+    },
+    'F': {
+        1000: {250: None, 500: 30.0, 750: 30.0, 1000: 30.0},
+        2000: {250: None, 500: 20.0, 750: 20.0, 1000: 20.0},
+        3000: {250: None, 500: 10.0, 750: 10.0, 1000: 10.0},
+    },
+    'G': {
+        1000: {250: None, 500: 50.0, 750: 50.0, 1000: 50.0},
+        2000: {250: None, 500: 30.0, 750: 30.0, 1000: 30.0},
+        3000: {250: None, 500: 20.0, 750: 20.0, 1000: 20.0},
+    },
+}
+
+LOAD_TABLE = {
+    ROOT_METHOD_STEEL: D12_LOAD_TABLE,
+    ROOT_METHOD_GROUND: G4_LOAD_TABLE,
+}
+
+# 图 表 1（G4）直接标注的 MAX.H（mm）。D12 的图表只给出荷载表、没有 MAX.H 一栏，
+# 故 D12 不设额外上限，取表中尚有可用值的最大行（高于 G4，符合「钢结构生根更高」）。
+G4_MAX_HEIGHT = {
+    'A': 500, 'B': 1000, 'C': 1000, 'D': 1500,
+    'E': 2000, 'F': 3000, 'G': 3000,
+}
+
 LoadResult = namedtuple('LoadResult', 'value used_height_mm used_arm_mm message')
 
 
-def max_allowed_height(variant_key):
-    """子项的最大允许立柱长 H（mm）：表中尚有可用（非「—」）值的最大行。"""
-    table = LOAD_TABLE.get(str(variant_key).upper())
+def root_method(value):
+    """把生根方式规整为 ``'D12'`` / ``'G4'``；非法值报错。"""
+    method = str(value).strip().upper()
+    if method not in ALL_ROOT_METHODS:
+        raise ValueError('未知生根方式：%s（可选 %s）。'
+                         % (value, '/'.join(ALL_ROOT_METHODS)))
+    return method
+
+
+def root_method_label(method):
+    """生根方式的下拉显示文本。"""
+    return {
+        ROOT_METHOD_STEEL: 'D12 钢结构生根',
+        ROOT_METHOD_GROUND: 'G4 地面生根',
+    }[root_method(method)]
+
+
+def root_method_choices():
+    """返回 ``(生根方式, 显示文本)``，供下拉框使用。"""
+    return tuple((method, root_method_label(method))
+                 for method in ALL_ROOT_METHODS)
+
+
+def root_method_table(method):
+    """返回该生根方式的允许荷载表（按子项）。"""
+    return LOAD_TABLE[root_method(method)]
+
+
+def max_allowed_height(variant_key, method=ROOT_METHOD_STEEL):
+    """子项在给定生根方式下的最大允许立柱长 H（mm）；无上限返回 ``None``。
+
+    G4 取图 表 1 标注的 MAX.H；D12 取荷载表中尚有可用值的最大行。
+    """
+    if root_method(method) == ROOT_METHOD_GROUND:
+        return G4_MAX_HEIGHT.get(str(variant_key).upper())
+    table = D12_LOAD_TABLE.get(str(variant_key).upper())
     if not table:
         return None
     usable = [h for h, row in table.items()
@@ -577,9 +715,12 @@ def max_allowed_height(variant_key):
     return max(usable) if usable else None
 
 
-def max_allowed_arm_length(variant_key):
-    """子项的最大允许横担长 L（mm）：表中尚有可用（非「—」）值的最大列。"""
-    table = LOAD_TABLE.get(str(variant_key).upper())
+def max_allowed_arm_length(variant_key, method=ROOT_METHOD_STEEL):
+    """子项在给定生根方式下的最大允许横担长 L（mm）：表中尚有可用值的最大列。
+
+    G4 的 H 型钢只到 L≤1000，因此选 G4 时 D~G 的可用横担比 D12 短。
+    """
+    table = root_method_table(method).get(str(variant_key).upper())
     if not table:
         return None
     columns = set()
@@ -590,15 +731,17 @@ def max_allowed_arm_length(variant_key):
     return max(usable) if usable else None
 
 
-def allowable_load(variant_key, height_mm, arm_length_mm):
-    """按表 1 / 表 2 查允许垂直荷载。
+def allowable_load(variant_key, height_mm, arm_length_mm,
+                   method=ROOT_METHOD_STEEL):
+    """按所选生根方式的荷载表查允许垂直荷载。
 
     ``height_mm`` 为立柱长 H；``arm_length_mm`` 为横担长 L。H 取不超过输入的
-    最大表列值（偏安全）；L 取不小于输入的最小列。返回 :class:`LoadResult`，
+    最大表行（偏安全）；L 取不小于输入的最小列。返回 :class:`LoadResult`，
     查不到时 ``value`` 为 None 并在 ``message`` 中说明。
     """
+    method = root_method(method)
     variant_key = str(variant_key).upper()
-    table = LOAD_TABLE.get(variant_key)
+    table = root_method_table(method).get(variant_key)
     if table is None:
         return LoadResult(None, None, None, '子项 %s 无荷载表。' % variant_key)
 
@@ -619,9 +762,16 @@ def allowable_load(variant_key, height_mm, arm_length_mm):
             chosen = column
             break
     if chosen is None:
+        # 报「可用上限」而不是「表宽」：表中靠后的大列可能整列为空（—），
+        # 例如 G4 的 D 子项只到 L≤500 有值，750/1000 两列全为「—」。
+        usable_columns = [c for c in columns
+                          if any(r.get(c) is not None
+                                 for r in table.values())]
+        limit = usable_columns[-1] if usable_columns else columns[-1]
         return LoadResult(
             None, used_height, None,
-            'L=%.0f mm 超出表中上限 %d mm。' % (arm_length_mm, columns[-1]))
+            'L=%.0f mm 超出 %s 表中上限 %d mm。'
+            % (arm_length_mm, method, limit))
     value = row[chosen]
     if value is None:
         return LoadResult(
@@ -642,13 +792,28 @@ def round_half_up(value):
     return int(math.floor(float(value) + 0.5))
 
 
-def build_pipe_rack_number(name, rack_type, variant_key, height_mm, arm_mm):
-    """管架编号「名称-类型-子项-H-L」；名称为空时返回空串（不附加编号）。"""
-    label = str(name).strip()
-    if not label:
-        return ''
+# 管架系列代号：由生根方式决定，**不再由用户输入名称**。
+# D12 钢结构生根带类型段（类型 1/2 结构不同），G4 地面生根只有类型 1，故不带类型段。
+RACK_PREFIX = {
+    ROOT_METHOD_STEEL: 'D12',
+    ROOT_METHOD_GROUND: 'G4',
+}
+
+
+def build_pipe_rack_number(rack_type, variant_key, height_mm, arm_mm,
+                           method=ROOT_METHOD_STEEL):
+    """管架编号。
+
+    D12（钢结构生根）：``D12-类型-子项-H-L``（如 ``D12-1-A-1000-500``）。
+    G4（地面生根）：``G4-子项-H-L``（如 ``G4-D-1000-500``）；G4 只对类型 1 成立。
+    """
+    method = root_method(method)
+    if method == ROOT_METHOD_GROUND:
+        return '%s-%s-%d-%d' % (
+            RACK_PREFIX[method], str(variant_key).upper(),
+            round_half_up(height_mm), round_half_up(arm_mm))
     return '%s-%d-%s-%d-%d' % (
-        label, int(rack_type), str(variant_key).upper(),
+        RACK_PREFIX[method], int(rack_type), str(variant_key).upper(),
         round_half_up(height_mm), round_half_up(arm_mm))
 
 
@@ -687,10 +852,6 @@ GROUND_ANCHOR_TABLE = {
 GROUND_GROUT_THICKNESS_MM = 25.0
 GROUND_GROUT_FLARE_MM = 20.0
 
-# 地面固定时的管架系列代号（名称）。
-GROUND_ANCHOR_NAME = 'G4'
-
-
 def ground_anchor_spec(variant_key):
     """返回该子项地面固定用的锚板 / 锚栓参数副本（mm）。"""
     try:
@@ -711,10 +872,11 @@ def ground_anchor_lift(variant_key):
     return GROUND_GROUT_THICKNESS_MM + ground_anchor_spec(variant_key)['plate_t']
 
 
-def ground_anchor_number(variant_key, height_mm, arm_length_mm,
-                         name=GROUND_ANCHOR_NAME):
-    """地面固定编号「名称-子项-H-L」（如 G4-D-1000-500）。"""
-    label = str(name).strip() or GROUND_ANCHOR_NAME
-    return '%s-%s-%d-%d' % (
-        label, str(variant_key).upper(),
-        round_half_up(height_mm), round_half_up(arm_length_mm))
+def ground_anchor_number(variant_key, height_mm, arm_length_mm):
+    """地面生根（G4）编号 ``G4-子项-H-L``（如 ``G4-D-1000-500``）。
+
+    等价于 ``build_pipe_rack_number(1, variant_key, H, L, 'G4')``，保留此入口
+    以便既有调用点与测试直接使用。
+    """
+    return build_pipe_rack_number(
+        1, variant_key, height_mm, arm_length_mm, ROOT_METHOD_GROUND)

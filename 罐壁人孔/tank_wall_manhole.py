@@ -141,10 +141,11 @@ COTTER_HOLE_DIA = 4.5
 # 吊耳**只焊在盖板（盲法兰）边缘**，不跨到人孔法兰上。
 COVER_LUG_THICKNESS = 16.0    # RING 16 THK
 COVER_LUG_GAP = 34.0          # 两吊耳之间的净距（容纳吊环）
-COVER_LUG_BACK = 0.0          # 吊耳后端从盖板背面起（不伸到人孔法兰上）
-COVER_LUG_FRONT = 25.0        # 吊耳伸出盖板外面的长度
+COVER_LUG_BACK = 0.0          # 吊耳轴向跨度参考：后端相对盖板背面（与 FRONT 一起定板长）
+COVER_LUG_FRONT = 25.0        # 吊耳轴向跨度参考：前端相对盖板外面（与 BACK 一起定板长）
 COVER_LUG_DOWN = 50.0         # 吊耳向下埋入盖板顶边的深度
 COVER_LUG_TOP = 60.0          # 吊耳高出盖板顶边（法兰半径）的长度
+COVER_LUG_BOTTOM_CHAMFER = 35.0  # 吊耳前下角倒角（45°，收掉盖板面前悬空的下半段）
 STUD_Z_RISE = 40.0            # 全螺纹螺柱中心高出盖板顶边
 STUD_DIA = 16.0               # 全螺纹螺柱（图中 16 DIA）
 STUD_HOLE_CLEARANCE = 1.0     # 螺柱孔直径 = 螺柱直径 + 该间隙
@@ -193,7 +194,7 @@ REGENERATE_DELAY_MS = 150        # 选择框（尺寸 / 压力等级 / 形式 / 
 TEXT_REGENERATE_DELAY_MS = 750   # 文本框（朝向 / 筒节长度）的防抖，避免打到一半就重建
 
 DEFAULT_OPTIONS = {
-    "nominal_size": 20,       # 18 / 20 / 24（英寸）
+    "nominal_size": 24,       # 18 / 20 / 24（英寸），默认 DN600
     "rating": 150,            # 150 / 300 / 600（ASA lbs）
     "mode": "davit",          # hinge（铰链）/ davit（吊杆）
     "heading_deg": 0.0,       # 人孔轴线方向：0° 沿模型 +X，逆时针为正
@@ -1152,18 +1153,25 @@ def _add_cover_lugs(builder, frame, layout, stud_hole_r):
     """只焊在**盖板（盲法兰）边缘**的两只吊耳，中间穿全螺纹螺柱。
 
     吊耳是两块竖板（法向沿 y）：下缘埋入盖板顶边（与盖板形成焊接），上缘高出
-    盖板顶边、并延伸到盖板外面之前；螺柱孔开在盖板顶边之上。
+    盖板顶边；板宽沿轴向**对称于螺柱轴线**，螺柱孔开在盖板顶边之上。
     """
     dgn_model = builder.dgn_model
-    x_back = layout["x_cover_back"] - COVER_LUG_BACK
-    x_front = layout["x_cover_front"] + COVER_LUG_FRONT
+    # 耳板沿轴向**对称于螺柱轴线**（x_davit）：板长不变（盖板厚 + 前伸跨度），
+    # 只是整体挪正，让螺柱孔落在板宽正中。洞心不能单独挪——螺柱、吊环、扁头都挂在
+    # x_davit 这条线上，挪孔就得挪整根螺柱。
+    half_len = ((layout["x_cover_front"] + COVER_LUG_FRONT)
+                - (layout["x_cover_back"] - COVER_LUG_BACK)) / 2.0
+    x_back = layout["x_davit"] - half_len
+    x_front = layout["x_davit"] + half_len
     z_low = layout["flange_r"] - COVER_LUG_DOWN
     z_high = layout["flange_r"] + COVER_LUG_TOP
     stud_z = layout["stud_z"]
     x_stud = layout["x_davit"]
     half_gap = COVER_LUG_GAP / 2.0
-    outline = ((x_back, z_low), (x_front, z_low),
-               (x_front, z_high), (x_back, z_high))
+    # 前下角 35mm×45° 倒角：前伸段在盖板顶边以下是悬空的，倒角把它收掉。
+    chamfer = COVER_LUG_BOTTOM_CHAMFER
+    outline = ((x_back, z_low), (x_front - chamfer, z_low),
+               (x_front, z_low + chamfer), (x_front, z_high), (x_back, z_high))
 
     for sign in (-1.0, 1.0):
         # 轮廓在 x-z 平面内逆时针，法向 -y，沿 -y 拉伸：
@@ -1201,8 +1209,10 @@ def _add_connect_stud(builder, frame, layout):
     across_flats = STUD_DIA * NUT_ACROSS_FLATS_FACTOR
     nut_h = STUD_DIA * NUT_HEIGHT_FACTOR
     for sign in (-1.0, 1.0):
-        # 轮廓法向 -y、沿 -y 拉伸，因此螺母在螺柱端部的落位左右对称。
-        y_plane = sign * half_span if sign > 0.0 else -half_span + nut_h
+        # 螺母**贴着耳板外表面**（±(半间距+板厚)）：六角沿 -y 拉伸，
+        # + 侧从外表面 +nut_h 拉回外表面，- 侧从外表面拉到外表面 -nut_h。
+        lug_face = sign * (COVER_LUG_GAP / 2.0 + COVER_LUG_THICKNESS)
+        y_plane = lug_face + (nut_h if sign > 0.0 else 0.0)
         builder.add(_prism_with_holes(
             dgn_model,
             _hex_corners_y(frame, x_stud, y_plane, stud_z, across_flats),
@@ -2577,6 +2587,12 @@ class TankWallManholePlacementTool(DgnPrimitiveTool):
 
     def _OnPostInstall(self):
         AccuSnap.GetInstance().EnableSnap(True)
+        # 显式激活 AccuDraw（精确绘图）：本工具没有动态预览，框架不会顺带拉起它，
+        # 不激活的话点取阶段就只有光标、没有罗盘（MSPy 文档：before dynamics start）。
+        try:
+            AccuDraw.GetInstance().Activate()
+        except Exception:
+            pass
         DgnPrimitiveTool._OnPostInstall(self)
         NotificationManager.OutputPrompt(
             "请点取罐壁上的人孔中心点；点取后可改尺寸/形式，预览会自动重建，"
