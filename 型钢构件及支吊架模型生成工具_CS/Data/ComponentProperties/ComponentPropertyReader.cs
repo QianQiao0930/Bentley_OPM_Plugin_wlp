@@ -132,26 +132,25 @@ namespace SteelSectionProbe
         {
             double mmPerUor=1.0/uorPerMm;
             var curve=CurvePathQuery.ElementToCurveVector(element);
-            bool openCurve=curve!=null && curve.GetBoundaryType()==CurveVector.BoundaryType.Open;
+            DRange3d displayRange;
+            CurveVector displayAxis,displayFirst;
+            bool haveDisplay=TryReadDisplayGeometry(element,out displayRange,out displayAxis,
+                out displayFirst);
+            // 轴线取值顺序：曲线路径的开放曲线 → 显示几何里端点有效的曲线 → 显示几何的第一条曲线。
+            // ⚠️ 不要用 "必须是非闭合" 去过滤显示几何：实测 OpenPlant 管道在显示几何通道下给的
+            // 就是一条管轴直线（包围盒 = 长 × 0 × 0，中心标高正好是管道中心），
+            // 但它的 BoundaryType / isClosed 并不可靠，一律过滤掉就把管轴丢掉了。
+            CurveVector axis=curve!=null && curve.GetBoundaryType()==CurveVector.BoundaryType.Open
+                ? curve : null;
+            string axisSource=axis==null?null:"开放曲线（参考文件）";
+            if(axis==null && displayAxis!=null) { axis=displayAxis; axisSource="管轴（参考文件）"; }
+            if(axis==null && displayFirst!=null) { axis=displayFirst; axisSource="管轴（参考文件）"; }
+
             bool haveRange=false;
-            if(!openCurve)
+            if(haveDisplay && displayRange.High.X>=displayRange.Low.X)
             {
-                DRange3d displayRange;
-                CurveVector displayCurve;
-                if(TryReadDisplayGeometry(element,out displayRange,out displayCurve))
-                {
-                    if(displayCurve!=null &&
-                        displayCurve.GetBoundaryType()==CurveVector.BoundaryType.Open)
-                    {
-                        curve=displayCurve;
-                        openCurve=true;
-                    }
-                    if(displayRange.High.X>=displayRange.Low.X)
-                    {
-                        FillRange(snapshot,displayRange,mmPerUor,"显示几何（参考文件）");
-                        haveRange=true;
-                    }
-                }
+                FillRange(snapshot,displayRange,mmPerUor,"显示几何（参考文件）");
+                haveRange=true;
             }
             if(!haveRange && curve!=null)
             {
@@ -159,9 +158,9 @@ namespace SteelSectionProbe
                 if(curve.GetRange(out range) && range.High.X>=range.Low.X)
                     FillRange(snapshot,range,mmPerUor,"元素范围（参考文件）");
             }
-            if(!openCurve || curve==null) return;
+            if(axis==null) return;
             DPoint3d start,end;
-            if(!curve.GetStartEnd(out start,out end)) return;
+            if(!axis.GetStartEnd(out start,out end)) return;
             double dx=start.X-end.X,dy=start.Y-end.Y,dz=start.Z-end.Z;
             if(Math.Sqrt(dx*dx+dy*dy+dz*dz)<=1e-9) return;
             snapshot.StartX=start.X*mmPerUor;
@@ -172,7 +171,7 @@ namespace SteelSectionProbe
             snapshot.EndZ=end.Z*mmPerUor;
             snapshot.LengthMm=Math.Sqrt(dx*dx+dy*dy+dz*dz)*mmPerUor;
             snapshot.CenterZMm=(snapshot.StartZ+snapshot.EndZ)/2;
-            snapshot.GeometrySource="开放曲线（参考文件）";
+            snapshot.GeometrySource=axisSource;
         }
 
         private static void FillRange(ComponentSnapshot snapshot,DRange3d range,double mmPerUor,
@@ -195,27 +194,33 @@ namespace SteelSectionProbe
         /// 因此它正是曲线查询对参考元素失效时的兜底。
         /// </summary>
         private static bool TryReadDisplayGeometry(Element element,out DRange3d range,
-            out CurveVector openCurve)
+            out CurveVector axisCurve,out CurveVector firstCurve)
         {
             range=DRange3d.NullRange;
-            openCurve=null;
+            axisCurve=null;
+            firstCurve=null;
             if(element==null) return false;
             try
             {
                 var accumulator=new GeometryAccumulator();
                 ElementGraphicsOutput.Process(element,accumulator);
                 range=accumulator.Range;
-                openCurve=accumulator.OpenCurve;
+                axisCurve=accumulator.AxisCurve;
+                firstCurve=accumulator.FirstCurve;
                 return true;
             }
             catch { return false; }
         }
 
-        /// <summary>收集显示几何的包围盒，并记住第一条开放曲线（可当作轴线）。</summary>
+        /// <summary>
+        /// 收集显示几何：累加包围盒，并记住"第一条端点有效的曲线"（可当轴线）
+        /// 与"第一条曲线"（兜底）。**不按 isClosed 过滤** —— 见 ReadGeometryFromCurve 的说明。
+        /// </summary>
         private sealed class GeometryAccumulator : ElementGraphicsProcessor
         {
             internal DRange3d Range=DRange3d.NullRange;
-            internal CurveVector OpenCurve;
+            internal CurveVector AxisCurve;
+            internal CurveVector FirstCurve;
 
             public override BentleyStatus ProcessCurveVector(CurveVector curves,bool isClosed)
             {
@@ -227,9 +232,18 @@ namespace SteelSectionProbe
                         Range.Extend(range.Low);
                         Range.Extend(range.High);
                     }
-                    if(!isClosed && OpenCurve==null) OpenCurve=curves;
+                    if(FirstCurve==null) FirstCurve=curves;
+                    if(AxisCurve==null && HasLength(curves)) AxisCurve=curves;
                 }
                 return BentleyStatus.Success;
+            }
+
+            private static bool HasLength(CurveVector curves)
+            {
+                DPoint3d start,end;
+                if(!curves.GetStartEnd(out start,out end)) return false;
+                double dx=start.X-end.X,dy=start.Y-end.Y,dz=start.Z-end.Z;
+                return dx*dx+dy*dy+dz*dz>1.0e-12;
             }
         }
 
