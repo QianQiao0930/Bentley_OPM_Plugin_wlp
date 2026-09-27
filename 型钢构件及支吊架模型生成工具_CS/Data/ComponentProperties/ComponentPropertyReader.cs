@@ -132,10 +132,7 @@ namespace SteelSectionProbe
         {
             double mmPerUor=1.0/uorPerMm;
             var curve=CurvePathQuery.ElementToCurveVector(element);
-            DRange3d displayRange;
-            CurveVector displayAxis,displayFirst;
-            bool haveDisplay=TryReadDisplayGeometry(element,out displayRange,out displayAxis,
-                out displayFirst);
+            var display=TryReadDisplayGeometry(element);
             // 轴线取值顺序：曲线路径的开放曲线 → 显示几何里端点有效的曲线 → 显示几何的第一条曲线。
             // ⚠️ 不要用 "必须是非闭合" 去过滤显示几何：实测 OpenPlant 管道在显示几何通道下给的
             // 就是一条管轴直线（包围盒 = 长 × 0 × 0，中心标高正好是管道中心），
@@ -143,13 +140,30 @@ namespace SteelSectionProbe
             CurveVector axis=curve!=null && curve.GetBoundaryType()==CurveVector.BoundaryType.Open
                 ? curve : null;
             string axisSource=axis==null?null:"开放曲线（参考文件）";
-            if(axis==null && displayAxis!=null) { axis=displayAxis; axisSource="管轴（参考文件）"; }
-            if(axis==null && displayFirst!=null) { axis=displayFirst; axisSource="管轴（参考文件）"; }
+            double axisStartX=0,axisStartY=0,axisStartZ=0,axisEndX=0,axisEndY=0,axisEndZ=0;
+            bool haveAxis=false;
+            if(axis!=null)
+            {
+                DPoint3d start,end;
+                if(axis.GetStartEnd(out start,out end))
+                {
+                    axisStartX=start.X;axisStartY=start.Y;axisStartZ=start.Z;
+                    axisEndX=end.X;axisEndY=end.Y;axisEndZ=end.Z;
+                    haveAxis=true;
+                }
+            }
+            if(!haveAxis && display!=null && display.HasAxis)
+            {
+                axisStartX=display.AxisStartX;axisStartY=display.AxisStartY;axisStartZ=display.AxisStartZ;
+                axisEndX=display.AxisEndX;axisEndY=display.AxisEndY;axisEndZ=display.AxisEndZ;
+                haveAxis=true;
+                axisSource="管轴（参考文件）";
+            }
 
             bool haveRange=false;
-            if(haveDisplay && displayRange.High.X>=displayRange.Low.X)
+            if(display!=null && display.HasRange)
             {
-                FillRange(snapshot,displayRange,mmPerUor,"显示几何（参考文件）");
+                FillRange(snapshot,display.Range,mmPerUor,"显示几何（参考文件）");
                 haveRange=true;
             }
             if(!haveRange && curve!=null)
@@ -158,17 +172,15 @@ namespace SteelSectionProbe
                 if(curve.GetRange(out range) && range.High.X>=range.Low.X)
                     FillRange(snapshot,range,mmPerUor,"元素范围（参考文件）");
             }
-            if(axis==null) return;
-            DPoint3d start,end;
-            if(!axis.GetStartEnd(out start,out end)) return;
-            double dx=start.X-end.X,dy=start.Y-end.Y,dz=start.Z-end.Z;
+            if(!haveAxis) return;
+            double dx=axisStartX-axisEndX,dy=axisStartY-axisEndY,dz=axisStartZ-axisEndZ;
             if(Math.Sqrt(dx*dx+dy*dy+dz*dz)<=1e-9) return;
-            snapshot.StartX=start.X*mmPerUor;
-            snapshot.StartY=start.Y*mmPerUor;
-            snapshot.StartZ=start.Z*mmPerUor;
-            snapshot.EndX=end.X*mmPerUor;
-            snapshot.EndY=end.Y*mmPerUor;
-            snapshot.EndZ=end.Z*mmPerUor;
+            snapshot.StartX=axisStartX*mmPerUor;
+            snapshot.StartY=axisStartY*mmPerUor;
+            snapshot.StartZ=axisStartZ*mmPerUor;
+            snapshot.EndX=axisEndX*mmPerUor;
+            snapshot.EndY=axisEndY*mmPerUor;
+            snapshot.EndZ=axisEndZ*mmPerUor;
             snapshot.LengthMm=Math.Sqrt(dx*dx+dy*dy+dz*dz)*mmPerUor;
             snapshot.CenterZMm=(snapshot.StartZ+snapshot.EndZ)/2;
             snapshot.GeometrySource=axisSource;
@@ -192,35 +204,35 @@ namespace SteelSectionProbe
         /// 显示几何通道：<see cref="ElementGraphicsOutput.Process"/> 会把元素的**显示几何**
         /// 交给处理器，这条通道与元素所在模型无关 —— 参考文件里的元素同样能拿到，
         /// 因此它正是曲线查询对参考元素失效时的兜底。
+        /// <para>
+        /// ⚠️ 只返回**数值**。回调里拿到的 <c>CurveVector</c> 只在回调期间有效，
+        /// 存下来等 <c>Process</c> 返回后再去读就是野指针 —— 实测会让 OPM 直接崩溃。
+        /// 因此坐标必须在回调内部就取成 <c>double</c> 存进自己的对象里，
+        /// 绝不能把任何 Bentley 对象带出回调（<c>DRange3d</c> / <c>DPoint3d</c> 是结构体，可以留存）。
+        /// </para>
         /// </summary>
-        private static bool TryReadDisplayGeometry(Element element,out DRange3d range,
-            out CurveVector axisCurve,out CurveVector firstCurve)
+        private static GeometryAccumulator TryReadDisplayGeometry(Element element)
         {
-            range=DRange3d.NullRange;
-            axisCurve=null;
-            firstCurve=null;
-            if(element==null) return false;
+            if(element==null) return null;
             try
             {
                 var accumulator=new GeometryAccumulator();
                 ElementGraphicsOutput.Process(element,accumulator);
-                range=accumulator.Range;
-                axisCurve=accumulator.AxisCurve;
-                firstCurve=accumulator.FirstCurve;
-                return true;
+                return accumulator;
             }
-            catch { return false; }
+            catch { return null; }
         }
 
         /// <summary>
-        /// 收集显示几何：累加包围盒，并记住"第一条端点有效的曲线"（可当轴线）
-        /// 与"第一条曲线"（兜底）。**不按 isClosed 过滤** —— 见 ReadGeometryFromCurve 的说明。
+        /// 收集显示几何：累加包围盒，并记下"第一条端点有效的曲线"的两个端点（存 double）。
+        /// **不按 isClosed 过滤** —— 见 ReadGeometryFromCurve 的说明。
         /// </summary>
         private sealed class GeometryAccumulator : ElementGraphicsProcessor
         {
             internal DRange3d Range=DRange3d.NullRange;
-            internal CurveVector AxisCurve;
-            internal CurveVector FirstCurve;
+            internal bool HasRange;
+            internal bool HasAxis;
+            internal double AxisStartX,AxisStartY,AxisStartZ,AxisEndX,AxisEndY,AxisEndZ;
 
             public override BentleyStatus ProcessCurveVector(CurveVector curves,bool isClosed)
             {
@@ -231,19 +243,24 @@ namespace SteelSectionProbe
                     {
                         Range.Extend(range.Low);
                         Range.Extend(range.High);
+                        HasRange=true;
                     }
-                    if(FirstCurve==null) FirstCurve=curves;
-                    if(AxisCurve==null && HasLength(curves)) AxisCurve=curves;
+                    if(!HasAxis)
+                    {
+                        DPoint3d start,end;
+                        if(curves.GetStartEnd(out start,out end))
+                        {
+                            double dx=start.X-end.X,dy=start.Y-end.Y,dz=start.Z-end.Z;
+                            if(dx*dx+dy*dy+dz*dz>1.0e-12)
+                            {
+                                HasAxis=true;
+                                AxisStartX=start.X;AxisStartY=start.Y;AxisStartZ=start.Z;
+                                AxisEndX=end.X;AxisEndY=end.Y;AxisEndZ=end.Z;
+                            }
+                        }
+                    }
                 }
                 return BentleyStatus.Success;
-            }
-
-            private static bool HasLength(CurveVector curves)
-            {
-                DPoint3d start,end;
-                if(!curves.GetStartEnd(out start,out end)) return false;
-                double dx=start.X-end.X,dy=start.Y-end.Y,dz=start.Z-end.Z;
-                return dx*dx+dy*dy+dz*dz>1.0e-12;
             }
         }
 
