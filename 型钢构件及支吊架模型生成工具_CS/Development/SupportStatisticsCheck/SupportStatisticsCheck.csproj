@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>7.3</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
+    <Reference Include="System.Web" />
+    <Reference Include="System.Web.Extensions" />
+    <Reference Include="WindowsBase" />
+    <Compile Include="../../Domain/SupportStatistics/SupportStatisticsModels.cs" Link="SupportStatisticsModels.cs" />
+    <Compile Include="../../Services/SupportStatistics/SupportStatisticsCalculator.cs" Link="SupportStatisticsCalculator.cs" />
+    <Compile Include="../../Services/SupportStatistics/SupportStatisticsExporter.cs" Link="SupportStatisticsExporter.cs" />
+    <Compile Include="../../Services/SupportStatistics/SupportExportName.cs" Link="SupportExportName.cs" />
+  </ItemGroup>
+</Project>

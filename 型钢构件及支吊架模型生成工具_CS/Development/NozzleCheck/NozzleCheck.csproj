@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net48</TargetFramework><LangVersion>7.3</LangVersion></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Domain/Nozzle/NozzleModels.cs" Link="NozzleModels.cs" />
+    <Compile Include="../../Data/Nozzle/NozzleCatalog.cs" Link="NozzleCatalog.cs" />
+    <Compile Include="../../Services/Nozzle/NozzleCalculator.cs" Link="NozzleCalculator.cs" />
+    <EmbeddedResource Include="../../Resources/nozzle_flange_data.json" LogicalName="SteelSectionProbe.nozzle_flange_data.json" />
+    <Reference Include="System.Web.Extensions" />
+  </ItemGroup>
+</Project>

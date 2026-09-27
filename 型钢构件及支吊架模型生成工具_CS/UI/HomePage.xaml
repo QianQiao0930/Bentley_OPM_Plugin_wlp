@@ -1,0 +1,199 @@
+<UserControl x:Class="SteelSectionProbe.HomePage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:ClassModifier="internal"
+             Background="{DynamicResource BackgroundBrush}">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/Theme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled"
+                  Padding="0,0,4,0">
+        <StackPanel>
+            <TextBlock Text="选择功能模块"
+                       FontSize="17"
+                       FontWeight="SemiBold"
+                       Foreground="{StaticResource InkBrush}"
+                       Margin="0,2,0,3" />
+            <TextBlock Text="建模与查询功能均可从这里进入。"
+                       FontSize="11"
+                       Foreground="{StaticResource MutedBrush}"
+                       TextWrapping="Wrap"
+                       Margin="0,0,0,12" />
+
+            <Border Style="{StaticResource CardStyle}" Padding="14,12">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Margin="0,0,10,0">
+                        <Border Width="28" Height="4" CornerRadius="2"
+                                Background="{StaticResource AccentBrush}"
+                                HorizontalAlignment="Left" Margin="0,0,0,8" />
+                        <TextBlock Text="型钢生成" FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{StaticResource InkBrush}" />
+                        <TextBlock Text="放置二维型钢截面，或沿开放路径扫掠生成三维实体。"
+                                   FontSize="10.5" Foreground="{StaticResource MutedBrush}"
+                                   TextWrapping="Wrap" Margin="0,4,0,0" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="进入"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            VerticalAlignment="Center"
+                            Click="SteelSection_Click" />
+                </Grid>
+            </Border>
+
+            <Border Style="{StaticResource CardStyle}" Padding="14,12">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Margin="0,0,10,0">
+                        <Border Width="28" Height="4" CornerRadius="2"
+                                Background="{StaticResource AccentBrush}"
+                                HorizontalAlignment="Left" Margin="0,0,0,8" />
+                        <TextBlock Text="构件特性查询" FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{StaticResource InkBrush}" />
+                        <TextBlock Text="点取管道或其他构件，查看 EC 属性和几何特性。"
+                                   FontSize="10.5" Foreground="{StaticResource MutedBrush}"
+                                   TextWrapping="Wrap" Margin="0,4,0,0" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="进入"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            VerticalAlignment="Center"
+                            Click="ComponentProperties_Click" />
+                </Grid>
+            </Border>
+            <Border Style="{StaticResource CardStyle}" Padding="14,12">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Margin="0,0,10,0">
+                        <Border Width="28" Height="4" CornerRadius="2"
+                                Background="{StaticResource AccentBrush}"
+                                HorizontalAlignment="Left" Margin="0,0,0,8" />
+                        <TextBlock Text="弯头耳轴" FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{StaticResource InkBrush}" />
+                        <TextBlock Text="竖直或水平弯头，搭配竖直或水平耳轴。"
+                                   FontSize="10.5" Foreground="{StaticResource MutedBrush}"
+                                   TextWrapping="Wrap" Margin="0,4,0,0" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="进入"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            VerticalAlignment="Center" Click="ElbowTrunnion_Click" />
+                </Grid>
+            </Border>
+            <Border Style="{StaticResource CardStyle}" Padding="14,12">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Margin="0,0,10,0">
+                        <Border Width="28" Height="4" CornerRadius="2"
+                                Background="{StaticResource AccentBrush}"
+                                HorizontalAlignment="Left" Margin="0,0,0,8" />
+                        <TextBlock Text="支吊架统计" FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{StaticResource InkBrush}" />
+                        <TextBlock Text="查看当前 DGN 的支吊架及材料汇总，导出 Excel 或 JSON 清单。"
+                                   FontSize="10.5" Foreground="{StaticResource MutedBrush}"
+                                   TextWrapping="Wrap" Margin="0,4,0,0" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="进入"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            VerticalAlignment="Center" Click="SupportStatistics_Click" />
+                </Grid>
+            </Border>
+            <Border Style="{StaticResource CardStyle}">
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <StackPanel Margin="0,0,10,0">
+                        <Border Width="28" Height="4" CornerRadius="2" Background="{StaticResource AccentBrush}" HorizontalAlignment="Left" Margin="0,0,0,8" />
+                        <TextBlock Text="罐壁人孔" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource InkBrush}" />
+                        <TextBlock Text="DN450～DN600 罐壁人孔，支持吊杆或铰链开盖、预览与确认。" FontSize="10.5" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="进入" Style="{StaticResource PrimaryButtonStyle}" VerticalAlignment="Center" Click="TankManhole_Click" />
+                </Grid>
+            </Border>
+            <Border Style="{StaticResource CardStyle}">
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <StackPanel Margin="0,0,10,0">
+                        <Border Width="28" Height="4" CornerRadius="2" Background="{StaticResource AccentBrush}" HorizontalAlignment="Left" Margin="0,0,0,8" />
+                        <TextBlock Text="实体管口" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource InkBrush}" />
+                        <TextBlock Text="CL150 法兰与空心钢管，支持 DN 规格、六轴方向和可选螺栓孔。" FontSize="10.5" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="进入" Style="{StaticResource PrimaryButtonStyle}" VerticalAlignment="Center" Click="Nozzle_Click" />
+                </Grid>
+            </Border>
+            <Border Style="{StaticResource CardStyle}"><Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <StackPanel Margin="0,0,10,0">
+                    <Border Width="28" Height="4" CornerRadius="2" Background="{StaticResource AccentBrush}" HorizontalAlignment="Left" Margin="0,0,0,8"/>
+                    <TextBlock Text="放置管夹" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource InkBrush}"/>
+                    <TextBlock Text="各种管夹 · A2 标准型 2 螺栓管夹 / E1 不保温管导向架 / K1 限位架 / T4 高温隔热限位管托，点选管道或直线放置。" FontSize="10.5" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                </StackPanel>
+                <Button Grid.Column="1" Content="进入" Style="{StaticResource PrimaryButtonStyle}" VerticalAlignment="Center" Click="PipeClamp_Click"/>
+            </Grid></Border>
+            <Border Style="{StaticResource CardStyle}"><Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <StackPanel Margin="0,0,10,0">
+                    <Border Width="28" Height="4" CornerRadius="2" Background="{StaticResource AccentBrush}" HorizontalAlignment="Left" Margin="0,0,0,8"/>
+                    <TextBlock Text="混凝土锚板" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource InkBrush}"/>
+                    <TextBlock Text="G2 锚板 · 点取混凝土表面，放置锚板与 4 根膨胀锚栓。" FontSize="10.5" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                </StackPanel>
+                <Button Grid.Column="1" Content="进入" Style="{StaticResource PrimaryButtonStyle}" VerticalAlignment="Center" Click="G2Anchor_Click"/>
+            </Grid></Border>
+            <Border Style="{StaticResource CardStyle}" Background="#FAFBFC">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Margin="0,0,10,0">
+                        <TextBlock Text="管道支吊架" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{StaticResource MutedBrush}" />
+                        <TextBlock Text="标准支吊架选型、参数配置与组合模型生成。"
+                                   FontSize="10.5" Foreground="{StaticResource MutedBrush}"
+                                   TextWrapping="Wrap" Margin="0,4,0,0" />
+                    </StackPanel>
+                    <Border Grid.Column="1" Background="#EEF1F5" CornerRadius="10"
+                            Padding="9,3" VerticalAlignment="Center">
+                        <TextBlock Text="规划中" FontSize="10" Foreground="{StaticResource MutedBrush}" />
+                    </Border>
+                </Grid>
+            </Border>
+
+
+            <Border Style="{StaticResource CardStyle}" Background="#FAFBFC">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Margin="0,0,10,0">
+                        <TextBlock Text="自定义构件" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{StaticResource MutedBrush}" />
+                        <TextBlock Text="连接板、组合构件和企业标准件的扩展入口。"
+                                   FontSize="10.5" Foreground="{StaticResource MutedBrush}"
+                                   TextWrapping="Wrap" Margin="0,4,0,0" />
+                    </StackPanel>
+                    <Border Grid.Column="1" Background="#EEF1F5" CornerRadius="10"
+                            Padding="9,3" VerticalAlignment="Center">
+                        <TextBlock Text="规划中" FontSize="10" Foreground="{StaticResource MutedBrush}" />
+                    </Border>
+                </Grid>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
+
