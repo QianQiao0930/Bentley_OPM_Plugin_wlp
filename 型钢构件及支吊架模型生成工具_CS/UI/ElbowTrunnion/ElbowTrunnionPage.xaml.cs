@@ -152,8 +152,10 @@ namespace SteelSectionProbe
         {
             if (active) SetStatus("已结束点选命令。",false);
         }
-        private void OnPicked(ulong id,int view,double x,double y)
+        private void OnPicked(LocatedElement located,int view,double x,double y)
         {
+            if (located == null) return;
+            ulong id = located.ElementId;
             int version=++pickVersion;
             Dispatcher.BeginInvoke(new Action(delegate
             {
@@ -161,9 +163,10 @@ namespace SteelSectionProbe
                 try
                 {
                     var options=Parameters();
-                    var candidate=ElbowTrunnionReader.Read(id,options.Elbow,options.Trunnion);
+                    var candidate=ElbowTrunnionReader.Read(located.ModelRef,id,options.Elbow,options.Trunnion);
                     selection=candidate;
-                    SelectionText.Text="元素 "+id+" · "+candidate.ClassName+" · DN"+candidate.MainDn;
+                    SelectionText.Text="元素 "+id+(located.IsFromReference()?"（参考文件）":"")+
+                        " · "+candidate.ClassName+" · DN"+candidate.MainDn;
                     LiveLengthText.Text="移动鼠标拉伸取长；松开首击后，再左键固定长度。";
                     ConfirmButton.IsEnabled=false;
                     ElbowTrunnionDragTool.Begin(candidate,options,view,x,y);

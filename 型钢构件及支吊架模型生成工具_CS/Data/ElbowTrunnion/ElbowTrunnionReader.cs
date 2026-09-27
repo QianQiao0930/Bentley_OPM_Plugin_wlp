@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using Bentley.DgnPlatformNET;
 using Bentley.MstnPlatformNET;
 
 namespace SteelSectionProbe
@@ -9,10 +10,21 @@ namespace SteelSectionProbe
     /// <summary>Reuses the read-only EC snapshot and never retains Bentley EC instances.</summary>
     internal static class ElbowTrunnionReader
     {
-        internal static ElbowTrunnionSelection Read(ulong id, ElbowOrientation orientation,
+        /// <summary>在活动模型里读取（兼容原有调用）。</summary>
+        internal static ElbowTrunnionSelection Read(ulong id,ElbowOrientation orientation,
             TrunnionOrientation trunnion)
         {
-            var snapshot=ComponentPropertyReader.Read(id);
+            return Read(null,id,orientation,trunnion);
+        }
+
+        /// <summary>
+        /// <paramref name="modelRef"/> 为元素所属的模型引用（参考文件里的弯头必须传，
+        /// 见 <see cref="LocatedElement"/>）；null 表示活动模型。
+        /// </summary>
+        internal static ElbowTrunnionSelection Read(DgnModelRef modelRef,ulong id,
+            ElbowOrientation orientation,TrunnionOrientation trunnion)
+        {
+            var snapshot=ComponentPropertyReader.Read(modelRef,id);
             var groups=new Dictionary<string,Dictionary<string,string>>(StringComparer.OrdinalIgnoreCase);
             foreach (var pair in snapshot.AllProperties)
             {
@@ -68,7 +80,7 @@ namespace SteelSectionProbe
             for(int i=0;i<12;i++)
                 matrix[i]=Required(values,"TRANSFORMATION_MATRIX.M"+i.ToString("00",CultureInfo.InvariantCulture),
                     "M"+i.ToString("00",CultureInfo.InvariantCulture));
-            var model=Session.Instance.GetActiveDgnModel();
+            var model=ComponentPropertyReader.ResolveModel(modelRef);
             if (model==null || !model.Is3d) throw new InvalidOperationException("请在三维 DGN 模型中点选弯头。");
             var frame=ElbowTrunnionCalculator.Frame(matrix,model.GetModelInfo().UorPerMeter/1000,
                 run*factor,outlet*factor,orientation,

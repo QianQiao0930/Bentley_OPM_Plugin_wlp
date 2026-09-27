@@ -557,7 +557,7 @@ bin/Release/net48_full/SteelSectionProbe.dll
 
 管口总长度包含法兰厚度，业务输入均为 mm，Bentley 构件边界统一换算 UOR。仅允许当前等级和钢管系列同时存在且外径一致的 DN。螺栓孔默认不绘制；密封面凸台只有数据表提供外径和高度时才绘制。模型是一个 SmartSolid；确认前为工具拥有的预览元素，重新点取或修改参数先创建替代预览，Reset、页面离开和关闭时删除未确认元素。原 Python 工具为可视化管口，不创建 OPM 管道组件或支吊架材料条目，因此本功能不写入 `PipeSupportComponents`。纯数据检查位于 `Development/NozzleCheck/`，OPM 运行时需验证布尔相并/差集和预览删除。## 21. E1 不保温管导向架
 
-`e1-guide` 首页入口在 `UI/HomePage.xaml`，详情页在 `UI/E1Guide/`。表 1 的 DN/外径与 A～E 选型数据在 `Data/E1Guide/E1GuideCatalog.cs`，纯布局计算在 `Services/E1Guide/E1GuideCalculator.cs`，Bentley 型钢和板件建模在 `Services/E1Guide/E1GuideBuilder.cs`，点取及预览所有权在 `Tools/E1Guide/`。与普通型钢路径扫掠共用 `Services/SteelMemberFactory.cs`；B～E 的轮廓从本工程的 `RuntimeData.Families` 读取，不依赖同级 Python 插件。该功能仅接受三维模型和坡度不超过 30° 的直线轴段。普通直线和多段线使用页面 DN，OpenPlant 管道优先读取 EC 管径。LineString 和仅含直线的 ComplexString 按三维点取位置选最近有效线段；其余线段不参与计算。放置点在选中线段三维投影并截断至端点。没有真实中心线的管道仅对可判断为轴向水平的范围近似定位；明显斜管不得由包围盒猜测坡向，应提示使用辅助线。OPM 中需对斜向管道和多段线实测。
+`e1-guide` 首页入口在 `UI/HomePage.xaml`，详情页在 `UI/E1Guide/`。表 1 的 DN/外径与 A～E 选型数据在 `Data/E1Guide/E1GuideCatalog.cs`，纯布局计算在 `Services/E1Guide/E1GuideCalculator.cs`，Bentley 型钢和板件建模在 `Services/E1Guide/E1GuideBuilder.cs`，点取及预览所有权在 `Tools/E1Guide/`。与普通型钢路径扫掠共用 `Services/SteelMemberFactory.cs`；B～E 的轮廓从本工程的 `RuntimeData.Families` 读取，不依赖同级 Python 插件。该功能仅接受三维模型和坡度不超过 30° 的直线轴段。普通直线和多段线使用页面 DN，OpenPlant 管道优先读取 EC 管径。LineString 和仅含直线的 ComplexString 按三维点取位置选最近有效线段；其余线段不参与计算。放置点在选中线段三维投影并截断至端点。管轴取值顺序为：中心线曲线 → 元素范围（包围盒）**最长边**，与 Python `axis_from_bbox` 一致；**兜底不得限定水平** —— 竖直管道同样要靠它定位，加"必须水平"会把竖直管一律拒掉（与 Python 行为不符）。包围盒近似只给提示（`E1GuideSelection.AxisNote` → 页面预览行）不报错。各类型自己的走向限制放在各自 Calculator 里（K1 ≤ 5°、E1 ≤ 30°）。OPM 中需对斜向管道和多段线实测。
 
 确认前预览是本功能持有的 `E1_RACK` Cell；重新点取先创建替代预览再清理旧元素，Reset、返回首页与关闭工作区均清理未确认元素。确认时才在公共 `PipeSupportComponents` 库写入 Assembly、构件A ×2 与可选薄板 ×2；源管道和多段线始终保留。“删除辅助线”仅在单根普通直线点取后可选，默认不勾选；确认时还需核对源元素仍为直线才执行删除。数据、长度和距离均使用 mm，命名仅使用 DN 档对应的 E1 子项与高度。纯计算检查位于 `Development/E1GuideCheck/`。
 
@@ -601,3 +601,31 @@ bin/Release/net48_full/SteelSectionProbe.dll
 - **E1**：面板并入本页，数据 / 计算 / 建模仍在 `Data/E1Guide/`、`Domain/E1Guide/`、`Services/E1Guide/`。“确认后删除辅助线”只对单根普通直线有效，删除前要核对源元素仍是直线，且管道与多段线始终保留。
 
 型钢轮廓的三连查找统一走 `Data/ProfileLookup.cs`（纯查表，接受 `FamilyData[]`，因此纯计算检查工程也能链接），不要在功能里另写一套。新增管夹时若需要新增型钢规格，仍走 `Development/profile_catalog/` + `export_profiles.py` 的既有流程。
+
+## 25. 点选元素的功能必须传递元素所属的模型（参考文件支持）
+
+参考文件（reference）里的元素，其 ElementId 属于**它自己那个文件的 ID 空间**，按 ID 去活动模型里查是查不到的。因此所有"点选元素"的工具都必须上报 `LocatedElement`，读取器必须接受并透传 `DgnModelRef`：
+
+- **工具**：在定位回调内 `LocatedElement.From(element)` 取 `element.DgnModelRef` 与 `ElementId`（不要把 Bentley 的 `Element` 对象带出回调），点击点放进 `ClickX/Y/Z`；
+- **读取器**：签名统一为 `Read(DgnModelRef modelRef, ulong id, …)`，并保留 `Read(id, …)` 作为"活动模型"的快捷转发；内部用 `ComponentPropertyReader.ResolveModel(modelRef)` 拿到正确的模型；
+- **几何**：**活动模型走原 COM 路径，参考元素走 .NET 曲线查询**（`CurvePathQuery.ElementToCurveVector` + `CurveVector.GetRange / GetStartEnd`）。COM 的 `ActiveModelReference` 只认活动模型，**绝不能用它读参考元素** —— 这是"点不到参考文件里的管道"的根因；
+- **单位**：COM 坐标是 master 单位（`× UorPerMaster / uorPerMm`），.NET 几何坐标是 UOR（`/ uorPerMm`），两者换算不同，不要混用；
+- **定位策略**：MicroStation **默认不把参考元素交给 `DgnElementSetTool`**，点上去会报"元素位于只读参考文件之中" —— 这道关卡与 ElementId 无关、也与参考附件的类型/设置无关（参考文件在 MicroStation 里永远不可编辑）。凡是只需要**读取**的定位工具，都必须覆写 `protected override RefLocateOption GetReferenceLocateOptions()` 并返回 `RefLocateOption.TreatAsElement`（枚举是标志位：`Normal=0 / SelfAttachment=1 / Editable=2 / TreatAsElement=4`），再加一层 `OnPostLocate` 兜底（基类拒绝且元素来自参考文件时返回 true）。**`SetRefLocateOption` 在 C# 侧不存在**，别照 Python/C++ 的写法找。
+
+补充：`Element` 没有 `ElementRange` / `ModelRef` 属性，但**有 `DgnModelRef` 与 `DgnModel`**；`HitPath` 也没有 `GetHeadElementRef`。需要查 Bentley API 真实签名时，用 `_apidump` 那类"只读元数据"的办法（`PEReader` + `MetadataReader`，可打印完整签名）—— 注意 **`DgnElementSetTool` 在 `Bentley.DgnDisplayNet.dll` 里，不在 `Bentley.DgnPlatformNET.dll`**，按类型名找 DLL 时先 `grep -a` 一下。**不要用 PowerShell 的 `Reflection.Assembly.LoadFrom`**（被安全策略拦截），也不要用"故意编译报错"的探针去猜不存在的成员：编译器的函数体分析会被声明级错误压制，可能给出"看起来没报错"的假象。
+
+破坏性操作（删除辅助线等）必须排除参考元素：参考元素的 ID 在活动模型里删不掉，应提前禁用选项并说明原因。
+
+## 26. 点选参考文件元素时的"临时辅助线"流程（放置管夹）
+
+点选**参考文件（reference）**里的管道时，放置管夹不直接拿参考元素去生成，而是：
+
+1. 用 `PipeClampReader.Read(modelRef, id, …)` 读出参考管道的**管轴**（起终点）与管道属性（公称直径 / 保温 / 管道号）；
+2. 用 `Services/PipeClamp/TempAxisLine.cs` 在**活动文件**里按这段轴线建一条普通 `LineElement`；
+3. 用**已验证的按线路径**（`PipeClampReader.Read(lineId, clickUor…)`）重新读一遍这条线；
+4. 把参考元素读到的管道属性**并到这条线的选择结果上**（`IsPipe` / `NominalMm` / `InsulationMm` / `PipeNumber` / `IsFromReference=true`，并把 `IsAuxiliaryLine` 置 false —— 临时线由插件自己清理，不交给用户勾选的"删除辅助线"）；
+5. 确认 / 取消 / 结束点取 / 切换类型 / 离开页面时调用 `TempAxisLine.Delete(id)` 删掉它。
+
+**为什么这样做**：把"参考元素"的影响面收敛成**一次轴线读取**，生成那一段完全走活动文件里已经跑通的路径，避免"参考元素写不进 / 删不掉 / 几何读不稳"整类问题。新增管夹类型时，只要把选择结果喂进各自 Calculator 即可，无需再为参考元素写第二套生成逻辑。
+
+实现约束：临时线 id 存在 `PipeClampPage.tempAxisLineId`，**每次点选前先删旧的**（`ReadSelection` 开头）；建线失败要**退回直接读取的结果**而不是抛错（不能因为辅助线失败挡住生成）；删除失败只发状态栏提示，不影响已确认的管夹。异常退出（宿主崩溃）时可能残留一条普通直线 —— 这一点已在 README 里向用户说明。

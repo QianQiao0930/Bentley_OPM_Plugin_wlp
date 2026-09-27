@@ -18,6 +18,8 @@ namespace SteelSectionProbe
     {
         private readonly PipeClampPreviewSession preview=new PipeClampPreviewSession();
         private PipeClampSelection selection;
+        /// <summary>点选参考文件元素时，按参考管轴物化出来的临时辅助线 id；0 表示没有。</summary>
+        private ulong tempAxisLineId;
         private bool active,ready,locating,settingDn;
 
         public string PageId { get { return "pipe-clamp"; } }
@@ -79,6 +81,7 @@ namespace SteelSectionProbe
         {
             active=false; locating=false; PipeClampLocateTool.End();
             try { preview.Cancel(); } catch(Exception ex) { Status(ex.Message,true); }
+            TryDeleteTempAxisLine();
             selection=null; ConfirmButton.IsEnabled=false;
             PreviewText.Text="尚未选取源元素。";
         }
@@ -219,7 +222,8 @@ namespace SteelSectionProbe
                 :"未读到公称直径（用面板 DN）");
             if(insulation.HasValue)
                 parts.Add("保温厚度 "+insulation.Value.ToString("0.#",CultureInfo.InvariantCulture)+" mm");
-            return "　本次按管道："+string.Join("、",parts.ToArray())+"。";
+            return "　本次按管道"+(selection.IsFromReference?"（参考文件）":"")+"："+
+                string.Join("、",parts.ToArray())+"。";
         }
 
         private void SaveLastChoice()
@@ -255,6 +259,7 @@ namespace SteelSectionProbe
         {
             if(!ready) return;
             try { preview.Cancel(); } catch(Exception ex) { Status(ex.Message,true); }
+            TryDeleteTempAxisLine();
             selection=null; ConfirmButton.IsEnabled=false;
             PreviewText.Text="尚未选取源元素。";
             ResetAuxiliaryLineOption();
@@ -309,7 +314,10 @@ namespace SteelSectionProbe
                         selection.ClickX,selection.ClickY,selection.ClickZ,
                         selection.PipeNumber,selection.ElementId,selection.IsAuxiliaryLine);
                     preview.ShowE1(plan);
-                    E1DeleteLineCheck.IsEnabled=selection.IsAuxiliaryLine&&!selection.IsPipe;
+                    // 参考文件里的直线不参与"删除辅助线"：它的 ID 属于参考文件的 ID 空间，
+                    // 在活动模型里删不掉，只能由用户在源文件里处理。
+                    E1DeleteLineCheck.IsEnabled=selection.IsAuxiliaryLine&&!selection.IsPipe&&
+                        !selection.IsFromReference;
                     PreviewText.Text="预览已生成："+plan.Number+"，DN"+plan.Dn+"。"+
                         (E1DeleteLineCheck.IsEnabled?"勾选「确认后删除辅助线」可删除所选直线。":"");
                 }
@@ -346,6 +354,8 @@ namespace SteelSectionProbe
                             SourceNote(selection.IsPipe,selection.NominalMm,selection.InsulationMm);
                     }
                 }
+                if(selection!=null && !string.IsNullOrEmpty(selection.AxisNote))
+                    PreviewText.Text+="　"+selection.AxisNote;
                 ConfirmButton.IsEnabled=true;
                 Status("管夹预览已生成；确定后写入支吊架材料清单。",false);
             }
@@ -362,28 +372,100 @@ namespace SteelSectionProbe
             {
                 var model=Session.Instance.GetActiveDgnModel();
                 if(model==null || !model.Is3d) throw new InvalidOperationException("请先打开三维模型。");
+                if(PipeClampLocateTool.IsActive)
+                {
+                    // 工具还装着（例如刚"确定生成"过）：只恢复页面状态，**不要重新安装** ——
+                    // 重装会先"结束再安装"，白丢一次状态，也容易踩到延迟清理的竞态。
+                    locating=true;
+                    Status("已在点取中：直接在模型里点取下一处即可；要停止请点「结束点取」。",false);
+                    return;
+                }
                 RefreshSpecification();
                 PipeClampLocateTool.Begin(); locating=true;
                 Status("悬停选择管道、直线或多段线，左键在点击处生成管夹预览；右键结束。",false);
             }
             catch(Exception ex) { Status("无法开始点取："+ex.Message,true); }
         }
-        private void OnPicked(ulong id,double x,double y,double z)
+        /// <summary>
+        /// 读取点选结果。点选的是**参考文件**里的元素时，把管轴物化成活动文件里的一条
+        /// 临时辅助线（<see cref="TempAxisLine"/>），再用已验证的"按线读取"路径读一遍，
+        /// 并把参考元素读到的管道属性（公称直径 / 保温 / 管道号）并到这条线上 ——
+        /// 生成路径因此完全不接触参考文件，用完即删这条辅助线。
+        /// </summary>
+        private PipeClampSelection ReadSelection(LocatedElement located)
         {
-            if(!active || !locating) return;
+            TryDeleteTempAxisLine();   // 上一次点选留下的临时线先清掉
+            var reference=PipeClampReader.Read(located.ModelRef,located.ElementId,
+                located.ClickX,located.ClickY,located.ClickZ);
+            if(!located.IsFromReference() || reference==null) return reference;
+            var model=Session.Instance.GetActiveDgnModel();
+            if(model==null) return reference;
+            double scale=model.GetModelInfo().UorPerMeter/1000.0;
+            ulong lineId;
+            try
+            {
+                lineId=TempAxisLine.Create(
+                    new DPoint3d(reference.StartX*scale,reference.StartY*scale,reference.StartZ*scale),
+                    new DPoint3d(reference.EndX*scale,reference.EndY*scale,reference.EndZ*scale));
+            }
+            catch(Exception ex)
+            {
+                // 建不出临时线就退回直接读取的结果 —— 不能因为辅助线失败就挡住生成。
+                Status("临时辅助线未生成，改用直接读取的管轴："+ex.Message,true);
+                return reference;
+            }
+            tempAxisLineId=lineId;
+            var line=PipeClampReader.Read(lineId,located.ClickX,located.ClickY,located.ClickZ);
+            line.IsPipe=reference.IsPipe;
+            line.NominalMm=reference.NominalMm;
+            line.OutsideMm=reference.OutsideMm;
+            line.InsulationMm=reference.InsulationMm;
+            line.PipeNumber=reference.PipeNumber;
+            line.IsFromReference=true;
+            line.IsAuxiliaryLine=false;   // 临时线由插件自己清理，不交给"删除辅助线"选项
+            line.AxisNote=string.IsNullOrEmpty(reference.AxisNote)
+                ?"已按参考管轴在活动文件中生成临时辅助线，确认或取消后自动删除。"
+                :reference.AxisNote+"　已按参考管轴生成临时辅助线，确认或取消后自动删除。";
+            return line;
+        }
+
+        /// <summary>删除物化出来的临时辅助线（异常向上抛，由调用方决定怎么提示）。</summary>
+        private void DeleteTempAxisLine()
+        {
+            var id=tempAxisLineId;
+            tempAxisLineId=0;
+            if(id==0) return;
+            TempAxisLine.Delete(id);
+        }
+
+        /// <summary>删除临时辅助线；删除失败只提示，不影响已经生成的东西。</summary>
+        private void TryDeleteTempAxisLine()
+        {
+            try { DeleteTempAxisLine(); }
+            catch(Exception ex)
+            {
+                Status("临时辅助线未自动删除（可在模型中手动删除）："+ex.Message,true);
+            }
+        }
+
+        private void OnPicked(LocatedElement located)
+        {
+            if(!active || !locating || located==null) return;
             Dispatcher.BeginInvoke(new Action(delegate
             {
                 if(!active || !locating) return;
                 try
                 {
                     ResetAuxiliaryLineOption();
-                    selection=PipeClampReader.Read(id,x,y,z);
+                    selection=ReadSelection(located);
                     RefreshSpecification();   // 规格行与预览用同一套参数来源
                     Regenerate();
                 }
                 catch(Exception ex)
                 {
                     selection=null; ConfirmButton.IsEnabled=false;
+                    // 诊断尾巴较长，状态栏一行会截断 —— 同时写进可换行的预览行。
+                    PreviewText.Text="点取失败："+ex.Message;
                     Status("点取失败："+ex.Message,true);
                 }
             }),DispatcherPriority.Background);
@@ -393,6 +475,7 @@ namespace SteelSectionProbe
             if(!active) return;
             locating=false;
             try { preview.Cancel(); } catch(Exception ex) { Status(ex.Message,true); }
+            TryDeleteTempAxisLine();
             selection=null; ConfirmButton.IsEnabled=false;
             ResetAuxiliaryLineOption();
             PreviewText.Text="已结束点取。";
@@ -405,6 +488,7 @@ namespace SteelSectionProbe
             try
             {
                 preview.Cancel(); selection=null; ConfirmButton.IsEnabled=false;
+                TryDeleteTempAxisLine();
                 ResetAuxiliaryLineOption();
                 PreviewText.Text="预览已取消。"; Status("预览已取消。",false);
             }
@@ -415,16 +499,18 @@ namespace SteelSectionProbe
             try
             {
                 bool deleteAuxiliary=E1DeleteLineCheck.IsChecked==true && selection!=null &&
-                    selection.IsAuxiliaryLine && !selection.IsPipe;
+                    selection.IsAuxiliaryLine && !selection.IsPipe && !selection.IsFromReference;
                 var kind=CurrentKind();
                 var current=selection;
                 preview.Confirm();
+                // 临时辅助线的使命到此结束：管夹已经生成，把它删掉。
+                TryDeleteTempAxisLine();
                 if(kind==PipeClampKind.E1Guide && deleteAuxiliary && current!=null)
                     DeleteElement(current.ElementId);
                 selection=null; ConfirmButton.IsEnabled=false;
                 ResetAuxiliaryLineOption();
-                PreviewText.Text="已确认生成并写入支吊架材料清单，可继续点取下一处。";
-                Status("管夹已生成。",false);
+                PreviewText.Text="已确认生成并写入支吊架材料清单。点取仍在进行中，可直接点取下一处（无需再点「开始点取」）；要停止请点「结束点取」。";
+                Status("管夹已生成；可继续点取下一处。",false);
             }
             catch(Exception ex) { Status("确认失败："+ex.Message,true); }
         }

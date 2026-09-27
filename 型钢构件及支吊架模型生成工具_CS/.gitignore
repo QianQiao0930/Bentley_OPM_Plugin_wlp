@@ -5,3 +5,6 @@ Development/*/bin/
 Development/*/obj/
 # 临时探针文件
 *.tmp
+
+# WPF 临时工程
+*_wpftmp.csproj

@@ -187,7 +187,7 @@ dotnet build SteelSupportModeler.csproj -c Release /p:OutputPath=bin\Release\net
 
 ### E1 不保温管导向架
 
-在上面的“放置管夹”页面把类型切到 E1 后，选择 DN15～DN900、A～E 子项（默认按 DN 自动选型）、构件A材料和是否为不锈钢管道。点取 OpenPlant 直管时读取其 EC 管径；点取普通直线或多段线时使用页面所选 DN。多段线按三维点取位置选最近的有效直线段，只使用该段的方向和标高；允许轴线坡度至 30°，在该段上投影得到放置中心。悬停定位后左键一次生成两根镜像竖直构件的可撤销 `E1_RACK` Cell 预览；不锈钢选项另生成两块 06Cr18Ni9 薄板。构件底面位于管底标高，内侧面距管壁 3 mm。高度 H 在外径小于 88.9 mm 时为 50 mm，其余为外径半径加 50 mm 后四舍五入。编号为 `E1-子项-H`，不锈钢增加 `-S`，界面管径统一显示 DN。确认后写入 `PipeSupportComponents` 公共 ItemType：1 条 Assembly、2 件构件A和可选的 2 件薄板。支吊架统计页可以预览与导出材料表。源管道始终保留，不受删除选项影响。只有点取单根普通直线时，“确认后删除辅助线”才可勾选；默认不勾选，勾选后仅在确认时删除该辅助线。管道和多段线始终保留，不会删除整个多段线。
+在上面的“放置管夹”页面把类型切到 E1 后，选择 DN15～DN900、A～E 子项（默认按 DN 自动选型）、构件A材料和是否为不锈钢管道。点取 OpenPlant 直管时读取其 EC 管径；点取普通直线或多段线时使用页面所选 DN。多段线按三维点取位置选最近的有效直线段，只使用该段的方向和标高；允许轴线坡度至 30°，在该段上投影得到放置中心。管轴取值顺序：中心线曲线 → 元素范围（包围盒）最长边；**包围盒兜底不限定水平，竖直管道同样适用**（与 Python 的 `axis_from_bbox` 一致），近似定位时页面会给出提示而不报错。各类型自己的走向限制由各自的 Calculator 负责（K1 ≤ 5°、E1 ≤ 30°）。悬停定位后左键一次生成两根镜像竖直构件的可撤销 `E1_RACK` Cell 预览；不锈钢选项另生成两块 06Cr18Ni9 薄板。构件底面位于管底标高，内侧面距管壁 3 mm。高度 H 在外径小于 88.9 mm 时为 50 mm，其余为外径半径加 50 mm 后四舍五入。编号为 `E1-子项-H`，不锈钢增加 `-S`，界面管径统一显示 DN。确认后写入 `PipeSupportComponents` 公共 ItemType：1 条 Assembly、2 件构件A和可选的 2 件薄板。支吊架统计页可以预览与导出材料表。源管道始终保留，不受删除选项影响。只有点取单根普通直线时，“确认后删除辅助线”才可勾选；默认不勾选，勾选后仅在确认时删除该辅助线。管道和多段线始终保留，不会删除整个多段线。
 
 右键、结束点取、取消预览、返回首页和关闭窗口都会清理未确认预览。修改参数或重新点取会先写入替代预览再删除旧预览。A 为 50×10 板件；B、C、D、E 的型钢轮廓分别从本工程 `Resources/profiles.bin` 加载等边角钢 L50x50x6、平行腿槽钢 10、热轧 H 型钢 H100x100x6x8xr8 和 H150x150x7x10xr8，圆角保留真圆弧。E1 的 DN/外径与子项表在 `Data/E1Guide/E1GuideCatalog.cs`；修改这些值后重新编译。如需修改型钢规格，则修改 `Development/profile_catalog/` 并运行 `python -B Development/export_profiles.py`，然后重新编译；C# 运行时不读取或调用 Python 插件。
 
@@ -203,3 +203,19 @@ dotnet build SteelSupportModeler.csproj -c Release /p:OutputPath=bin\Release\net
 
 实现分布于 `Domain/G2Anchor/`、`Data/G2Anchor/`、`Services/G2Anchor/`、`Tools/G2Anchor/` 和 `UI/G2Anchor/`。局部坐标轴定义集中在 `G2AnchorCalculator.Axes`（纯计算），`G2AnchorFrame` 与纯计算检查工程共用同一份，避免两份朝向定义。纯计算检查：`dotnet run --project Development/G2AnchorCheck/G2AnchorCheck.csproj -c Release`，覆盖表 1 四子项尺寸与埋深自检、间距 S 与非法输入拒绝、三种安装面在多个朝向角下的三轴正交与右手系。Bentley 点取、普通 Cell 写入、预览删除与 ItemType 附加仍需在 OPM 2024 中实测。
 
+
+## 点选参考文件里的元素
+
+MicroStation 的参考文件（reference attachment）里的元素，其 ElementId 属于**参考文件自己那个文件的 ID 空间**，按 ID 在活动文件里查不到 —— 这正是早期版本点选参考元素会报"所选元素已不存在"的原因。
+
+现在所有"点选元素"的功能都支持参考文件：定位回调把元素与**它所属的模型引用**一起上报（`Data/LocatedElement.cs`），读取器用那个模型去查元素、读几何与 EC。几何读取分两条路径：元素属于活动模型时仍走原 COM 路径（行为不变）；元素来自参考文件时改用 .NET 曲线查询（`CurvePathQuery.ElementToCurveVector` + `CurveVector.GetRange / GetStartEnd`），因为 COM 的 `ActiveModelReference` 只认活动模型。
+
+还有一道与 ID 无关的关卡：MicroStation **默认不把参考元素交给元素集合工具**，所以即使读得到几何，点上去仍会报"元素位于只读参考文件之中"。这是工具层的策略，不是元素读取的问题，也**不取决于参考附件的类型或设置**（参考文件本身在 MicroStation 里永远不可编辑，没有"改成可写"这种选项）。修法是覆写 `DgnElementSetTool.GetReferenceLocateOptions()` 返回 `RefLocateOption.TreatAsElement`（把参考元素当普通元素来定位），并在 `OnPostLocate` 里加一层兜底放行。三个点选工具（放置管夹 / 构件特性查询 / 弯头耳轴）都已覆写。
+
+适用功能：放置管夹（A2 / E1 / K1 / T4）、G2 混凝土锚板、弯头耳轴、构件特性查询。点取到参考元素时，界面会在元素信息与尺寸来源说明里标注"（参考文件）"。
+
+**放置管夹有一条专门的"临时辅助线"流程**（`Services/PipeClamp/TempAxisLine.cs`）：点选参考文件里的管道时，插件先读出它的管轴与管道属性，再**在活动文件里按这段轴线生成一条普通直线**，然后用**已验证的按线路径**重新读一遍（并把参考元素读到的公称直径 / 保温 / 管道号并到这条线上），最后在确认或取消时**自动删除**这条临时线。这样"生成"这一段完全不接触参考文件 —— 不会碰到"参考元素写不进 / 删不掉 / 几何读不稳"这类问题，参考元素的影响面只剩一次轴线读取。临时线在切换到活动文件里的元素、重新点选、结束点取、切换管夹类型、离开页面时都会清理；异常退出（宿主崩溃）时最多残留一条普通直线，手动删除或撤消一步即可。界面会在预览行写明"已按参考管轴在活动文件中生成临时辅助线，确认或取消后自动删除"。
+
+两个前提：该参考附件的 **Locate** 开关必须打开（否则连点都点不到），要用捕捉画辅助线时 **Snap** 也要打开。另外"确认后删除辅助线"只对**活动文件**里的直线生效 —— 参考文件里的直线不会提供该选项，也不会被执行删除。
+
+单位换算要留意的差别：COM 的坐标是 master 单位（`× UorPerMaster / uorPerMm`），.NET 几何坐标是 UOR（`/ uorPerMm`），两者不能混用。

@@ -70,8 +70,10 @@ namespace SteelSectionProbe
             if (active) SetStatus("已结束点取命令。", false);
         }
 
-        private void OnElementPicked(ulong id)
+        private void OnElementPicked(LocatedElement located)
         {
+            if (located == null) return;
+            ulong id = located.ElementId;
             int version = ++requestVersion;
             // Run after the locate callback has returned; never retain a Bentley element here.
             Dispatcher.BeginInvoke(new Action(delegate
@@ -79,8 +81,9 @@ namespace SteelSectionProbe
                 if (!active || version != requestVersion) return;
                 try
                 {
-                    snapshot = ComponentPropertyReader.Read(id);
+                    snapshot = ComponentPropertyReader.Read(located.ModelRef, id);
                     SelectionText.Text = "元素 " + id.ToString(CultureInfo.InvariantCulture) +
+                        (located.IsFromReference() ? "（参考文件）" : "") +
                         (string.IsNullOrEmpty(snapshot.ClassName) ? "" : "  ·  " + snapshot.ClassName);
                     RefreshRows();
                     SetStatus(string.IsNullOrEmpty(snapshot.ReadWarning)
