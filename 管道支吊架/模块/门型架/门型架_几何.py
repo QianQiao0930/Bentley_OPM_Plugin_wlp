@@ -7,22 +7,36 @@
 # =============================================================================
 """门型架纯几何 / 数据逻辑（不依赖 Bentley 运行时可单测）。
 
-本模块把「图 C.4-8 门形 / 倒门形架（角钢和槽钢）」类型 1 的规则集中在一起，
-供 ``D8-[门型架_倒门型架（角钢和槽钢）].py`` 调用：
+本模块把「图 C.4-8 门形 / 倒门形架（角钢和槽钢）」的规则集中在一起，供
+``D8-[门型架_倒门型架（角钢和槽钢）].py`` 调用：
 
 * 解析用户绘制的 **竖直线**（**整组门型架的中心线**）为门架高度 H；水平布置
   方向由面板的「朝向」给定 —— 竖直线本身不能确定门架平面。
 * 提供表 2 的子项 A~E 型钢截面表（A~C 为角钢 / D、E 为槽钢），与表 1 的
   允许垂直荷载查询。
 * 给出立柱与横担的布置：**B 为两立柱净距**（内缘到内缘），两立柱轴线对称于
-  所选竖直线（分别在 ``∓(B+W)/2``），横担**以该线为中心横跨两根立柱的顶面**、
+  所选竖直线（分别在 ``∓(B+W)/2``），横担**以该线为中心横跨两根立柱**、
   两端各超出立柱外缘 15 mm，故横担长 L = B + 2W + 30
   （W 为立柱在横担长度方向的截面宽度）。
+
+四个类型的差别只有**立柱在横担的哪一侧** —— 管位面永远朝上、且永远落在所选
+竖直线的「管底端」（与 T 形架 ``D12_G4`` 的类型 1/2 同一口径）：
+
+* **类型 1/2 正门形架（立柱在下）**：所选竖直线的**上端**＝管底标高＝横担
+  顶面（即门架高 H 处），**下端**＝基座 / 生根面。立柱自下端向上，顶端止于
+  横担下方；类型 2 是「侧焊」编号，几何与类型 1 完全相同。
+* **类型 3/4 倒门形架（立柱在上）**：所选竖直线的**下端**＝管底标高＝横担
+  顶面，**上端**＝接已有钢结构。横担落在下端（截面整体在管位面以下），立柱
+  自上端向下、下端下探到管位面以下与横担搭接；类型 4 是「侧焊」编号，几何
+  与类型 3 完全相同。
+
+因此两种朝向可以**共用同一条辅助线**：正门把横担放在线的顶端、倒门把横担
+放在线的底端，横担自身的方向与截面姿态不变（始终朝上承管）。
 
 型钢截面本身不重复实现，直接复用仓库内 ``型钢截面生成器`` 的数据与几何模块
 （``steel_equal_angle_*`` / ``steel_channel_*``）。
 
-布置约定（局部基 u-v-w，原点取所选竖直线的下端）：
+布置约定（局部基 u-v-w，原点取所选竖直线的下端；倒门时 w = 0 即管位面）：
 
     u = 门架平面内的水平方向（面板「朝向」；也是横担长度方向）
     v = Z × u（水平法向，管道轴线方向）
@@ -31,14 +45,15 @@
 其中 **u = 0 即所选竖直线**，也就是整组门型架的中心线：两立柱轴线对称于它，
 横担也以它为中点。
 
-* 立柱：截面在 u-v 平面内，沿 +w 由下向上扫掠；**外接矩形中心**落在自身轴线
-  上（左 / 右轴线在 ``∓(B + W)/2``），故两内缘之间净距恰为 B。立柱**非通长**
-  —— 顶端止于 ``H - 翼缘厚 - 10``，比横担水平肢 / 上翼缘低 10 mm 留作施焊。
-* 横担：截面在 v-w 平面内，沿 +u 扫掠；顶面（固定管子的面）落在 w = H，
-  两端以 u = 0 对称横跨两根立柱。
+* 立柱：截面在 u-v 平面内，沿 +w 扫掠；**外接矩形中心**落在自身轴线上
+  （左 / 右轴线在 ``∓(B + W)/2``），故两内缘之间净距恰为 B。立柱**非通长**
+  —— 正门时顶端止于 ``H - 翼缘厚 - 10``、比横担水平肢 / 上翼缘低 10 mm 留作
+  施焊；倒门时底端下探到 ``-搭接长``、与横担竖直肢 / 腹板背靠背搭接。
+* 横担：截面在 v-w 平面内，沿 +u 扫掠；顶面（固定管子的面）正门落在 w = H、
+  倒门落在 w = 0，两端以 u = 0 对称横跨两根立柱。
 * 立柱与横担**背靠背**：横担的竖直肢贴在立柱的 u-w 平面肢外侧，立柱该肢
   平贴横担竖直肢的**内侧（开口侧）面**（与 L 型管架角钢同做法，见
-  :func:`post_v_offset`），力经该贴合焊缝下传（见
+  :func:`post_v_offset`），力经该贴合焊缝传力（见
   :func:`weld_contact_length`）；槽钢子项的立柱腹板贴横担腹板背面、两腹板
   背靠背，同样不做顶面承压。
 """
@@ -79,16 +94,34 @@ MIN_SPAN_MM = 50.0
 # 荷载表 H 的匹配容差（mm）。
 LOAD_HEIGHT_TOLERANCE_MM = 1.0
 
-# 类型 1：正门形架（立杆在下、横担在上）。
-# 类型 3/4 为倒门形架（吊架），留待后续实现，此处不接受。
-ALL_RACK_TYPES = (1,)
-HANGER_RACK_TYPES = ()
+# 类型 1/2：正门形架（立柱在下、横担在上）；类型 2 为侧焊编号，几何同类型 1。
+# 类型 3/4：倒门形架（立柱在上、横担在所选竖直线下端；管位面朝上，与正门同向）；
+#           类型 4 为侧焊编号，几何同类型 3。
+ALL_RACK_TYPES = (1, 2, 3, 4)
+HANGER_RACK_TYPES = (3, 4)
+SIDE_WELDED_RACK_TYPES = (2, 4)
 
 
 def hanger_type(rack_type):
-    """本插件仅实现类型 1；倒门形架（立杆在上）尚未支持，恒为 False。"""
+    """类型 3/4 为倒门形架（立柱在上、横担在辅助线下端），返回 True。"""
     try:
         return int(rack_type) in HANGER_RACK_TYPES
+    except (TypeError, ValueError):
+        return False
+
+
+def side_welded_type(rack_type):
+    """类型 2/4 为「侧焊」编号：几何与 1/3 完全相同，只影响管架编号文字。"""
+    try:
+        return int(rack_type) in SIDE_WELDED_RACK_TYPES
+    except (TypeError, ValueError):
+        return False
+
+
+def type_is_implemented(rack_type):
+    """该类型号是否已实现（当前 1~4 全部实现）。"""
+    try:
+        return int(rack_type) in ALL_RACK_TYPES
     except (TypeError, ValueError):
         return False
 
@@ -295,14 +328,28 @@ def post_v_offset(variant_key):
     return -section_box(variant_key)[0]
 
 
-def post_length(variant_key, height_mm):
+def post_length(variant_key, height_mm, rack_type=1):
     """立柱下料长度（mm）。
 
-    两类子项都**非通长**：最高点比横担的水平肢 / 上翼缘低 ``WELD_GAP_MM``，
-    即 ``H - 翼缘厚 - WELD_GAP_MM``，留出的间隙用于施焊；横担不落在立柱顶面
-    上，力由「立柱腹板 / 肢 ↔ 横担腹板 / 竖直肢」的贴合焊缝传走。
+    两类子项都**非通长**，都以横担的「管位面」（正门在 w = H、倒门在 w = 0）
+    为基准：
+
+    * 类型 1/2（正门，立柱在下）：最高点比横担的水平肢 / 上翼缘低
+      ``WELD_GAP_MM``，即 ``H - 翼缘厚 - WELD_GAP_MM``，留出的间隙用于施焊；
+      横担不落在立柱顶面上，力由「立柱腹板 / 肢 ↔ 横担腹板 / 竖直肢」的贴合
+      焊缝传走。
+    * 类型 3/4（倒门，立柱在上）：立柱自辅助线上端（接已有钢结构，w = H）向下，
+      底端下探到管位面以下 ``weld_contact_length`` 与横担搭接，故
+      ``H + 搭接长``（与 T 形架类型 2 的角钢吊架同一做法）。
     """
     height_mm = float(height_mm)
+    if hanger_type(rack_type):
+        length = height_mm + weld_contact_length(variant_key)
+        if length <= 0.0:
+            raise ValueError(
+                '子项 %s 的门架高 H=%.1f mm 过小：倒门立柱长度为负。'
+                % (variant_key, height_mm))
+        return length
     thickness = beam_flange_thickness(variant_key)
     length = height_mm - thickness - WELD_GAP_MM
     if length <= 0.0:
@@ -316,9 +363,10 @@ def post_length(variant_key, height_mm):
 def weld_contact_length(variant_key):
     """角钢立柱肢与横担竖直肢的贴合（焊缝）段高度（mm）。
 
-    横担的竖直肢 / 腹板自横担顶面下伸 ``beam_depth``，立柱顶面止于
-    ``H - 翼缘厚 - WELD_GAP_MM``，故搭接高度为
-    ``beam_depth - 翼缘厚 - WELD_GAP_MM``。
+    横担的竖直肢 / 腹板自横担顶面（管位面）下伸 ``beam_depth``，故搭接高度为
+    ``beam_depth - 翼缘厚 - WELD_GAP_MM``。正门时立柱顶端止于
+    ``H - 翼缘厚 - WELD_GAP_MM``、搭接段在立柱顶端以下；倒门时立柱底端下探
+    ``weld_contact_length`` 到管位面以下，搭接段长度相同（仅位置上下翻转）。
     """
     contact = (beam_depth(variant_key) - beam_flange_thickness(variant_key)
                - WELD_GAP_MM)
@@ -392,26 +440,37 @@ def post_opening_direction(variant_key, mirror_u=False):
 
 
 def member_origin_length(variant_key, member_kind, height_mm, span_mm,
-                         post_axis_u=0.0):
+                         post_axis_u=0.0, rack_type=1):
     """返回 ``(origin_uvw_mm, length_mm)``：扫掠起点（相对所选线下端）与长度。
 
-    立柱由基座（w = 0）向上扫掠，u 位置即自身轴线（由 :func:`post_axis_offset`
-    按整组中心线给出的 ``∓(B + W)/2``）；长度见 :func:`post_length`（角钢非
-    通长，顶端留 10 mm 焊接间隙），并按 :func:`post_v_offset` 在 v 方向平移使
-    两者背靠背；横担以整组中心线为中点，自左端（左立柱外缘外 15 mm，即
-    ``u = -L/2``）沿 +u 扫掠 L，截面中心置于 ``w = H - 深度/2``。
+    立柱沿 +w 扫掠，u 位置即自身轴线（由 :func:`post_axis_offset` 按整组中心线
+    给出的 ``∓(B + W)/2``），并按 :func:`post_v_offset` 在 v 方向平移使两者
+    背靠背；横担以整组中心线为中点，自左端（左立柱外缘外 15 mm，即
+    ``u = -L/2``）沿 +u 扫掠 L。
+
+    ``rack_type`` 决定**横担落在辅助线的哪一端**（管位面永远朝上）：
+
+    * 类型 1/2（正门）：横担截面中心 ``w = H - 深度/2``（管位面在 w = H，
+      即辅助线**上端**）；立柱自基座（w = 0）向上扫掠。
+    * 类型 3/4（倒门）：横担截面中心 ``w = -深度/2``（管位面在 w = 0，
+      即辅助线**下端**）；立柱自 ``w = -搭接长`` 向上扫掠到辅助线上端，
+      故底端下探到管位面以下与横担搭接（见 :func:`post_length`）。
     """
     _variant(variant_key)
     height_mm = float(height_mm)
     depth = beam_depth(variant_key)
+    hanger = hanger_type(rack_type)
 
     if member_kind == 'post':
         # v 向偏移使立柱的 u-w 平面肢与横担竖直肢背靠背相贴（角钢）。
-        return ((float(post_axis_u), post_v_offset(variant_key), 0.0),
-                post_length(variant_key, height_mm))
+        # 倒门时底端下探一个搭接段，与横担的竖直肢 / 腹板背靠背搭接。
+        bottom = -weld_contact_length(variant_key) if hanger else 0.0
+        return ((float(post_axis_u), post_v_offset(variant_key), bottom),
+                post_length(variant_key, height_mm, rack_type))
     if member_kind == 'arm':
         u_start, length = beam_span(variant_key, span_mm)
-        return ((u_start, 0.0, height_mm - depth / 2.0), length)
+        top = 0.0 if hanger else height_mm
+        return ((u_start, 0.0, top - depth / 2.0), length)
     raise ValueError("member_kind 只能是 'post' 或 'arm'。")
 
 

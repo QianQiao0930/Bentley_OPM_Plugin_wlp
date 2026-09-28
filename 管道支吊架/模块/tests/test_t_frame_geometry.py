@@ -476,7 +476,109 @@ class LoadTableTests(unittest.TestCase):
         self.assertIn('小于表中最小值', below.message)
         above = geom.allowable_load('A', 1000.0, 2500.0)
         self.assertIsNone(above.value)
-        self.assertIn('超出表中上限', above.message)
+        self.assertIn('超出', above.message)
+
+
+class RootingMethodTests(unittest.TestCase):
+    """D12 钢结构生根 / G4 地面生根 两套独立数据。"""
+
+    def test_methods_and_labels(self):
+        self.assertEqual(geom.ALL_ROOT_METHODS, ('D12', 'G4'))
+        self.assertEqual(geom.root_method('g4'), 'G4')
+        self.assertEqual(geom.root_method('D12'), 'D12')
+        self.assertEqual(sorted(dict(geom.root_method_choices())),
+                         ['D12', 'G4'])
+        self.assertIn('D12', geom.root_method_label('D12'))
+        self.assertIn('G4', geom.root_method_label('G4'))
+
+    def test_default_method_is_d12(self):
+        """缺省参数保持 D12，既有调用点无需改动。"""
+        self.assertEqual(geom.allowable_load('D', 1000, 500).value,
+                         geom.allowable_load('D', 1000, 500, 'D12').value)
+        self.assertEqual(geom.max_allowed_height('D'),
+                         geom.max_allowed_height('D', 'D12'))
+        self.assertEqual(
+            geom.build_pipe_rack_number(1, 'A', 1000, 400),
+            geom.build_pipe_rack_number(1, 'A', 1000, 400, 'D12'))
+
+    def test_g4_max_height_matches_table_one(self):
+        """G4 的 MAX.H 取图 表 1；一律不高于 D12。"""
+        expected = {'A': 500, 'B': 1000, 'C': 1000, 'D': 1500,
+                    'E': 2000, 'F': 3000, 'G': 3000}
+        for key, value in expected.items():
+            self.assertEqual(geom.max_allowed_height(key, 'G4'), value,
+                             msg='%s G4 Hmax' % key)
+            self.assertLessEqual(geom.max_allowed_height(key, 'G4'),
+                                 geom.max_allowed_height(key, 'D12'),
+                                 msg='%s G4 不应高于 D12' % key)
+
+    def test_g4_arm_length_capped_at_1000(self):
+        """G4 的表 1 只到 L≤1000，且部分子项更短，故一律不长于 D12。"""
+        expected = {'A': 250, 'B': 500, 'C': 500, 'D': 500,
+                    'E': 1000, 'F': 1000, 'G': 1000}
+        for key, value in expected.items():
+            self.assertEqual(geom.max_allowed_arm_length(key, 'G4'), value,
+                             msg='%s G4 Lmax' % key)
+            self.assertLessEqual(geom.max_allowed_arm_length(key, 'G4'),
+                                 geom.max_allowed_arm_length(key, 'D12'),
+                                 msg='%s G4 不应长于 D12' % key)
+        # D 子项在 G4 中只有 L≤250/500 两列有值，故上限 500 而非表宽 1000。
+        self.assertEqual(geom.max_allowed_arm_length('D', 'G4'), 500)
+        self.assertEqual(geom.max_allowed_arm_length('D', 'D12'), 1000)
+
+    def test_g4_load_values(self):
+        expected = {
+            ('A', 500, 250): 1.0,
+            ('B', 1000, 500): 0.5,
+            ('C', 1000, 250): 2.0,
+            ('D', 1000, 500): 5.0,
+            ('D', 1500, 250): 4.0,
+            ('E', 2000, 1000): 10.0,
+            ('F', 3000, 500): 10.0,
+            ('G', 3000, 1000): 20.0,
+        }
+        for (key, height, arm), value in expected.items():
+            self.assertAlmostEqual(
+                geom.allowable_load(key, height, arm, 'G4').value, value,
+                places=9, msg='%s H=%d L=%d' % (key, height, arm))
+
+    def test_g4_differs_from_d12(self):
+        """同一格在两种方式下取到不同的值，证明是两张表。"""
+        self.assertAlmostEqual(geom.allowable_load('D', 1000, 500, 'D12').value,
+                               20.0, places=9)
+        self.assertAlmostEqual(geom.allowable_load('D', 1000, 500, 'G4').value,
+                               5.0, places=9)
+        self.assertAlmostEqual(geom.allowable_load('G', 1000, 500, 'D12').value,
+                               100.0, places=9)
+        self.assertAlmostEqual(geom.allowable_load('G', 1000, 500, 'G4').value,
+                               50.0, places=9)
+
+    def test_g4_blank_cells_and_beyond_column(self):
+        """G4 的 F/G 在 L≤250 一栏为空；L=2000 超出 G4 表中上限。"""
+        self.assertIsNone(geom.allowable_load('F', 1000, 250, 'G4').value)
+        self.assertIsNone(geom.allowable_load('G', 2000, 250, 'G4').value)
+        beyond = geom.allowable_load('G', 1000, 2000, 'G4')
+        self.assertIsNone(beyond.value)
+        self.assertIn('超出 G4 表中上限', beyond.message)
+
+    def test_variant_keys_follow_method(self):
+        """子项列表由 METHOD_VARIANTS 驱动，两种方式目前都是 A~G。"""
+        self.assertEqual(geom.variant_keys('D12'), tuple('ABCDEFG'))
+        self.assertEqual(geom.variant_keys('G4'), tuple('ABCDEFG'))
+        self.assertEqual([k for k, _ in geom.variant_choices('G4')],
+                         list('ABCDEFG'))
+        # 未给方式时返回全部子项，与旧行为一致。
+        self.assertEqual([k for k, _ in geom.variant_choices()], list('ABCDEFG'))
+        for key in 'ABCDEFG':
+            self.assertTrue(geom.variant_supports_method(key, 'D12'))
+            self.assertTrue(geom.variant_supports_method(key, 'G4'))
+        self.assertFalse(geom.variant_supports_method('Z', 'G4'))
+        self.assertFalse(geom.variant_supports_method(None, 'G4'))
+
+    def test_default_variant_stays_valid_per_method(self):
+        for method in geom.ALL_ROOT_METHODS:
+            self.assertIn(geom.default_variant(method),
+                          geom.variant_keys(method))
 
 
 class VariantTests(unittest.TestCase):
@@ -516,15 +618,37 @@ class VariantTests(unittest.TestCase):
 
 
 class NumberingTests(unittest.TestCase):
-    def test_number_format(self):
+    def test_d12_number_format(self):
+        """D12 钢结构生根：D12-类型-子项-H-L。"""
         self.assertEqual(
-            geom.build_pipe_rack_number('D12', 1, 'a', 1000.0, 400.0),
+            geom.build_pipe_rack_number(1, 'a', 1000.0, 400.0, 'D12'),
             'D12-1-A-1000-400')
+        self.assertEqual(
+            geom.build_pipe_rack_number(2, 'c', 1500.4, 750.6, 'd12'),
+            'D12-2-C-1500-751')
 
-    def test_empty_name_produces_no_number(self):
-        self.assertEqual(geom.build_pipe_rack_number('', 1, 'A', 1000, 400), '')
-        self.assertEqual(geom.build_pipe_rack_number('   ', 1, 'A', 1000, 400),
-                         '')
+    def test_g4_number_format_has_no_type_segment(self):
+        """G4 地面生根只有类型 1，编号不带类型段。"""
+        self.assertEqual(
+            geom.build_pipe_rack_number(1, 'd', 1000.0, 500.0, 'G4'),
+            'G4-D-1000-500')
+        self.assertEqual(geom.ground_anchor_number('D', 1000.0, 500.0),
+                         'G4-D-1000-500')
+
+    def test_number_prefix_follows_rooting_method(self):
+        """前缀由生根方式决定，与类型无关；两种方式前缀不同。"""
+        steel = geom.build_pipe_rack_number(1, 'A', 1000, 500, 'D12')
+        ground = geom.build_pipe_rack_number(1, 'A', 1000, 500, 'G4')
+        self.assertTrue(steel.startswith('D12-'))
+        self.assertTrue(ground.startswith('G4-'))
+
+    def test_unknown_rooting_method_is_rejected(self):
+        with self.assertRaises(ValueError):
+            geom.build_pipe_rack_number(1, 'A', 1000, 500, 'D99')
+        with self.assertRaises(ValueError):
+            geom.max_allowed_height('A', 'D99')
+        with self.assertRaises(ValueError):
+            geom.allowable_load('A', 500, 250, 'D99')
 
     def test_round_half_up(self):
         self.assertEqual(geom.round_half_up(0.5), 1)

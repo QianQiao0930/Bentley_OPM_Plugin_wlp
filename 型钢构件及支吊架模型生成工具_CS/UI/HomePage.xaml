@@ -1,0 +1,223 @@
+<UserControl x:Class="SteelSectionProbe.HomePage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:ClassModifier="internal"
+             Background="{DynamicResource BackgroundBrush}">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/Theme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- 卡片尺寸写死：宽 300 × 高 100，与内部文字行数、窗口宽度都解耦。
+                 首页窗口宽度由 WorkspaceView 按真实可视树实测校准（MeasureRowWidth /
+                 MeasureChromeWidth / 实测页边距），所以这里改宽高不用手工去改窗口宽度，
+                 但改完要用 E:/Code/_home_ui_probe/ 的 shot 模式出图确认首行仍是 2 列。 -->
+            <Style x:Key="HomeCardStyle" TargetType="Border" BasedOn="{StaticResource CardStyle}">
+                <Setter Property="Width" Value="300" />
+                <Setter Property="Height" Value="100" />
+                <Setter Property="Padding" Value="12,8" />
+                <Setter Property="Margin" Value="0,0,8,8" />
+                <Setter Property="ClipToBounds" Value="True" />
+            </Style>
+
+            <!-- 卡片内的三段文字都用固定行高 + 省略号裁剪：标题 1 行、说明 2 行、使用情况 1 行。
+                 合计 12(色条) + 20 + 34 + 17 = 83 ≤ 内容区 84（104 − 上下内边距 20）。 -->
+            <Style x:Key="CardTitleStyle" TargetType="TextBlock">
+                <Setter Property="Height" Value="20" />
+                <Setter Property="FontSize" Value="14" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="TextWrapping" Value="NoWrap" />
+                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+            </Style>
+
+            <Style x:Key="CardDescriptionStyle" TargetType="TextBlock">
+                <Setter Property="Height" Value="30" />
+                <Setter Property="FontSize" Value="10.5" />
+                <Setter Property="Margin" Value="0,4,0,0" />
+                <Setter Property="TextWrapping" Value="Wrap" />
+                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            </Style>
+
+            <Style x:Key="CardUsageStyle" TargetType="TextBlock">
+                <Setter Property="Height" Value="14" />
+                <Setter Property="FontSize" Value="10" />
+                <Setter Property="Margin" Value="0,2,0,0" />
+                <Setter Property="TextWrapping" Value="NoWrap" />
+                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            </Style>
+
+            <Style x:Key="HomeSectionTitleStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+                <Setter Property="VerticalAlignment" Value="Bottom" />
+            </Style>
+
+            <Style x:Key="HomeSectionHintStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="10.5" />
+                <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+                <Setter Property="Margin" Value="8,0,0,1" />
+                <Setter Property="VerticalAlignment" Value="Bottom" />
+            </Style>
+
+            <Style TargetType="TextBlock">
+                <Setter Property="TextWrapping" Value="Wrap" />
+            </Style>
+
+            <!-- 一张功能卡：左列标题/说明/使用情况，右列星标按钮 + 进入按钮。 -->
+            <DataTemplate x:Key="FeatureCardTemplate">
+                <Border Style="{StaticResource HomeCardStyle}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <!-- 右侧操作列宽度写死，不随星标/按钮文字变化（避免反过来压缩左侧文字区） -->
+                            <ColumnDefinition Width="76" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- 左列用两行网格：说明区在上、使用情况钉在卡片底部。
+                             这样说明文字占 1 行还是 2 行，卡片内部布局都不会跳。 -->
+                        <Grid Grid.Column="0" Margin="0,0,10,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <StackPanel Grid.Row="0">
+                                <Border x:Name="AccentBar" Width="28" Height="4" CornerRadius="2"
+                                        Background="{StaticResource AccentBrush}"
+                                        HorizontalAlignment="Left" Margin="0,0,0,8" />
+                                <TextBlock x:Name="TitleText" Text="{Binding Title}"
+                                           Style="{StaticResource CardTitleStyle}" />
+                                <TextBlock Text="{Binding Description}"
+                                           Style="{StaticResource CardDescriptionStyle}" />
+                            </StackPanel>
+                            <TextBlock x:Name="UsageLine" Grid.Row="1" Text="{Binding UsageText}"
+                                       VerticalAlignment="Bottom"
+                                       Style="{StaticResource CardUsageStyle}" />
+                        </Grid>
+
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <Button x:Name="StarButton" Style="{StaticResource StarButtonStyle}"
+                                    Width="72" HorizontalAlignment="Center"
+                                    ToolTip="点击设置星标：1～5 星，3 星及以上置顶"
+                                    ContextMenuOpening="Star_MenuOpening"
+                                    Click="Star_Click">
+                                <Button.ContextMenu>
+                                    <ContextMenu FontFamily="Microsoft YaHei UI" FontSize="12">
+                                        <MenuItem Header="★★★★★　5 星（最高）" Tag="5" Click="SetStars_Click" />
+                                        <MenuItem Header="★★★★　4 星" Tag="4" Click="SetStars_Click" />
+                                        <MenuItem Header="★★★　3 星（置顶）" Tag="3" Click="SetStars_Click" />
+                                        <MenuItem Header="★★　2 星" Tag="2" Click="SetStars_Click" />
+                                        <MenuItem Header="★　1 星" Tag="1" Click="SetStars_Click" />
+                                        <Separator />
+                                        <MenuItem Header="清除评分" Tag="0" Click="SetStars_Click" />
+                                    </ContextMenu>
+                                </Button.ContextMenu>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding StarFilled}" FontSize="12"
+                                               TextWrapping="NoWrap"
+                                               Foreground="{StaticResource AccentBrush}" />
+                                    <TextBlock Text="{Binding StarEmpty}" FontSize="12"
+                                               TextWrapping="NoWrap"
+                                               Foreground="{StaticResource MutedBrush}" />
+                                    <TextBlock Text="{Binding StarHint}" FontSize="10" Margin="2,0,0,0"
+                                               VerticalAlignment="Center" TextWrapping="NoWrap"
+                                               Foreground="{StaticResource MutedBrush}" />
+                                </StackPanel>
+                            </Button>
+
+                            <Border x:Name="PlanningBadge" Visibility="Collapsed"
+                                    Background="#EEF1F5" CornerRadius="10" Padding="9,3"
+                                    HorizontalAlignment="Center">
+                                <TextBlock Text="规划中" FontSize="10" TextWrapping="NoWrap"
+                                           Foreground="{StaticResource MutedBrush}" />
+                            </Border>
+
+                            <Button x:Name="EntryButton" Content="进入"
+                                    Style="{StaticResource PrimaryButtonStyle}"
+                                    Width="64" Height="28" MinWidth="0"
+                                    Margin="0,6,0,0"
+                                    Click="Entry_Click" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+                <DataTemplate.Triggers>
+                    <!-- 占位卡：灰化、无星标、无进入按钮，只展示路线图。 -->
+                    <DataTrigger Binding="{Binding IsReady}" Value="False">
+                        <Setter TargetName="AccentBar" Property="Background" Value="Transparent" />
+                        <Setter TargetName="TitleText" Property="Foreground" Value="{StaticResource MutedBrush}" />
+                        <Setter TargetName="UsageLine" Property="Visibility" Value="Collapsed" />
+                        <Setter TargetName="StarButton" Property="Visibility" Value="Collapsed" />
+                        <Setter TargetName="PlanningBadge" Property="Visibility" Value="Visible" />
+                        <Setter TargetName="EntryButton" Property="Visibility" Value="Collapsed" />
+                    </DataTrigger>
+                </DataTemplate.Triggers>
+            </DataTemplate>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled"
+                  Padding="0,0,4,0">
+        <StackPanel>
+            <TextBlock Text="选择功能模块"
+                       FontSize="17"
+                       FontWeight="SemiBold"
+                       Foreground="{StaticResource InkBrush}"
+                       Margin="0,2,0,3" />
+            <TextBlock Text="建模与查询功能均可从这里进入；卡片按“星标 → 常用度”自动排序。"
+                       FontSize="11"
+                       Foreground="{StaticResource MutedBrush}"
+                       TextWrapping="Wrap"
+                       Margin="0,0,0,12" />
+
+            <!-- 置顶区：星级达到 3 星才进入；没有置顶项时整段隐藏。 -->
+            <StackPanel x:Name="PinnedSection" Visibility="Collapsed" Margin="0,0,0,4">
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,7">
+                    <TextBlock Text="常用功能" Style="{StaticResource HomeSectionTitleStyle}" />
+                    <TextBlock Text="已置顶 · 按星级排序" Style="{StaticResource HomeSectionHintStyle}" />
+                </StackPanel>
+                <ItemsControl x:Name="PinnedList" ItemTemplate="{StaticResource FeatureCardTemplate}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <!-- 用 WrapPanel 而不是 UniformGrid：卡片宽度已写死，
+                                 放不下就换行，永远不会横向溢出或被裁掉。 -->
+                            <WrapPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,7">
+                <TextBlock Text="全部功能" Style="{StaticResource HomeSectionTitleStyle}" />
+                <TextBlock x:Name="OtherSectionHint" Text="按使用频率自动排序"
+                           Style="{StaticResource HomeSectionHintStyle}" />
+            </StackPanel>
+            <ItemsControl x:Name="OtherList" ItemTemplate="{StaticResource FeatureCardTemplate}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+            </ItemsControl>
+
+            <Grid Margin="0,4,8,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" VerticalAlignment="Center"
+                           Text="排序规则：星标（≥3 星置顶）＞ 使用频率（按月衰减）＞ 出厂顺序"
+                           FontSize="10" Foreground="{StaticResource MutedBrush}"
+                           TextWrapping="Wrap" />
+                <Button x:Name="ResetButton" Grid.Column="1" Content="重置排序"
+                        Style="{StaticResource GhostButtonStyle}"
+                        Height="24" MinWidth="0" Padding="8,0" FontSize="10.5"
+                        Click="Reset_Click" />
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

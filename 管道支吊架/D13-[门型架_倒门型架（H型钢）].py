@@ -1,8 +1,8 @@
-﻿# -*- coding: utf-8 -*-
-"""门型架（H型钢）（图 C.4-8 门形架 · H 型钢 · 类型 1）放置工具。
+# -*- coding: utf-8 -*-
+"""门型架 / 倒门型架（H型钢）（图 C.4-8 门形架 · H 型钢 · 类型 1 正门 / 类型 2 倒门）放置工具。
 
 在模型中点选一条用户绘制的 **竖直线**（整组门型架的中心线），并在面板上输入
-横担全长 **L**，据此生成一组 H 型钢门型架：
+横担全长 **L**、选【类型】，据此生成一组 H 型钢门型架：
 
     竖直线   = 整组中心线（过横担中点、两立柱轴线关于它对称），线长即门架高 H
     立柱轴线 = 竖直线 ∓(L - 100 - 立柱截面高)/2
@@ -10,14 +10,26 @@
     两立柱净距 B = L - 2×50 - 2×立柱截面高
                  （横担两端各超出立柱外缘 50，图上 50 (TYP.)）
 
-横担以该中心线为中点**横跨两根立柱**：两端各超出立柱外缘 50 mm，顶面（固定
-管子的面）落在所选竖直线的顶端（即高度 H 处）；立柱**顶面顶焊在横担下翼缘下
-表面**，两者腹板同处于门架平面内、翼缘对称于该平面。竖直线本身不能确定门架
-平面，故水平走向由面板的「朝向」给出。
+横担以该中心线为中点**横跨两根立柱**、两端各超出立柱外缘 50 mm；立柱与横担的
+腹板同处于门架平面内、翼缘对称于该平面。**两个类型只差「立柱在横担的哪一侧」**，
+管位面（固定管子的面）永远朝上、永远落在所选竖直线的「管底端」（与 T 形架
+D12_G4 的类型 1/2 同一口径）：
+
+* **类型 1 正门形架（立柱在下）**：辅助线**上端**＝管底标高＝横担顶面（高度 H
+  处）、下端＝基座 / 生根面；立柱**顶面顶焊在横担下翼缘下表面**，下料长 =
+  H − 横担截面高。
+* **类型 2 倒门形架（立柱在上·吊架）**：辅助线**下端**＝管底标高＝横担顶面、
+  上端＝接已有钢结构；横担整体落在管位面以下，立柱自线上端向下、**柱下端面顶焊
+  在横担上翼缘上表面**，下料长 = H；辅助线上端不建构件，与正门不建基座对称。
+
+两种朝向**共用同一条辅助线**（切类型即可，横担姿态不变、始终朝上承管）。
+
+竖直线本身不能确定门架平面，故水平走向由面板的「朝向」给出。
 
 整组构件（两立柱 + 横担）写成一个普通单元（Normal Cell），清单写入**管道支吊架
-公共库** ``支吊架公共库``（`SupportType='门型架（H型钢）'`），可与端焊三角架、
-L 型管架、门型架（角钢和槽钢）一起统计；可导出 JSON / Excel 清单。
+公共库** ``支吊架公共库``（`SupportType='D13-[门型架_倒门型架（H型钢）]'`），可与
+端焊三角架、L 型管架、门型架（角钢和槽钢）一起统计；可导出 JSON / Excel 清单。
+清单只在点【确定】时写库（预览阶段只出几何），见文件顶部策略说明。
 
 几何做法（型钢截面的真实圆弧轮廓与沿路径扫掠）复用仓库内
 ``型钢截面生成器`` 的数据 / 几何模块与 ``steel_sweep_geometry``；
@@ -126,7 +138,7 @@ except Exception:
     pass
 
 UI_TITLE = 'D13-[门型架_倒门型架（H型钢）]'
-UI_REVISION = 'line-select-tk-5'
+UI_REVISION = 'line-select-tk-6-hanger'
 
 # 整组构件写入的普通单元名。
 CELL_NAME = 'PORTAL_FRAME_H'
@@ -138,6 +150,31 @@ COMPONENT_ARM_NAME = '横担'
 DEFAULT_ARM_LENGTH_MM = 1000.0
 # 默认门架平面朝向（°）：0 = 世界 +X。
 DEFAULT_HEADING_DEG = 0.0
+
+# 管架类型（编号后缀）：1 正门形架（立柱在下），2 倒门形架（立柱在上·吊架）。
+# H 型钢门型架不做端焊 / 侧焊之分，两个类型与几何 1:1 对应。
+RACK_TYPE_OPTIONS = (
+    (1, '类型1  |  正门形架（立柱在下、横担在上）'),
+    (2, '类型2  |  倒门形架（立柱在上、横担在下·吊架）'),
+)
+
+# ---------------------------------------------------------------------------
+# 清单写库（共享支吊架库 ItemType）策略
+# ---------------------------------------------------------------------------
+# 背景：写公共库走 MicroStation 原生 EC 调用（``ItemTypeLibrary.Write()`` /
+# ``CustomItemHost.ApplyCustomItem``）。实测**预览阶段每改一次参数就写一次库**，
+# 第二次写库即卡死十几秒后 access violation（见 模块/日志/门型架（H型钢）_fault.log：
+# 崩溃栈全在 支吊架公共库.py 的 _get_or_create_item_type / _attach_item_with_defaults），
+# 与几何、清单数据无关 —— 每次改参数都会得到新的 AssemblyTag（编号含尺寸），
+# 于是每次都要新建 ItemType 并重写库。
+#
+# 因此照 ``D5_D6_G12_D19`` 综合版与 ``D8`` 门型架的既有做法：
+#   1) ATTACH_ON_CONFIRM：**只在点【确定】时写库**，预览阶段只出几何。写库次数
+#      从"每改一次参数一次"降到"每套一次"，也不会为取消掉的预览留下垃圾 ItemType。
+#   2) ITEM_TYPE_ATTACH：逃生开关。若本机该原生调用持续崩溃，置 False 后几何
+#      照常生成、照常落图，只是这批支吊架不进清单统计。
+ATTACH_ON_CONFIRM = True
+ITEM_TYPE_ATTACH = True
 
 # 选项变化后延迟重建的毫秒数：连点几下只重建一次。
 REGENERATE_DELAY_MS = 150        # 下拉框的防抖
@@ -386,14 +423,19 @@ def _plane_dirs(heading_deg):
 
 
 def _build_member_element(variant_key, member_kind, post, heading_deg,
-                          post_axis_u, arm_length_mm, uor_per_mm, dgn_model):
+                          post_axis_u, arm_length_mm, uor_per_mm, dgn_model,
+                          rack_type=1):
     """构建一个构件（立柱 / 横担）实体元素，不写入模型。
 
     截面朝向与扫掠起点由 ``门型架_H型钢_几何`` 的 ``member_section_params`` /
     ``member_axes`` / ``member_origin_length`` 给出，坐标系为门架局部基
-    (u, v, w)，原点取所选竖直线的下端（基座）。
+    (u, v, w)，原点取所选竖直线的下端（基座 / 倒门时的管位面）。
+
+    ``rack_type`` 只影响构件沿 w 的置放：类型 1 正门（横担顶面在 H、立柱自基座
+    向上），类型 2 倒门（横担顶面在 0、立柱自横担上表面向上到线上端）。
     """
-    _log('build member enter: %s/%s' % (member_kind, variant_key))
+    _log('build member enter: %s/%s type=%s' % (member_kind, variant_key,
+                                                rack_type))
     geometry = geom.member_geometry(variant_key, member_kind, uor_per_mm)
     run_dir, v_dir = _plane_dirs(heading_deg)
     axis_x, axis_y, axis_z = geom.member_axes(variant_key, member_kind)
@@ -401,7 +443,8 @@ def _build_member_element(variant_key, member_kind, post, heading_deg,
     axis_y = _world_axis(axis_y, run_dir, v_dir)
     axis_z = _world_axis(axis_z, run_dir, v_dir)
     origin_uvw, length_mm = geom.member_origin_length(
-        variant_key, member_kind, post.height_mm, arm_length_mm, post_axis_u)
+        variant_key, member_kind, post.height_mm, arm_length_mm, post_axis_u,
+        rack_type)
 
     vertex = _to_uor(post.base, uor_per_mm)
     origin = (
@@ -504,6 +547,25 @@ def _attach_support_items(cell, result):
     )
 
 
+def _write_support_items(handle, result):
+    """把一整组写进共享支吊架库（原生 EC 写入），返回写入条目数，失败只记日志。
+
+    先记一条含编号 / 构件的日志：这个原生调用是本插件已知的偶发卡死点，
+    崩了也能从日志最后一行看出崩在哪一项。
+    """
+    if not ITEM_TYPE_ATTACH:
+        _log('attach skipped (ITEM_TYPE_ATTACH=False)')
+        return 0
+    _log('attach: type=%s tag=%s items=%s'
+         % (SUPPORT_TYPE, result.get('pipe_rack_number') or '-',
+            [str(item.get('code')) for item in result.get('bom_items', ())]))
+    try:
+        return _attach_support_items(handle, result)
+    except Exception:
+        _log_exception('attach failed')
+        return 0
+
+
 # ---------------------------------------------------------------------------
 # 构建整组门型架
 # ---------------------------------------------------------------------------
@@ -513,7 +575,8 @@ def _build_portal_frame_cell(post, variant_key, rack_type, arm_length_mm,
                              heading_deg, rack_name=None):
     """按竖直线与横担长 L 构建门型架单元但**不写入模型**。
 
-    返回 ``(builder, 统计字典)``。
+    返回 ``(builder, 统计字典)``。``rack_type`` 取 1 正门（立柱在下、横担顶面在
+    辅助线上端 H）、2 倒门（立柱在上、横担顶面在辅助线下端 0）。
     """
     if not geom.variant_supports_type(variant_key, rack_type):
         raise ValueError(
@@ -532,9 +595,11 @@ def _build_portal_frame_cell(post, variant_key, rack_type, arm_length_mm,
         raise RuntimeError('请先激活一个三维 DGN 模型。')
 
     uor_per_mm = _uor_per_mm(dgn_model)
-    _log('portal frame (h-beam) build start: variant=%s type=%d L=%.1f H=%.1f '
-         'heading=%.2f' % (variant_key, int(rack_type), arm_length_mm,
-                           post.height_mm, float(heading_deg)))
+    hanger = geom.hanger_type(rack_type)
+    _log('portal frame (h-beam) build start: variant=%s type=%d hanger=%s '
+         'L=%.1f H=%.1f heading=%.2f'
+         % (variant_key, int(rack_type), hanger, arm_length_mm, post.height_mm,
+            float(heading_deg)))
 
     # 两立柱：所选竖直线为整组中心线，两立柱轴线对称于它、在
     # ∓(L - 100 - 立柱截面高)/2 处。
@@ -543,19 +608,21 @@ def _build_portal_frame_cell(post, variant_key, rack_type, arm_length_mm,
     right_axis = geom.post_axis_offset(variant_key, arm_length_mm, 'right')
     left = _build_member_element(
         variant_key, 'post', post, heading_deg, left_axis, arm_length_mm,
-        uor_per_mm, dgn_model)
+        uor_per_mm, dgn_model, rack_type)
     if left is None:
         raise RuntimeError('左立柱实体创建失败。')
     right = _build_member_element(
         variant_key, 'post', post, heading_deg, right_axis, arm_length_mm,
-        uor_per_mm, dgn_model)
+        uor_per_mm, dgn_model, rack_type)
     if right is None:
         raise RuntimeError('右立柱实体创建失败。')
 
-    # 横担：两端各超立柱外缘 50，顶面在高度 H 处。
+    # 横担：两端各超立柱外缘 50，管位面朝上。
+    # 正门（1）顶面在辅助线上端 H；倒门（2）顶面在辅助线下端 0（接已有结构的
+    # 上端不建构件，与正门不建基座对称）。
     arm = _build_member_element(
         variant_key, 'arm', post, heading_deg, 0.0, arm_length_mm,
-        uor_per_mm, dgn_model)
+        uor_per_mm, dgn_model, rack_type)
     if arm is None:
         raise RuntimeError('横担实体创建失败。')
 
@@ -568,7 +635,8 @@ def _build_portal_frame_cell(post, variant_key, rack_type, arm_length_mm,
 
     spec = geom.specification(variant_key)
     post_cut_length = geom.member_origin_length(
-        variant_key, 'post', post.height_mm, arm_length_mm, left_axis)[1]
+        variant_key, 'post', post.height_mm, arm_length_mm, left_axis,
+        rack_type)[1]
     rack_number = geom.build_pipe_rack_number(
         rack_name or '', rack_type, variant_key, post.height_mm, arm_length_mm)
 
@@ -579,6 +647,7 @@ def _build_portal_frame_cell(post, variant_key, rack_type, arm_length_mm,
     result = {
         'variant': variant_key,
         'rack_type': int(rack_type),
+        'hanger': bool(hanger),
         'child_count': builder.child_count,
         'height': post.height_mm,
         'span': span_mm,
@@ -606,14 +675,23 @@ def _build_portal_frame_cell(post, variant_key, rack_type, arm_length_mm,
 
 def replace_portal_frame(post, variant_key, previous_handle, rack_type=1,
                          arm_length_mm=DEFAULT_ARM_LENGTH_MM,
-                         heading_deg=DEFAULT_HEADING_DEG, rack_name=None):
-    """重建门型架：先建新的一版并写入，成功后再删除上一版预览。"""
+                         heading_deg=DEFAULT_HEADING_DEG, rack_name=None,
+                         attach=None):
+    """重建门型架：先建新的一版并写入，成功后再删除上一版预览。
+
+    ``attach=None`` 时按 :data:`ATTACH_ON_CONFIRM` 决定：**预览阶段默认不写公共库**
+    （原生 EC 写入反复触发会卡死，见文件顶部说明），写库推迟到点【确定】。
+    """
     builder, result = _build_portal_frame_cell(
         post, variant_key, rack_type, arm_length_mm, heading_deg, rack_name)
     _log('replace_portal_frame: committing cell')
     new_handle = builder.commit()
-    _log('replace_portal_frame: attaching ItemType/公共库')
-    _attach_support_items(new_handle, result)
+    write_items = (not ATTACH_ON_CONFIRM) if attach is None else bool(attach)
+    if write_items:
+        _log('replace_portal_frame: attaching ItemType/公共库')
+        _write_support_items(new_handle, result)
+    else:
+        _log('replace_portal_frame: 预览不写库（写库推迟到【确定】）')
     _log('replace_portal_frame: deleting previous preview')
     deleted = _delete_preview(previous_handle)
     _log('replace_portal_frame: done (deleted=%s)' % bool(deleted))
@@ -623,11 +701,11 @@ def replace_portal_frame(post, variant_key, previous_handle, rack_type=1,
 def draw_portal_frame(post, variant_key, rack_type=1,
                       arm_length_mm=DEFAULT_ARM_LENGTH_MM,
                       heading_deg=DEFAULT_HEADING_DEG, rack_name=None):
-    """直接创建整组单元并写入模型，返回 (cell, 统计字典)。"""
+    """直接创建整组单元并写入模型（**直接落图，故写库**），返回 (cell, 统计字典)。"""
     builder, result = _build_portal_frame_cell(
         post, variant_key, rack_type, arm_length_mm, heading_deg, rack_name)
     cell = builder.commit()
-    _attach_support_items(cell, result)
+    _write_support_items(cell, result)
     return cell, result
 
 
@@ -661,6 +739,8 @@ class _PortalFrameSettingsDialog(GlassDialog):
         self.post_handle = None
         self.preview_handle = None
         self.preview_result = None
+        # 当前预览是否已写进共享支吊架库（预览阶段不写，见文件顶部策略说明）。
+        self._preview_attached = False
         self.confirmed = False
         # 关键：MicroStation 的原生回调（_OnPostLocate / _OnElementModify）
         # 会在 Tk 的 update() 里被重入式调用；此时**任何** Tcl 调用
@@ -711,7 +791,8 @@ class _PortalFrameSettingsDialog(GlassDialog):
     def _build(self):
         shell_form = self.build_shell(
             UI_TITLE,
-            '点选一条竖直线（整组中心线）· 输入横担长 L，自动预览')
+            '点选一条竖直线（整组中心线）· 选类型（正门 1 / 倒门 2）· '
+            '输入横担长 L，自动预览')
         # 整块内容放进固定高度的滚动容器，保证面板再长也不超出屏幕；
         # 鼠标滚轮或右侧细滚动条查看。
         shell_form.columnconfigure(0, weight=1)
@@ -721,16 +802,18 @@ class _PortalFrameSettingsDialog(GlassDialog):
         form = self._scroll.body
         form.columnconfigure(1, weight=1)
 
-        hint_frame, hint_text = self._text_field(form, height=2)
+        hint_frame, hint_text = self._text_field(form, height=3)
         hint_frame.grid(row=0, column=0, columnspan=2, sticky='ew')
         self._set_text(hint_text, (
-            '在模型中点选一条竖直线：线长即门架高 H（横担顶面到基座），'
-            '该线是整组门型架的中心线（两立柱轴线关于它对称）。再输入'
-            '横担全长 L —— 横担以中心线为中点、两端各超立柱外缘 50'
-            '（图上 50 TYP.），两立柱净距 B = L − 2×50 − 2×立柱截面高'
-            ' 自动计算。竖直线不能定出朝向，请用「朝向」指定门架平面。'
-            '点取后可改参数、预览自动重建；点【确定】保留，点【取消】'
-            '或右键放弃。'))
+            '在模型中点选一条竖直线，该线是整组门型架的中心线（两立柱轴线'
+            '关于它对称）。再选【类型】并输入横担全长 L —— 正门（类型 1）'
+            '以线的【上端】为管底标高 = 横担顶面（线长即门架高 H，下端为基座），'
+            '倒门（类型 2）以线的【下端】为管底标高 = 横担顶面、上端接已有'
+            '钢结构（线长仍 = H，由横担顶面量到上方生根面），管位面始终朝上。'
+            '横担以中心线为中点、两端各超立柱外缘 50（图上 50 TYP.），两立柱'
+            '净距 B = L − 2×50 − 2×立柱截面高 自动计算。竖直线不能定出朝向，'
+            '请用「朝向」指定门架平面。点取后可改参数、预览自动重建（预览阶段'
+            '只出几何）；点【确定】保留并写入公共库清单，点【取消】或右键放弃。'))
 
         ttk.Label(form, text='构件规格（表 1）', style='Section.TLabel').grid(
             row=1, column=0, columnspan=2, sticky='w', pady=(6, 2))
@@ -832,11 +915,11 @@ class _PortalFrameSettingsDialog(GlassDialog):
         ttk.Label(form, text='类型', style='GlassMuted.TLabel').grid(
             row=16, column=0, sticky='w', pady=3)
         type_labels = []
-        for key, label in ((1, '类型1  |  正门形架（立柱在下、横担在上）'),):
+        for key, label in RACK_TYPE_OPTIONS:
             type_labels.append(label)
             self._rack_type_by_label[label] = key
         self._rack_type_combo = ttk.Combobox(
-            form, textvariable=self._rack_type, state='readonly', width=30,
+            form, textvariable=self._rack_type, state='readonly', width=34,
             style='Glass.TCombobox', values=type_labels)
         self._rack_type_combo.grid(row=16, column=1, sticky='ew',
                                    padx=(10, 0), pady=3)
@@ -873,7 +956,8 @@ class _PortalFrameSettingsDialog(GlassDialog):
         self._status_frame.pack(fill='x', pady=(4, 0))
         self._set_text(self._preview_info_text, '预览：—')
         self._set_text(self._status_text,
-                       '请在模型中点选一条竖直线；改参数会自动重建预览。')
+                       '请在模型中点选一条竖直线；改参数会自动重建预览'
+                       '（预览阶段只出几何，清单在点【确定】时写入公共库）。')
 
         buttons = tk.Frame(shell_form, bg=CARD)
         buttons.grid(row=2, column=0, sticky='ew', pady=(6, 0))
@@ -1045,10 +1129,11 @@ class _PortalFrameSettingsDialog(GlassDialog):
     def set_result(self, result):
         number = result.get('pipe_rack_number') or '—'
         self._set_text(self._preview_info_text,
-            "预览：子项 %s，类型 %d，%s，H=%.0f mm，L=%.0f mm，B=%.0f mm，"
-            "立柱下料 %.0f mm，朝向 %.0f°，单元含 %d 个子元素；编号 %s。" % (
-                result['variant'], result['rack_type'],
-                result['specification'], result['height'],
+            "预览：%s，子项 %s，%s，H=%.0f mm，L=%.0f mm，B=%.0f mm，"
+            "立柱下料 %.0f mm，朝向 %.0f°，单元含 %d 个子元素；编号 %s。"
+            "（清单在点【确定】时写入公共库）" % (
+                _type_description(result['rack_type']),
+                result['variant'], result['specification'], result['height'],
                 result['arm_length'], result['span'],
                 result['post_cut_length'], result['heading_deg'],
                 result['child_count'], number,
@@ -1057,6 +1142,7 @@ class _PortalFrameSettingsDialog(GlassDialog):
 
     def refresh_spec(self):
         variant_key = self.current_variant()
+        rack_type = self.current_rack_type()
         self._spec.set(geom.specification(variant_key))
         try:
             self._depth.set('%.0f' % geom.member_depth(variant_key, 'post'))
@@ -1064,10 +1150,10 @@ class _PortalFrameSettingsDialog(GlassDialog):
             self._depth.set('—')
         if self._options_valid():
             self._set_text(self._spec_info_text,
-                '构件A：立柱与横担同为 %s（%s）。立柱与横担腹板同处于门架'
-                '平面内、翼缘对称；立柱顶面顶焊在横担下翼缘下表面。'
+                '构件A：立柱与横担同为 %s（%s）。%s'
                 % (geom.specification(variant_key),
-                   _family_description(variant_key)))
+                   _family_description(variant_key, rack_type),
+                   _type_description(rack_type)))
         else:
             self._set_text(self._spec_info_text, self._invalid_message())
         self.refresh_line_labels()
@@ -1093,7 +1179,8 @@ class _PortalFrameSettingsDialog(GlassDialog):
         try:
             self._post_length.set(
                 '%.1f' % geom.member_origin_length(
-                    variant_key, 'post', post.height_mm, arm_length, 0.0)[1])
+                    variant_key, 'post', post.height_mm, arm_length, 0.0,
+                    self.current_rack_type())[1])
         except ValueError:
             self._post_length.set('—')
 
@@ -1254,11 +1341,14 @@ class _PortalFrameSettingsDialog(GlassDialog):
 
         self.preview_handle = handle
         self.preview_result = result
+        self._preview_attached = False
         message = (
-            "预览已更新：子项 %s，类型 %d，%s，H=%.0f mm，L=%.0f mm，"
+            "预览已更新：%s，子项 %s，%s，H=%.0f mm，L=%.0f mm，"
             "B=%.0f mm，立柱下料 %.0f mm，朝向 %.0f°，单元含 %d 个子元素，"
-            "编号 %s。%s改参数会自动重建；点【确定】保留，点【取消】放弃。" % (
-                result['variant'], result['rack_type'], result['specification'],
+            "编号 %s。%s改参数会自动重建；点【确定】保留（并写入公共库清单），"
+            "点【取消】放弃。" % (
+                _type_description(result['rack_type']),
+                result['variant'], result['specification'],
                 result['height'], result['arm_length'], result['span'],
                 result['post_cut_length'], result['heading_deg'],
                 result['child_count'], result['pipe_rack_number'] or '—',
@@ -1280,6 +1370,7 @@ class _PortalFrameSettingsDialog(GlassDialog):
         handle = self.preview_handle
         self.preview_handle = None
         self.preview_result = None
+        self._preview_attached = False
         return _delete_preview(handle)
 
     def delete_source_line(self):
@@ -1309,9 +1400,49 @@ class _PortalFrameSettingsDialog(GlassDialog):
             self.set_status(self._invalid_message(), True)
             return
         self.confirmed = True
+        # 清单写库在【确定】这一刻做（预览阶段完全不碰 ItemType，见文件顶部策略）：
+        # 原生 EC 写入次数从"每改一次参数一次"降到"每套一次"，也不会为取消掉的
+        # 预览在公共库里留下垃圾 ItemType。
+        self.attach_result()
         if self.preview_handle is not None and not self._keep_line.get():
             self.delete_source_line()
         self.finish_tool()
+
+    def attach_result(self):
+        """把当前预览写进共享支吊架库（整组 + 各构件）；失败只记日志，不影响落图。"""
+        handle = self.preview_handle
+        result = self.preview_result
+        if handle is None or result is None:
+            return 0
+        if self._preview_attached:
+            _log('attach skipped: preview already written')
+            return 0
+        try:
+            if not handle.IsValid():
+                _log('attach skipped: preview handle invalid')
+                return 0
+        except Exception:
+            _log_exception('attach handle check failed')
+            return 0
+        count = _write_support_items(handle, result)
+        if count:
+            self._preview_attached = True
+            _log('attach on confirm: %s item(s) written' % count)
+            self.set_status('已保留门型架，清单已写入公共库（%d 项）。' % count)
+            try:
+                NotificationManager.OutputPrompt(
+                    '%s：清单已写入公共库（%d 项）' % (UI_TITLE, count))
+            except Exception:
+                _log_exception('OutputPrompt failed')
+        else:
+            message = ('%s：公共库清单未写入（几何已保留、不受影响），详见日志。'
+                       % UI_TITLE)
+            self.set_status(message, True)
+            try:
+                NotificationManager.OutputPrompt(message)
+            except Exception:
+                _log_exception('OutputPrompt failed')
+        return count
 
     def cancel_tool(self):
         self._cancel_pending_regeneration()
@@ -1342,9 +1473,24 @@ class _PortalFrameSettingsDialog(GlassDialog):
             pass
 
 
-def _family_description(variant_key):
+def _type_description(rack_type):
+    """类型的中文说明（正门 / 倒门），供面板与提示文字复用。"""
+    if geom.hanger_type(rack_type):
+        return ('类型 %d 倒门形架（立柱在上·吊架）：辅助线【下端】为管底标高 = '
+                '横担顶面、上端接已有钢结构；横担整体在管位面以下，立柱下端面'
+                '顶焊在横担上翼缘上表面，下料长 = H。'
+                % int(rack_type))
+    return ('类型 %d 正门形架（立柱在下）：辅助线【上端】为管底标高 = 横担顶面、'
+            '下端为基座 / 生根面；立柱自下端向上，柱顶顶焊在横担下翼缘下表面，'
+            '下料长 = H − 横担截面高。' % int(rack_type))
+
+
+def _family_description(variant_key, rack_type=1):
     """构件型式说明（本插件只有热轧 H 型钢一种型式）。"""
     geom.VARIANTS[variant_key]  # 校验子项
+    if geom.hanger_type(rack_type):
+        return ('热轧 H 型钢；立柱与横担腹板共面、翼缘对称，'
+                '立柱下端面顶焊横担上翼缘上表面')
     return ('热轧 H 型钢；立柱与横担腹板共面、翼缘对称，'
             '立柱顶面顶焊横担下翼缘下表面')
 

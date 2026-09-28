@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><LangVersion>7.3</LangVersion><NoWarn>0649</NoWarn></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Domain/ProfileModels.cs" Link="ProfileModels.cs" />
+    <Compile Include="../../Data/RuntimeData.cs" Link="RuntimeData.cs" />
+    <Compile Include="../../Data/ProfileLookup.cs" Link="ProfileLookup.cs" />
+    <Compile Include="../../Domain/E1Guide/E1GuideModels.cs" Link="E1GuideModels.cs" />
+    <Compile Include="../../Domain/E1Guide/E1GuideSegment.cs" Link="E1GuideSegment.cs" />
+    <Compile Include="../../Data/E1Guide/E1GuideCatalog.cs" Link="E1GuideCatalog.cs" />
+    <Compile Include="../../Domain/PipeClamp/PipeClampModels.cs" Link="PipeClampModels.cs" />
+    <Compile Include="../../Data/PipeClamp/PipeClampCatalog.cs" Link="PipeClampCatalog.cs" />
+    <Compile Include="../../Data/PipeClamp/A2ClampCatalog.cs" Link="A2ClampCatalog.cs" />
+    <Compile Include="../../Data/PipeClamp/K1LimitCatalog.cs" Link="K1LimitCatalog.cs" />
+    <Compile Include="../../Data/PipeClamp/T4ShoeCatalog.cs" Link="T4ShoeCatalog.cs" />
+    <Compile Include="../../Services/PipeClamp/A2ClampCalculator.cs" Link="A2ClampCalculator.cs" />
+    <Compile Include="../../Services/PipeClamp/K1LimitCalculator.cs" Link="K1LimitCalculator.cs" />
+    <Compile Include="../../Services/PipeClamp/T4ShoeCalculator.cs" Link="T4ShoeCalculator.cs" />
+  </ItemGroup>
+</Project>

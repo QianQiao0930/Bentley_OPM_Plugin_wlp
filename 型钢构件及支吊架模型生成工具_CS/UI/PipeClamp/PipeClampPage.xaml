@@ -1,0 +1,113 @@
+<UserControl x:Class="SteelSectionProbe.PipeClampPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:ClassModifier="internal" Background="{DynamicResource BackgroundBrush}"
+             TextOptions.TextRenderingMode="ClearType">
+    <UserControl.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="../Themes/Theme.xaml" />
+    </ResourceDictionary.MergedDictionaries></ResourceDictionary></UserControl.Resources>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,4,0">
+        <StackPanel>
+            <Border Style="{StaticResource CardStyle}"><StackPanel>
+                <TextBlock Text="01  管夹类型" Style="{StaticResource SectionTitleStyle}" />
+                <TextBlock Text="四种管夹都是「点选管道 / 直线，在点击处沿其轴线生成整组」。先选类型并设好参数，再点【开始点取】。" Foreground="Black" TextWrapping="Wrap" Margin="0,0,0,8" />
+                <ComboBox x:Name="KindCombo" SelectionChanged="Kind_Changed" />
+                <TextBlock x:Name="KindHintText" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" Margin="0,6,0,0" />
+            </StackPanel></Border>
+
+            <Border x:Name="A2Panel" Style="{StaticResource CardStyle}"><StackPanel>
+                <TextBlock Text="02  A2 标准型 2 螺栓管夹" Style="{StaticResource SectionTitleStyle}" />
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="公称直径（读不到管道公称直径时使用）" Foreground="Black" TextWrapping="Wrap" />
+                        <ComboBox x:Name="A2DnCombo" SelectionChanged="Parameter_Changed" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="保温厚度（mm；读不到管道保温时使用）" Foreground="Black" TextWrapping="Wrap" />
+                        <TextBox x:Name="A2InsulationText" Text="0" LostFocus="Parameter_Changed" />
+                    </StackPanel>
+                </Grid>
+                <TextBlock x:Name="A2SpecText" Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" Margin="0,12,0,0" />
+            </StackPanel></Border>
+
+            <Border x:Name="E1Panel" Style="{StaticResource CardStyle}"><StackPanel>
+                <TextBlock Text="02  E1 不保温管导向架" Style="{StaticResource SectionTitleStyle}" />
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="公称直径（点取普通直线或多段线时使用）" Foreground="Black" TextWrapping="Wrap" />
+                        <ComboBox x:Name="E1DnCombo" SelectionChanged="Parameter_Changed" />
+                        <TextBlock Text="构件A 材料" Foreground="Black" Margin="0,9,0,0" />
+                        <TextBox x:Name="E1MaterialText" LostFocus="Parameter_Changed" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="子项（默认按 DN 自动选型）" Foreground="Black" TextWrapping="Wrap" />
+                        <ComboBox x:Name="E1ItemCombo" SelectionChanged="Parameter_Changed" />
+                        <CheckBox x:Name="E1StainlessCheck" Content="不锈钢管道（加两块薄板）" Margin="0,9,0,0" Checked="Parameter_Changed" Unchecked="Parameter_Changed" />
+                        <CheckBox x:Name="E1DeleteLineCheck" Content="确认后删除辅助线" IsEnabled="False" Margin="0,6,0,0" />
+                    </StackPanel>
+                </Grid>
+                <TextBlock x:Name="E1SpecText" Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" Margin="0,12,0,0" />
+            </StackPanel></Border>
+
+            <Border x:Name="K1Panel" Style="{StaticResource CardStyle}"><StackPanel>
+                <TextBlock Text="02  K1 不保温管限位架" Style="{StaticResource SectionTitleStyle}" />
+                <TextBlock Text="点选一根水平管道或直线，在点击处生成两组一前一后的限位块，中间夹住已有钢构（间距 W）。" Foreground="Black" TextWrapping="Wrap" Margin="0,0,0,8" />
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="公称直径" Foreground="Black" />
+                        <ComboBox x:Name="K1DnCombo" SelectionChanged="K1Dn_Changed" />
+                        <TextBlock Text="底部已有钢构宽度 W（mm）" Foreground="Black" TextWrapping="Wrap" Margin="0,9,0,0" />
+                        <TextBox x:Name="K1WidthText" Text="100" LostFocus="Parameter_Changed" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="子项（按 DN 自动，可改）" Foreground="Black" TextWrapping="Wrap" />
+                        <ComboBox x:Name="K1SubitemCombo" SelectionChanged="Parameter_Changed" />
+                        <TextBlock Text="材料" Foreground="Black" Margin="0,9,0,0" />
+                        <TextBox x:Name="K1MaterialText" Text="Q235B" LostFocus="Parameter_Changed" />
+                    </StackPanel>
+                </Grid>
+                <TextBlock x:Name="K1SpecText" Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" Margin="0,12,0,0" />
+            </StackPanel></Border>
+
+            <Border x:Name="T4Panel" Style="{StaticResource CardStyle}"><StackPanel>
+                <TextBlock Text="02  T4 高温隔热限位管托" Style="{StaticResource SectionTitleStyle}" />
+                <TextBlock Text="点选一条管道轴线，在点击处生成上下两片包保温层的筒形承重板（对开 45°）与弧顶支撑底座。H 由隔热层厚度 B 查表。" Foreground="Black" TextWrapping="Wrap" Margin="0,0,0,8" />
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="公称直径（表 1，DN80~600）" Foreground="Black" TextWrapping="Wrap" />
+                        <ComboBox x:Name="T4DnCombo" SelectionChanged="Parameter_Changed" />
+                        <TextBlock Text="隔热层厚度 B（mm；H 按 B 查表）" Foreground="Black" TextWrapping="Wrap" Margin="0,9,0,0" />
+                        <TextBox x:Name="T4InsulationText" LostFocus="Parameter_Changed" />
+                        <TextBlock Text="管托沿管轴总长 L（mm，≥300）" Foreground="Black" TextWrapping="Wrap" Margin="0,9,0,0" />
+                        <TextBox x:Name="T4LengthText" LostFocus="Parameter_Changed" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="编号名称段 / 温度代码 / 材料代码 / F(注11)" Foreground="Black" TextWrapping="Wrap" />
+                        <TextBox x:Name="T4NameText" LostFocus="Parameter_Changed" />
+                        <TextBox x:Name="T4TempText" Margin="0,6,0,0" LostFocus="Parameter_Changed" />
+                        <TextBox x:Name="T4MaterialText" Margin="0,6,0,0" LostFocus="Parameter_Changed" />
+                        <TextBox x:Name="T4FText" Margin="0,6,0,0" LostFocus="Parameter_Changed" />
+                        <CheckBox x:Name="T4PipeCheck" Content="创建管道本体" Margin="0,9,0,0" Checked="Parameter_Changed" Unchecked="Parameter_Changed" />
+                        <CheckBox x:Name="T4InsulationCheck" Content="创建保温层" Margin="0,6,0,0" Checked="Parameter_Changed" Unchecked="Parameter_Changed" />
+                    </StackPanel>
+                </Grid>
+                <TextBlock x:Name="T4SpecText" Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" Margin="0,12,0,0" />
+            </StackPanel></Border>
+
+            <Border Style="{StaticResource CardStyle}"><StackPanel>
+                <TextBlock Text="03  点取与预览" Style="{StaticResource SectionTitleStyle}" />
+                <TextBlock Text="点【开始点取】后，在模型中悬停选择管道 / 直线 / 多段线，左键在点击处生成预览；改参数会自动重建。确认后才写入支吊架材料清单。右键结束点取并取消未确认预览。" Foreground="Black" TextWrapping="Wrap" Margin="0,0,0,8" />
+                <WrapPanel>
+                    <Button Content="开始点取" Style="{StaticResource PrimaryButtonStyle}" Click="Pick_Click" Margin="0,0,8,8" />
+                    <Button Content="结束点取" Style="{StaticResource SecondaryButtonStyle}" Click="End_Click" Margin="0,0,8,8" />
+                    <Button Content="更新预览" Style="{StaticResource SecondaryButtonStyle}" Click="Update_Click" Margin="0,0,8,8" />
+                </WrapPanel>
+                <TextBlock x:Name="PreviewText" Text="尚未选取源元素。" Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" Margin="0,4,0,12" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="取消预览" Style="{StaticResource SecondaryButtonStyle}" Click="Cancel_Click" Margin="0,0,8,0" />
+                    <Button x:Name="ConfirmButton" Content="确定生成" Style="{StaticResource PrimaryButtonStyle}" Click="Confirm_Click" IsEnabled="False" />
+                </StackPanel>
+            </StackPanel></Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

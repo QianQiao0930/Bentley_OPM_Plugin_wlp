@@ -1,0 +1,142 @@
+<UserControl x:Class="SteelSectionProbe.ElbowTrunnionPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:ClassModifier="internal"
+             Background="{DynamicResource BackgroundBrush}"
+             TextOptions.TextRenderingMode="ClearType">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../Themes/Theme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                  Padding="0,0,4,0">
+        <StackPanel>
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <TextBlock Text="01  弯头与耳轴方向" Style="{StaticResource SectionTitleStyle}" />
+                    <TextBlock Text="先选择弯头方向，再选择耳轴方向。四种组合共用此入口。"
+                               Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" Margin="0,0,0,8" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="弯头方向" Foreground="Black" />
+                            <ComboBox x:Name="ElbowCombo" SelectionChanged="Variant_Changed">
+                                <ComboBoxItem Content="竖直弯头" />
+                                <ComboBoxItem Content="水平弯头" />
+                            </ComboBox>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="耳轴方向" Foreground="Black" />
+                            <ComboBox x:Name="TrunnionCombo" SelectionChanged="Variant_Changed">
+                                <ComboBoxItem Content="竖直耳轴" />
+                                <ComboBoxItem Content="水平耳轴" />
+                            </ComboBox>
+                        </StackPanel>
+                    </Grid>
+                    <TextBlock x:Name="VariantText" Foreground="{StaticResource InkBrush}"
+                               FontWeight="SemiBold" Margin="0,7,0,0" />
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <TextBlock Text="02  放置参数" Style="{StaticResource SectionTitleStyle}" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock x:Name="ExtentLabel" Text="高度 H（mm）"
+                                       Foreground="Black" TextWrapping="Wrap" />
+                            <TextBox x:Name="ExtentText" Text="1000"
+                                     LostFocus="Parameter_Changed" />
+                            <CheckBox x:Name="HollowCheck" IsChecked="True"
+                                      Margin="0,8,0,0" Checked="Parameter_Changed"
+                                      Unchecked="Parameter_Changed">
+                                <TextBlock Text="按空心钢管建模（取消为实心圆钢）"
+                                           TextWrapping="Wrap" />
+                            </CheckBox>
+                            <TextBlock Text="自定义耳轴壁厚（mm，留空用选型表）"
+                                       Foreground="Black" Margin="0,9,0,0"
+                                       TextWrapping="Wrap" />
+                            <TextBox x:Name="WallText" LostFocus="Parameter_Changed" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock x:Name="PlateLabel" Text="底板类型"
+                                       Foreground="Black" TextWrapping="Wrap" />
+                            <ComboBox x:Name="PlateCombo" SelectionChanged="Parameter_Changed">
+                                <ComboBoxItem Content="A 方形底板" />
+                                <ComboBoxItem Content="B 圆形底板" />
+                                <ComboBoxItem Content="C 无底板" />
+                            </ComboBox>
+                            <TextBlock Text="材料代码" Foreground="Black" Margin="0,9,0,0" />
+                            <ComboBox x:Name="MaterialCombo" SelectionChanged="Parameter_Changed">
+                                <ComboBoxItem Content="C1" /><ComboBoxItem Content="C2" />
+                                <ComboBoxItem Content="L" /><ComboBoxItem Content="A1" />
+                                <ComboBoxItem Content="A2" /><ComboBoxItem Content="S" />
+                            </ComboBox>
+                            <TextBlock Text="命名管径单位" Foreground="Black" Margin="0,9,0,0" />
+                            <ComboBox x:Name="NamingUnitCombo" SelectionChanged="Parameter_Changed">
+                                <ComboBoxItem Content="公制（DN，默认）" />
+                                <ComboBoxItem Content="英制（NPS 英寸）" />
+                            </ComboBox>
+                            <CheckBox x:Name="PtfeCheck" Margin="0,8,0,0"
+                                      Checked="Parameter_Changed" Unchecked="Parameter_Changed">
+                                <TextBlock Text="底板下增加 3 mm 镜面不锈钢覆面"
+                                           TextWrapping="Wrap" />
+                            </CheckBox>
+                            <CheckBox x:Name="FlatCheck" Margin="0,8,0,0"
+                                      Checked="Parameter_Changed" Unchecked="Parameter_Changed">
+                                <TextBlock Text="耳轴与主管底平（FB）" TextWrapping="Wrap" />
+                            </CheckBox>
+                            <CheckBox x:Name="OutletCheck" Margin="0,8,0,0"
+                                      Checked="Parameter_Changed" Unchecked="Parameter_Changed">
+                                <TextBlock Text="沿 Outlet 端方向伸出" TextWrapping="Wrap" />
+                            </CheckBox>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <TextBlock Text="03  点选与预览" Style="{StaticResource SectionTitleStyle}" />
+                    <TextBlock Text="点选 90° OpenPlant 弯头后，移动鼠标拉伸取长，左键固定长度并生成可撤销预览；确认后写入支吊架清单属性。"
+                               Foreground="{StaticResource InkBrush}" TextWrapping="Wrap"
+                               Margin="0,0,0,8" />
+                    <WrapPanel>
+                        <Button Content="点选弯头" Style="{StaticResource PrimaryButtonStyle}"
+                                Click="Pick_Click" Margin="0,0,6,6" />
+                        <Button Content="结束点选" Style="{StaticResource SecondaryButtonStyle}"
+                                Click="Stop_Click" Margin="0,0,6,6" />
+                        <Button Content="更新预览" Style="{StaticResource SecondaryButtonStyle}"
+                                Click="Refresh_Click" Margin="0,0,6,6" />
+                    </WrapPanel>
+                    <TextBlock x:Name="SelectionText" Foreground="{StaticResource InkBrush}"
+                               TextWrapping="Wrap" Margin="0,4,0,8" Text="尚未选择弯头。" />
+                    <TextBlock x:Name="LiveLengthText" Foreground="{StaticResource StatusBrush}"
+                               TextWrapping="Wrap" Margin="0,0,0,8" />
+                    <TextBlock x:Name="PlanText" Foreground="{StaticResource InkBrush}"
+                               TextWrapping="Wrap" Margin="0,0,0,8" />
+                    <WrapPanel HorizontalAlignment="Right">
+                        <Button Content="取消预览" Style="{StaticResource SecondaryButtonStyle}"
+                                Click="Cancel_Click" Margin="0,0,7,0" />
+                        <Button x:Name="ConfirmButton" Content="确认生成" IsEnabled="False"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Click="Confirm_Click" />
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
+
+
+

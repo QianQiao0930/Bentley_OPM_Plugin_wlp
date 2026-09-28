@@ -1,0 +1,63 @@
+<UserControl x:Class="SteelSectionProbe.G2AnchorPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:ClassModifier="internal" Background="{DynamicResource BackgroundBrush}"
+             TextOptions.TextRenderingMode="ClearType">
+    <UserControl.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="../Themes/Theme.xaml" />
+    </ResourceDictionary.MergedDictionaries></ResourceDictionary></UserControl.Resources>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,4,0">
+        <StackPanel>
+            <Border Style="{StaticResource CardStyle}"><StackPanel>
+                <TextBlock Text="01  锚栓规格" Style="{StaticResource SectionTitleStyle}" />
+                <TextBlock Text="表 1 子项 A~D。锚板为正方形，边长 = 孔中心距 S + 100，四角四个螺栓孔；锚栓沿安装面外法向伸入混凝土。" Foreground="Black" TextWrapping="Wrap" Margin="0,0,0,8" />
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="子项" Foreground="Black" />
+                        <ComboBox x:Name="SubtypeCombo" SelectionChanged="Subtype_Changed" />
+                        <TextBlock Text="锚栓" Foreground="Black" Margin="0,9,0,0" />
+                        <TextBlock x:Name="BoltText" Text="—" Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="安装面" Foreground="Black" />
+                        <ComboBox x:Name="MountCombo" SelectionChanged="Parameter_Changed">
+                            <ComboBoxItem Content="竖直墙面（螺栓水平）" />
+                            <ComboBoxItem Content="水平楼板顶面（螺栓朝下）" />
+                            <ComboBoxItem Content="水平楼板底面（螺栓朝上）" />
+                        </ComboBox>
+                        <TextBlock Text="锚板（按该子项 MIN.S）" Foreground="Black" TextWrapping="Wrap" Margin="0,9,0,0" />
+                        <TextBlock x:Name="PlateText" Text="—" Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Grid>
+            </StackPanel></Border>
+            <Border Style="{StaticResource CardStyle}"><StackPanel>
+                <TextBlock Text="02  布置参数" Style="{StaticResource SectionTitleStyle}" />
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="间距 S（mm；孔中心距，不得小于该子项 MIN.S）" Foreground="Black" TextWrapping="Wrap" />
+                        <TextBox x:Name="SpacingText" LostFocus="Parameter_Changed" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="朝向（°；墙面为绕 Z 方位角，楼板为绕竖轴转角）" Foreground="Black" TextWrapping="Wrap" />
+                        <TextBox x:Name="HeadingText" Text="0" LostFocus="Parameter_Changed" />
+                    </StackPanel>
+                </Grid>
+                <TextBlock x:Name="SpecificationText" Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" Margin="0,12,0,0" />
+            </StackPanel></Border>
+            <Border Style="{StaticResource CardStyle}"><StackPanel>
+                <TextBlock Text="03  点取与预览" Style="{StaticResource SectionTitleStyle}" />
+                <TextBlock Text="左键点取混凝土表面上锚板背面的中心点，生成锚板与 4 根膨胀锚栓的可撤销预览。点取后可改子项 / 间距 S / 安装面 / 朝向，预览会自动重建；确认后才写入支吊架材料清单。右键结束点取并取消未确认预览。" Foreground="Black" TextWrapping="Wrap" Margin="0,0,0,8" />
+                <WrapPanel>
+                    <Button Content="开始点取" Style="{StaticResource PrimaryButtonStyle}" Click="Pick_Click" Margin="0,0,8,8" />
+                    <Button Content="结束点取" Style="{StaticResource SecondaryButtonStyle}" Click="End_Click" Margin="0,0,8,8" />
+                    <Button Content="更新预览" Style="{StaticResource SecondaryButtonStyle}" Click="Update_Click" Margin="0,0,8,8" />
+                </WrapPanel>
+                <TextBlock x:Name="PreviewText" Text="尚未点取位置。" Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" Margin="0,4,0,12" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="取消预览" Style="{StaticResource SecondaryButtonStyle}" Click="Cancel_Click" Margin="0,0,8,0" />
+                    <Button x:Name="ConfirmButton" Content="确定生成" Style="{StaticResource PrimaryButtonStyle}" Click="Confirm_Click" IsEnabled="False" />
+                </StackPanel>
+            </StackPanel></Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

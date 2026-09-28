@@ -6,15 +6,21 @@
 # =============================================================================
 """N 系列设备上生根管架 —— 设备上生根的双三角架（N4）建模库（无界面）。
 
-用户在模型中绘制一条**水平辅助线**作为整组**中心线**（径向），线长 = L1
-（立管中心线 → 端板外表面），据此生成**两套对称的三角架** + 两根构件C：
+用户在模型中绘制一条**水平辅助线**：**起点＝设备中心点、终点＝管道（立管）中心**，
+该线**总长 = L**。数据模块据此算出端板外表面到管道中心的距离
+``L1 = L − √(R² − L2²/4) − D``（R = 设备外径/2、D = 设备预焊件长度）；
+几何库把辅助线沿径向内缩 L1 得到**施工基准线**（起点＝端板外表面、方向仍
+由设备指向管道），再据此生成**两套对称的三角架** + 两根构件C：
 
-    * 构件A（横担）×2：中心线两侧 ±L2/2，沿径向从端板 r=L1 伸到
-      r = L3 + C宽 + 50；
+    * 构件A（横担）×2：中心线两侧 ±L2/2，沿径向从端板外表面 r=0 伸到
+      r = L1 + L3 + 构件C宽 + 50；
     * 构件B（斜撑）×2：45°，连接设备上的连接板与横担（复用 N3 的构造）；
-    * 构件C（连接横担的横担）×2：内边缘分别在 r=L4、r=L3，垂直于横担；
+    * 构件C（连接横担的横担）×2：以管道中心（r=L1）为基准，分别位于其
+      朝设备侧 L4、朝外侧 L3，垂直于横担；
     * 连接板 + 螺栓：复用 N8 ``连接板_几何``，规格按表 3 自动取；
-    * 10mm 筋板：每根横担 3 个（斜撑交点 + 两根构件C 交点），共 6 个。
+    * 10mm 筋板：每根横担 3 个（斜撑交点 + 两根构件C 交点），共 6 个；
+    * **设备预焊件（可选，``show_preweld``）**：每个连接板处附一件 φ100 圆管 +
+      与端板同规格的板，整件 **75% 透明**、**仅作显示参照**，不进入构件清单。
 
 构件构造全部复用 ``单三角架_几何`` 的低层函数与 ``_build_crossbeam`` /
 ``_build_brace`` / ``_build_stiffener`` / ``_add_plate_at``。清单写入共享
@@ -48,6 +54,7 @@ for _path in (_HERE, _N3_DIR, _PLATE_DIR, _COMMON_DIR):
 import 双三角架_数据 as data  # noqa: E402
 import 单三角架_几何 as n3  # noqa: E402
 import 连接板_数据 as plate_data  # noqa: E402
+import 连接板_几何 as plate_geom  # noqa: E402
 import 混凝土锚板 as anchor  # noqa: E402
 import 支吊架公共库 as psb  # noqa: E402
 
@@ -107,8 +114,9 @@ def _offset_line(line, radial_mm, tangential_mm, length_mm):
 def _connector_body(spec, line, r_mm, span_mm, dgn_model, sign=1.0):
     """构件C 的实体（未转元素）。
 
-    ``r_mm`` 为构件C **内边缘**到中心线的径向距离；``sign`` 为截面宽度方向
-    （+1 向外、−1 向内），使两根构件C 分居端板两侧、净距 = L3 + L4。
+    ``r_mm`` 为构件C **朝管道中心那一侧边缘**到端板外表面（r=0）的距离；
+    ``sign`` 为截面宽度方向（+1 向外、−1 向内），使两根构件C 分居管道中心
+    两侧（内边缘分别在 r=L1−L4、r=L1+L3，净距 = L3 + L4）。
     """
     x_axis, y_axis = n3._frame_vectors(line['heading_deg'])
     start = line['start_mm']
@@ -184,6 +192,107 @@ def _attach_items(cell, result):
         components=result.get('bom_items', ()))
 
 
+def write_support_items(handle, result):
+    """把整组写进共享支吊架库；供入口在点【确定】时调用（预览阶段不写）。"""
+    return _attach_items(handle, result)
+
+
+# ---------------------------------------------------------------------------
+# 设备预焊件（``show_preweld``；仅显示用，75% 透明）
+# ---------------------------------------------------------------------------
+
+
+def _apply_transparency(element, transparency):
+    """给元素设置透明度（0.0＝不透明、1.0＝全透明）；失败只记日志。
+
+    ``ElementPropertiesSetter`` 与颜色同一套用法；透明度是元素的显示属性，
+    视图需打开 Transparency 才看得出效果。
+    """
+    if element is None or transparency is None:
+        return element
+    try:
+        setter = ElementPropertiesSetter()
+        setter.SetTransparency(float(transparency))
+        setter.Apply(element)
+    except Exception:
+        _log_exception('set transparency failed')
+    return element
+
+
+class _TransparentAdder(object):
+    """``builder`` 代理：把随后加入的子元素统一设为半透明（只转发 ``add``）。"""
+
+    def __init__(self, builder, transparency):
+        self._builder = builder
+        self._transparency = transparency
+
+    def add(self, child):
+        _apply_transparency(child, self._transparency)
+        return self._builder.add(child)
+
+
+def _add_preweld_pad(builder, line, center_mm, plate_resolved, resolved,
+                     dgn_model):
+    """附加**设备预焊件**（仅显示、半透明）：φ100 圆管 + 与端板同规格的板。
+
+    与 N8 连接板共用局部框架（+X = 由管道指向设备，x=0 ＝连接板背面 ＝
+    端板基准面 r=0）：
+
+        x=0    连接板背面（r=0）             N8 连接板   x∈[0, T]
+        x=T    连接板外表面                  预焊件板    x∈[T, 2T]
+        x=D    设备表面（预焊件长度 D）        圆管        x∈[2T, D]
+
+    预焊件板正落在 N8 螺栓为「另一片连接板」预留的位置（垫片A/垫片B 间距 = 2T）。
+    返回生成的子元素数（0 表示 D 太短、没画）。
+    """
+    thickness = float(plate_resolved['T'])
+    total = float(resolved['D'])
+    pipe_length = total - 2.0 * thickness
+    if pipe_length <= 1.0:
+        _log('preweld skipped: D=%.0f too short for 2T=%.0f'
+             % (total, 2.0 * thickness))
+        return 0
+
+    uor = n3._uor(dgn_model)
+    to_world = n3._make_frame(line['start_mm'], line['heading_deg'])
+    origin_mm = to_world(center_mm)
+    origin = DPoint3d.From(origin_mm[0] * uor, origin_mm[1] * uor,
+                           origin_mm[2] * uor)
+    heading = line['heading_deg'] + 180.0        # 与 N8 连接板同一朝向
+    base = anchor._PlateFrame(origin, uor, heading)
+    transparency = data.PREWELD_TRANSPARENCY
+    count = 0
+
+    # 1) 预焊件板：与端板同规格（E×E×T + 同样的螺栓孔），位于 x∈[T, 2T]。
+    pad_frame = anchor._PlateFrame(base.point(thickness, 0.0, 0.0), uor,
+                                   heading)
+    plate_geom._add_plate(_TransparentAdder(builder, transparency), pad_frame,
+                          dgn_model, plate_resolved)
+    count += 1
+
+    # 2) φ100 圆管：外径 PREWELD_PIPE_OD、壁厚 PREWELD_PIPE_WALL，x∈[2T, D]。
+    outer_r = data.PREWELD_PIPE_OD / 2.0
+    inner_r = max(1.0, outer_r - data.PREWELD_PIPE_WALL)
+    corners = DPoint3dArray()
+    for index in range(data.PREWELD_PIPE_SEGMENTS):
+        angle = 2.0 * math.pi * index / float(data.PREWELD_PIPE_SEGMENTS)
+        corners.append(base.point(2.0 * thickness,
+                                  outer_r * math.cos(angle),
+                                  outer_r * math.sin(angle)))
+    holes = [(base.point(2.0 * thickness - anchor.CUTTER_EXTENSION, 0.0, 0.0),
+              base.point(total + anchor.CUTTER_EXTENSION, 0.0, 0.0),
+              base.uor_of(inner_r))]
+    pipe = anchor._prism_with_holes(dgn_model, corners,
+                                    base.uor_of(pipe_length),
+                                    data.PREWELD_COLOR, holes)
+    if pipe is None:
+        _log('preweld pipe failed at D=%.0f' % total)
+        return count
+    _apply_transparency(pipe, transparency)
+    builder.add(pipe)
+    return count + 1
+
+
 def build_double_bracket_cell(line, options=None, number=''):
     """构建双三角架单元但**不写入模型**，返回 ``(builder, 统计字典)``。"""
     model_ref = ISessionMgr.ActiveDgnModelRef
@@ -194,6 +303,10 @@ def build_double_bracket_cell(line, options=None, number=''):
         raise RuntimeError('请先激活一个三维 DGN 模型。')
 
     resolved = data.resolve_options(options, line['length_mm'])
+    # 构件定位基准：辅助线＝设备中心 → 管道中心（总长 L）；先按反向选项规整朝向，
+    # 再内缩 L1 得到施工基准线（起点＝端板外表面、方向仍由设备指向管道）。
+    line = data.plate_line(data.orient_line(line, resolved['reverse']),
+                           resolved['L1'])
     plate_resolved = plate_data.resolve_options({
         'type': resolved['plate_type'], 'mode': 'H',
         'heading_deg': line['heading_deg'], 'mount': 'wall'})
@@ -206,7 +319,7 @@ def build_double_bracket_cell(line, options=None, number=''):
     # 槽钢横担**背靠背**：两根腹板外表面相对（左根镜像，开口朝外）。
     is_channel = section_a['kind'] == 'C'
     span = resolved['connector_span']
-    # 两根构件C 分居端板两侧、方向相反，净距 = L3 + L4：
+    # 两根构件C 分居**管道中心**（r=L1）两侧、方向相反，净距 = L3 + L4：
     #   内侧 C 内边缘在 r = L1 - L4（朝设备），外侧 C 内边缘在 r = L1 + L3（朝外）。
     connector_specs = ((resolved['L1'] - resolved['L4'], -1.0),
                        (resolved['L1'] + resolved['L3'], 1.0))
@@ -224,6 +337,7 @@ def build_double_bracket_cell(line, options=None, number=''):
     # 两根横担 + 两根构件C + 6 个筋板**全部并进同一个实体**，只输出一个元素，
     # 避免两块元素在连接件处重叠而看起来“没融合”。
     frame_body = None
+    preweld_count = 0
     for sign in (-1.0, 1.0):
         sub_line = _offset_line(line, resolved['beam_start_r'],
                                 sign * offset, beam_length)
@@ -242,7 +356,7 @@ def build_double_bracket_cell(line, options=None, number=''):
                                  dgn_model, csign)
             if cb is None or not n3._union_body(frame_body, cb):
                 _log('connector union failed at r=%.1f' % r_mm)
-        # 筋板并集；工字钢时只贴腹板的**另一侧**（背离中心线）。
+        # 筋板并集；工字钢时只贴腹板的**另一侧**（背离横担自身轴线一侧）。
         if is_channel:
             y_min = y_max = None
         else:
@@ -260,11 +374,14 @@ def build_double_bracket_cell(line, options=None, number=''):
         builder.add(brace)
 
         depth_a = section_a['height']
-        n3._add_plate_at(builder, sub_line, (0.0, 0.0, -depth_a / 2.0),
-                         plate_resolved, dgn_model)
         brace_z = -resolved['H'] if resolved['type'] == 1 else resolved['H']
-        n3._add_plate_at(builder, sub_line, (0.0, 0.0, brace_z),
-                         plate_resolved, dgn_model)
+        for center in ((0.0, 0.0, -depth_a / 2.0), (0.0, 0.0, brace_z)):
+            n3._add_plate_at(builder, sub_line, center, plate_resolved,
+                             dgn_model)
+            if resolved['show_preweld']:
+                preweld_count += _add_preweld_pad(
+                    builder, sub_line, center, plate_resolved, resolved,
+                    dgn_model)
 
     if frame_body is None:
         raise RuntimeError('框架（横担 + 构件C）创建失败。')
@@ -273,15 +390,19 @@ def build_double_bracket_cell(line, options=None, number=''):
     builder.build()
     result = dict(resolved)
     result['child_count'] = builder.child_count
+    result['preweld_count'] = preweld_count
     result['cell_name'] = CELL_NAME
     result['number'] = str(number or '')
     result['plate_resolved'] = dict(plate_resolved)
     result['bom_items'] = _build_bom_items(resolved, plate_resolved)
-    _log('double bracket: subtype=%s type=%d H=%.0f L1=%.0f L2=%.0f L3=%.0f '
-         'L4=%.0f beam=%.0f cells=%d number=%s'
-         % (resolved['subtype'], resolved['type'], resolved['H'],
+    _log('double bracket: subtype=%s type=%d L=%.0f OD=%.0f D=%.0f H=%.0f '
+         'L1=%.0f L2=%.0f L3=%.0f L4=%.0f beam=%.0f cells=%d preweld=%d '
+         'number=%s'
+         % (resolved['subtype'], resolved['type'], resolved['L'],
+            resolved['OD'], resolved['D'], resolved['H'],
             resolved['L1'], resolved['L2'], resolved['L3'], resolved['L4'],
-            beam_length, builder.child_count, result['number'] or '-'))
+            beam_length, builder.child_count, preweld_count,
+            result['number'] or '-'))
     return builder, result
 
 
@@ -297,11 +418,19 @@ def _delete_element(handle):
     return n3._delete_element(handle)
 
 
-def replace_double_bracket(line, options, previous_handle, number=''):
-    """重建双三角架：先建新的一版并写入，成功后再删除上一版预览。"""
+def replace_double_bracket(line, options, previous_handle, number='',
+                           attach=True):
+    """重建双三角架：先建新的一版并写入，成功后再删除上一版预览。
+
+    ``attach=False`` 时只出几何、**不写公共库**（写库推迟到点【确定】，见入口
+    文件顶部策略说明）；默认 ``True`` 保持其它直接调用方的既有行为不变。
+    """
     builder, result = build_double_bracket_cell(line, options, number)
     new_handle = builder.commit()
-    _attach_items(new_handle, result)
+    if attach:
+        _attach_items(new_handle, result)
+    else:
+        _log('replace_double_bracket: 预览不写库（写库推迟到【确定】）')
     deleted = _delete_element(previous_handle)
     return new_handle, result, deleted
 

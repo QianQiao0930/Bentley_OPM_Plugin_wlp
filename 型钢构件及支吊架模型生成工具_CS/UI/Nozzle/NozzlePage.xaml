@@ -1,0 +1,44 @@
+﻿<UserControl x:Class="SteelSectionProbe.NozzlePage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:ClassModifier="internal" Background="{DynamicResource BackgroundBrush}"
+             TextOptions.TextRenderingMode="ClearType">
+    <UserControl.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="../Themes/Theme.xaml" />
+    </ResourceDictionary.MergedDictionaries></ResourceDictionary></UserControl.Resources>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,4,0">
+        <StackPanel>
+            <Border Style="{StaticResource CardStyle}"><StackPanel>
+                <TextBlock Text="01  法兰与钢管规格" Style="{StaticResource SectionTitleStyle}" />
+                <TextBlock Text="选择法兰等级、钢管系列与公称管径。仅列出法兰和钢管外径一致的组合。" Foreground="Black" TextWrapping="Wrap" Margin="0,0,0,8" />
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0"><TextBlock Text="法兰等级" Foreground="Black" /><ComboBox x:Name="RatingCombo" SelectionChanged="Catalog_Changed" />
+                        <TextBlock Text="公称管径" Foreground="Black" Margin="0,9,0,0" /><ComboBox x:Name="DnCombo" SelectionChanged="Dn_Changed" /></StackPanel>
+                    <StackPanel Grid.Column="2"><TextBlock Text="钢管系列" Foreground="Black" /><ComboBox x:Name="ScheduleCombo" SelectionChanged="Catalog_Changed" />
+                        <TextBlock Text="钢管壁厚（mm；留空用表值）" Foreground="Black" TextWrapping="Wrap" Margin="0,9,0,0" /><TextBox x:Name="WallText" LostFocus="Parameter_Changed" /></StackPanel>
+                </Grid>
+            </StackPanel></Border>
+            <Border Style="{StaticResource CardStyle}"><StackPanel>
+                <TextBlock Text="02  长度与放置方向" Style="{StaticResource SectionTitleStyle}" />
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0"><TextBlock Text="管口总长度（mm，含法兰厚度）" Foreground="Black" TextWrapping="Wrap" /><TextBox x:Name="LengthText" Text="200" LostFocus="Parameter_Changed" />
+                        <CheckBox x:Name="BoltHolesCheck" Content="绘制法兰螺栓孔" Margin="0,9,0,0" Checked="Parameter_Changed" Unchecked="Parameter_Changed" /></StackPanel>
+                    <StackPanel Grid.Column="2"><TextBlock Text="放置方向" Foreground="Black" /><ComboBox x:Name="AxisCombo" SelectionChanged="Parameter_Changed">
+                            <ComboBoxItem Content="+X" /><ComboBoxItem Content="-X" /><ComboBoxItem Content="+Y" /><ComboBoxItem Content="-Y" /><ComboBoxItem Content="+Z" /><ComboBoxItem Content="-Z" />
+                        </ComboBox></StackPanel>
+                </Grid>
+                <TextBlock x:Name="SpecificationText" Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" Margin="0,12,0,0" />
+            </StackPanel></Border>
+            <Border Style="{StaticResource CardStyle}"><StackPanel>
+                <TextBlock Text="03  点取与预览" Style="{StaticResource SectionTitleStyle}" />
+                <TextBlock Text="左键点取基点，生成一个三维实体管口预览；修改参数可重建。右键结束点取并取消未确认预览。" Foreground="Black" TextWrapping="Wrap" Margin="0,0,0,8" />
+                <WrapPanel><Button Content="开始点取" Style="{StaticResource PrimaryButtonStyle}" Click="Pick_Click" Margin="0,0,8,8" />
+                    <Button Content="结束点取" Style="{StaticResource SecondaryButtonStyle}" Click="End_Click" Margin="0,0,8,8" />
+                    <Button Content="更新预览" Style="{StaticResource SecondaryButtonStyle}" Click="Update_Click" Margin="0,0,8,8" /></WrapPanel>
+                <TextBlock x:Name="PreviewText" Text="尚未点取基点。" Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" Margin="0,4,0,12" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"><Button Content="取消预览" Style="{StaticResource SecondaryButtonStyle}" Click="Cancel_Click" Margin="0,0,8,0" />
+                    <Button x:Name="ConfirmButton" Content="确认生成" Style="{StaticResource PrimaryButtonStyle}" Click="Confirm_Click" IsEnabled="False" /></StackPanel>
+            </StackPanel></Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

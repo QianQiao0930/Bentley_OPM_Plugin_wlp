@@ -510,3 +510,184 @@ def replace_anchor_plate(placement_point, options, previous_handle):
     new_handle = builder.commit()
     deleted = _delete_element(previous_handle)
     return new_handle, result, deleted
+
+
+# ---------------------------------------------------------------------------
+# 地面生根基础件（锚板 + 膨胀锚栓 + 螺母 + 现场灌浆梯台）
+# ---------------------------------------------------------------------------
+# 供「地面上生根」类支吊架复用（T 形架 G4、门型架 G5 …）：以**地面（梯台底面）
+# 中心**为基准点，自下而上依次为现场灌浆梯台、锚板；锚板四角 4 根膨胀锚栓，
+# 每根配一个六角螺母。锚板 / 锚栓尺寸由调用方按各自图集的表传入（``spec``），
+# 本模块只负责成形；本组函数不做布尔融合（允许实体重合），外形可辨认即可。
+
+# 现场灌浆保护层的元素颜色（混凝土色；可按项目色表调整）。
+GROUND_GROUT_COLOR = 5
+
+
+def _square_corners(cx, cy, z, side):
+    """返回水平正方形（边长 side、中心 (cx, cy)、高度 z）的 4 个角点。"""
+    half = side / 2.0
+    corners = DPoint3dArray()
+    for dx, dy in ((-half, -half), (half, -half), (half, half), (-half, half)):
+        corners.append(DPoint3d.From(cx + dx, cy + dy, z))
+    return corners
+
+
+def _triangle_corners(points):
+    corners = DPoint3dArray()
+    for x, y, z in points:
+        corners.append(DPoint3d.From(x, y, z))
+    return corners
+
+
+def _element_body(element):
+    if element is None:
+        return None
+    status, body = SolidUtil.Convert.ElementToBody(element, True, True, False)
+    if not _succeeded(status):
+        return None
+    return body
+
+
+def _frustum_elements(dgn_model, cx, cy, bottom_z, bottom_side, top_z,
+                      top_side, color, label):
+    """生成梯台：先建方体，再对顶面四条棱做 45° 倒角（切削楔体）。
+
+    底面 bottom_side、顶面 top_side、高 ``top_z - bottom_z``；倒角量为
+    ``(bottom_side - top_side) / 2``，即 45°（斜向外扩）。返回 ``[元素]``，
+    失败返回空列表（由调用方决定是否报错）。
+    """
+    height = top_z - bottom_z
+    if height <= 0.0:
+        return []
+    chamfer = (bottom_side - top_side) / 2.0
+
+    box = _prism_with_holes(
+        dgn_model, _square_corners(cx, cy, bottom_z, bottom_side), height,
+        color, ())
+    body = _element_body(box)
+    if body is None:
+        return []
+    if chamfer <= 1.0e-9:
+        return [box]
+
+    half = bottom_side / 2.0
+    xl, xr = cx - half, cx + half
+    yl, yr = cy - half, cy + half
+    z_ch = top_z - chamfer            # 倒角起始高度
+    length = bottom_side              # 楔体沿棱方向跨满整个边长
+
+    # 4 个 45° 楔形刀：+Y / -Y 棱沿 X 拉伸；+X / -X 棱沿 Y 拉伸。
+    wedges = (
+        ((xl, yr, z_ch), (xl, yr, top_z), (xl, yr - chamfer, top_z)),
+        ((xl, yl, z_ch), (xl, yl + chamfer, top_z), (xl, yl, top_z)),
+        ((xr, yl, z_ch), (xr - chamfer, yl, top_z), (xr, yl, top_z)),
+        ((xl, yl, z_ch), (xl, yl, top_z), (xl + chamfer, yl, top_z)),
+    )
+    cutters = []
+    for wedge in wedges:
+        cutter = _prism_with_holes(
+            dgn_model, _triangle_corners(wedge), length, color, ())
+        cutter_body = _element_body(cutter)
+        if cutter_body is not None:
+            cutters.append(cutter_body)
+    if cutters:
+        _subtract(body, cutters)
+
+    element = EditElementHandle()
+    if _succeeded(SolidUtil.Convert.BodyToElement(element, body, box,
+                                                  dgn_model)):
+        return [_apply_color(element, color)]
+    return []
+
+
+def _nut_size_for(bolt_dia):
+    """按锚栓直径返回六角螺母的 ``(对边宽, 高)``（mm）。"""
+    for entry in ANCHOR_TABLE.values():
+        if abs(float(entry['bolt_dia']) - float(bolt_dia)) < 1.0e-6:
+            return float(entry['nut_af']), float(entry['nut_h'])
+    dia = float(bolt_dia)
+    return (dia * 1.6, dia * 0.8)
+
+
+def build_ground_base(dgn_model, cx, cy, ground_z, spec, uor_per_mm,
+                      grout_thickness_mm=25.0, grout_flare_mm=20.0):
+    """地面生根基础件：锚板 + 4 膨胀锚栓 + 4 螺母 + 现场灌浆梯台（返回元素列表）。
+
+    ``(cx, cy, ground_z)`` 为**地面（梯台底面）中心**的 UOR 坐标；自下而上依次
+    为灌浆梯台（高 ``grout_thickness_mm``、底面向外扩 ``grout_flare_mm`` 的棱台）
+    与锚板（``spec['plate_e']`` 见方、厚 ``spec['plate_t']``，四角按
+    ``spec['hole_spacing_f']`` 布置 4-φ``spec['hole_dia_g']`` 孔），锚栓沿孔位
+    向上伸出并配螺母。``spec`` 的键：``plate_e`` / ``hole_spacing_f`` /
+    ``hole_dia_g`` / ``plate_t`` / ``bolt_dia`` / ``bolt_len``（后两者为 mm）。
+
+    返回元素列表（顺序：锚板、锚栓与螺母各 4 组、现场灌浆）；锚板 / 锚栓 / 梯台
+    任一件创建失败都会抛 ``RuntimeError``，由调用方决定是否整组放弃。
+    """
+    e = spec['plate_e'] * uor_per_mm
+    f = spec['hole_spacing_f'] * uor_per_mm
+    g = spec['hole_dia_g'] * uor_per_mm
+    t = spec['plate_t'] * uor_per_mm
+    bolt_r = spec['bolt_dia'] * uor_per_mm / 2.0
+    bolt_len = spec['bolt_len'] * uor_per_mm
+    grout_t = grout_thickness_mm * uor_per_mm
+    grout_flare = grout_flare_mm * uor_per_mm
+
+    hole_half = f / 2.0
+    hole_r = g / 2.0
+    # 基准点 = 梯台底面（地面）；自下而上：梯台 grout_t → 锚板 t。
+    grout_bottom = ground_z
+    grout_top = ground_z + grout_t
+    plate_bottom = grout_top
+    plate_top = plate_bottom + t
+
+    elements = []
+
+    # 锚板：底面在梯台顶面，向上厚 T；四个螺栓孔。
+    holes = []
+    for dx in (-hole_half, hole_half):
+        for dy in (-hole_half, hole_half):
+            holes.append((
+                DPoint3d.From(cx + dx, cy + dy, plate_bottom - 2.0 * uor_per_mm),
+                DPoint3d.From(cx + dx, cy + dy, plate_top + 2.0 * uor_per_mm),
+                hole_r,
+            ))
+    plate = _prism_with_holes(
+        dgn_model, _square_corners(cx, cy, plate_bottom, e), t,
+        COLOR_PLATE, holes)
+    if plate is None:
+        raise RuntimeError('锚板实体创建失败。')
+    elements.append(plate)
+
+    # 膨胀锚栓：总长 L 不变；螺杆顶端高出螺母顶面 BOLT_PROTRUSION，底端按总长回算。
+    nut_af, nut_h = _nut_size_for(spec['bolt_dia'])
+    bolt_top = plate_top + (nut_h + BOLT_PROTRUSION) * uor_per_mm
+    bolt_bottom = bolt_top - bolt_len
+    for dx in (-hole_half, hole_half):
+        for dy in (-hole_half, hole_half):
+            rod = _cylinder(
+                dgn_model,
+                DPoint3d.From(cx + dx, cy + dy, bolt_top),
+                DPoint3d.From(cx + dx, cy + dy, bolt_bottom),
+                bolt_r, COLOR_BOLT)
+            if rod is None:
+                raise RuntimeError('膨胀锚栓实体创建失败。')
+            elements.append(rod)
+            # 螺母：坐在锚板顶面上方（局部 X = 世界 +Z 的竖直六棱柱）。
+            frame = _PlateFrame(
+                DPoint3d.From(cx + dx, cy + dy, plate_top), uor_per_mm, 0.0,
+                'floor')
+            nut = _hex_prism(
+                dgn_model, frame, 0.0, 0.0, 0.0, nut_h, nut_af, COLOR_NUT)
+            if nut is None:
+                raise RuntimeError('螺母实体创建失败。')
+            elements.append(nut)
+
+    # 现场灌浆保护层：锚板下方、坐落于地面，底面 (E+2×外扩)、顶面 E 见方。
+    grout_elements = _frustum_elements(
+        dgn_model, cx, cy, grout_bottom, e + 2.0 * grout_flare,
+        grout_top, e, GROUND_GROUT_COLOR, '现场灌浆')
+    if not grout_elements:
+        raise RuntimeError('现场灌浆保护层实体创建失败。')
+    elements.extend(grout_elements)
+    return elements

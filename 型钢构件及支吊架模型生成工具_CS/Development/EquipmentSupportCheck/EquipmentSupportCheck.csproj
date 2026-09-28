@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net48</TargetFramework><LangVersion>7.3</LangVersion></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Domain/N8ConnectionPlate/N8ConnectionPlateModels.cs" Link="N8ConnectionPlateModels.cs" />
+    <Compile Include="../../Data/N8ConnectionPlate/N8Catalog.cs" Link="N8Catalog.cs" />
+    <Compile Include="../../Domain/EquipmentBracket/BracketModels.cs" Link="BracketModels.cs" />
+    <Compile Include="../../Data/EquipmentBracket/BracketCatalog.cs" Link="BracketCatalog.cs" />
+    <Compile Include="../../Services/EquipmentBracket/BracketCalculator.cs" Link="BracketCalculator.cs" />
+  </ItemGroup>
+</Project>
