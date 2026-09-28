@@ -1,0 +1,260 @@
+[元素] 元素 ID：77462
+[元素] EC Schema：OpenPlant_3D
+[元素] EC 类：HVAC_ROUND_ELBOW
+[元素] 实例 ID：:56FF00000001:15962E0100
+[单位] 属性长度单位：毫米（默认按毫米）
+[管道属性] 公称直径：—
+[管道属性] 外径：—
+[管道属性] 壁厚：0.0 mm（原值 0）
+[管道属性] 保温厚度：0.0 mm（原值 0）
+[管道属性] 长度（属性）：—
+[管道属性] 名称 / 位号：Round Elbow  450
+[管道属性] 元件名称：Round Elbow  450
+[管道属性] 保温材料：TS
+[几何] 包围盒中心：(37805.0, 5547.5, 112.5)（元素无中心线曲线，用元素范围兜底）
+[几何] 中心线标高（近似）：112.5 mm（＝包围盒中心 Z）
+[几何] 包围盒尺寸：(675.0, 450.0, 675.0)（最长边 ≈ 管段长度）
+[几何] 范围来源：实例 1（NormalCellElement）
+[推算] 保温后外径：—（外径 + 2×保温厚度）
+[推算] 保温层外半径：—（中心线 → 保温外皮）
+[推算] 由外径反查公称直径：—
+[提示] 几何读取失败：所选元素没有可读取的曲线几何。
+[提示] 该元件没有可用的长度属性值，无法标定属性单位。
+
+================================================================
+实例 1：DgnElementSchema.NormalCellElement
+================================================================
+ElementDescription = Round Elbow  450 
+Level = 
+ElementID = 77462
+Model = 3D Metric Design
+ModifiedTime = 9/28/2026 12:04:28 下午
+ElementSize = 218
+Linkages = 4
+XAttributes = 4
+Links = <结构 / 数组>
+DwgCustomObjectPropertyList = <结构 / 数组>
+ElementType = elbow
+Is3dElement = True
+IsGraphicalElement = True
+Color = 
+Weight = 
+Style = 
+ElementClass = 基本
+Transparency = 
+Priority = 
+Template = (无)
+Modified = 未修改过
+New = 新建
+Solid = 
+ViewDependent = 
+Snappable = 
+LineStyleParams = 
+Thickness = 
+GraphicGroup = 
+DisplayStyle = (从视图 显示)
+TAG_RPT_Filled = 未填充
+TAG_RPT_Complex = 不复杂
+EnclosedArea = 
+Perimeter = 
+FrontClipDepth = 
+BackClipDepth = 
+FrontClip = 
+BackClip = 
+Fill = 
+NumElems = 2
+TotalLength = 
+RangeLow = 37467.5mm, 5322.5mm, -225.0mm
+RangeHigh = 38142.5mm, 5772.5mm, 450.0mm
+Locked = 解锁
+RotationX = 0.000°
+RotationY = 0.000°
+RotationZ = 0.000°
+RotationAngle = 0.000°
+RotationPlane = 靠上
+ScaleX = 1.00000
+ScaleY = 1.00000
+ScaleZ = 1.00000
+Groups = 0 个组的成员
+HatchSource = 
+HatchName = <null>
+HatchCell = 
+HatchScale = 
+HatchSpace = 
+HatchCross = 
+HatchAngle = 
+HatchAssoc = 
+HatchOrigin = 
+HatchStyle = 
+HatchEcsOrigin = 
+HatchIsAnnotation = 
+HatchSpace2 = 
+HatchAngle2 = 
+HatchIsUserDefined = 
+HatchColor = 
+HatchWeight = 
+HatchLineStyle = 
+MaterialProjectionParameters = 
+AttachedMaterial = (无)
+AssignedMaterial = 
+Model3d = False
+Top = False
+Bottom = False
+Front = False
+Back = False
+Left = False
+Right = False
+FrontBack = False
+Origin = 37467.5mm, 5547.5mm, 0.0mm
+CellName = Cell
+CellType = 图形
+IsAnnotation = False
+AnnotationPurpose = False
+AnnotationScale = 
+
+================================================================
+实例 2：OpenPlant_3D.HVAC_ROUND_ELBOW
+================================================================
+CreateTime = 9/28/2026 12:04:28 下午
+ModifyTime = 
+IsTagReserved = False
+ACTIVE = False
+ELEVATION = 0 m
+CREATE_TIMESTAMP = 9/28/2026 12:04:28 下午
+TOTAL_WEIGHT = 0 kg
+DRY_WEIGHT = 0 kg
+LENGTH_EFFECTIVE = 0.0000
+AIR_FLOW_RATE = 0.0000
+BRAKE_HORSEPOWER = 0.0000
+CONNECTION_LENGTH = 0.0000
+COOLING_CAPACITY = 0.0000
+COOLING_DEW_POINT = 0.0000
+COOLING_ENTERING_DRY_BULB = 0.0000
+COOLING_ENTERING_WET_BULB = 0.0000
+COOLING_ENTERING_WATER_TEMPERATURE = 0.0000
+COOLING_FLOW_RATE = 0.0000
+COOLING_LEAVING_DRY_BULB = 0.0000
+COOLING_LEAVING_WET_BULB = 0.0000
+COOLING_LEAVING_WATER_TEMPERATURE = 0.0000
+EQUIVALENT_DIAMETER = 0.0000
+FLOW_RATE = 0.0000
+FRICTION_LOSS = 0.0000
+HEAT_CAPACITY = 0.0000
+HEATING_DEW_POINT = 0.0000
+HEATING_ENTERING_DRY_BULB = 0.0000
+HEATING_ENTERING_WET_BULB = 0.0000
+HEATING_ENTERING_WATER_TEMPERATURE = 0.0000
+HEATING_FLOW_RATE = 0.0000
+HEATING_LEAVING_WATER_TEMPERATURE = 0.0000
+HORSEPOWER = 0.0000
+INSULATION_THICKNESS = 0.0000
+LINING_THICKNESS = 0.0000
+MAIN_DIAMETER = 450.0000
+MAIN_HEIGHT = 450.0000
+MAIN_WIDTH = 450.0000
+MAXIMUM_AIR_FLOW_RATE = 0.0000
+MINIMUM_AIR_FLOW_RATE = 0.0000
+NOISE_EMISSION = 0.0000
+NOMINAL_PRESSURE_RATING_CLASS = 0.0000
+NUMBER_OF_PHASES = 0
+OUTSIDE_AIR = 0.0000
+OUTSIDE_AIR_FLOW_RATE = 0.0000
+OUTSIDE_SURFACE_AREA = 0.0000
+PRESSURE_COEFFICIENT = 0.0000
+PRESSURE_DROP = 0.0000
+REYNOLDS_NUMBER = 0.0000
+REVOLUTION_PER_MINUTE = 0.0000
+STATIC_FRICTION_FACTOR = 0.0000
+STATIC_PRESSURE = 0.0000
+TRANSFORMATION_MATRIX = <结构 / 数组>
+TRANSFORMATION_MATRIX.M00 = 1.0000
+TRANSFORMATION_MATRIX.M01 = 0.0000
+TRANSFORMATION_MATRIX.M02 = 0.0000
+TRANSFORMATION_MATRIX.M03 = 37467536.7820
+TRANSFORMATION_MATRIX.M04 = 0.0000
+TRANSFORMATION_MATRIX.M05 = 1.0000
+TRANSFORMATION_MATRIX.M06 = 0.0000
+TRANSFORMATION_MATRIX.M07 = 5547529.7382
+TRANSFORMATION_MATRIX.M08 = 0.0000
+TRANSFORMATION_MATRIX.M09 = 0.0000
+TRANSFORMATION_MATRIX.M10 = 1.0000
+TRANSFORMATION_MATRIX.M11 = 0.0000
+TRANSFORMATION_MATRIX.M12 = 0.0000
+TRANSFORMATION_MATRIX.M13 = 0.0000
+TRANSFORMATION_MATRIX.M14 = 0.0000
+TRANSFORMATION_MATRIX.M15 = 0.0000
+TRANSFORMATION_MATRIX.GEOMETRY = <结构 / 数组>
+VELOCITY = 0.0000
+VOLTAGE = 0.0000
+UPDATE_GRAPHICS = True
+HVAC_SINGLE_WEIGHT = 0.0000
+HVAC_THICKNESS = 0.0000
+ANGLE = 90.0000
+MAIN_CONNECTION_LENGTH = 50.0000
+RADIUS_TO_DIAMETER = 1.0000
+RUN_CONNECTION_LENGTH = 50.0000
+WALL_THICKNESS = 0.0000
+RADIUS = 450.0000
+RUN_DIAMETER = 450.0000
+Read_From_Spec = True
+DesignState = 
+GUID = bc02e8e5-43f8-462a-ae49-05127469b9a8
+DESIGN_STATE = 
+CreatedBy = Administrator
+ModifiedBy = 
+DESCRIPTION = 
+ALIAS = 
+INSULATION_FUNCTION = 
+MODULE = 
+PDX_STATE = 
+PSDS_STATE = 
+FUNC_INST_ID = 
+DESIGNER = Administrator
+SIZE = 
+MATERIAL = 
+PAINT_CODE = 
+MANUFACTURER = 
+MODEL = 
+NOMINAL_SIZE = 
+PLANT = 
+SERVICE = ?
+SYSTEM = 
+UNIT = ?
+ADDITIONAL_CODE = 
+EQUIPMENT_UNIT_CLASSIFICATION = 
+COMPONENT_CLASSIFICATION = 
+COMPONENT_NUMBER = 
+PIPE_TAG_NUMBER = 
+EQUIPMENT_PLANT = 
+PIPING_PLANT = 
+EQUIPMENT_UNIT_CODE = 
+EQUIPMENT_SYSTEM = 
+PIPING_SYSTEM = 
+REPLICATION_SOURCE_GUID = 
+DEVICE_TYPE_CODE = 
+NUMBER = 
+PLANT_AREA = 
+DISCIPLINE = MP
+PBS = 4002
+DETAIL_SKETCH = 
+PID_DOC_NO = PID_DOC_NO
+COMPONENT_NAME = Round Elbow  450 
+COMPONENT_SHAPE = ROUND
+HVAC_IDENTIFICATION_CODE = 4002-MP-?-0001-mExample-0-TS0
+INSULATION = TS
+LINING = 
+SPECIFICATION = 
+X_COORDINATE_FOR_CENTRE_OF_GRAVITY_RELATIVE_TO_LOCAL_DATUM_POINT = 
+Y_COORDINATE_FOR_CENTRE_OF_GRAVITY_RELATIVE_TO_LOCAL_DATUM_POINT = 
+Z_COORDINATE_FOR_CENTRE_OF_GRAVITY_RELATIVE_TO_LOCAL_DATUM_POINT = 
+NAME = Round Elbow  450 
+HVAC_DRAWING_NUMBER = 
+HVAC_INDEX = 
+HVAC_MATERIAL = 
+HVAC_NOTE = 
+HVAC_NUMBER = 
+HVAC_UNIT = 
+Geometry = <null>
+COMPONENT_TYPE = SINGLEWALL
+END_TYPE = m-3.125;m-3.125;
+
