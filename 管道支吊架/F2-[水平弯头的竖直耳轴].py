@@ -12,6 +12,10 @@
 H 是所选弯头弧线中点的主管中心线至构件最低点的竖向距离：有底板取板下表面，
 无底板取钢管底端。弯头 DN、外径、
 两端中心距、端口坐标及水平方向均从 EC 属性与变换矩阵自动读取。
+
+支持管道弯头与 **HVAC 圆风管弯头**（`OpenPlant_3D.HVAC_ROUND_ELBOW`）：风管取
+`MAIN_DIAMETER` 作外径、`RADIUS` 作中心至端面，表 1 档位按外径就近匹配，编号按
+风管实际外径写，如 `F2-D450-10"-C1-500-A-HE`；矩形风管不支持。
 """
 
 from __future__ import division
@@ -81,6 +85,9 @@ height_from_view_drag = _elbow_selection_logic.height_from_view_drag
 height_from_drag_z = _elbow_selection_logic.height_from_drag_z
 moved_from_selection_view = _elbow_selection_logic.moved_from_selection_view
 f2_number = _elbow_selection_logic.f2_number
+# 管道弯头 / HVAC 圆风管弯头共用的一套尺寸解析与风管属性白名单。
+resolve_elbow_dimensions = _elbow_selection_logic.resolve_elbow_dimensions
+HVAC_NUMBER_PROPERTIES = _elbow_selection_logic.HVAC_NUMBER_PROPERTIES
 
 
 DEBUG_LOG = os.path.join(SCRIPT_DIR, '模块', '日志',
@@ -190,7 +197,9 @@ ELBOW_NUMBER_PROPERTIES = (
     "DESIGN_LENGTH_CENTER_TO_OUTLET_END",
     "DESIGN_LENGTH_CENTER_TO_RUN_END_EFFECTIVE",
     "DESIGN_LENGTH_CENTER_TO_OUTLET_END_EFFECTIVE",
-) + tuple("TRANSFORMATION_MATRIX.M%02d" % index for index in range(12))
+) + HVAC_NUMBER_PROPERTIES + tuple(
+    "TRANSFORMATION_MATRIX.M%02d" % index for index in range(12)
+)
 ELBOW_TEXT_PROPERTIES = ("UNIT_OF_MEASURE", "COMPONENT_NAME", "NAME", "LINENUMBER")
 
 
@@ -440,22 +449,6 @@ def _pick_elbow_record(records):
     return max(candidates, key=lambda item: item[0])[1]
 
 
-def _first_number(numbers, *names):
-    for name in names:
-        value = numbers.get(name)
-        if value is not None:
-            return value
-    return None
-
-
-def _main_dn_from_value(value_mm):
-    if value_mm is None:
-        raise ValueError("弯头缺少 NOMINAL_DIAMETER。")
-    value_mm = float(value_mm)
-    nearest = min(SUPPORTED_MAIN_DNS, key=lambda dn: abs(value_mm - dn))
-    return nearest if abs(value_mm - nearest) <= 0.5 else None
-
-
 def _element_handle_by_id(element_id):
     model_ref = ISessionMgr.ActiveDgnModelRef
     if model_ref is None:
@@ -482,39 +475,13 @@ def read_selected_elbow(element_id):
     elif "90_DEGREE" not in class_name.upper():
         raise ValueError("无法确认所选弯头为 90° 弯头。")
 
-    scale_mm = dimension_scale_to_mm(
-        texts.get("UNIT_OF_MEASURE"),
-        numbers.get("NOMINAL_DIAMETER")
-    )
-    nominal_raw = _first_number(
-        numbers, "NOMINAL_DIAMETER", "NOMINAL_DIAMETER_RUN_END"
-    )
-    nominal_mm = nominal_raw * scale_mm if nominal_raw is not None else None
-    main_dn = _main_dn_from_value(nominal_mm)
-    if main_dn is None:
-        raise ValueError(
-            "弯头公称直径 %.1f mm 不在当前参考表支持范围内。" % nominal_mm)
-
-    outside_raw = numbers.get("OUTSIDE_DIAMETER")
-    if outside_raw is None or outside_raw <= 0.0:
-        raise ValueError("弯头缺少有效的 OUTSIDE_DIAMETER。")
-    outside_mm = outside_raw * scale_mm
-
-    run_raw = _first_number(
-        numbers, "DESIGN_LENGTH_CENTER_TO_RUN_END",
-        "DESIGN_LENGTH_CENTER_TO_RUN_END_EFFECTIVE"
-    )
-    outlet_raw = _first_number(
-        numbers, "DESIGN_LENGTH_CENTER_TO_OUTLET_END",
-        "DESIGN_LENGTH_CENTER_TO_OUTLET_END_EFFECTIVE"
-    )
-    length_raw = numbers.get("LENGTH")
-    if run_raw is None and length_raw is not None:
-        run_raw = length_raw / 2.0
-    if outlet_raw is None and length_raw is not None:
-        outlet_raw = length_raw / 2.0
-    if run_raw is None or outlet_raw is None:
-        raise ValueError("弯头缺少中心至端面长度，无法确定两个端口坐标。")
+    # 管道弯头与 HVAC 圆风管弯头走同一套解析（属性名不同，输出一致）：风管取
+    # MAIN_DIAMETER 作外径、RADIUS 作中心至端面，表 1 档位按外径就近匹配。
+    dims = resolve_elbow_dimensions(
+        numbers, texts, class_name, PIPE_DATA, SUPPORTED_MAIN_DNS)
+    main_dn = dims["main_dn"]
+    nominal_mm = dims["nominal_diameter_mm"]
+    outside_mm = dims["outside_diameter_mm"]
 
     matrix = [numbers.get(
         "TRANSFORMATION_MATRIX.M%02d" % index
@@ -541,8 +508,8 @@ def read_selected_elbow(element_id):
         )
     model_ref = ISessionMgr.ActiveDgnModelRef
     frame = horizontal_elbow_frame_from_matrix(
-        matrix, _uor_per_mm(model_ref), run_raw * scale_mm,
-        outlet_raw * scale_mm
+        matrix, _uor_per_mm(model_ref), dims["run_length_mm"],
+        dims["outlet_length_mm"]
     )
     result = {
         "element_id": int(element_id),
@@ -551,18 +518,25 @@ def read_selected_elbow(element_id):
         "main_dn": main_dn,
         "nominal_diameter_mm": nominal_mm,
         "outside_diameter_mm": outside_mm,
-        "wall_thickness_mm": ((numbers.get("WALL_THICKNESS") or 0.0)
-                              * scale_mm),
+        "wall_thickness_mm": dims["wall_thickness_mm"],
+        "is_duct": dims["is_duct"],
+        "main_label": dims["main_label"],
+        "main_size_text": dims["main_size_text"],
+        "duct_dn_note": dims["main_dn_note"],
+        "center_to_end_mm": dims["center_to_end_mm"],
         "frame": frame,
         "component_name": texts.get("COMPONENT_NAME") or texts.get("NAME"),
         "pipe_number": next((str(r.get("texts", {}).get("LINENUMBER")).strip()
                              for r in [record] + records if r.get("texts", {}).get("LINENUMBER")
                              and str(r.get("schema") or "").upper().startswith("OPENPLANT")), ""),
     }
-    _log("selected horizontal elbow id=%s class=%s DN=%s OD=%.3f run=%s support=%s" % (
-        element_id, class_name, main_dn, outside_mm,
-        frame["run_port_mm"], frame["support_axis_mm"]
-    ))
+    _log("selected horizontal elbow id=%s class=%s %s DN=%s OD=%.3f "
+         "c2e=%s/%s duct=%s%s" % (
+             element_id, class_name, dims["main_size_text"], main_dn, outside_mm,
+             dims["run_length_mm"], dims["outlet_length_mm"],
+             dims["is_duct"],
+             (" note=%s" % dims["main_dn_note"]) if dims["main_dn_note"] else ""
+         ))
     return result
 
 
@@ -796,7 +770,7 @@ class HorizontalElbowTrunnionBuilder(object):
             main_dn, dims['trunnion_dn'], trunnion_wall,
             dims['trunnion_wall'], self.material_code,
             self.height_h_mm, self.base_type[0], ptfe=self.ptfe,
-            horizontal_elbow=True)
+            horizontal_elbow=True, main_label=elbow_info["main_label"])
         horizontal_direction = frame["horizontal_direction"]
 
         start = _dpoint_from_mm(frame["run_port_mm"], scale)
@@ -945,8 +919,9 @@ class HorizontalElbowTrunnionBuilder(object):
             attached = psb.attach_components(
                 cell, support_type=SUPPORT_TYPE, support_code=SUPPORT_CODE,
                 assembly_tag=self.number,
-                assembly_spec='%s；DN%d；H %g mm；%s' % (
-                    self.number, main_dn, self.height_h_mm, self.base_type),
+                assembly_spec='%s；%s；H %g mm；%s' % (
+                    self.number, elbow_info["main_size_text"],
+                    self.height_h_mm, self.base_type),
                 components=components,
                 pipe_number=elbow_info.get("pipe_number") or "")
         except Exception as error:
@@ -960,8 +935,9 @@ class HorizontalElbowTrunnionBuilder(object):
                 '耳轴单元 %s 已生成，但附加项仅写入 %d/%d。请勿重复建模。'
                 % (cell.GetElementId(), attached, len(components) + 1))
 
-        _log("created from elbow %s DN%d H%.1f, trunnion DN%d, base=%s, number=%s, cell=%s" % (
-            elbow_info["element_id"], main_dn, self.height_h_mm,
+        _log("created from elbow %s %s H%.1f, trunnion DN%d, base=%s, number=%s, cell=%s" % (
+            elbow_info["element_id"], elbow_info["main_size_text"],
+            self.height_h_mm,
             dims["trunnion_dn"], self.base_type, self.number,
             cell.GetElementId()
         ))
@@ -1236,7 +1212,7 @@ class TrunnionPanel(GlassDialog):
                 info['main_dn'], dims['trunnion_dn'], wall,
                 dims['trunnion_wall'], self._material.get(), height,
                 self._base_type.get()[0], ptfe=bool(self._ptfe.get()),
-                horizontal_elbow=True)
+                horizontal_elbow=True, main_label=info["main_label"])
             self._number.set('F2 编号：' + number)
         except (ValueError, TypeError, IndexError) as error:
             self._number.set('F2 编号：' + str(error))
@@ -1280,14 +1256,21 @@ class TrunnionPanel(GlassDialog):
         frame = elbow_info["frame"]
         run_port = frame["run_port_mm"]
         support = frame["support_axis_mm"]
-        return (
-            "元素 %s｜%s\nDN%d · 外径 %.1f mm → 耳轴 DN%d（Ø%.1f）\n"
+        text = (
+            "元素 %s｜%s\n%s · 外径 %.1f mm → 耳轴 DN%d（Ø%.1f）\n"
             "Run 端 (%.1f, %.1f, %.1f)｜弧线中点 (%.1f, %.1f, %.1f) mm"
             % ((elbow_info["element_id"], elbow_info["class"],
-                elbow_info["main_dn"], elbow_info["outside_diameter_mm"],
+                elbow_info["main_size_text"],
+                elbow_info["outside_diameter_mm"],
                 dims["trunnion_dn"], dims["trunnion_od"])
                + tuple(run_port) + tuple(support))
         )
+        if elbow_info.get("is_duct"):
+            text += ("\n风管弯头：中心至端面按 RADIUS 取 %.1f mm。"
+                     % elbow_info["center_to_end_mm"])
+        if elbow_info.get("duct_dn_note"):
+            text += "\n" + elbow_info["duct_dn_note"]
+        return text
 
     def _process_pick(self, element_id, pick_view_position):
         self.processing = True
@@ -1314,8 +1297,9 @@ class TrunnionPanel(GlassDialog):
             self._height.set("%.1f" % height)
             self._number.set('F2 编号：' + builder.number)
             self._append_log(
-                "已生成｜%s｜元素 %s｜DN%d｜H %.1f mm｜%s｜单元 %s"
-                % (builder.number, elbow_info["element_id"], elbow_info["main_dn"], builder.height_h_mm,
+                "已生成｜%s｜元素 %s｜%s｜H %.1f mm｜%s｜单元 %s"
+                % (builder.number, elbow_info["element_id"],
+                   elbow_info["main_size_text"], builder.height_h_mm,
                    builder.base_type,
                    ", ".join(str(item.GetElementId()) for item in elements))
             )

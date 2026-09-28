@@ -25,13 +25,18 @@ def _dimension_text(value):
 
 def f2_number(main_dn, trunnion_dn, wall_mm, default_wall_mm,
               material_code, height_mm, base_code, ptfe=False,
-              upward=False, horizontal_elbow=False):
-    """按图示 F2-主管-耳轴(壁厚)-材料-H-底板[-F][-UP][-HE] 编号。"""
+              upward=False, horizontal_elbow=False, main_label=None):
+    """按图示 F2-主管-耳轴(壁厚)-材料-H-底板[-F][-UP][-HE] 编号。
+
+    ``main_label`` 给出主管尺寸文字（风管用 ``D450``）；``None`` 时按管道
+    NPS 写（``18"``）。
+    """
     try:
         main_nps = NPS_BY_DN[int(main_dn)]
         trunnion_nps = NPS_BY_DN[int(trunnion_dn)]
     except (KeyError, TypeError, ValueError):
         raise ValueError('主管或耳轴管径缺少 NPS 对照。')
+    main_nps = main_size_token(main_label, main_nps)
     material = str(material_code).upper()
     base = str(base_code).upper()
     if material not in MATERIAL_CODES:
@@ -58,13 +63,18 @@ def f2_number(main_dn, trunnion_dn, wall_mm, default_wall_mm,
 
 
 def f4_number(main_dn, trunnion_dn, wall_mm, default_wall_mm,
-              material_code, length_mm, end_plate_type, flat_bend_code=''):
-    """同中心线省略 FB；底平时按弯头朝向追加 FB1 或 FB2。"""
+              material_code, length_mm, end_plate_type, flat_bend_code='',
+              main_label=None):
+    """同中心线省略 FB；底平时按弯头朝向追加 FB1 或 FB2。
+
+    ``main_label`` 给出主管尺寸文字（风管用 ``D450``）；``None`` 时按管道 NPS 写。
+    """
     try:
         main_nps = NPS_BY_DN[int(main_dn)]
         trunnion_nps = NPS_BY_DN[int(trunnion_dn)]
     except (KeyError, TypeError, ValueError):
         raise ValueError('主管或耳轴管径缺少 NPS 对照。')
+    main_nps = main_size_token(main_label, main_nps)
     material = str(material_code).upper()
     plate = str(end_plate_type).upper()
     bend = str(flat_bend_code).upper()
@@ -97,8 +107,11 @@ def f5_azimuth_deg(direction):
 
 def f5_number(main_dn, trunnion_dn, wall_mm, default_wall_mm,
               material_code, length_mm, end_plate_type, azimuth_deg,
-              bottom_flat=False):
-    """F5-主管-耳轴(壁厚)-材料-L-端板-方位角[-FB]。"""
+              bottom_flat=False, main_label=None):
+    """F5-主管-耳轴(壁厚)-材料-L-端板-方位角[-FB]。
+
+    ``main_label`` 给出主管尺寸文字（风管用 ``D450``）；``None`` 时按管道 DN 写。
+    """
     main_diameter = _finite(main_dn, '主管 DN')
     trunnion_diameter = _finite(trunnion_dn, '耳轴 DN')
     if (main_diameter <= 0 or trunnion_diameter <= 0
@@ -117,7 +130,7 @@ def f5_number(main_dn, trunnion_dn, wall_mm, default_wall_mm,
         raise ValueError('耳轴壁厚及长度 L 必须大于 0。')
     suffix = '' if abs(wall - default_wall) < 1.0e-6 else '(%s)' % _dimension_text(wall)
     rounded_azimuth = int(math.floor(azimuth % 360.0 + 0.5)) % 360
-    parts = ['F5', 'DN%d' % int(main_diameter),
+    parts = ['F5', main_size_token(main_label, 'DN%d' % int(main_diameter)),
              'DN%d%s' % (int(trunnion_diameter), suffix), material,
              str(int(math.floor(length + 0.5))), plate,
              str(rounded_azimuth)]
@@ -461,3 +474,234 @@ def moved_from_selection_view(pick_position, view_number, view_xy,
     dy = _finite(y, "光标 Y") - _finite(pick_y, "选取 Y")
     distance = _finite(minimum_view_distance, "最小移动距离")
     return dx * dx + dy * dy > distance * distance
+
+
+# ---------------------------------------------------------------------------
+# HVAC 圆风管弯头（OpenPlant_3D.HVAC_ROUND_ELBOW）
+#
+# 与管道弯头的差别只在 EC 属性名和编号文字：HVAC 元件是单元格（NormalCellElement），
+# 没有 NOMINAL_DIAMETER / OUTSIDE_DIAMETER / DESIGN_LENGTH_CENTER_TO_*，它给的是
+# MAIN_DIAMETER（= 风管实际外径）、RADIUS（= 中心线弯曲半径）等。矩阵约定相同：
+# 端口 0 在矩阵原点、局部 X 是端口 0 切线、局部 Z 由端口 0 指向弯曲中心。
+# ---------------------------------------------------------------------------
+
+HVAC_CLASS_HINT = "HVAC"
+RECT_CLASS_HINTS = ("RECT", "RECTANGULAR")
+
+# 工具读 EC 时的数值属性白名单要并上这一段，风管的属性才会被枚举到。
+HVAC_NUMBER_PROPERTIES = (
+    "MAIN_DIAMETER", "RUN_DIAMETER", "RADIUS", "RADIUS_TO_DIAMETER",
+    "EQUIVALENT_DIAMETER", "HVAC_THICKNESS", "CONNECTION_LENGTH",
+    "MAIN_CONNECTION_LENGTH", "RUN_CONNECTION_LENGTH",
+)
+
+
+def main_size_token(label, fallback_text):
+    """编号里的主管尺寸文字：风管用 ``D450``，管道用原来的 NPS / DN 文字。"""
+    text = str(label or "").strip()
+    return text or str(fallback_text)
+
+
+def is_hvac_class(class_name):
+    """类名是否属于 HVAC 专业（``HVAC_ROUND_ELBOW`` / ``HVAC_RECT_ELBOW`` …）。"""
+    return HVAC_CLASS_HINT in str(class_name or "").upper()
+
+
+def is_rect_hvac_class(class_name):
+    """矩形风管（``HVAC_RECT_ELBOW`` 等）：本版不支持。"""
+    name = str(class_name or "").upper()
+    return is_hvac_class(name) and any(hint in name for hint in RECT_CLASS_HINTS)
+
+
+def duct_size_label(outside_mm):
+    """风管主管尺寸文字：按**实际外径**标注，如 Ø450 → ``D450``。"""
+    value = _finite(outside_mm, "风管外径")
+    if value <= 0.0:
+        raise ValueError("风管外径必须大于 0。")
+    return "D%d" % int(math.floor(value + 0.5))
+
+
+def _first_number(numbers, *names):
+    for name in names:
+        value = numbers.get(name)
+        if value is not None:
+            return value
+    return None
+
+
+def _dn_from_nominal(value_mm, supported_dns):
+    """管道公称直径 → 参考表档位；差超过 0.5 mm 认为不在表内（不做插值）。"""
+    if value_mm is None:
+        raise ValueError("弯头缺少 NOMINAL_DIAMETER。")
+    value_mm = float(value_mm)
+    nearest = min(supported_dns, key=lambda dn: abs(value_mm - dn))
+    return nearest if abs(value_mm - nearest) <= 0.5 else None
+
+
+def _center_to_end_raw(numbers):
+    """中心至端面长度的原始值（含 ``LENGTH``/2 兜底），不换算单位。"""
+    run_raw = _first_number(
+        numbers, "DESIGN_LENGTH_CENTER_TO_RUN_END",
+        "DESIGN_LENGTH_CENTER_TO_RUN_END_EFFECTIVE")
+    outlet_raw = _first_number(
+        numbers, "DESIGN_LENGTH_CENTER_TO_OUTLET_END",
+        "DESIGN_LENGTH_CENTER_TO_OUTLET_END_EFFECTIVE")
+    length_raw = numbers.get("LENGTH")
+    if run_raw is None and length_raw is not None:
+        run_raw = length_raw / 2.0
+    if outlet_raw is None and length_raw is not None:
+        outlet_raw = length_raw / 2.0
+    return run_raw, outlet_raw
+
+
+def duct_table_dn(outside_mm, pipe_data, supported_dns, od_ratio=0.05):
+    """给圆风管挑一个「表 1 档位」（沿用管道支吊架的耳轴 / 底板选型表）。
+
+    优先按**实际外径数值**直接对 DN（Ø450 → DN450）；对不上时按 ``pipe_data``
+    里的钢管外径就近匹配，差值不超过钢管外径的 ``od_ratio`` 才接受。
+
+    返回 ``(dn, note)``；匹配不到时 ``dn`` 为 ``None``、``note`` 说明原因。
+    """
+    value = _finite(outside_mm, "风管外径")
+    if value <= 0.0:
+        raise ValueError("风管外径必须大于 0。")
+    exact = [dn for dn in supported_dns if abs(value - dn) <= 0.5]
+    if exact:
+        return int(min(exact)), ""
+    best_dn = min(supported_dns, key=lambda dn: abs(value - pipe_data[dn][0]))
+    pipe_od = pipe_data[best_dn][0]
+    if abs(value - pipe_od) <= od_ratio * pipe_od:
+        return int(best_dn), (
+            "风管 Ø%s mm 未直接对应管道 DN，已按外径就近匹配到 DN%d 档"
+            "（钢管外径 %.1f mm）选耳轴与底板，请复核。"
+            % (_dimension_text(value), best_dn, pipe_od))
+    return None, (
+        "风管 Ø%s mm 未匹配到表 1 的任何管道档位（DN15~DN1200），"
+        "无法自动选耳轴；请先在脚本的 PIPE_DATA / SUPPORT_TABLE 里补充该规格。"
+        % _dimension_text(value))
+
+
+def _resolve_pipe_dimensions(numbers, texts, supported_dns):
+    """管道弯头（原行为，含报错文案逐字保留）。"""
+    scale_mm = dimension_scale_to_mm(
+        texts.get("UNIT_OF_MEASURE"), numbers.get("NOMINAL_DIAMETER"))
+    nominal_raw = _first_number(
+        numbers, "NOMINAL_DIAMETER", "NOMINAL_DIAMETER_RUN_END")
+    nominal_mm = nominal_raw * scale_mm if nominal_raw is not None else None
+    main_dn = _dn_from_nominal(nominal_mm, supported_dns)
+    if main_dn is None:
+        raise ValueError(
+            "弯头公称直径 %.1f mm 不在当前参考表支持范围内。" % nominal_mm)
+
+    outside_raw = numbers.get("OUTSIDE_DIAMETER")
+    if outside_raw is None or outside_raw <= 0.0:
+        raise ValueError("弯头缺少有效的 OUTSIDE_DIAMETER。")
+    outside_mm = outside_raw * scale_mm
+
+    run_raw, outlet_raw = _center_to_end_raw(numbers)
+    if run_raw is None or outlet_raw is None:
+        raise ValueError("弯头缺少中心至端面长度，无法确定两个端口坐标。")
+    run_mm = run_raw * scale_mm
+    outlet_mm = outlet_raw * scale_mm
+    return {
+        "is_duct": False,
+        "scale_mm": scale_mm,
+        "main_dn": int(main_dn),
+        "main_dn_note": "",
+        "main_size_text": "DN%d" % int(main_dn),
+        "main_label": None,
+        "nominal_diameter_mm": nominal_mm,
+        "outside_diameter_mm": outside_mm,
+        "wall_thickness_mm": (numbers.get("WALL_THICKNESS") or 0.0) * scale_mm,
+        "run_length_mm": run_mm,
+        "outlet_length_mm": outlet_mm,
+        "center_to_end_mm": (run_mm + outlet_mm) / 2.0,
+    }
+
+
+def _resolve_duct_dimensions(numbers, texts, pipe_data, supported_dns,
+                             od_ratio):
+    """HVAC 圆风管弯头。
+
+    直径取 ``OUTSIDE_DIAMETER`` → ``MAIN_DIAMETER`` → ``RUN_DIAMETER`` →
+    ``EQUIVALENT_DIAMETER``（风管按**实际外径**建模，该值就是它的外径）。
+
+    中心至端面：HVAC 弯头的两个端口就在弯曲半径的端面上（实测 Ø450、R450 的样
+    例元件范围为 675 = R450 + 管半径 225，两个方向都是），所以 ``RADIUS`` 即中心
+    至端面；个别版本若给了 ``DESIGN_LENGTH_CENTER_TO_*`` 则优先用它。
+    """
+    diameter_raw = _first_number(
+        numbers, "OUTSIDE_DIAMETER", "MAIN_DIAMETER",
+        "RUN_DIAMETER", "EQUIVALENT_DIAMETER")
+    if diameter_raw is None or diameter_raw <= 0.0:
+        raise ValueError(
+            "风管弯头缺少直径属性（OUTSIDE_DIAMETER / MAIN_DIAMETER / RUN_DIAMETER）。")
+    scale_mm = dimension_scale_to_mm(
+        texts.get("UNIT_OF_MEASURE"), diameter_raw)
+    outside_mm = diameter_raw * scale_mm
+
+    run_raw, outlet_raw = _center_to_end_raw(numbers)
+    radius_raw = numbers.get("RADIUS")
+    if radius_raw is not None and radius_raw > 0.0:
+        if run_raw is None:
+            run_raw = radius_raw
+        if outlet_raw is None:
+            outlet_raw = radius_raw
+    if run_raw is None or outlet_raw is None:
+        raise ValueError(
+            "风管弯头缺少 RADIUS / 中心至端面长度，无法确定两个端口坐标。")
+    run_mm = run_raw * scale_mm
+    outlet_mm = outlet_raw * scale_mm
+
+    main_dn, note = duct_table_dn(outside_mm, pipe_data, supported_dns, od_ratio)
+    if main_dn is None:
+        raise ValueError(note)
+    label = duct_size_label(outside_mm)
+    return {
+        "is_duct": True,
+        "scale_mm": scale_mm,
+        "main_dn": main_dn,
+        "main_dn_note": note,
+        "main_size_text": label,
+        "main_label": label,
+        "nominal_diameter_mm": outside_mm,
+        "outside_diameter_mm": outside_mm,
+        "wall_thickness_mm": (_first_number(
+            numbers, "WALL_THICKNESS", "HVAC_THICKNESS") or 0.0) * scale_mm,
+        "run_length_mm": run_mm,
+        "outlet_length_mm": outlet_mm,
+        "center_to_end_mm": (run_mm + outlet_mm) / 2.0,
+    }
+
+
+def resolve_elbow_dimensions(numbers, texts, class_name, pipe_data,
+                             supported_dns, od_ratio=0.05):
+    """把所选弯头的 EC 数值属性解析成管道 / 风管统一的一套尺寸。
+
+    返回::
+
+        {
+          'is_duct',              # True = HVAC 圆风管弯头
+          'scale_mm',             # 属性值 → mm 的换算系数
+          'main_dn',              # 表 1 档位（风管按外径就近匹配）
+          'main_dn_note',         # 风管档位匹配说明（管道为空串）
+          'main_size_text',       # 面板/日志用：'DN450' / 'D450'
+          'main_label',           # 编号用：None（管道按 NPS）/ 'D450'
+          'nominal_diameter_mm',  # 管道=公称直径，风管=实际外径
+          'outside_diameter_mm',
+          'wall_thickness_mm',
+          'run_length_mm', 'outlet_length_mm', 'center_to_end_mm',
+        }
+
+    管道弯头走原逻辑（报错文案不变）；只有类名含 ``HVAC`` 才走风管分支。
+    """
+    numbers = numbers or {}
+    texts = texts or {}
+    if is_rect_hvac_class(class_name):
+        raise ValueError(
+            "所选元素是矩形风管（%s），本版只支持圆形风管弯头 HVAC_ROUND_ELBOW。"
+            % class_name)
+    if is_hvac_class(class_name):
+        return _resolve_duct_dimensions(
+            numbers, texts, pipe_data, supported_dns, od_ratio)
+    return _resolve_pipe_dimensions(numbers, texts, supported_dns)

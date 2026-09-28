@@ -11,6 +11,10 @@
 
 L 是弯头竖直段中心线到耳轴最外端的水平距离。弯头 DN、外径、
 两端中心距、端口坐标及水平方向均从 EC 属性与变换矩阵自动读取。
+
+支持管道弯头与 **HVAC 圆风管弯头**（`OpenPlant_3D.HVAC_ROUND_ELBOW`）：风管取
+`MAIN_DIAMETER` 作外径、`RADIUS` 作中心至端面，表 1 档位按外径就近匹配，编号按
+风管实际外径写，如 `F4-D450-10"-C1-800-B-FB2`；矩形风管不支持。
 """
 
 from __future__ import division
@@ -80,6 +84,9 @@ f4_axis_points = _elbow_selection_logic.f4_axis_points
 f4_pipe_axis_origin = _elbow_selection_logic.f4_pipe_axis_origin
 f4_alignment_offset = _elbow_selection_logic.f4_alignment_offset
 f4_end_plate_thickness = _elbow_selection_logic.f4_end_plate_thickness
+# 管道弯头 / HVAC 圆风管弯头共用的一套尺寸解析与风管属性白名单。
+resolve_elbow_dimensions = _elbow_selection_logic.resolve_elbow_dimensions
+HVAC_NUMBER_PROPERTIES = _elbow_selection_logic.HVAC_NUMBER_PROPERTIES
 
 
 DEBUG_LOG = os.path.join(SCRIPT_DIR, '模块', '日志',
@@ -188,7 +195,9 @@ ELBOW_NUMBER_PROPERTIES = (
     "DESIGN_LENGTH_CENTER_TO_OUTLET_END",
     "DESIGN_LENGTH_CENTER_TO_RUN_END_EFFECTIVE",
     "DESIGN_LENGTH_CENTER_TO_OUTLET_END_EFFECTIVE",
-) + tuple("TRANSFORMATION_MATRIX.M%02d" % index for index in range(12))
+) + HVAC_NUMBER_PROPERTIES + tuple(
+    "TRANSFORMATION_MATRIX.M%02d" % index for index in range(12)
+)
 ELBOW_TEXT_PROPERTIES = ("UNIT_OF_MEASURE", "COMPONENT_NAME", "NAME", "LINENUMBER")
 
 
@@ -438,22 +447,6 @@ def _pick_elbow_record(records):
     return max(candidates, key=lambda item: item[0])[1]
 
 
-def _first_number(numbers, *names):
-    for name in names:
-        value = numbers.get(name)
-        if value is not None:
-            return value
-    return None
-
-
-def _main_dn_from_value(value_mm):
-    if value_mm is None:
-        raise ValueError("弯头缺少 NOMINAL_DIAMETER。")
-    value_mm = float(value_mm)
-    nearest = min(SUPPORTED_MAIN_DNS, key=lambda dn: abs(value_mm - dn))
-    return nearest if abs(value_mm - nearest) <= 0.5 else None
-
-
 def _element_handle_by_id(element_id):
     model_ref = ISessionMgr.ActiveDgnModelRef
     if model_ref is None:
@@ -480,39 +473,13 @@ def read_selected_elbow(element_id):
     elif "90_DEGREE" not in class_name.upper():
         raise ValueError("无法确认所选弯头为 90° 弯头。")
 
-    scale_mm = dimension_scale_to_mm(
-        texts.get("UNIT_OF_MEASURE"),
-        numbers.get("NOMINAL_DIAMETER")
-    )
-    nominal_raw = _first_number(
-        numbers, "NOMINAL_DIAMETER", "NOMINAL_DIAMETER_RUN_END"
-    )
-    nominal_mm = nominal_raw * scale_mm if nominal_raw is not None else None
-    main_dn = _main_dn_from_value(nominal_mm)
-    if main_dn is None:
-        raise ValueError(
-            "弯头公称直径 %.1f mm 不在当前参考表支持范围内。" % nominal_mm)
-
-    outside_raw = numbers.get("OUTSIDE_DIAMETER")
-    if outside_raw is None or outside_raw <= 0.0:
-        raise ValueError("弯头缺少有效的 OUTSIDE_DIAMETER。")
-    outside_mm = outside_raw * scale_mm
-
-    run_raw = _first_number(
-        numbers, "DESIGN_LENGTH_CENTER_TO_RUN_END",
-        "DESIGN_LENGTH_CENTER_TO_RUN_END_EFFECTIVE"
-    )
-    outlet_raw = _first_number(
-        numbers, "DESIGN_LENGTH_CENTER_TO_OUTLET_END",
-        "DESIGN_LENGTH_CENTER_TO_OUTLET_END_EFFECTIVE"
-    )
-    length_raw = numbers.get("LENGTH")
-    if run_raw is None and length_raw is not None:
-        run_raw = length_raw / 2.0
-    if outlet_raw is None and length_raw is not None:
-        outlet_raw = length_raw / 2.0
-    if run_raw is None or outlet_raw is None:
-        raise ValueError("弯头缺少中心至端面长度，无法确定两个端口坐标。")
+    # 管道弯头与 HVAC 圆风管弯头走同一套解析（属性名不同，输出一致）：风管取
+    # MAIN_DIAMETER 作外径、RADIUS 作中心至端面，表 1 档位按外径就近匹配。
+    dims = resolve_elbow_dimensions(
+        numbers, texts, class_name, PIPE_DATA, SUPPORTED_MAIN_DNS)
+    main_dn = dims["main_dn"]
+    nominal_mm = dims["nominal_diameter_mm"]
+    outside_mm = dims["outside_diameter_mm"]
 
     matrix = [numbers.get(
         "TRANSFORMATION_MATRIX.M%02d" % index
@@ -539,8 +506,8 @@ def read_selected_elbow(element_id):
         )
     model_ref = ISessionMgr.ActiveDgnModelRef
     frame = elbow_frame_from_matrix(
-        matrix, _uor_per_mm(model_ref), run_raw * scale_mm,
-        outlet_raw * scale_mm, allow_downward=True
+        matrix, _uor_per_mm(model_ref), dims["run_length_mm"],
+        dims["outlet_length_mm"], allow_downward=True
     )
     result = {
         "element_id": int(element_id),
@@ -549,8 +516,12 @@ def read_selected_elbow(element_id):
         "main_dn": main_dn,
         "nominal_diameter_mm": nominal_mm,
         "outside_diameter_mm": outside_mm,
-        "wall_thickness_mm": ((numbers.get("WALL_THICKNESS") or 0.0)
-                              * scale_mm),
+        "wall_thickness_mm": dims["wall_thickness_mm"],
+        "is_duct": dims["is_duct"],
+        "main_label": dims["main_label"],
+        "main_size_text": dims["main_size_text"],
+        "duct_dn_note": dims["main_dn_note"],
+        "center_to_end_mm": dims["center_to_end_mm"],
         "frame": frame,
         "component_name": texts.get("COMPONENT_NAME") or texts.get("NAME"),
         "pipe_number": next((str(r.get("texts", {}).get("LINENUMBER")).strip()
@@ -795,7 +766,7 @@ class HorizontalTrunnionBuilder(object):
                                 dims['trunnion_wall'], self.material_code,
                                 self.length_l_mm, self.end_plate_type,
                                 frame['flat_bend_code'] if alignment == 'BOTTOM'
-                                else '')
+                                else '', main_label=elbow_info['main_label'])
         _log('F4 build: elbow=%s alignment=%s offset=%.3f origin=%s '
              'tube_start=%s tube_end=%s L=%.3f' % (
                  elbow_info['element_id'], alignment, offset,
@@ -885,8 +856,9 @@ class HorizontalTrunnionBuilder(object):
             attached = psb.attach_components(
                 cell, support_type=SUPPORT_TYPE, support_code=SUPPORT_CODE,
                 assembly_tag=self.number,
-                assembly_spec='%s；DN%d；L %g mm；端板 %s' % (
-                    self.number, main_dn, self.length_l_mm, self.end_plate_type),
+                assembly_spec='%s；%s；L %g mm；端板 %s' % (
+                    self.number, elbow_info["main_size_text"],
+                    self.length_l_mm, self.end_plate_type),
                 components=components,
                 pipe_number=elbow_info.get('pipe_number') or '')
         except Exception as error:
@@ -1180,7 +1152,8 @@ class TrunnionPanel(GlassDialog):
             number = f4_number(
                 info['main_dn'], dims['trunnion_dn'], wall,
                 dims['trunnion_wall'], self._material.get(), length,
-                self._base_type.get()[0], bend_code)
+                self._base_type.get()[0], bend_code,
+                main_label=info['main_label'])
             self._number.set('F4 编号：' + number)
         except (ValueError, TypeError, IndexError) as error:
             self._number.set('F4 编号：' + str(error))
@@ -1230,15 +1203,22 @@ class TrunnionPanel(GlassDialog):
         frame = elbow_info["frame"]
         horizontal = frame["horizontal_port_mm"]
         vertical = frame["vertical_port_mm"]
-        return (
-            "元素 %s｜%s\nDN%d · 外径 %.1f mm → 耳轴 DN%d（Ø%.1f）\n"
+        text = (
+            "元素 %s｜%s\n%s · 外径 %.1f mm → 耳轴 DN%d（Ø%.1f）\n"
             "水平端 (%.1f, %.1f, %.1f)｜竖直端 (%.1f, %.1f, %.1f) mm｜底平标记 %s"
             % ((elbow_info["element_id"], elbow_info["class"],
-                elbow_info["main_dn"], elbow_info["outside_diameter_mm"],
+                elbow_info["main_size_text"],
+                elbow_info["outside_diameter_mm"],
                 dims["trunnion_dn"], dims["trunnion_od"])
                + tuple(horizontal) + tuple(vertical)
                + (frame['flat_bend_code'],))
         )
+        if elbow_info.get("is_duct"):
+            text += ("\n风管弯头：中心至端面按 RADIUS 取 %.1f mm。"
+                     % elbow_info["center_to_end_mm"])
+        if elbow_info.get("duct_dn_note"):
+            text += "\n" + elbow_info["duct_dn_note"]
+        return text
 
     def _process_pick(self, element_id, pick_view_position):
         self.processing = True
@@ -1265,8 +1245,9 @@ class TrunnionPanel(GlassDialog):
             self._height.set("%.1f" % height)
             self._number.set('F4 编号：' + builder.number)
             self._append_log(
-                "已生成｜%s｜元素 %s｜DN%d｜L %.1f mm｜端板 %s｜单元 %s"
-                % (builder.number, elbow_info["element_id"], elbow_info["main_dn"], builder.length_l_mm,
+                "已生成｜%s｜元素 %s｜%s｜L %.1f mm｜端板 %s｜单元 %s"
+                % (builder.number, elbow_info["element_id"],
+                   elbow_info["main_size_text"], builder.length_l_mm,
                    builder.end_plate_type,
                    ", ".join(str(item.GetElementId()) for item in elements))
             )
