@@ -213,6 +213,11 @@ def _attach_items(cell, result):
     )
 
 
+def write_support_items(handle, result):
+    """把整组写进共享支吊架库；供入口在点【确定】时调用（预览阶段不写）。"""
+    return _attach_items(handle, result)
+
+
 # ---------------------------------------------------------------------------
 # 对外建模接口
 # ---------------------------------------------------------------------------
@@ -286,12 +291,19 @@ def _delete_element(handle):
 
 
 def replace_connection_plate(placement_point, options, previous_handle,
-                             plate_number=''):
-    """重建连接板：先建新的一版并写入，成功后再删除上一版预览。"""
+                             plate_number='', attach=True):
+    """重建连接板：先建新的一版并写入，成功后再删除上一版预览。
+
+    ``attach=False`` 时只出几何、**不写公共库**（写库推迟到点【确定】，见入口
+    文件顶部策略说明）；默认 ``True`` 保持其它直接调用方的既有行为不变。
+    """
     builder, result = build_connection_plate_cell(placement_point, options,
                                                   plate_number)
     new_handle = builder.commit()
-    _attach_items(new_handle, result)
+    if attach:
+        _attach_items(new_handle, result)
+    else:
+        _log('replace_connection_plate: 预览不写库（写库推迟到【确定】）')
     deleted = _delete_element(previous_handle)
     return new_handle, result, deleted
 

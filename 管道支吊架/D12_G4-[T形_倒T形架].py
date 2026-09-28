@@ -131,6 +131,26 @@ DEFAULT_HEADING_DEG = 0.0
 # 现场灌浆保护层的元素颜色（混凝土色；可按项目色表调整）。
 GROUND_GROUT_COLOR = 5
 
+# ---------------------------------------------------------------------------
+# 清单写库（共享支吊架库 ItemType）策略
+# ---------------------------------------------------------------------------
+# 背景：写公共库走 MicroStation 原生 EC 调用（``ItemTypeLibrary.Write()`` /
+# ``CustomItemHost.ApplyCustomItem``）。实测**预览阶段每改一次参数就写一次库**，
+# 第二次写库即卡死十几秒后 access violation（本插件未接 faulthandler、无 fault
+# 日志，运行记录见 模块/日志/T形架_debug_log.txt；同源崩溃栈见 门型架_fault.log，
+# 全在 支吊架公共库.py 的 _get_or_create_item_type /
+# _attach_item_with_defaults），
+# 与几何、清单数据无关 —— 每次改参数都会得到新的 AssemblyTag（编号含尺寸），
+# 于是每次都要新建 ItemType 并重写库。
+#
+# 因此照 ``D5_D6_G12_D19`` 综合版与 ``D8`` 门型架的既有做法：
+#   1) ATTACH_ON_CONFIRM：**只在点【确定】时写库**，预览阶段只出几何。写库次数
+#      从"每改一次参数一次"降到"每套一次"，也不会为取消掉的预览留下垃圾 ItemType。
+#   2) ITEM_TYPE_ATTACH：逃生开关。若本机该原生调用持续崩溃，置 False 后几何
+#      照常生成、照常落图，只是这批支吊架不进清单统计。
+ATTACH_ON_CONFIRM = True
+ITEM_TYPE_ATTACH = True
+
 # 选项变化后延迟重建的毫秒数：连点几下只重建一次。
 REGENERATE_DELAY_MS = 150        # 下拉框的防抖
 TEXT_REGENERATE_DELAY_MS = 750   # 文本框的防抖
@@ -601,6 +621,25 @@ def _attach_support_items(cell, result):
     )
 
 
+def _write_support_items(handle, result):
+    """把一整组写进共享支吊架库（原生 EC 写入），返回写入条目数，失败只记日志。
+
+    先记一条含编号 / 构件的日志：这个原生调用是本插件已知的偶发卡死点，
+    崩了也能从日志最后一行看出崩在哪一项。
+    """
+    if not ITEM_TYPE_ATTACH:
+        _log('attach skipped (ITEM_TYPE_ATTACH=False)')
+        return 0
+    _log('attach: type=%s tag=%s items=%s'
+         % (SUPPORT_TYPE, result.get('pipe_rack_number') or '-',
+            [str(item.get('code')) for item in result.get('bom_items', ())]))
+    try:
+        return _attach_support_items(handle, result)
+    except Exception:
+        _log_exception('attach failed')
+        return 0
+
+
 # ---------------------------------------------------------------------------
 # 构建整组 T形架
 # ---------------------------------------------------------------------------
@@ -774,13 +813,22 @@ def _build_t_frame_cell(line, variant_key, rack_type, arm_length_mm,
 def replace_t_frame(line, variant_key, previous_handle, rack_type=1,
                     arm_length_mm=DEFAULT_ARM_LENGTH_MM,
                     heading_deg=DEFAULT_HEADING_DEG,
-                    rooting_method=geom.ROOT_METHOD_STEEL):
-    """重建 T形架：先建新的一版并写入，成功后再删除上一版预览。"""
+                    rooting_method=geom.ROOT_METHOD_STEEL, attach=None):
+    """重建 T形架：先建新的一版并写入，成功后再删除上一版预览。
+
+    ``attach=None`` 时按 :data:`ATTACH_ON_CONFIRM` 决定：**预览阶段默认不写公共库**
+    （原生 EC 写入反复触发会卡死，见文件顶部说明），写库推迟到点【确定】。
+    """
     builder, result = _build_t_frame_cell(
         line, variant_key, rack_type, arm_length_mm, heading_deg,
         rooting_method)
     new_handle = builder.commit()
-    _attach_support_items(new_handle, result)
+    write_items = (not ATTACH_ON_CONFIRM) if attach is None else bool(attach)
+    if write_items:
+        _log('replace_t_frame: attaching ItemType/公共库')
+        _write_support_items(new_handle, result)
+    else:
+        _log('replace_t_frame: 预览不写库（写库推迟到【确定】）')
     deleted = _delete_preview(previous_handle)
     return new_handle, result, deleted
 
@@ -789,12 +837,12 @@ def draw_t_frame(line, variant_key, rack_type=1,
                  arm_length_mm=DEFAULT_ARM_LENGTH_MM,
                  heading_deg=DEFAULT_HEADING_DEG,
                  rooting_method=geom.ROOT_METHOD_STEEL):
-    """直接创建整组单元并写入模型，返回 (cell, 统计字典)。"""
+    """直接创建整组单元并写入模型（**直接落图，故写库**），返回 (cell, 统计字典)。"""
     builder, result = _build_t_frame_cell(
         line, variant_key, rack_type, arm_length_mm, heading_deg,
         rooting_method)
     cell = builder.commit()
-    _attach_support_items(cell, result)
+    _write_support_items(cell, result)
     return cell, result
 
 
@@ -829,6 +877,8 @@ class _TFrameDialog(GlassDialog):
         self.line_handle = None
         self.preview_handle = None
         self.preview_result = None
+        # 当前预览是否已写进共享支吊架库（预览阶段不写，见文件顶部策略说明）。
+        self._preview_attached = False
         self.confirmed = False
 
         # 关键：MicroStation 的原生回调（_OnPostLocate / _OnElementModify /
@@ -897,7 +947,7 @@ class _TFrameDialog(GlassDialog):
             body,
             text='点选竖直线（立柱轴线，允许 ±5° 倾斜），线长即 H；输入 L、'
                  '选择类型后自动预览。类型1：立柱在下、横担在上；类型2：'
-                 '立柱在上、横担在下。点【确定】保留，点【取消】放弃。',
+                 '立柱在上、横担在下。点【确定】保留（并写入公共库清单），点【取消】放弃。',
             bg=CARD, fg=MUTED, font=UI_FONT_SMALL, justify='left',
             wraplength=520,
         ).grid(row=0, column=0, sticky='ew')
@@ -1581,10 +1631,11 @@ class _TFrameDialog(GlassDialog):
 
         self.preview_handle = handle
         self.preview_result = result
+        self._preview_attached = False
         message = (
             '预览已更新：子项 %s，类型 %d，%s，H=%.0f mm，L=%.0f mm，'
             '朝向 %.0f°，单元含 %d 个子元素，编号 %s。%s'
-            '改参数会自动重建；点【确定】保留，点【取消】放弃。' % (
+            '改参数会自动重建；点【确定】保留（并写入公共库清单），点【取消】放弃。' % (
                 result['variant'], result['rack_type'], result['specification'],
                 result['height'], result['arm_length'],
                 result['heading_deg'], result['child_count'],
@@ -1607,6 +1658,7 @@ class _TFrameDialog(GlassDialog):
         handle = self.preview_handle
         self.preview_handle = None
         self.preview_result = None
+        self._preview_attached = False
         return _delete_preview(handle)
 
     def delete_source_line(self):
@@ -1641,9 +1693,49 @@ class _TFrameDialog(GlassDialog):
             self.set_status(self._invalid_message(), True)
             return
         self.confirmed = True
+        # 清单写库在【确定】这一刻做（预览阶段完全不碰 ItemType，见文件顶部策略）：
+        # 原生 EC 写入次数从"每改一次参数一次"降到"每套一次"，也不会为取消掉的
+        # 预览在公共库里留下垃圾 ItemType。
+        self.attach_result()
         if self.preview_handle is not None and not self._keep_line.get():
             self.delete_source_line()
         self.finish_tool()
+
+    def attach_result(self):
+        """把当前预览写进共享支吊架库（整组 + 各构件）；失败只记日志，不影响落图。"""
+        handle = self.preview_handle
+        result = self.preview_result
+        if handle is None or result is None:
+            return 0
+        if self._preview_attached:
+            _log('attach skipped: preview already written')
+            return 0
+        try:
+            if not handle.IsValid():
+                _log('attach skipped: preview handle invalid')
+                return 0
+        except Exception:
+            _log_exception('attach handle check failed')
+            return 0
+        count = _write_support_items(handle, result)
+        if count:
+            self._preview_attached = True
+            _log('attach on confirm: %s item(s) written' % count)
+            self.set_status('已保留 T形架，清单已写入公共库（%d 项）。' % count)
+            try:
+                NotificationManager.OutputPrompt(
+                    '%s：清单已写入公共库（%d 项）' % (UI_TITLE, count))
+            except Exception:
+                _log_exception('OutputPrompt failed')
+        else:
+            message = ('%s：公共库清单未写入（几何已保留、不受影响），详见日志。'
+                       % UI_TITLE)
+            self.set_status(message, True)
+            try:
+                NotificationManager.OutputPrompt(message)
+            except Exception:
+                _log_exception('OutputPrompt failed')
+        return count
 
     def cancel_tool(self):
         self._cancel_pending_regeneration()

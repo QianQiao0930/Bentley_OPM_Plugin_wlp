@@ -192,6 +192,11 @@ def _attach_items(cell, result):
         components=result.get('bom_items', ()))
 
 
+def write_support_items(handle, result):
+    """把整组写进共享支吊架库；供入口在点【确定】时调用（预览阶段不写）。"""
+    return _attach_items(handle, result)
+
+
 # ---------------------------------------------------------------------------
 # 设备预焊件（``show_preweld``；仅显示用，75% 透明）
 # ---------------------------------------------------------------------------
@@ -413,11 +418,19 @@ def _delete_element(handle):
     return n3._delete_element(handle)
 
 
-def replace_double_bracket(line, options, previous_handle, number=''):
-    """重建双三角架：先建新的一版并写入，成功后再删除上一版预览。"""
+def replace_double_bracket(line, options, previous_handle, number='',
+                           attach=True):
+    """重建双三角架：先建新的一版并写入，成功后再删除上一版预览。
+
+    ``attach=False`` 时只出几何、**不写公共库**（写库推迟到点【确定】，见入口
+    文件顶部策略说明）；默认 ``True`` 保持其它直接调用方的既有行为不变。
+    """
     builder, result = build_double_bracket_cell(line, options, number)
     new_handle = builder.commit()
-    _attach_items(new_handle, result)
+    if attach:
+        _attach_items(new_handle, result)
+    else:
+        _log('replace_double_bracket: 预览不写库（写库推迟到【确定】）')
     deleted = _delete_element(previous_handle)
     return new_handle, result, deleted
 

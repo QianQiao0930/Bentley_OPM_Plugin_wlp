@@ -58,7 +58,7 @@ def _post(base=(0.0, 0.0, 0.0), height_mm=3000.0):
 
 
 def _member_world(variant_key, member_kind, post, arm_length_mm,
-                  heading_deg=0.0, post_axis_u=0.0):
+                  heading_deg=0.0, post_axis_u=0.0, rack_type=1):
     """返回 ``(origin, axis_z, length_mm, world_points)``。
 
     ``world_points`` 是截面轮廓（未扫掠）映射到世界的点列，与
@@ -66,7 +66,8 @@ def _member_world(variant_key, member_kind, post, arm_length_mm,
     """
     run_dir, v_dir = _plane_dirs(heading_deg)
     origin_uvw, length_mm = geom.member_origin_length(
-        variant_key, member_kind, post.height_mm, arm_length_mm, post_axis_u)
+        variant_key, member_kind, post.height_mm, arm_length_mm, post_axis_u,
+        rack_type)
     origin = (
         post.base[0] + origin_uvw[0] * run_dir[0] + origin_uvw[1] * v_dir[0],
         post.base[1] + origin_uvw[0] * run_dir[1] + origin_uvw[1] * v_dir[1],
@@ -327,6 +328,118 @@ class LayoutTests(unittest.TestCase):
             geom.net_span('D', 100.0)
 
 
+class HangerLayoutTests(unittest.TestCase):
+    """类型 2（倒门形架，立柱在上）：横担落在辅助线**下端**、管位面朝上，
+    立柱自横担上翼缘上表面（w = 0）向上顶到辅助线上端（w = H，接已有钢结构）。"""
+
+    ARM_LENGTH = 2000.0
+    HEIGHT = 3000.0
+
+    def _members(self, variant_key, arm_length=None, height_mm=None,
+                 rack_type=2):
+        arm_length = self.ARM_LENGTH if arm_length is None else arm_length
+        height_mm = self.HEIGHT if height_mm is None else height_mm
+        post = _post(height_mm=height_mm)
+        left = _member_world(
+            variant_key, 'post', post, arm_length, 0.0,
+            geom.post_axis_offset(variant_key, arm_length, 'left'),
+            rack_type=rack_type)
+        right = _member_world(
+            variant_key, 'post', post, arm_length, 0.0,
+            geom.post_axis_offset(variant_key, arm_length, 'right'),
+            rack_type=rack_type)
+        arm = _member_world(variant_key, 'arm', post, arm_length, 0.0,
+                            rack_type=rack_type)
+        return post, left, right, arm
+
+    def test_rail_top_face_lies_on_the_lower_end_of_the_line(self):
+        """倒门：管位面（横担顶面）落在辅助线【下端】，截面整体在其下方。"""
+        for variant_key in sorted(geom.VARIANTS):
+            post, left, right, arm = self._members(variant_key)
+            depth = geom.member_depth(variant_key, 'arm')
+            arm_box = _bbox(arm[3])
+            self.assertAlmostEqual(arm_box[5], 0.0, places=6)
+            self.assertAlmostEqual(arm_box[4], -depth, places=6)
+
+    def test_posts_run_from_the_rail_top_face_up_to_the_line_top(self):
+        for variant_key in sorted(geom.VARIANTS):
+            post, left, right, arm = self._members(variant_key)
+            arm_box = _bbox(arm[3])
+            for leg in (left, right):
+                # 立柱截面在 u-v 平面内，采样点只落在扫掠起点面上，
+                # 故顶端取「起点 + 沿 +w 的扫掠长度」。
+                self.assertAlmostEqual(leg[0][2], arm_box[5], places=6)
+                top = leg[0][2] + leg[2] * leg[1][2]
+                self.assertAlmostEqual(top, post.height_mm, places=6)
+
+    def test_post_length_is_the_full_frame_height(self):
+        """倒门立柱下端面顶焊横担上表面，故下料长就是 H（不像正门要扣横担截面高）。"""
+        for variant_key in sorted(geom.VARIANTS):
+            depth = geom.member_depth(variant_key, 'arm')
+            _, hanger_length = geom.member_origin_length(
+                variant_key, 'post', self.HEIGHT, self.ARM_LENGTH, 0.0, 2)
+            _, end_welded_length = geom.member_origin_length(
+                variant_key, 'post', self.HEIGHT, self.ARM_LENGTH, 0.0, 1)
+            self.assertAlmostEqual(hanger_length, self.HEIGHT, places=9)
+            self.assertAlmostEqual(end_welded_length, self.HEIGHT - depth,
+                                   places=9)
+            self.assertAlmostEqual(hanger_length - end_welded_length, depth,
+                                   places=9)
+
+    def test_net_span_and_overhangs_are_unchanged(self):
+        """两朝向的平面布置相同：净距 B、横担以中心线居中、两端各超 50。"""
+        for variant_key in sorted(geom.VARIANTS):
+            depth = geom.member_depth(variant_key, 'arm')
+            post, left, right, arm = self._members(variant_key)
+            left_box = _bbox(left[3])
+            right_box = _bbox(right[3])
+            span = geom.net_span(variant_key, self.ARM_LENGTH)
+            self.assertAlmostEqual(right_box[0] - left_box[1], span, places=6)
+            self.assertAlmostEqual(
+                span, self.ARM_LENGTH - 2.0 * geom.ARM_END_OVERHANG_MM
+                - 2.0 * depth, places=9)
+            u_start, length = geom.beam_span(variant_key, self.ARM_LENGTH)
+            end = arm[0][0] + arm[2] * arm[1][0]
+            self.assertAlmostEqual(u_start, -self.ARM_LENGTH / 2.0, places=9)
+            self.assertAlmostEqual(arm[0][0], -end, places=6)
+            self.assertAlmostEqual(length, self.ARM_LENGTH, places=9)
+            self.assertAlmostEqual(left_box[0] - u_start,
+                                   geom.ARM_END_OVERHANG_MM, places=6)
+            self.assertAlmostEqual(end - right_box[1],
+                                   geom.ARM_END_OVERHANG_MM, places=6)
+
+    def test_webs_stay_coplanar_and_flanges_along_v(self):
+        for variant_key in sorted(geom.VARIANTS):
+            flange = geom.member_flange_width(variant_key, 'post')
+            post, left, right, arm = self._members(variant_key)
+            for member in (left, right, arm):
+                box = _bbox(member[3])
+                self.assertAlmostEqual(box[2], -flange / 2.0, places=6)
+                self.assertAlmostEqual(box[3], flange / 2.0, places=6)
+
+    def test_member_frames_are_still_right_handed(self):
+        for variant_key in sorted(geom.VARIANTS):
+            for member_kind in ('post', 'arm'):
+                axis_x, axis_y, axis_z = geom.member_axes(variant_key,
+                                                          member_kind)
+                product = _cross(axis_x, axis_y)
+                for index in range(3):
+                    self.assertAlmostEqual(product[index], axis_z[index],
+                                           places=12)
+
+    def test_heading_rotates_the_hanger_frame_plane(self):
+        post = _post(height_mm=self.HEIGHT)
+        start = geom.beam_span('C', self.ARM_LENGTH)[0]
+        for heading in (0.0, 90.0, 270.0):
+            run_dir, _v_dir = _plane_dirs(heading)
+            origin, _axis_z, length, points = _member_world(
+                'C', 'arm', post, self.ARM_LENGTH, heading, rack_type=2)
+            self.assertAlmostEqual(origin[0], run_dir[0] * start, places=6)
+            self.assertAlmostEqual(origin[1], run_dir[1] * start, places=6)
+            self.assertAlmostEqual(_bbox(points)[5], 0.0, places=6)
+            self.assertAlmostEqual(length, self.ARM_LENGTH, places=9)
+
+
 class VariantTests(unittest.TestCase):
     def test_specifications_match_table_one(self):
         expected = {'A': 'H100×100×6×8', 'B': 'H150×150×7×10',
@@ -357,13 +470,18 @@ class VariantTests(unittest.TestCase):
         self.assertEqual([key for key, _label in geom.variant_choices()],
                          ['A', 'B', 'C', 'D'])
 
-    def test_only_type_one_is_supported(self):
+    def test_both_rack_types_are_supported(self):
+        """类型 1 正门（立柱在下）/ 类型 2 倒门（立柱在上）；其余类型号不接受。"""
         for key in sorted(geom.VARIANTS):
             self.assertTrue(geom.variant_supports_type(key, 1))
+            self.assertTrue(geom.variant_supports_type(key, 2))
             self.assertFalse(geom.variant_supports_type(key, 3))
             self.assertFalse(geom.variant_supports_type(key, 'x'))
+            self.assertEqual(tuple(geom.allowed_rack_types(key)), (1, 2))
         self.assertFalse(geom.hanger_type(1))
+        self.assertTrue(geom.hanger_type(2))
         self.assertFalse(geom.hanger_type(3))
+        self.assertFalse(geom.hanger_type('x'))
 
     def test_unknown_variant_is_rejected(self):
         with self.assertRaises(ValueError):

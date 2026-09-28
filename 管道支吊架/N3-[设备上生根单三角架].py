@@ -88,6 +88,24 @@ except Exception:
     pass
 
 UI_TITLE = 'N3-[设备上生根单三角架]'
+
+# ---------------------------------------------------------------------------
+# 清单写库（共享支吊架库 ItemType）策略
+# ---------------------------------------------------------------------------
+# 背景：写公共库走 MicroStation 原生 EC 调用（``ItemTypeLibrary.Write()`` /
+# ``CustomItemHost.ApplyCustomItem``）。实测**预览阶段每改一次参数就写一次库**，
+# 第二次写库即卡死十几秒后 access violation（本插件未单独开 faulthandler 的 fault
+# 日志，诊断记录见 模块/日志/单三角架_debug_log.txt），与几何、清单数据无关 ——
+# 每次改参数都会得到新的 AssemblyTag（编号含尺寸），于是每次都要新建 ItemType
+# 并重写库。
+#
+# 因此照 ``D5_D6_G12_D19`` 综合版与 ``D8`` 门型架的既有做法：
+#   1) ATTACH_ON_CONFIRM：**只在点【确定】时写库**，预览阶段只出几何。
+#   2) ITEM_TYPE_ATTACH：逃生开关。置 False 后几何照常生成、照常落图，
+#      只是这批支吊架不进清单统计。
+ATTACH_ON_CONFIRM = True
+ITEM_TYPE_ATTACH = True
+
 REGENERATE_DELAY_MS = 150
 TEXT_REGENERATE_DELAY_MS = 750
 
@@ -118,6 +136,21 @@ def _log_exception(title):
     _log('%s: %s' % (title, traceback.format_exc()))
 
 
+def _write_support_items(handle, result):
+    """把一整组写进共享支吊架库（原生 EC 写入），返回写入条目数，失败只记日志。"""
+    if not ITEM_TYPE_ATTACH:
+        _log('attach skipped (ITEM_TYPE_ATTACH=False)')
+        return 0
+    _log('attach: type=%s tag=%s items=%s'
+         % (geom.SUPPORT_TYPE, result.get('number') or '-',
+            [str(item.get('code')) for item in result.get('bom_items', ())]))
+    try:
+        return geom.write_support_items(handle, result)
+    except Exception:
+        _log_exception('attach failed')
+        return 0
+
+
 def _copy_dpoint(point):
     return DPoint3d.From(point.x, point.y, point.z)
 
@@ -133,6 +166,7 @@ class _SingleBracketDialog(GlassDialog):
         self.line_handle = None
         self.preview_handle = None
         self.preview_result = None
+        self._preview_attached = False   # 当前预览是否已写进公共库（防重复写）
         self.confirmed = False
         self._regen_job = None
 
@@ -535,7 +569,7 @@ class _SingleBracketDialog(GlassDialog):
         try:
             new_handle, result, deleted = geom.replace_single_bracket(
                 self.line, options, self.preview_handle,
-                self.current_number())
+                self.current_number(), attach=(not ATTACH_ON_CONFIRM))
         except Exception as error:
             message = '单三角架生成失败：%s' % error
             self.set_status(message, True)
@@ -548,11 +582,12 @@ class _SingleBracketDialog(GlassDialog):
 
         self.preview_handle = new_handle
         self.preview_result = result
+        self._preview_attached = False
         self.set_result(result)
         self.refresh_spec()
         message = ('预览已更新%s：子项 %s，类型 %d，H=%.0f，L=%.0f，端部余量 %.0f，'
                    '连接板类型 %d，单元含 %d 个子元素，编号 %s。%s改参数会自动'
-                   '重建；点【确定】保留，点【取消】放弃。'
+                   '重建；点【确定】保留（并写入公共库清单），点【取消】放弃。'
                    % ('（已反向）' if result.get('reverse') else '',
                       result['subtype'], result['type'], result['H'],
                       result['L'], result['end_overhang'], result['plate_type'],
@@ -566,6 +601,7 @@ class _SingleBracketDialog(GlassDialog):
         handle = self.preview_handle
         self.preview_handle = None
         self.preview_result = None
+        self._preview_attached = False
         return geom._delete_element(handle)
 
     def delete_source_line(self):
@@ -590,9 +626,49 @@ class _SingleBracketDialog(GlassDialog):
     def confirm_tool(self):
         self._cancel_pending_regeneration()
         self.confirmed = True
+        # 清单写库在【确定】这一刻做（预览阶段完全不碰 ItemType，见文件顶部策略）：
+        # 原生 EC 写入次数从"每改一次参数一次"降到"每套一次"，也不会为取消掉的
+        # 预览在公共库里留下垃圾 ItemType。
+        self.attach_result()
         if self.preview_handle is not None and not self._keep_line.get():
             self.delete_source_line()
         self.finish_tool()
+
+    def attach_result(self):
+        """把当前预览写进共享支吊架库（整组 + 各构件）；失败只记日志，不影响落图。"""
+        handle = self.preview_handle
+        result = self.preview_result
+        if handle is None or result is None:
+            return 0
+        if self._preview_attached:
+            _log('attach skipped: preview already written')
+            return 0
+        try:
+            if not handle.IsValid():
+                _log('attach skipped: preview handle invalid')
+                return 0
+        except Exception:
+            _log_exception('attach handle check failed')
+            return 0
+        count = _write_support_items(handle, result)
+        if count:
+            self._preview_attached = True
+            _log('attach on confirm: %s item(s) written' % count)
+            self.set_status('已保留单三角架，清单已写入公共库（%d 项）。' % count)
+            try:
+                NotificationManager.OutputPrompt(
+                    '%s：清单已写入公共库（%d 项）' % (UI_TITLE, count))
+            except Exception:
+                _log_exception('OutputPrompt failed')
+        else:
+            message = ('%s：公共库清单未写入（几何已保留、不受影响），详见日志。'
+                       % UI_TITLE)
+            self.set_status(message, True)
+            try:
+                NotificationManager.OutputPrompt(message)
+            except Exception:
+                _log_exception('OutputPrompt failed')
+        return count
 
     def cancel_tool(self):
         self._cancel_pending_regeneration()

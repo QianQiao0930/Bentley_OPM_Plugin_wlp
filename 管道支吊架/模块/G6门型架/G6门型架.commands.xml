@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<KeyinTree xmlns="http://www.bentley.com/schemas/1.0/MicroStation/AddIn/KeyinTree.xsd">
+  <RootKeyinTable ID="root">
+    <Keyword SubtableRef="PYG6FRAME" CommandClass="MacroCommand" CommandWord="PYG6FRAME">
+      <Options Required="true" />
+    </Keyword>
+  </RootKeyinTable>
+  <SubKeyinTables>
+    <KeyinTable ID="PYG6FRAME">
+      <Keyword CommandWord="PLACE" />
+      <Keyword CommandWord="EXPORT" />
+    </KeyinTable>
+  </SubKeyinTables>
+  <KeyinHandlers>
+    <KeyinHandler Keyin="PYG6FRAME PLACE" Function="OpenG6PortalFrame" />
+    <KeyinHandler Keyin="PYG6FRAME EXPORT" Function="ExportG6PortalFrameBom" />
+  </KeyinHandlers>
+</KeyinTree>

@@ -103,6 +103,24 @@ SUPPORT_CODE = 'G2_ANCHOR_PLATE'
 DEFAULT_SUBTYPE = 'A'
 DEFAULT_HEADING = 0.0
 
+# ---------------------------------------------------------------------------
+# 清单写库（共享支吊架库 ItemType）策略
+# ---------------------------------------------------------------------------
+# 背景：写公共库走 MicroStation 原生 EC 调用（``ItemTypeLibrary.Write()`` /
+# ``CustomItemHost.ApplyCustomItem``）。实测**预览阶段每改一次参数就写一次库**，
+# 第二次写库即卡死十几秒后 access violation（见 模块/日志/门型架_fault.log：
+# 崩溃栈全在 支吊架公共库.py 的 _get_or_create_item_type / _attach_item_with_defaults），
+# 与几何、清单数据无关 —— 每次改参数都会得到新的 AssemblyTag（编号含尺寸），
+# 于是每次都要新建 ItemType 并重写库。
+#
+# 因此照 ``D5_D6_G12_D19`` 综合版与 ``D8`` 门型架的既有做法：
+#   1) ATTACH_ON_CONFIRM：**只在点【确定】时写库**，预览阶段只出几何。写库次数
+#      从"每改一次参数一次"降到"每套一次"，也不会为取消掉的预览留下垃圾 ItemType。
+#   2) ITEM_TYPE_ATTACH：逃生开关。若本机该原生调用持续崩溃，置 False 后几何
+#      照常生成、照常落图，只是这批支吊架不进清单统计。
+ATTACH_ON_CONFIRM = True
+ITEM_TYPE_ATTACH = True
+
 # 选项变化后延迟重建的毫秒数：连点几下只重建一次。
 REGENERATE_DELAY_MS = 150        # 下拉框的防抖
 TEXT_REGENERATE_DELAY_MS = 750   # 文本框的防抖，避免打到一半就重建
@@ -158,6 +176,23 @@ def _attach_support_items(cell, result):
         return 0
 
 
+def _write_support_items(handle, result):
+    """把一整组写进共享支吊架库（原生 EC 写入），返回写入条目数，失败只记日志。"""
+    if not ITEM_TYPE_ATTACH:
+        _log('attach skipped (ITEM_TYPE_ATTACH=False)')
+        return 0
+    # G2 的构件是固定的两项（见 _attach_support_items），result 里没有 bom_items，
+    # 故这里直接记这两项的 code。
+    _log('attach: type=%s tag=%s items=%s'
+         % (SUPPORT_TYPE, result.get('subtype') or '-',
+            ['AnchorPlate', 'AnchorBolt']))
+    try:
+        return _attach_support_items(handle, result)
+    except Exception:
+        _log_exception('attach failed')
+        return 0
+
+
 # ---------------------------------------------------------------------------
 # 设置面板（Tkinter）
 # ---------------------------------------------------------------------------
@@ -173,6 +208,8 @@ class _AnchorPlateDialog(GlassDialog):
         self.placement_point = None
         self.preview_handle = None
         self.preview_result = None
+        # 当前预览是否已写进共享支吊架库（预览阶段不写，见文件顶部策略说明）。
+        self._preview_attached = False
         self.confirmed = False
         self._regen_job = None
 
@@ -209,7 +246,8 @@ class _AnchorPlateDialog(GlassDialog):
             text='在模型中点取混凝土表面上锚板背面的中心点；锚栓沿「安装面」的'
                  '外法向伸入（竖直墙面＝水平方向，水平楼板＝竖直方向）。点取后'
                  '可改子项 / 间距 S / 安装面 / 朝向，预览会自动重建；点【确定】'
-                 '保留，点【取消】或右键放弃。',
+                 '保留（并写入公共库清单），预览阶段只出几何，'
+                 '点【取消】或右键放弃。',
             bg=CARD, fg=MUTED, font=UI_FONT_SMALL, justify='left',
             wraplength=430,
         ).grid(row=0, column=0, columnspan=2, sticky='w')
@@ -506,12 +544,13 @@ class _AnchorPlateDialog(GlassDialog):
 
         self.preview_handle = handle
         self.preview_result = result
-        _attach_support_items(handle, result)
+        # 预览阶段不写公共库（见文件顶部策略）：写库推迟到点【确定】。
+        self._preview_attached = False
         self.set_result(result)
         message = (
             '预览已更新：%s 子项，锚板 %.0f×%.0f×%.0f，M%.0f×%.0f 锚栓 ×4，'
-            '单元含 %d 个子元素。%s改参数会自动重建；点【确定】保留，'
-            '点【取消】放弃。'
+            '单元含 %d 个子元素。%s改参数会自动重建；点【确定】保留'
+            '（并写入公共库清单），点【取消】放弃。'
             % (result['subtype'], result['plate_side'], result['plate_side'],
                result['plate_t'], result['bolt_dia'], result['bolt_length'],
                result['child_count'], '已替换上一版预览。' if deleted else '')
@@ -524,6 +563,7 @@ class _AnchorPlateDialog(GlassDialog):
         handle = self.preview_handle
         self.preview_handle = None
         self.preview_result = None
+        self._preview_attached = False
         return geometry._delete_element(handle)
 
     # -- 收尾 --------------------------------------------------------------
@@ -531,7 +571,47 @@ class _AnchorPlateDialog(GlassDialog):
     def confirm_tool(self):
         self._cancel_pending_regeneration()
         self.confirmed = True
+        # 清单写库在【确定】这一刻做（预览阶段完全不碰 ItemType，见文件顶部策略）：
+        # 原生 EC 写入次数从"每改一次参数一次"降到"每套一次"，也不会为取消掉的
+        # 预览在公共库里留下垃圾 ItemType。
+        self.attach_result()
         self.finish_tool()
+
+    def attach_result(self):
+        """把当前预览写进共享支吊架库（整组 + 各构件）；失败只记日志，不影响落图。"""
+        handle = self.preview_handle
+        result = self.preview_result
+        if handle is None or result is None:
+            return 0
+        if self._preview_attached:
+            _log('attach skipped: preview already written')
+            return 0
+        try:
+            if not handle.IsValid():
+                _log('attach skipped: preview handle invalid')
+                return 0
+        except Exception:
+            _log_exception('attach handle check failed')
+            return 0
+        count = _write_support_items(handle, result)
+        if count:
+            self._preview_attached = True
+            _log('attach on confirm: %s item(s) written' % count)
+            self.set_status('已保留混凝土锚板，清单已写入公共库（%d 项）。' % count)
+            try:
+                NotificationManager.OutputPrompt(
+                    '%s：清单已写入公共库（%d 项）' % (UI_TITLE, count))
+            except Exception:
+                _log_exception('OutputPrompt failed')
+        else:
+            message = ('%s：公共库清单未写入（几何已保留、不受影响），详见日志。'
+                       % UI_TITLE)
+            self.set_status(message, True)
+            try:
+                NotificationManager.OutputPrompt(message)
+            except Exception:
+                _log_exception('OutputPrompt failed')
+        return count
 
     def cancel_tool(self):
         self._cancel_pending_regeneration()
@@ -576,7 +656,8 @@ class AnchorPlatePlacementTool(DgnPrimitiveTool):
         DgnPrimitiveTool._OnPostInstall(self)
         NotificationManager.OutputPrompt(
             '请点取混凝土表面上锚板背面的中心点；点取后可改子项 / 间距 S / '
-            '安装面 / 朝向，预览会自动重建，点【确定】保留，点【取消】或右键放弃。')
+            '安装面 / 朝向，预览会自动重建，点【确定】保留（并写入公共库清单），'
+            '点【取消】或右键放弃。')
 
     def _OnDataButton(self, event):
         if self.tool_settings is None:

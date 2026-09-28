@@ -6,7 +6,8 @@
 # =============================================================================
 """H 型钢门型架纯几何 / 数据逻辑（不依赖 Bentley 运行时可单测）。
 
-对应「图 C.4-8 门形架（H 型钢）」类型 1：
+对应「图 C.4-8 门形 / 倒门形架（H 型钢）」**类型 1 正门**（立柱在下）/
+**类型 2 倒门**（立柱在上）：
 
 * 解析用户绘制的 **竖直线**（**整组门型架的中心线**）为门架高 H；水平布置
   方向由面板的「朝向」给定 —— 竖直线本身不能确定门架平面。
@@ -16,10 +17,23 @@
   以该线为中点、两端各超出立柱外缘 ``ARM_END_OVERHANG_MM``（图上 50 TYP.），
   故两立柱**净距** ``B = L - 2*50 - 2*立柱截面高``。
 
+**两种朝向只差「立柱在横担的哪一侧」**，管位面（固定管子的面）永远朝上、永远
+落在所选竖直线的「管底端」（与 T 形架 ``D12_G4`` 类型 1/2 同一口径）：
+
+* **类型 1 正门形架（立柱在下）**：辅助线**上端**＝管底标高＝横担顶面（= H）、
+  下端＝基座 / 生根面。立柱自下端向上，**柱顶顶焊在横担下翼缘下表面**，故立柱
+  下料长 = H − 横担截面高。
+* **类型 2 倒门形架（立柱在上）**：辅助线**下端**＝管底标高＝横担顶面，上端＝
+  接已有钢结构。横担整体落在管位面以下，立柱自辅助线上端向下、**柱下端面顶焊在
+  横担上翼缘上表面**（腹板共面），故立柱下料长 = H；辅助线上端不建构件，与正门
+  不建基座对称。
+
+两种朝向**共用同一条辅助线**（切类型即可，横担自身姿态不变、始终朝上承管）。
+
 型钢截面本身不重复实现，直接复用仓库内 ``型钢截面生成器`` 的数据与几何模块
 （``steel_hbeam_data`` / ``steel_hbeam_geometry``）。
 
-布置约定（局部基 u-v-w，原点取所选竖直线的下端）：
+布置约定（局部基 u-v-w，原点取所选竖直线的下端；倒门时 w = 0 即管位面）：
 
     u = 门架平面内的水平方向（面板「朝向」；也是横担长度方向）
     v = Z × u（水平法向，管道轴线方向）
@@ -33,9 +47,10 @@
   中心落在自身轴线上（左 / 右轴线在 ``∓(L - 100 - H)/2``），故内缘恰好在
   轴线 ±H/2 处。
 * 横担：截面在 v-w 平面内，沿 +u 扫掠；截面高 ``H`` 竖直、翼缘宽 ``B`` 朝向
-  v，腹板同样在 v = 0；顶面（固定管子的面）落在 w = H。
-* 立柱顶面顶焊在横担下翼缘下表面（腹板共面，力经该接触面下传），立柱长度
-  因此扣除横担截面高。
+  v，腹板同样在 v = 0；顶面（固定管子的面）正门落在 w = H、倒门落在 w = 0。
+* 正门时立柱顶面顶焊在横担**下**翼缘下表面；倒门时立柱下端面顶焊在横担**上**
+  翼缘上表面（两者腹板都共面，力经该接触面传递）。立柱下料长与置放高度见
+  :func:`member_origin_length`。
 """
 
 from __future__ import division
@@ -72,14 +87,14 @@ MIN_SPAN_MM = 50.0
 # 荷载表 H 的匹配容差（mm）。
 LOAD_HEIGHT_TOLERANCE_MM = 1.0
 
-# 类型 1：正门形架（立柱在下、横担在上）。
-# 类型 3/4 为倒门形架（吊架），留待后续实现，此处不接受。
-ALL_RACK_TYPES = (1,)
-HANGER_RACK_TYPES = ()
+# 类型 1：正门形架（立柱在下、横担在上，管位面在辅助线上端 H）。
+# 类型 2：倒门形架（立柱在上、横担落在辅助线下端，管位面朝上、在 w = 0）。
+ALL_RACK_TYPES = (1, 2)
+HANGER_RACK_TYPES = (2,)
 
 
 def hanger_type(rack_type):
-    """本插件仅实现类型 1；倒门形架（立柱在上）尚未支持，恒为 False。"""
+    """类型 2 为倒门形架（立柱在上、横担在辅助线下端），返回 True。"""
     try:
         return int(rack_type) in HANGER_RACK_TYPES
     except (TypeError, ValueError):
@@ -246,19 +261,29 @@ def member_axes(variant_key, member_kind):
 
 
 def member_origin_length(variant_key, member_kind, height_mm, arm_length_mm,
-                         post_axis_u=0.0):
+                         post_axis_u=0.0, rack_type=1):
     """返回 ``(origin_uvw_mm, length_mm)``：扫掠起点（相对所选线下端）与长度。
 
-    立柱由基座（w = 0）向上扫掠到横担下翼缘下表面，u 位置即自身轴线（由
-    :func:`post_axis_offset` 按整组中心线给出的 ``∓(L-100-H)/2``），长度扣除
-    横担截面高；横担以整组中心线为中点，自左端（左立柱外缘外 50，即
-    ``u = -L/2``）沿 +u 扫掠 L，截面中心置于 ``w = H - 截面高/2``（顶面恰在 H）。
+    立柱沿 +w 向上扫掠，u 位置即自身轴线（由 :func:`post_axis_offset` 按整组
+    中心线给出的 ``∓(L-100-H)/2``）；横担以整组中心线为中点，自左端（左立柱
+    外缘外 50，即 ``u = -L/2``）沿 +u 扫掠 L。
+
+    ``rack_type`` 决定**横担落在辅助线的哪一端**（管位面永远朝上）：
+
+    * 类型 1 正门：横担截面中心 ``w = H - 截面高/2``（管位面在辅助线**上端** H）；
+      立柱自基座（w = 0）向上，柱顶顶焊横担下翼缘下表面，故长度扣横担截面高。
+    * 类型 2 倒门：横担截面中心 ``w = -截面高/2``（管位面在辅助线**下端** 0）；
+      立柱自横担**上翼缘上表面**（w = 0）向上顶到辅助线上端，柱下端面顶焊横担
+      上表面，故长度就是 H（接已有钢结构的上端不建构件）。
     """
     _variant(variant_key)
     height_mm = float(height_mm)
     arm_depth = member_depth(variant_key, 'arm')
+    hanger = hanger_type(rack_type)
 
     if member_kind == 'post':
+        if hanger:
+            return ((float(post_axis_u), 0.0, 0.0), height_mm)
         length = height_mm - arm_depth
         if length <= 0.0:
             raise ValueError(
@@ -267,7 +292,8 @@ def member_origin_length(variant_key, member_kind, height_mm, arm_length_mm,
         return ((float(post_axis_u), 0.0, 0.0), length)
     if member_kind == 'arm':
         u_start, length = beam_span(variant_key, arm_length_mm)
-        return ((u_start, 0.0, height_mm - arm_depth / 2.0), length)
+        top = 0.0 if hanger else height_mm
+        return ((u_start, 0.0, top - arm_depth / 2.0), length)
     raise ValueError("member_kind 只能是 'post' 或 'arm'。")
 
 

@@ -109,6 +109,24 @@ CELL_NAME = 'E1_RACK'
 DEFAULT_MATERIAL = geom.DEFAULT_MATERIAL
 DEFAULT_DN = 200
 
+# ---------------------------------------------------------------------------
+# 清单写库（共享支吊架库 ItemType）策略
+# ---------------------------------------------------------------------------
+# 背景：写公共库走 MicroStation 原生 EC 调用（``ItemTypeLibrary.Write()`` /
+# ``CustomItemHost.ApplyCustomItem``）。实测**预览阶段每改一次参数就写一次库**，
+# 第二次写库即卡死十几秒后 access violation（见 模块/日志/门型架_fault.log：
+# 崩溃栈全在 支吊架公共库.py 的 _get_or_create_item_type / _attach_item_with_defaults），
+# 与几何、清单数据无关 —— 每次改参数都会得到新的 AssemblyTag（编号含尺寸），
+# 于是每次都要新建 ItemType 并重写库。
+#
+# 因此照 ``D5_D6_G12_D19`` 综合版与 ``D8`` 门型架的既有做法：
+#   1) ATTACH_ON_CONFIRM：**只在点【确定】时写库**，预览阶段只出几何。写库次数
+#      从"每改一次参数一次"降到"每套一次"，也不会为取消掉的预览留下垃圾 ItemType。
+#   2) ITEM_TYPE_ATTACH：逃生开关。若本机该原生调用持续崩溃，置 False 后几何
+#      照常生成、照常落图，只是这批支吊架不进清单统计。
+ATTACH_ON_CONFIRM = True
+ITEM_TYPE_ATTACH = True
+
 REGENERATE_DELAY_MS = 150
 TEXT_REGENERATE_DELAY_MS = 750
 
@@ -469,6 +487,21 @@ def _attach_support_items(cell, result):
     )
 
 
+def _write_support_items(handle, result):
+    """把一整组写进共享支吊架库（原生 EC 写入），返回写入条目数，失败只记日志。"""
+    if not ITEM_TYPE_ATTACH:
+        _log('attach skipped (ITEM_TYPE_ATTACH=False)')
+        return 0
+    _log('attach: type=%s tag=%s items=%s'
+         % (SUPPORT_TYPE, result.get('number') or '-',
+            [str(item.get('code')) for item in result.get('bom_items', ())]))
+    try:
+        return _attach_support_items(handle, result)
+    except Exception:
+        _log_exception('attach failed')
+        return 0
+
+
 # ---------------------------------------------------------------------------
 # 构建整组 E1 管架
 # ---------------------------------------------------------------------------
@@ -520,8 +553,12 @@ def _build_e1_cell(axis, center_mm, layout, uor_per_mm, dgn_model):
     return builder, result
 
 
-def replace_e1_rack(axis, center_mm, layout, previous_handle):
-    """重建 E1 管架：先建新的一版并写入，成功后再删除上一版预览。"""
+def replace_e1_rack(axis, center_mm, layout, previous_handle, attach=None):
+    """重建 E1 管架：先建新的一版并写入，成功后再删除上一版预览。
+
+    ``attach=None`` 时按 :data:`ATTACH_ON_CONFIRM` 决定：**预览阶段默认不写公共库**
+    （原生 EC 写入反复触发会卡死，见文件顶部说明），写库推迟到点【确定】。
+    """
     dgn_model = ISessionMgr.GetActiveDgnModel()
     if not dgn_model.Is3d():
         raise RuntimeError('请先激活一个三维 DGN 模型。')
@@ -529,13 +566,18 @@ def replace_e1_rack(axis, center_mm, layout, previous_handle):
     builder, result = _build_e1_cell(axis, center_mm, layout, uor_per_mm,
                                      dgn_model)
     new_handle = builder.commit()
-    _attach_support_items(new_handle, result)
+    write_items = (not ATTACH_ON_CONFIRM) if attach is None else bool(attach)
+    if write_items:
+        _log('replace_e1_rack: attaching ItemType/公共库')
+        _write_support_items(new_handle, result)
+    else:
+        _log('replace_e1_rack: 预览不写库（写库推迟到【确定】）')
     deleted = _delete_preview(previous_handle)
     return new_handle, result, deleted
 
 
 def draw_e1_rack(axis, center_mm, layout):
-    """直接创建整组单元并写入模型，返回 ``(cell, 统计字典)``。"""
+    """直接创建整组单元并写入模型（**直接落图，故写库**），返回 ``(cell, 统计字典)``。"""
     dgn_model = ISessionMgr.GetActiveDgnModel()
     if not dgn_model.Is3d():
         raise RuntimeError('请先激活一个三维 DGN 模型。')
@@ -543,7 +585,7 @@ def draw_e1_rack(axis, center_mm, layout):
     builder, result = _build_e1_cell(axis, center_mm, layout, uor_per_mm,
                                      dgn_model)
     cell = builder.commit()
-    _attach_support_items(cell, result)
+    _write_support_items(cell, result)
     return cell, result
 
 
@@ -571,6 +613,8 @@ class _E1RackDialog(GlassDialog):
         self.axis_handle = None
         self.preview_handle = None
         self.preview_result = None
+        # 当前预览是否已写进共享支吊架库（预览阶段不写，见文件顶部策略说明）。
+        self._preview_attached = False
         self.confirmed = False
 
         self._poll_job = None
@@ -632,7 +676,8 @@ class _E1RackDialog(GlassDialog):
             body,
             text='点选管道（自动读管径）或一条普通直线段（用面板 DN）；'
                  '在点击处沿其轴线生成两根竖直构件A（内侧面距管壁 3 mm、'
-                 '顶面高出管轴 50）与（不锈钢管时）两块薄板。点【确定】保留，'
+                 '顶面高出管轴 50）与（不锈钢管时）两块薄板。点【确定】保留'
+                 '（并写入公共库清单），预览阶段只出几何，'
                  '点【取消】放弃。',
             bg=CARD, fg=MUTED, font=UI_FONT_SMALL, justify='left',
             wraplength=520,
@@ -1106,8 +1151,10 @@ class _E1RackDialog(GlassDialog):
 
         self.preview_handle = handle
         self.preview_result = result
+        self._preview_attached = False
         message = ('预览已更新：编号 %s，子项 %s，H=%.0f mm，单元含 %d 个子元素，'
-                   '%s。改参数会自动重建；点【确定】保留，点【取消】放弃。'
+                   '%s。改参数会自动重建；点【确定】保留（并写入公共库清单），'
+                   '点【取消】放弃。'
                    % (result['number'], result['subitem'], result['height'],
                       result['child_count'],
                       '已替换上一版预览' if deleted else '已生成'))
@@ -1127,6 +1174,7 @@ class _E1RackDialog(GlassDialog):
         handle = self.preview_handle
         self.preview_handle = None
         self.preview_result = None
+        self._preview_attached = False
         return _delete_preview(handle)
 
     def delete_source_line(self):
@@ -1162,9 +1210,49 @@ class _E1RackDialog(GlassDialog):
     def confirm_tool(self):
         self._cancel_pending_regeneration()
         self.confirmed = True
+        # 清单写库在【确定】这一刻做（预览阶段完全不碰 ItemType，见文件顶部策略）：
+        # 原生 EC 写入次数从"每改一次参数一次"降到"每套一次"，也不会为取消掉的
+        # 预览在公共库里留下垃圾 ItemType。
+        self.attach_result()
         if self.preview_handle is not None and not self._keep.get():
             self.delete_source_line()
         self.finish_tool()
+
+    def attach_result(self):
+        """把当前预览写进共享支吊架库（整组 + 各构件）；失败只记日志，不影响落图。"""
+        handle = self.preview_handle
+        result = self.preview_result
+        if handle is None or result is None:
+            return 0
+        if self._preview_attached:
+            _log('attach skipped: preview already written')
+            return 0
+        try:
+            if not handle.IsValid():
+                _log('attach skipped: preview handle invalid')
+                return 0
+        except Exception:
+            _log_exception('attach handle check failed')
+            return 0
+        count = _write_support_items(handle, result)
+        if count:
+            self._preview_attached = True
+            _log('attach on confirm: %s item(s) written' % count)
+            self.set_status('已保留 E1 导向架，清单已写入公共库（%d 项）。' % count)
+            try:
+                NotificationManager.OutputPrompt(
+                    '%s：清单已写入公共库（%d 项）' % (UI_TITLE, count))
+            except Exception:
+                _log_exception('OutputPrompt failed')
+        else:
+            message = ('%s：公共库清单未写入（几何已保留、不受影响），详见日志。'
+                       % UI_TITLE)
+            self.set_status(message, True)
+            try:
+                NotificationManager.OutputPrompt(message)
+            except Exception:
+                _log_exception('OutputPrompt failed')
+        return count
 
     def cancel_tool(self):
         self._cancel_pending_regeneration()

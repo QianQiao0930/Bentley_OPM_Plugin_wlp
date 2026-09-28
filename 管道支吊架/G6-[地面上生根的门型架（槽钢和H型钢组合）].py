@@ -1,46 +1,52 @@
-﻿# -*- coding: utf-8 -*-
-"""门型架 / 倒门型架（角钢和槽钢）（图 C.4-8 门形架 · 类型 1/2 正门、3/4 倒门）放置工具。
+# -*- coding: utf-8 -*-
+"""G6-[地面上生根的门型架（槽钢和H型钢组合）] 放置工具。
 
-在模型中点选一条用户绘制的 **竖直线**（整组门型架的中心线），并在面板上输入
-净距 **B**、选【类型】，据此生成一组门型架：
+在模型中点选一条用户绘制的 **竖直线**（**整组门型架的中心线**），并在面板上
+输入 **两立柱外缘间距 L**、**朝向** 与 **名称**，据此生成一组
+「地面上生根的门型架（槽钢和 H 型钢组合）」：
 
-    竖直线   = 整组中心线（过横担中点、两立柱轴线关于它对称），线长即门架高 H
-    立柱轴线 = 竖直线 ∓(B + W)/2（两立柱互为镜像，内缘之间净距为 B）
-    B        = 两立柱净距（左立柱内缘 → 右立柱内缘）
-    横担长 L = B + 2W + 30  （W = 立柱在横担长度方向的截面宽度）
+    竖直线   = 整组门型架的中心线（过横担中点、两立柱轴线关于它对称）
+    线上端   = 管底标高 = 横担顶面（固定管子的面）＝ 两片槽钢上翼缘顶面
+    线下端   = 地面（现场灌浆梯台底面）中心
+    线长     = 门架高 H（地面 → 横担顶面）
+    L        = **两立柱外缘间距**（用户输入；立柱轴线在 ∓(L − d)/2，d = 立柱截面高）
+    横担     = 两片**背靠背槽钢**，夹在两立柱之间、两端顶在立柱内侧翼缘面上
+               （不外伸），长度 = 净距 = L − 2d；两片腹板之间的净距 = S（表 2）
+    柱顶     = 高出横担顶面 50（图上 50）
 
-**四个类型只差「立柱在横担的哪一侧」**，管位面（固定管子的面）永远朝上、
-永远落在所选竖直线的「管底端」（与 T 形架 D12_G4 的类型 1/2 同一口径）：
+一组的构件：**2 立柱（H 型钢）+ 2 片槽钢横担 + 2 套地面生根基础件**。地面生根按
+表 2 复用 ``模块/公共/混凝土锚板.py``：自下而上为 **现场灌浆梯台（高 25）→ 锚板
+（E×E×T，4-φG 孔，方阵 F×F 居中）→ 立柱底面**，配 4 根膨胀锚栓（M d×L）+ 4 个
+六角螺母；故钢构架整体比地面抬高 ``ground_lift()`` = 灌浆厚 + 锚板厚，送进几何
+模块的**构架高度** = ``H − ground_lift()``（锚板顶面 → 横担顶面）。
 
-* **类型 1/2 正门形架（立柱在下）**：辅助线**上端**＝管底标高＝横担顶面
-  （高度 H 处），**下端**＝基座 / 生根面。横担以该中心线为中点**横跨两根立柱、
-  两端各超出立柱外缘 15 mm**，顶面落在 H；类型 2 是「侧焊」编号，几何同类型 1。
-* **类型 3/4 倒门形架（立柱在上）**：辅助线**下端**＝管底标高＝横担顶面，
-  **上端**＝接已有钢结构。横担同样以中心线为中点、横跨两立柱，但整体落在管位面
-  以下（顶面落在辅助线下端）；立柱自辅助线上端向下、下端下探到管位面以下与
-  横担搭接；类型 4 是「侧焊」编号，几何同类型 3。
+子项 A~D（表 1 / 表 2）＝ H 型钢立柱 + 两片槽钢横担 + 间距 S：
 
-两种朝向**共用同一条辅助线**（类型切换即可，横担姿态不变、始终朝上承管）。
-立柱与横担**背靠背**：
+    A  H100×100×6×8 + [5   （S=25）      C  H200×200×8×12 + [16a（S=70）
+    B  H150×150×7×10 + [10 （S=50）      D  H250×250×9×14 + [20a（S=100）
 
-* 角钢子项（A/B/C）：立柱**镜像**到横担竖直肢的外侧，两者的**背面**相贴
-  （两角钢背靠背），力经该贴合焊缝传走；立柱**非通长**——正门时顶端止于
-  H − 肢厚 − 10（比横担水平肢低 10 mm 留作施焊），倒门时底端下探一个搭接段
-  ``W - 肢厚 - 10`` 到管位面以下。
-* 槽钢子项（D/E）：立柱腹板贴横担腹板的背面，两腹板背靠背；同样非通长，
-  正门顶端 / 倒门底端留出同样的搭接与 10 mm 施焊间隙。
+立柱（H 型钢）腹板在门架平面内（v = 0）；横担两片槽钢**腹板相对、开口朝外**，
+截面高竖直，故管位面就是两片上翼缘的顶面。两片槽钢合起来的总宽 ``2b + S``
+不超过立柱翼缘宽（A 99≤100 / B 146≤150 / C 196≤200 / D 246≤250），正好夹住
+立柱腹板。
 
-竖直线本身不能确定门架平面，故水平走向由面板的「朝向」给出。倒门时辅助线
-上端（接已有钢结构）不建任何构件，与正门不建基座对称。
+校验（不满足即报错、面板只提示不生成）：
 
-整组构件（两立柱 + 横担）写成一个普通单元（Normal Cell），清单写入**管道支吊架
-公共库** ``支吊架公共库``（`SupportType='D8-[门型架_倒门型架（角钢和槽钢）]'`），
-可与端焊三角架、L 型管架一起统计；可导出 JSON / Excel 清单。
+* ``L`` 必须使横担长度 ``L − 2d ≥ MIN_CROSSARM_LENGTH_MM``；
+* ``H ≤ max_height(variant)``（表 1 的 MAX.H）；
+* ``L ≤ max_arm_length(variant)``（表 1 的 L 上限）；
+* 构架高度 ``H − ground_lift(variant)`` 必须 ``≥ MIN_FRAME_HEIGHT_MM``。
 
-几何做法（型钢截面的真实圆弧轮廓与沿路径扫掠）复用仓库内
-``型钢截面生成器`` 的数据 / 几何模块与 ``steel_sweep_geometry``；
-面板外观沿用仓库共享的 Tkinter 工具箱 ``bentley_ui``（卡片 / 圆角按钮）；
-纯几何 / 数据逻辑在 ``门型架_几何.py``（可单测）。
+整组写成一个普通单元（Normal Cell），清单写入**管道支吊架公共库**
+``支吊架公共库``（`SupportType='G6-[地面上生根的门型架（槽钢和H型钢组合）]'`），
+可导出统一 JSON 清单（与端焊三角架、L 型管架、G5 门型架等一起统计）。
+**预览阶段只出几何，点【确定】时才写一次公共库**（原因见文件下方「清单写库策略」）。
+
+几何做法（型钢截面真实圆弧轮廓 + 沿路径扫掠）复用仓库内 ``型钢截面生成器``；
+面板外观沿用仓库共享的 Tkinter 工具箱 ``bentley_ui``；纯几何 / 数据逻辑在
+``模块/G6门型架/G6门型架_几何.py``（可单测），本文件只负责取样、装配与界面。
+
+键入命令：``PYG6FRAME PLACE``（打开面板）/ ``PYG6FRAME EXPORT``（导出统一清单）。
 
 运行环境：Bentley Power Platform Python（MSPy）。
 """
@@ -72,10 +78,10 @@ from MSPyMstnPlatform import PythonKeyinManager  # noqa: E402,F811
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(HERE)
 STEEL_DIR = os.path.join(REPO_ROOT, '型钢截面生成器')
-# 公共库在 模块/公共/，本插件几何在 模块/门型架/，仓库根提供共享
+# 公共库 / 地面锚板在 模块/公共/，本插件几何在 模块/G6门型架/，仓库根提供共享
 # Tkinter 工具箱 ``bentley_ui``。
 COMMON_DIR = os.path.join(HERE, '模块', '公共')
-GEOM_DIR = os.path.join(HERE, '模块', '门型架')
+GEOM_DIR = os.path.join(HERE, '模块', 'G6门型架')
 for _path in (REPO_ROOT, COMMON_DIR, GEOM_DIR, STEEL_DIR):
     if _path not in sys.path:
         sys.path.insert(0, _path)
@@ -105,27 +111,30 @@ from bentley_ui import (  # noqa: E402
     SlimScrollbar,
 )
 
-import 门型架_几何 as geom  # noqa: E402
+import 混凝土锚板 as anchor  # noqa: E402
+import G6门型架_几何 as geom  # noqa: E402
 import 支吊架公共库 as psb  # noqa: E402
 from steel_sections import steel_sweep_geometry  # noqa: E402
 
 
 # 支吊架公共清单模块所需的类型标识。
-SUPPORT_TYPE = 'D8-[门型架_倒门型架（角钢和槽钢）]'
-SUPPORT_CODE = 'PORTAL_FRAME'
+SUPPORT_TYPE = 'G6-[地面上生根的门型架（槽钢和H型钢组合）]'
+SUPPORT_CODE = 'G6_GROUND_PORTAL_FRAME'
 
 
 def _reload_runtime_modules():
     """每次运行都强制重新读取本插件与依赖模块，规避 MicroStation 缓存。"""
     importlib.invalidate_caches()
-    for module in (geom, steel_sweep_geometry, psb):
+    for module in (geom, anchor, steel_sweep_geometry, psb):
         try:
             importlib.reload(module)
         except Exception:
             pass
-    # 型钢几何 / 数据模块随 门型架_几何 一并重新加载。
-    for name in ('steel_sections.steel_equal_angle_data', 'steel_sections.steel_equal_angle_geometry',
-                 'steel_sections.steel_channel_data', 'steel_sections.steel_channel_geometry'):
+    # 型钢几何 / 数据模块随 G6门型架_几何 一并重新加载。
+    for name in ('steel_sections.steel_hbeam_data',
+                 'steel_sections.steel_hbeam_geometry',
+                 'steel_sections.steel_channel_data',
+                 'steel_sections.steel_channel_geometry'):
         module = sys.modules.get(name)
         if module is not None:
             try:
@@ -138,46 +147,44 @@ def _reload_runtime_modules():
 # 参数
 # ---------------------------------------------------------------------------
 
-DEBUG_LOG = os.path.join(HERE, '模块', '日志', '门型架_debug_log.txt')
+DEBUG_LOG = os.path.join(HERE, '模块', '日志', 'G6门型架_debug_log.txt')
 try:
     os.makedirs(os.path.dirname(DEBUG_LOG), exist_ok=True)
 except Exception:
     pass
 
-UI_TITLE = 'D8-[门型架_倒门型架（角钢和槽钢）]'
-UI_REVISION = 'line-select-tk-7-confirm-attach'
+UI_TITLE = 'G6-[地面上生根的门型架（槽钢和H型钢组合）]'
+UI_REVISION = 'line-select-tk-1-ground-portal-frame-g6'
 
 # 整组构件写入的普通单元名。
-CELL_NAME = 'PORTAL_FRAME'
+CELL_NAME = 'G6_GROUND_PORTAL_FRAME'
 
 COMPONENT_POST_NAME = '立柱'
 COMPONENT_ARM_NAME = '横担'
+COMPONENT_PLATE_NAME = '锚板'
+COMPONENT_BOLT_NAME = '膨胀锚栓'
+COMPONENT_NUT_NAME = '螺母'
+COMPONENT_GROUT_NAME = '现场灌浆'
 
-# 管架类型（编号后缀）：1/2 正门形架（立柱在下），3/4 倒门形架（立柱在上）。
-# 2/4 是「侧焊」编号 —— 几何与 1/3 完全相同，只影响编号文字（见 门型架_几何）。
-RACK_TYPE_OPTIONS = (
-    (1, '类型1  |  正门形架（立柱在下、端焊）'),
-    (2, '类型2  |  正门形架（立柱在下、侧焊）'),
-    (3, '类型3  |  倒门形架（立柱在上、端焊·吊架）'),
-    (4, '类型4  |  倒门形架（立柱在上、侧焊·吊架）'),
-)
-
-# 默认净距 B（mm）：取表 1 的最小列。
-DEFAULT_SPAN_B_MM = 500.0
+# 默认两立柱外缘间距 L（mm）。1000 对 A~C 合规、D 也可（各子项表 1 的 L 上限 ≥ 1000），
+# 编号示例即 ``G6-A-1000-1000``（名称-子项-H-L）。
+DEFAULT_ARM_LENGTH_MM = 1000.0
 # 默认门架平面朝向（°）：0 = 世界 +X。
 DEFAULT_HEADING_DEG = 0.0
+# 默认管架系列代号（编号 = 名称-子项-H-L）。
+DEFAULT_RACK_NAME = 'G6'
 
 # ---------------------------------------------------------------------------
 # 清单写库（共享支吊架库 ItemType）策略
 # ---------------------------------------------------------------------------
 # 背景：写公共库走 MicroStation 原生 EC 调用（``ItemTypeLibrary.Write()`` /
 # ``CustomItemHost.ApplyCustomItem``）。实测**预览阶段每改一次参数就写一次库**，
-# 第二次写库即卡死十几秒后 access violation（见 模块/日志/门型架_fault.log：
+# 第二次写库即卡死十几秒后 access violation（见 模块/日志/G6门型架_fault.log：
 # 崩溃栈全在 支吊架公共库.py 的 _get_or_create_item_type / _attach_item_with_defaults），
 # 与几何、清单数据无关 —— 每次改参数都会得到新的 AssemblyTag（编号含尺寸），
 # 于是每次都要新建 ItemType 并重写库。
 #
-# 因此照 ``D5_D6_G12_D19`` 综合版的既有做法：
+# 因此照 ``D5_D6_G12_D19`` / ``D8`` / ``G2`` 的既有做法：
 #   1) ATTACH_ON_CONFIRM：**只在点【确定】时写库**，预览阶段只出几何。写库次数
 #      从"每改一次参数一次"降到"每套一次"，也不会为取消掉的预览在公共库里
 #      留下垃圾 ItemType。
@@ -230,7 +237,7 @@ def _enable_fault_logging():
     global _FAULT_FILE
     try:
         if _FAULT_FILE is None:
-            path = os.path.join(HERE, '模块', '日志', '门型架_fault.log')
+            path = os.path.join(HERE, '模块', '日志', 'G6门型架_fault.log')
             os.makedirs(os.path.dirname(path), exist_ok=True)
             _FAULT_FILE = open(path, 'a', encoding='utf-8')
             faulthandler.enable(_FAULT_FILE)
@@ -300,7 +307,11 @@ _LOCATE_TRACE = [0]
 
 
 def extract_vertical_post(element_handle):
-    """从所选元素提取并校验竖直线（整组中心线），返回 ``门型架_几何.VerticalPost``。"""
+    """提取并校验竖直线（整组中心线），返回 ``G6门型架_几何.VerticalPost``。
+
+    返回的 ``height_mm`` 即**门架高 H**（地面 → 横担顶面，＝所选竖直线线长）；
+    ``base`` 是线下端（地面 / 灌浆梯台底面中心）。
+    """
     # 前几次调用逐步记录，便于定位卡在哪个原生调用（之后不再逐步记录）。
     trace = _EXTRACT_TRACE[0] < 5
     _EXTRACT_TRACE[0] += 1
@@ -432,30 +443,36 @@ def _plane_dirs(heading_deg):
             (-math.sin(heading), math.cos(heading), 0.0))
 
 
-def _build_member_element(variant_key, member_kind, post, heading_deg,
-                          post_axis_u, span_mm, uor_per_mm, dgn_model,
-                          mirror_u=False, rack_type=1):
-    """构建一个构件（立柱 / 横担）实体元素，不写入模型。
+def _local_to_world_mm(offset_uv_mm, run_dir, v_dir):
+    """把局部基 (u, v) 偏移（mm）换算为世界水平方向偏移（mm）。"""
+    u_offset, v_offset = offset_uv_mm
+    return (u_offset * run_dir[0] + v_offset * v_dir[0],
+            u_offset * run_dir[1] + v_offset * v_dir[1])
 
-    截面朝向与扫掠起点由 ``门型架_几何`` 的 ``member_section_params`` /
-    ``member_axes`` / ``member_origin_length`` 给出，坐标系为门架局部基
-    (u, v, w)，原点取所选竖直线的下端（基座 / 倒门时的管位面）。
 
-    ``rack_type`` 只影响构件沿 w 的置放：类型 1/2 正门（横担顶面在 H、立柱
-    自基座向上），类型 3/4 倒门（横担顶面在 0、立柱自线上端向下搭接）。
+def _build_member_element(variant_key, member_kind, post, frame_height_mm,
+                          arm_length_mm, heading_deg, post_axis_u, uor_per_mm,
+                          dgn_model):
+    """构建一个构件（立柱 / 横担两片槽钢）实体元素，不写入模型。
+
+    ``member_kind`` 取 ``'post'``（H 型钢立柱）/ ``'arm_plus'`` / ``'arm_minus'``
+    （横担的两片槽钢，腹板分别朝 ∓v）。
+
+    ``frame_height_mm`` 是**构架高度**（锚板顶面 → 横担顶面）＝ ``H −
+    ground_lift()``；立柱自锚板顶面（局部 w = 0）向上 到构架高度 + 50，横担上
+    翼缘顶面落在 ``w = 构架高度``。局部基 (u, v, w) 的原点取所选竖直线的下端
+    （地面中心）。截面朝向与扫掠起点由 ``G6门型架_几何`` 的 ``member_axes`` /
+    ``member_origin_length`` 给出（立柱轴线在 ``post_axis_u``，槽钢另按 S 偏移）。
     """
-    _log('build member enter: %s/%s mirror=%s type=%s'
-         % (member_kind, variant_key, mirror_u, rack_type))
+    _log('build member enter: %s/%s' % (member_kind, variant_key))
     geometry = geom.member_geometry(variant_key, member_kind, uor_per_mm)
     run_dir, v_dir = _plane_dirs(heading_deg)
-    axis_x, axis_y, axis_z = geom.member_axes(variant_key, member_kind,
-                                              mirror_u)
+    axis_x, axis_y, axis_z = geom.member_axes(variant_key, member_kind)
     axis_x = _world_axis(axis_x, run_dir, v_dir)
     axis_y = _world_axis(axis_y, run_dir, v_dir)
     axis_z = _world_axis(axis_z, run_dir, v_dir)
     origin_uvw, length_mm = geom.member_origin_length(
-        variant_key, member_kind, post.height_mm, span_mm, post_axis_u,
-        rack_type)
+        variant_key, member_kind, frame_height_mm, arm_length_mm, post_axis_u)
 
     vertex = _to_uor(post.base, uor_per_mm)
     origin = (
@@ -494,7 +511,7 @@ def _succeeded(status):
 
 
 class _PortalFrameCellBuilder(object):
-    """把两立柱、横担子元素一次性写成一个普通单元。"""
+    """把两立柱、横担与两套地面基础件一次性写成一个普通单元。"""
 
     def __init__(self, dgn_model, cell_name=None):
         self.dgn_model = dgn_model
@@ -512,6 +529,11 @@ class _PortalFrameCellBuilder(object):
         if not _succeeded(status):
             raise RuntimeError('无法把门型架子元素加入普通单元。')
         self.child_count += 1
+
+    def add_all(self, children):
+        for child in children or ():
+            self.add(child)
+        return self.child_count
 
     def note(self, message):
         if message not in self.warnings:
@@ -546,8 +568,46 @@ def _delete_preview(handle):
 # ---------------------------------------------------------------------------
 
 
+def _plate_specification(ground_spec):
+    """锚板规格 ``E×E×T``（mm）。"""
+    return '%.0f×%.0f×%.0f' % (ground_spec['plate_e'], ground_spec['plate_e'],
+                                ground_spec['plate_t'])
+
+
+def _hole_specification(ground_spec):
+    """螺栓孔规格：4-φG 孔、方阵 F×F 居中（mm）。"""
+    return '4-φ%.0f（%.0f×%.0f 方阵居中）' % (
+        ground_spec['hole_dia_g'], ground_spec['hole_spacing_f'],
+        ground_spec['hole_spacing_f'])
+
+
+def _bolt_specification(ground_spec):
+    """膨胀锚栓规格 ``M d×L``（mm）。"""
+    return 'M%.0f×%.0f' % (ground_spec['bolt_dia'], ground_spec['bolt_len'])
+
+
+def _assembly_specification(result):
+    """整组记录用的规格文字（写进公共库 Specification 字段，只作提示）。"""
+    ground_spec = result.get('ground_spec') or {}
+    return ('G6-%s：门架高 H=%.0f（构架 %.0f），两立柱外缘间距 L=%.0f，'
+            '横担长度（净距）=%.0f、S=%.0f；构件A %s；构件B %s ×2；'
+            '锚板 %s（%s）×2；膨胀锚栓 %s ×8；现场灌浆 高 %.0f ×2'
+            % (result.get('variant', ''),
+               float(result.get('height', 0.0)),
+               float(result.get('frame_height', 0.0)),
+               float(result.get('arm_length', 0.0)),
+               float(result.get('crossarm_length', 0.0)),
+               float(result.get('gap', 0.0)),
+               result.get('specification', ''),
+               result.get('channel_specification', ''),
+               _plate_specification(ground_spec) if ground_spec else '—',
+               _hole_specification(ground_spec) if ground_spec else '—',
+               _bolt_specification(ground_spec) if ground_spec else '—',
+               geom.GROUND_GROUT_THICKNESS_MM))
+
+
 def _attach_support_items(cell, result):
-    """把整组门型架写入共享支吊架库（整组记录 + 立柱/横担构件记录）。"""
+    """把整组门型架写入共享支吊架库（整组记录 + 各构件记录）。"""
     return psb.attach_components(
         cell,
         support_type=SUPPORT_TYPE,
@@ -579,121 +639,278 @@ def _write_support_items(handle, result):
 
 
 # ---------------------------------------------------------------------------
+# 尺寸校验 / 派生量
+# ---------------------------------------------------------------------------
+
+
+def _frame_metrics(variant_key, height_mm, post_span_mm):
+    """校验尺寸并算出面板只读显示 / 建模所需的派生量；不合规抛 ``ValueError``。
+
+    ``height_mm`` 为面板上的**门架高 H**（地面 → 横担顶面，＝所选竖直线线长）；
+    ``post_span_mm`` 为**两立柱外缘间距 L**。返回字典中的 ``frame_height`` 才是
+    送进几何模块的**构架高度**（锚板顶面 → 横担顶面）＝ ``H − ground_lift()``。
+    """
+    variant_key = str(variant_key).upper()
+    height_mm = float(height_mm)
+    post_span_mm = float(post_span_mm)
+
+    # 1) H 不超表 1 的 MAX.H。
+    max_height = geom.max_height(variant_key)
+    if height_mm > max_height + geom.LOAD_TOLERANCE_MM:
+        raise ValueError(
+            '门架高 H=%.0f mm 超出表 1 的 MAX.H=%.0f mm。'
+            % (height_mm, max_height))
+
+    # 2) L 不超表 1 的 L 上限。
+    max_arm = geom.max_arm_length(variant_key)
+    if post_span_mm > max_arm:
+        raise ValueError(
+            '两立柱外缘间距 L=%.0f mm 超出表 1 的 L 上限=%.0f mm。'
+            % (post_span_mm, max_arm))
+
+    # 3) L 不能太小：横担长度（＝净距）＝ L − 2d 必须 ≥ MIN_CROSSARM_LENGTH_MM。
+    depth = geom.post_depth(variant_key)
+    crossarm = None
+    try:
+        crossarm = geom.crossarm_length(variant_key, post_span_mm)
+    except ValueError:
+        crossarm = None
+    if crossarm is None or crossarm < geom.MIN_CROSSARM_LENGTH_MM:
+        raise ValueError(
+            '两立柱外缘间距 L=%.0f mm 过小：扣除 2×立柱截面高 %.0f 后横担长度'
+            '＝净距 %.1f mm，要求 ≥ %.0f mm。'
+            % (post_span_mm, depth, crossarm if crossarm is not None else 0.0,
+               geom.MIN_CROSSARM_LENGTH_MM))
+
+    # 4) 构架高度（锚板顶面 → 横担顶面）＝ H − 抬升量，必须够高。
+    ground_spec = geom.ground_anchor_spec(variant_key)
+    lift = geom.ground_lift(variant_key)
+    frame_height = height_mm - lift
+    if frame_height < geom.MIN_FRAME_HEIGHT_MM:
+        raise ValueError(
+            '构架高度（锚板顶面 → 横担顶面）＝ H %.0f − 抬升量 %.0f = %.1f mm '
+            '过小，要求 ≥ %.0f mm（抬升量 ＝ 灌浆 %.0f + 锚板厚 %.0f）。'
+            % (height_mm, lift, frame_height, geom.MIN_FRAME_HEIGHT_MM,
+               geom.GROUND_GROUT_THICKNESS_MM, ground_spec['plate_t']))
+    try:
+        post_cut_length = geom.post_length(variant_key, frame_height)
+    except ValueError as error:
+        raise ValueError('构架高度 %.1f mm 过小：%s' % (frame_height, error))
+
+    return {
+        'variant': variant_key,
+        'height': height_mm,                # 门架高 H（地面 → 横担顶面）
+        'frame_height': frame_height,       # 构架高度（锚板顶面 → 横担顶面）
+        'arm_length': post_span_mm,         # L ＝ 两立柱外缘间距（编号用）
+        'crossarm_length': crossarm,        # 横担长度 ＝ 净距 ＝ L − 2d
+        'span': crossarm,                   # 两立柱净距（内缘到内缘，同上）
+        'depth': depth,                     # 立柱截面高 d
+        'gap': geom.channel_gap(variant_key),
+        'channel_specification': geom.channel_specification(variant_key),
+        'beam_specification': geom.beam_specification(variant_key),
+        'post_cut_length': post_cut_length,  # 立柱下料长 ＝ 构架高度 + 50
+        'top_rise': geom.POST_TOP_RISE_MM,  # 柱顶高出横担顶面
+        'allowable_load': geom.allowable_load(variant_key, height_mm,
+                                              post_span_mm),
+        'ground_spec': ground_spec,
+        'min_pavement_thickness': geom.min_pavement_thickness(variant_key),
+    }
+
+
+# ---------------------------------------------------------------------------
 # 构建整组门型架
 # ---------------------------------------------------------------------------
 
 
-def _build_portal_frame_cell(post, variant_key, rack_type, span_mm, heading_deg,
+def _build_bom_items(metrics, variant_key):
+    """整组清单条目：立柱 / 横担（两片槽钢）/ 锚板 / 膨胀锚栓 / 螺母 / 现场灌浆。"""
+    ground_spec = metrics['ground_spec']
+    return [
+        {'code': 'Post', 'name': COMPONENT_POST_NAME,
+         'specification': metrics['beam_specification'],
+         'length': metrics['post_cut_length'], 'quantity': 2},
+        # 横担＝两片背靠背槽钢（构件B），下料长度＝净距＝L − 2d。
+        {'code': 'Arm', 'name': COMPONENT_ARM_NAME,
+         'specification': metrics['channel_specification'],
+         'length': metrics['crossarm_length'], 'quantity': 2},
+        # 地面生根：每柱 1 块锚板（共 2 块）；长度记板厚（同 G2 锚板口径）。
+        {'code': 'AnchorPlate', 'name': COMPONENT_PLATE_NAME,
+         'specification': _plate_specification(ground_spec),
+         'length': ground_spec['plate_t'], 'quantity': 2, 'unit': '块'},
+        # 每块锚板 4 根膨胀锚栓，2 柱共 8 根；长度记锚栓总长 L。
+        {'code': 'AnchorBolt', 'name': COMPONENT_BOLT_NAME,
+         'specification': _bolt_specification(ground_spec),
+         'length': ground_spec['bolt_len'], 'quantity': 8, 'unit': '根'},
+        # 每根锚栓 1 个六角螺母，共 8 个（螺母无下料长度）。
+        {'code': 'Nut', 'name': COMPONENT_NUT_NAME,
+         'specification': 'M%.0f' % ground_spec['bolt_dia'],
+         'length': 0.0, 'quantity': 8, 'unit': '个'},
+        # 现场灌浆梯台：每柱 1 处（共 2 处），高度 25。
+        {'code': 'GroundGrout', 'name': COMPONENT_GROUT_NAME,
+         'specification': '高 %.0f（底面向外扩 %.0f 的梯台）'
+                          % (geom.GROUND_GROUT_THICKNESS_MM,
+                             geom.GROUND_GROUT_FLARE_MM),
+         'length': geom.GROUND_GROUT_THICKNESS_MM, 'quantity': 2, 'unit': '处'},
+    ]
+
+
+def _build_portal_frame_cell(post, variant_key, arm_length_mm, heading_deg,
                              rack_name=None):
-    """按竖直线与净距 B 构建门型架单元但**不写入模型**。
+    """按竖直线（整组中心线）与立柱外缘间距 L 构建门型架单元但**不写入模型**。
 
-    返回 ``(builder, 统计字典)``。``rack_type`` 取 1/2 正门（立柱在下、
-    横担顶面在辅助线上端 H）、3/4 倒门（立柱在上、横担顶面在辅助线下端 0）。
+    返回 ``(builder, 统计字典)``。一组 ＝ **2 立柱 + 2 片槽钢横担 + 2 套地面
+    基础件**：
+
+    * 构架高度 ＝ ``H − geom.ground_lift(variant)``（锚板顶面 → 横担顶面）；
+    * 两立柱轴线 ＝ 整组中心线 ``∓(L − d)/2``（外缘在 ∓L/2），柱顶高出横担顶面 50；
+    * 横担两片槽钢**背靠背**（腹板净距 S）、夹在两柱之间（长度 ＝ L − 2d）、
+      上翼缘顶面（管位面）落在构架高度处；
+    * 每个立柱下各一套地面基础件（``anchor.build_ground_base``）。
     """
-    if not geom.variant_supports_type(variant_key, rack_type):
-        raise ValueError(
-            '本插件仅实现类型 %s；子项 %s 不适用于类型 %s。'
-            % ('/'.join(str(t) for t in geom.allowed_rack_types(variant_key)),
-               variant_key, rack_type))
-
-    span_mm = float(span_mm)
-    if span_mm < geom.MIN_SPAN_MM:
-        raise ValueError('净距 B=%.1f mm 过小，要求 ≥ %.0f mm。'
-                         % (span_mm, geom.MIN_SPAN_MM))
+    metrics = _frame_metrics(variant_key, post.height_mm, arm_length_mm)
+    variant_key = metrics['variant']
+    # 钢构架整体抬升量 ＝ 现场灌浆梯台厚 + 锚板厚（几何模块口径）：线下端取梯台
+    # 底面（地面）中心，故立柱底面（锚板顶面）比线端高 ground_lift，横担顶面仍
+    # 落在所选竖直线的上端 —— 送进几何的「构架高度」＝ H − geom.ground_lift()。
+    ground_lift = geom.ground_lift(variant_key)
+    frame_height = metrics['frame_height']
+    arm_length_mm = metrics['arm_length']
+    ground_spec = metrics['ground_spec']
 
     dgn_model = ISessionMgr.GetActiveDgnModel()
     if not dgn_model.Is3d():
         raise RuntimeError('请先激活一个三维 DGN 模型。')
 
     uor_per_mm = _uor_per_mm(dgn_model)
-    hanger = geom.hanger_type(rack_type)
-    _log('portal frame build start: variant=%s type=%d hanger=%s B=%.1f '
-         'H=%.1f heading=%.2f' % (variant_key, int(rack_type), hanger, span_mm,
-                                  post.height_mm, float(heading_deg)))
+    _log('portal frame build start: variant=%s H=%.1f frame=%.1f L=%.1f '
+         'crossarm=%.1f S=%.0f lift=%.1f heading=%.2f'
+         % (variant_key, metrics['height'], frame_height, arm_length_mm,
+            metrics['crossarm_length'], metrics['gap'], ground_lift,
+            float(heading_deg)))
 
-    # 两立柱：所选竖直线为整组中心线，两立柱轴线对称于它、在 ∓(B + W)/2 处。
-    # 右立柱在 u 方向镜像，使两根立柱互为镜像、开口都朝门架外。
-    left_axis = geom.post_axis_offset(variant_key, span_mm, 'left')
-    right_axis = geom.post_axis_offset(variant_key, span_mm, 'right')
+    # 两立柱（H 型钢）：外缘在 ∓L/2，故轴线在 ∓(L − d)/2；截面本身对称，无需镜像。
+    left_axis = geom.post_axis_offset(variant_key, arm_length_mm, 'left')
+    right_axis = geom.post_axis_offset(variant_key, arm_length_mm, 'right')
+
     left = _build_member_element(
-        variant_key, 'post', post, heading_deg, left_axis, span_mm,
-        uor_per_mm, dgn_model, mirror_u=False, rack_type=rack_type)
+        variant_key, 'post', post, frame_height, arm_length_mm, heading_deg,
+        left_axis, uor_per_mm, dgn_model)
     if left is None:
         raise RuntimeError('左立柱实体创建失败。')
     right = _build_member_element(
-        variant_key, 'post', post, heading_deg, right_axis, span_mm,
-        uor_per_mm, dgn_model, mirror_u=True, rack_type=rack_type)
+        variant_key, 'post', post, frame_height, arm_length_mm, heading_deg,
+        right_axis, uor_per_mm, dgn_model)
     if right is None:
         raise RuntimeError('右立柱实体创建失败。')
 
-    # 横担：横跨两立柱、两端各超立柱外缘 15，管位面朝上。
-    # 正门（1/2）顶面在辅助线上端 H；倒门（3/4）顶面在辅助线下端 0（接已有
-    # 结构的上端不建构件，与正门不建基座对称）。
-    # 立柱：非通长，正门顶端 / 倒门底端留 10 焊接间隙与搭接段（见 geom.post_length）。
-    arm = _build_member_element(
-        variant_key, 'arm', post, heading_deg, 0.0, span_mm,
-        uor_per_mm, dgn_model, rack_type=rack_type)
-    if arm is None:
-        raise RuntimeError('横担实体创建失败。')
+    # 横担（构件B）：两片背靠背槽钢，夹在两柱之间、腹板净距 S、上翼缘顶面为管位面。
+    arm_plus = _build_member_element(
+        variant_key, 'arm_plus', post, frame_height, arm_length_mm, heading_deg,
+        0.0, uor_per_mm, dgn_model)
+    if arm_plus is None:
+        raise RuntimeError('横担（+v 片槽钢）实体创建失败。')
+    arm_minus = _build_member_element(
+        variant_key, 'arm_minus', post, frame_height, arm_length_mm,
+        heading_deg, 0.0, uor_per_mm, dgn_model)
+    if arm_minus is None:
+        raise RuntimeError('横担（-v 片槽钢）实体创建失败。')
 
     builder = _PortalFrameCellBuilder(dgn_model)
     builder.add(left)
     builder.add(right)
-    builder.add(arm)
+    builder.add(arm_plus)
+    builder.add(arm_minus)
+
+    # 底部地面生根：**每个立柱下各一套**基础件，中心与该侧立柱轴线重合 ——
+    # 线下端（地面 / 灌浆梯台底面中心）＋ post_axis_offset(variant, L, side)
+    # × u方向（G6 立柱腹板在门架平面内，v 方向不偏移）。
+    # 一套 ＝ 1 锚板 + 4 膨胀锚栓 + 4 六角螺母 + 1 现场灌浆梯台（共 10 个元素），
+    # 由 模块/公共/混凝土锚板.py 的 anchor.build_ground_base 成形。
+    run_dir, v_dir = _plane_dirs(heading_deg)
+    vertex = _to_uor(post.base, uor_per_mm)
+    v_offset = 0.0
+    base_count = 0
+    for side in ('left', 'right'):
+        u_offset = geom.post_axis_offset(variant_key, arm_length_mm, side)
+        dx_mm, dy_mm = _local_to_world_mm((u_offset, v_offset), run_dir, v_dir)
+        cx = vertex[0] + dx_mm * uor_per_mm
+        cy = vertex[1] + dy_mm * uor_per_mm
+        _log('ground base %s: u=%.1f v=%.1f centre=(%.1f, %.1f, %.1f) mm '
+             'plate=%.0f×%.0f×%.0f holes=4-φ%.0f@%.0f bolts=4-M%.0f×%.0f '
+             'grout=%.0f'
+             % (side, u_offset, v_offset, vertex[0] / uor_per_mm,
+                vertex[1] / uor_per_mm, vertex[2] / uor_per_mm,
+                ground_spec['plate_e'], ground_spec['plate_e'],
+                ground_spec['plate_t'], ground_spec['hole_dia_g'],
+                ground_spec['hole_spacing_f'], ground_spec['bolt_dia'],
+                ground_spec['bolt_len'], geom.GROUND_GROUT_THICKNESS_MM))
+        # 任一件失败即抛 RuntimeError（单元尚未提交，模型里不会留半套）。
+        elements = anchor.build_ground_base(
+            dgn_model, cx, cy, vertex[2], ground_spec, uor_per_mm,
+            grout_thickness_mm=geom.GROUND_GROUT_THICKNESS_MM,
+            grout_flare_mm=geom.GROUND_GROUT_FLARE_MM)
+        builder.add_all(elements)
+        base_count += len(elements)
+        _log('ground base %s: %d element(s)' % (side, len(elements)))
+
     builder.build()
-    _log('portal frame: cell assembled, %d children' % builder.child_count)
+    _log('portal frame: cell assembled, %d children (steel 4 + ground %d)'
+         % (builder.child_count, base_count))
 
-    spec = geom.specification(variant_key)
-    arm_length = geom.arm_length(variant_key, span_mm)
-    post_cut_length = geom.post_length(variant_key, post.height_mm, rack_type)
-    weld_contact = geom.weld_contact_length(variant_key)
-    rack_number = geom.build_pipe_rack_number(
-        rack_name or '', rack_type, variant_key, post.height_mm, arm_length)
-
-    load = geom.allowable_load(variant_key, post.height_mm, span_mm)
+    load = metrics['allowable_load']
     if load.value is None:
         builder.note('允许垂直荷载未取到：%s' % load.message)
 
+    rack_number = geom.build_pipe_rack_number(
+        rack_name or '', variant_key, metrics['height'], arm_length_mm)
+
     result = {
         'variant': variant_key,
-        'rack_type': int(rack_type),
-        'hanger': bool(hanger),
         'child_count': builder.child_count,
-        'height': post.height_mm,
-        'span': span_mm,
-        'arm_length': arm_length,
-        'post_cut_length': post_cut_length,
-        'weld_contact_length': weld_contact,
+        'steel_child_count': 4,
+        'ground_child_count': base_count,
+        'height': metrics['height'],                # 门架高 H
+        'frame_height': frame_height,               # 构架高度
+        'ground_lift': ground_lift,                 # 灌浆 25 + 锚板厚 T
+        'span': metrics['span'],                    # 净距 ＝ 横担长度
+        'crossarm_length': metrics['crossarm_length'],
+        'depth': metrics['depth'],                  # 立柱截面高 d
+        'gap': metrics['gap'],                      # 槽钢腹板净距 S
+        'arm_length': arm_length_mm,                # L ＝ 两立柱外缘间距
+        'post_cut_length': metrics['post_cut_length'],
+        'top_rise': metrics['top_rise'],
         'heading_deg': float(heading_deg),
-        'specification': spec,
+        'specification': metrics['beam_specification'],
+        'channel_specification': metrics['channel_specification'],
         'allowable_load': load.value,
+        'allowable_load_message': load.message,
+        'ground_spec': metrics['ground_spec'],
+        'min_pavement_thickness': metrics['min_pavement_thickness'],
         'pipe_rack_number': rack_number or '',
-        'bom_items': [
-            {'code': 'Post', 'name': COMPONENT_POST_NAME,
-             'specification': spec, 'length': post_cut_length, 'quantity': 2},
-            {'code': 'Arm', 'name': COMPONENT_ARM_NAME,
-             'specification': spec, 'length': arm_length},
-        ],
+        'bom_items': _build_bom_items(metrics, variant_key),
         'warnings': list(builder.warnings),
     }
-    _log('portal frame built: variant=%s, type=%d, B=%.1f, H=%.1f, L=%.1f, '
-         'post=%.1f, weld=%.1f, heading=%.2f, cells=%d, number=%s' %
-         (variant_key, int(rack_type), span_mm, post.height_mm, arm_length,
-          post_cut_length, weld_contact, float(heading_deg),
-          builder.child_count, result['pipe_rack_number'] or '-'))
+    _log('portal frame built: variant=%s, H=%.1f, frame=%.1f, L=%.1f, '
+         'crossarm=%.1f, S=%.0f, post=%.1f, heading=%.2f, children=%d '
+         '(ground %d), number=%s'
+         % (variant_key, metrics['height'], frame_height, arm_length_mm,
+            metrics['crossarm_length'], metrics['gap'],
+            metrics['post_cut_length'], float(heading_deg),
+            builder.child_count, base_count, result['pipe_rack_number'] or '-'))
     return builder, result
 
 
-def replace_portal_frame(post, variant_key, previous_handle, rack_type=1,
-                         span_mm=DEFAULT_SPAN_B_MM, heading_deg=DEFAULT_HEADING_DEG,
-                         rack_name=None, attach=None):
+def replace_portal_frame(post, variant_key, previous_handle,
+                         arm_length_mm=DEFAULT_ARM_LENGTH_MM,
+                         heading_deg=DEFAULT_HEADING_DEG, rack_name=None,
+                         attach=None):
     """重建门型架：先建新的一版并写入，成功后再删除上一版预览。
 
     ``attach=None`` 时按 :data:`ATTACH_ON_CONFIRM` 决定：**预览阶段默认不写公共库**
     （原生 EC 写入反复触发会卡死，见文件顶部说明），写库推迟到点【确定】。
     """
     builder, result = _build_portal_frame_cell(
-        post, variant_key, rack_type, span_mm, heading_deg, rack_name)
+        post, variant_key, arm_length_mm, heading_deg, rack_name)
     _log('replace_portal_frame: committing cell')
     new_handle = builder.commit()
     write_items = (not ATTACH_ON_CONFIRM) if attach is None else bool(attach)
@@ -708,12 +925,11 @@ def replace_portal_frame(post, variant_key, previous_handle, rack_type=1,
     return new_handle, result, deleted
 
 
-def draw_portal_frame(post, variant_key, rack_type=1,
-                      span_mm=DEFAULT_SPAN_B_MM,
+def draw_portal_frame(post, variant_key, arm_length_mm=DEFAULT_ARM_LENGTH_MM,
                       heading_deg=DEFAULT_HEADING_DEG, rack_name=None):
     """直接创建整组单元并写入模型（**直接落图，故写库**），返回 (cell, 统计字典)。"""
     builder, result = _build_portal_frame_cell(
-        post, variant_key, rack_type, span_mm, heading_deg, rack_name)
+        post, variant_key, arm_length_mm, heading_deg, rack_name)
     cell = builder.commit()
     _write_support_items(cell, result)
     return cell, result
@@ -723,11 +939,28 @@ def export_bom_json(output_path=None):
     """导出**全部**管道支吊架的统一清单（共享库），返回文件路径。
 
     本插件不单独维护自己的库，统一走 ``支吊架公共库``；因此清单里会同时包含
-    端焊三角架、L 型管架、门型架以及今后接入的其它支吊架。
+    端焊三角架、L 型管架、D8 门型架、G5 地面上生根的门型架、G6 槽钢组合门型架等
+    全部支吊架。
     """
     if output_path is None:
-        output_path = os.path.join(HERE, '模块', '输出', '门型架_bom.json')
+        output_path = os.path.join(HERE, '模块', '输出', 'G6门型架_bom.json')
     return psb.export_combined_bom(output_path)
+
+
+# ---------------------------------------------------------------------------
+# 说明文字（面板复用）
+# ---------------------------------------------------------------------------
+# 面板上的文字块只保留「预览」「状态」两块（提示太密集会刷屏），因此原来
+# 拆成多段的构件型式 / 连接 / 地面生根说明已删掉，必要信息改由：
+#   * 只读行（构件A、立柱宽度 W、锚板 / 孔 / 锚栓 / 灌浆 / MIN.h）承载；
+#   * 面板顶部的 hint 文本框用一两句话概括。
+
+
+def _load_text(load):
+    """允许荷载显示：取到只给数值；未取到才附一句原因（面板尽量少字）。"""
+    if load.value is None:
+        return '—（%s）' % load.message
+    return '%.2f kN' % load.value
 
 
 # ---------------------------------------------------------------------------
@@ -736,9 +969,9 @@ def export_bom_json(output_path=None):
 
 
 class _PortalFrameSettingsDialog(GlassDialog):
-    """子项 / B / 朝向 / 编号 选择，预览 / 确定 / 取消面板。"""
+    """子项 / 两立柱外缘间距 L / 朝向 / 编号 选择，预览 / 确定 / 取消面板。"""
 
-    STATE_KEY = 'PortalFrame'
+    STATE_KEY = 'G6PortalFrame'
     # UI 刷新轮询周期（ms）：原生回调只写状态，由这个周期统一刷进控件。
     POLL_MS = 120
 
@@ -766,20 +999,25 @@ class _PortalFrameSettingsDialog(GlassDialog):
         self._cancel_requested = False
 
         self._variant = tk.StringVar()
-        self._rack_type = tk.StringVar()
-        self._rack_name = tk.StringVar(value='D8')
-        self._span = tk.StringVar(value='%.0f' % DEFAULT_SPAN_B_MM)
+        self._rack_name = tk.StringVar(value=DEFAULT_RACK_NAME)
+        self._arm = tk.StringVar(value='%.0f' % DEFAULT_ARM_LENGTH_MM)
         self._heading = tk.StringVar(value='%.0f' % DEFAULT_HEADING_DEG)
         self._keep_line = tk.BooleanVar(value=True)
         self._spec = tk.StringVar(value='—')
         self._width = tk.StringVar(value='—')
         self._height = tk.StringVar(value='—')
         self._arm_length = tk.StringVar(value='—')
+        self._span = tk.StringVar(value='—')
+        self._frame_height = tk.StringVar(value='—')
         self._post_length = tk.StringVar(value='—')
         self._load = tk.StringVar(value='—')
+        self._plate = tk.StringVar(value='—')
+        self._holes = tk.StringVar(value='—')
+        self._bolt = tk.StringVar(value='—')
+        self._grout = tk.StringVar(value='—')
+        self._min_h = tk.StringVar(value='—')
         self._rack_number = tk.StringVar(value='—')
         self._variant_by_label = {}
-        self._rack_type_by_label = {}
 
         self._build()
         self.restore_state()
@@ -789,7 +1027,7 @@ class _PortalFrameSettingsDialog(GlassDialog):
         self.protocol('WM_DELETE_WINDOW', self.cancel_tool)
         self._start_poll()
         try:
-            self.minsize(600, 640)
+            self.minsize(620, 700)
         except tk.TclError:
             pass
         _log('panel built rev=%s file=%s'
@@ -800,13 +1038,13 @@ class _PortalFrameSettingsDialog(GlassDialog):
     def _build(self):
         shell_form = self.build_shell(
             UI_TITLE,
-            '点选一条竖直线（整组中心线）· 选类型（正门 1/2 · 倒门 3/4）· '
-            '输入两立柱净距 B，自动预览')
+            '点选一条竖直线（整组中心线）· 输入两立柱外缘间距 L 与朝向 · 自动预览，'
+            '地面生根：锚板 + 4 膨胀锚栓 + 现场灌浆')
         # 整块内容放进固定高度的滚动容器，保证面板再长也不超出屏幕；
         # 鼠标滚轮或右侧细滚动条查看。
         shell_form.columnconfigure(0, weight=1)
         shell_form.rowconfigure(0, weight=1)
-        self._scroll = ScrollFrame(shell_form, bg=CARD, height=380)
+        self._scroll = ScrollFrame(shell_form, bg=CARD, height=360)
         self._scroll.grid(row=0, column=0, sticky='nsew')
         form = self._scroll.body
         form.columnconfigure(1, weight=1)
@@ -814,18 +1052,15 @@ class _PortalFrameSettingsDialog(GlassDialog):
         hint_frame, hint_text = self._text_field(form, height=3)
         hint_frame.grid(row=0, column=0, columnspan=2, sticky='ew')
         self._set_text(hint_text, (
-            '在模型中点选一条竖直线：线长即门架高 H，该线是整组门型架'
-            '的中心线（两立柱轴线关于它对称）。再选【类型】并输入两立柱净距 B '
-            '—— 正门（类型 1/2）以线的【上端】为管底标高 = 横担顶面、下端为'
-            '基座；倒门（类型 3/4）以线的【下端】为管底标高 = 横担顶面、上端'
-            '接已有钢结构；倒门时线长仍 = H（由横担顶面量到上方生根面），'
-            '横担始终朝上承管。横担长按 L = B + 2×立柱宽度 + 30 自动计算'
-            '（横担以中心线为中点横跨两立柱、两端各超立柱外缘 15；角钢/槽钢'
-            '立柱都与横担背靠背、非通长，正门顶端 / 倒门底端留 10 焊缝间隙与'
-            '搭接段）。竖直线不能定出朝向，请用「朝向」指定门架平面。'
-            '点取后可改参数、预览自动重建；点【确定】保留，点【取消】或右键放弃。'))
+            '点选一条竖直线＝整组门型架的中心线：线的【上端】＝管底标高＝横担顶面'
+            '（两片槽钢上翼缘顶面），【下端】＝地面；线长即门架高 H。面板输入'
+            '【两立柱外缘间距 L】：立柱轴线在 ∓(L − d)/2，横担（两片背靠背槽钢、'
+            '腹板净距 S）夹在两柱之间、长度＝净距＝L − 2d，柱顶高出横担顶面 50。'
+            '每根立柱下自动生成锚板 + 4 膨胀锚栓 + 螺母 + 现场灌浆梯台（高 25），'
+            '钢构架整体抬高（灌浆 + 板厚）。'))
 
-        ttk.Label(form, text='构件规格（表 2）', style='Section.TLabel').grid(
+        ttk.Label(form, text='构件规格（表 1 / 表 2）',
+                  style='Section.TLabel').grid(
             row=1, column=0, columnspan=2, sticky='w', pady=(6, 2))
 
         ttk.Label(form, text='子项', style='GlassMuted.TLabel').grid(
@@ -835,21 +1070,21 @@ class _PortalFrameSettingsDialog(GlassDialog):
             labels.append(label)
             self._variant_by_label[label] = key
         self._variant_combo = ttk.Combobox(
-            form, textvariable=self._variant, state='readonly', width=30,
+            form, textvariable=self._variant, state='readonly', width=34,
             style='Glass.TCombobox', values=labels)
         self._variant_combo.grid(row=2, column=1, sticky='ew', padx=(10, 0),
                                  pady=3)
         self._variant_combo.bind('<<ComboboxSelected>>',
                                  self.on_options_changed)
 
-        ttk.Label(form, text='构件A（立柱 / 横担）',
+        ttk.Label(form, text='构件A（立柱）',
                   style='GlassMuted.TLabel').grid(row=3, column=0, sticky='w',
                                                   pady=3)
         tk.Label(form, textvariable=self._spec, bg=CARD, fg=INK,
                  font=UI_FONT_BOLD, anchor='w').grid(
             row=3, column=1, sticky='w', padx=(10, 0), pady=3)
 
-        ttk.Label(form, text='立柱宽度 W', style='GlassMuted.TLabel').grid(
+        ttk.Label(form, text='构件B（横担）', style='GlassMuted.TLabel').grid(
             row=4, column=0, sticky='w', pady=3)
         tk.Label(form, textvariable=self._width, bg=CARD, fg=INK,
                  font=UI_FONT_BOLD, anchor='w').grid(
@@ -858,7 +1093,8 @@ class _PortalFrameSettingsDialog(GlassDialog):
         ttk.Separator(form, orient='horizontal').grid(
             row=5, column=0, columnspan=2, sticky='ew', pady=6)
 
-        ttk.Label(form, text='尺寸参数', style='Section.TLabel').grid(
+        ttk.Label(form, text='尺寸参数（H 由所选竖直线线长给出）',
+                  style='Section.TLabel').grid(
             row=6, column=0, columnspan=2, sticky='w', pady=(0, 2))
 
         ttk.Label(form, text='门架高 H', style='GlassMuted.TLabel').grid(
@@ -867,39 +1103,55 @@ class _PortalFrameSettingsDialog(GlassDialog):
                  font=UI_FONT_BOLD, anchor='w').grid(
             row=7, column=1, sticky='w', padx=(10, 0), pady=3)
 
-        ttk.Label(form, text='净距 B', style='GlassMuted.TLabel').grid(
+        ttk.Label(form, text='两立柱外缘间距 L', style='GlassMuted.TLabel').grid(
             row=8, column=0, sticky='nw', pady=3)
-        span_holder = tk.Frame(form, bg=CARD)
-        span_holder.grid(row=8, column=1, sticky='w', padx=(10, 0), pady=3)
-        span_input = tk.Frame(span_holder, bg=CARD)
-        span_input.pack(anchor='w')
-        self._span_entry = self._entry(span_input, self._span, 9)
-        tk.Label(span_holder, text='mm　两立柱内缘之间净距，用于查允许垂直荷载',
+        arm_holder = tk.Frame(form, bg=CARD)
+        arm_holder.grid(row=8, column=1, sticky='w', padx=(10, 0), pady=3)
+        arm_input = tk.Frame(arm_holder, bg=CARD)
+        arm_input.pack(anchor='w')
+        self._arm_entry = self._entry(arm_input, self._arm, 9)
+        tk.Label(arm_holder,
+                 text='mm　两立柱**外缘**间距（横担夹在两柱之间、长度＝净距自动计算）',
                  bg=CARD, fg=MUTED, font=UI_FONT_SMALL).pack(anchor='w',
                                                              pady=(1, 0))
 
-        ttk.Label(form, text='横担长 L', style='GlassMuted.TLabel').grid(
-            row=9, column=0, sticky='w', pady=3)
+        ttk.Label(form, text='横担长度（= 净距）',
+                  style='GlassMuted.TLabel').grid(row=9, column=0, sticky='w',
+                                                  pady=3)
         tk.Label(form, textvariable=self._arm_length, bg=CARD, fg=INK,
                  font=UI_FONT_BOLD, anchor='w').grid(
             row=9, column=1, sticky='w', padx=(10, 0), pady=3)
 
-        ttk.Label(form, text='立柱下料长', style='GlassMuted.TLabel').grid(
+        ttk.Label(form, text='立柱截面高 d', style='GlassMuted.TLabel').grid(
             row=10, column=0, sticky='w', pady=3)
-        tk.Label(form, textvariable=self._post_length, bg=CARD, fg=INK,
+        tk.Label(form, textvariable=self._span, bg=CARD, fg=INK,
                  font=UI_FONT_BOLD, anchor='w').grid(
             row=10, column=1, sticky='w', padx=(10, 0), pady=3)
 
-        ttk.Label(form, text='允许垂直荷载', style='GlassMuted.TLabel').grid(
-            row=11, column=0, sticky='w', pady=3)
-        tk.Label(form, textvariable=self._load, bg=CARD, fg=INK,
+        ttk.Label(form, text='构架高度（锚板顶面→横担顶面）',
+                  style='GlassMuted.TLabel').grid(row=11, column=0, sticky='w',
+                                                  pady=3)
+        tk.Label(form, textvariable=self._frame_height, bg=CARD, fg=INK,
                  font=UI_FONT_BOLD, anchor='w').grid(
             row=11, column=1, sticky='w', padx=(10, 0), pady=3)
 
+        ttk.Label(form, text='立柱下料长', style='GlassMuted.TLabel').grid(
+            row=12, column=0, sticky='w', pady=3)
+        tk.Label(form, textvariable=self._post_length, bg=CARD, fg=INK,
+                 font=UI_FONT_BOLD, anchor='w').grid(
+            row=12, column=1, sticky='w', padx=(10, 0), pady=3)
+
+        ttk.Label(form, text='允许垂直荷载', style='GlassMuted.TLabel').grid(
+            row=13, column=0, sticky='w', pady=3)
+        tk.Label(form, textvariable=self._load, bg=CARD, fg=INK,
+                 font=UI_FONT_BOLD, anchor='w', justify='left',
+                 wraplength=330).grid(
+            row=13, column=1, sticky='w', padx=(10, 0), pady=3)
+
         ttk.Label(form, text='朝向', style='GlassMuted.TLabel').grid(
-            row=12, column=0, sticky='nw', pady=3)
+            row=14, column=0, sticky='nw', pady=3)
         heading_holder = tk.Frame(form, bg=CARD)
-        heading_holder.grid(row=12, column=1, sticky='w', padx=(10, 0), pady=3)
+        heading_holder.grid(row=14, column=1, sticky='w', padx=(10, 0), pady=3)
         heading_input = tk.Frame(heading_holder, bg=CARD)
         heading_input.pack(anchor='w')
         self._heading_entry = self._entry(heading_input, self._heading, 9)
@@ -908,67 +1160,89 @@ class _PortalFrameSettingsDialog(GlassDialog):
                                                              pady=(1, 0))
 
         ttk.Separator(form, orient='horizontal').grid(
-            row=13, column=0, columnspan=2, sticky='ew', pady=6)
+            row=15, column=0, columnspan=2, sticky='ew', pady=6)
 
-        ttk.Label(form, text='管架编号', style='Section.TLabel').grid(
-            row=14, column=0, columnspan=2, sticky='w', pady=(0, 2))
+        ttk.Label(form, text='地面生根（表 2，每个立柱下一套）',
+                  style='Section.TLabel').grid(
+            row=16, column=0, columnspan=2, sticky='w', pady=(0, 2))
 
-        ttk.Label(form, text='名称', style='GlassMuted.TLabel').grid(
-            row=15, column=0, sticky='nw', pady=3)
-        name_holder = tk.Frame(form, bg=CARD)
-        name_holder.grid(row=15, column=1, sticky='w', padx=(10, 0), pady=3)
-        name_input = tk.Frame(name_holder, bg=CARD)
-        name_input.pack(anchor='w')
-        self._rack_name_entry = self._entry(name_input, self._rack_name, 12)
-        tk.Label(name_holder, text='管架系列代号；留空则不附加编号', bg=CARD,
-                 fg=MUTED, font=UI_FONT_SMALL).pack(anchor='w', pady=(1, 0))
-
-        ttk.Label(form, text='类型', style='GlassMuted.TLabel').grid(
-            row=16, column=0, sticky='w', pady=3)
-        type_labels = []
-        for key, label in RACK_TYPE_OPTIONS:
-            type_labels.append(label)
-            self._rack_type_by_label[label] = key
-        self._rack_type_combo = ttk.Combobox(
-            form, textvariable=self._rack_type, state='readonly', width=36,
-            style='Glass.TCombobox', values=type_labels)
-        self._rack_type_combo.grid(row=16, column=1, sticky='ew',
-                                   padx=(10, 0), pady=3)
-        self._rack_type_combo.bind('<<ComboboxSelected>>',
-                                   self.on_options_changed)
-
-        ttk.Label(form, text='编号', style='GlassMuted.TLabel').grid(
+        ttk.Label(form, text='锚板', style='GlassMuted.TLabel').grid(
             row=17, column=0, sticky='w', pady=3)
-        tk.Label(form, textvariable=self._rack_number, bg=CARD, fg=INK,
+        tk.Label(form, textvariable=self._plate, bg=CARD, fg=INK,
                  font=UI_FONT_BOLD, anchor='w').grid(
             row=17, column=1, sticky='w', padx=(10, 0), pady=3)
 
+        ttk.Label(form, text='螺栓孔', style='GlassMuted.TLabel').grid(
+            row=18, column=0, sticky='w', pady=3)
+        tk.Label(form, textvariable=self._holes, bg=CARD, fg=INK,
+                 font=UI_FONT_BOLD, anchor='w').grid(
+            row=18, column=1, sticky='w', padx=(10, 0), pady=3)
+
+        ttk.Label(form, text='膨胀锚栓（每柱 4 根）',
+                  style='GlassMuted.TLabel').grid(row=19, column=0, sticky='w',
+                                                  pady=3)
+        tk.Label(form, textvariable=self._bolt, bg=CARD, fg=INK,
+                 font=UI_FONT_BOLD, anchor='w').grid(
+            row=19, column=1, sticky='w', padx=(10, 0), pady=3)
+
+        ttk.Label(form, text='现场灌浆', style='GlassMuted.TLabel').grid(
+            row=20, column=0, sticky='w', pady=3)
+        tk.Label(form, textvariable=self._grout, bg=CARD, fg=INK,
+                 font=UI_FONT_BOLD, anchor='w').grid(
+            row=20, column=1, sticky='w', padx=(10, 0), pady=3)
+
+        ttk.Label(form, text='地坪最小厚度 MIN.h',
+                  style='GlassMuted.TLabel').grid(row=21, column=0, sticky='w',
+                                                  pady=3)
+        tk.Label(form, textvariable=self._min_h, bg=CARD, fg=INK,
+                 font=UI_FONT_BOLD, anchor='w').grid(
+            row=21, column=1, sticky='w', padx=(10, 0), pady=3)
+
         ttk.Separator(form, orient='horizontal').grid(
-            row=18, column=0, columnspan=2, sticky='ew', pady=6)
+            row=22, column=0, columnspan=2, sticky='ew', pady=6)
+
+        ttk.Label(form, text='管架编号', style='Section.TLabel').grid(
+            row=23, column=0, columnspan=2, sticky='w', pady=(0, 2))
+
+        ttk.Label(form, text='名称', style='GlassMuted.TLabel').grid(
+            row=24, column=0, sticky='nw', pady=3)
+        name_holder = tk.Frame(form, bg=CARD)
+        name_holder.grid(row=24, column=1, sticky='w', padx=(10, 0), pady=3)
+        name_input = tk.Frame(name_holder, bg=CARD)
+        name_input.pack(anchor='w')
+        self._rack_name_entry = self._entry(name_input, self._rack_name, 12)
+        tk.Label(name_holder, text='管架系列代号；编号 = 名称-子项-H-L，留空则不附加',
+                 bg=CARD, fg=MUTED, font=UI_FONT_SMALL).pack(anchor='w',
+                                                             pady=(1, 0))
+
+        ttk.Label(form, text='编号', style='GlassMuted.TLabel').grid(
+            row=25, column=0, sticky='w', pady=3)
+        tk.Label(form, textvariable=self._rack_number, bg=CARD, fg=INK,
+                 font=UI_FONT_BOLD, anchor='w').grid(
+            row=25, column=1, sticky='w', padx=(10, 0), pady=3)
+
+        ttk.Separator(form, orient='horizontal').grid(
+            row=26, column=0, columnspan=2, sticky='ew', pady=6)
 
         ttk.Label(form, text='创建选项', style='Section.TLabel').grid(
-            row=19, column=0, columnspan=2, sticky='w', pady=(0, 2))
+            row=27, column=0, columnspan=2, sticky='w', pady=(0, 2))
         self._keep_check = tk.Checkbutton(
             form, text='创建后保留所选竖直线', variable=self._keep_line,
             bg=CARD, fg=INK, activebackground=CARD, selectcolor=CARD,
             font=UI_FONT, highlightthickness=0, bd=0)
-        self._keep_check.grid(row=20, column=0, columnspan=2, sticky='w')
+        self._keep_check.grid(row=28, column=0, columnspan=2, sticky='w')
 
-        # 说明 / 预览 / 状态固定在滚动区下方，始终可见。
+        # 预览 / 状态固定在滚动区下方，始终可见（提示只留这两块，避免刷屏）。
         info = tk.Frame(shell_form, bg=CARD)
         info.grid(row=1, column=0, sticky='ew', pady=(6, 0))
-        self._spec_info_frame, self._spec_info_text = self._text_field(
-            info, height=2)
-        self._spec_info_frame.pack(fill='x')
         self._preview_info_frame, self._preview_info_text = self._text_field(
-            info, height=2)
-        self._preview_info_frame.pack(fill='x', pady=(4, 0))
+            info, height=3)
+        self._preview_info_frame.pack(fill='x')
         self._status_frame, self._status_text = self._text_field(info, height=2)
         self._status_frame.pack(fill='x', pady=(4, 0))
         self._set_text(self._preview_info_text, '预览：—')
         self._set_text(self._status_text,
-                       '请在模型中点选一条竖直线；改参数会自动重建预览'
-                       '（预览阶段只出几何，清单在点【确定】时写入公共库）。')
+                       '请点选一条竖直线（整组中心线）；改参数会自动重建预览。')
 
         buttons = tk.Frame(shell_form, bg=CARD)
         buttons.grid(row=2, column=0, sticky='ew', pady=(6, 0))
@@ -985,7 +1259,7 @@ class _PortalFrameSettingsDialog(GlassDialog):
         self.confirm_button.pack(side='right')
         self.cancel_button.pack(side='right', padx=(0, 8))
 
-        self._span.trace_add('write', self.on_text_changed)
+        self._arm.trace_add('write', self.on_text_changed)
         self._heading.trace_add('write', self.on_text_changed)
         self._rack_name.trace_add('write', self.on_text_changed)
         self._bind_wheel(self._scroll)
@@ -1056,17 +1330,7 @@ class _PortalFrameSettingsDialog(GlassDialog):
                 selected = label
         self._variant.set(selected or fallback)
 
-        rack_type = state.get('rack_type')
-        selected_type = None
-        fallback_type = None
-        for label, key in self._rack_type_by_label.items():
-            if fallback_type is None:
-                fallback_type = label
-            if key == rack_type:
-                selected_type = label
-        self._rack_type.set(selected_type or fallback_type)
-
-        for key, variable in (('span', self._span),
+        for key, variable in (('arm', self._arm),
                               ('heading', self._heading)):
             value = state.get(key)
             if isinstance(value, str) and value.strip():
@@ -1082,9 +1346,8 @@ class _PortalFrameSettingsDialog(GlassDialog):
     def persist_state(self, state):
         try:
             state['variant'] = self.current_variant()
-            state['rack_type'] = self.current_rack_type()
             state['rack_name'] = self._rack_name.get()
-            state['span'] = self._span.get()
+            state['arm'] = self._arm.get()
             state['heading'] = self._heading.get()
             state['keep_line'] = bool(self._keep_line.get())
         except tk.TclError:
@@ -1096,14 +1359,11 @@ class _PortalFrameSettingsDialog(GlassDialog):
         return self._variant_by_label.get(
             self._variant.get(), geom.DEFAULT_VARIANT)
 
-    def current_rack_type(self):
-        return self._rack_type_by_label.get(self._rack_type.get(), 1)
-
-    def current_span(self):
+    def current_arm_length(self):
         try:
-            return float((self._span.get() or '').strip())
+            return float((self._arm.get() or '').strip())
         except (TypeError, ValueError):
-            return DEFAULT_SPAN_B_MM
+            return None
 
     def current_heading(self):
         try:
@@ -1112,27 +1372,24 @@ class _PortalFrameSettingsDialog(GlassDialog):
             return DEFAULT_HEADING_DEG
 
     def current_options(self):
-        variant_key = self.current_variant()
-        rack_type = self.current_rack_type()
-        if not geom.variant_supports_type(variant_key, rack_type):
-            raise ValueError(self._invalid_message())
+        arm_length = self.current_arm_length()
+        if arm_length is None:
+            raise ValueError('两立柱外缘间距 L 请填写数字（mm）。')
         return {
-            'variant': variant_key,
-            'rack_type': rack_type,
-            'rack_name': self._rack_name.get().strip(),
-            'span': self.current_span(),
+            'variant': self.current_variant(),
+            'arm_length': arm_length,
             'heading': self.current_heading(),
+            'rack_name': self._rack_name.get().strip(),
         }
 
     def current_rack_number(self, post=None):
         post = post if post is not None else self.post
-        if post is None:
+        arm_length = self.current_arm_length()
+        if post is None or arm_length is None:
             return ''
-        arm_length = geom.arm_length(
-            self.current_variant(), self.current_span())
         return geom.build_pipe_rack_number(
-            self._rack_name.get(), self.current_rack_type(),
-            self.current_variant(), post.height_mm, arm_length)
+            self._rack_name.get(), self.current_variant(), post.height_mm,
+            arm_length)
 
     def set_status(self, message, is_error=False, flush=True):
         # 只在 Tk 定时器上下文里刷新控件（见 _poll_ui/_flush_ui）。
@@ -1141,70 +1398,82 @@ class _PortalFrameSettingsDialog(GlassDialog):
     def set_result(self, result):
         number = result.get('pipe_rack_number') or '—'
         self._set_text(self._preview_info_text,
-            "预览：%s，子项 %s，%s，H=%.0f mm，B=%.0f mm，L=%.0f mm，"
-            "立柱下料 %.0f mm（搭接 %.0f mm），朝向 %.0f°，单元含 %d 个子"
-            "元素；编号 %s。（清单在点【确定】时写入公共库）" % (
-                _type_description(result['rack_type']),
-                result['variant'],
-                result['specification'], result['height'], result['span'],
-                result['arm_length'], result['post_cut_length'],
-                result['weld_contact_length'], result['heading_deg'],
-                result['child_count'], number,
-            )
+            '预览：%s %s + %s（S=%.0f），H=%.0f（构架 %.1f），L=%.0f（外缘间距），'
+            '横担 %.1f，立柱下料 %.1f，朝向 %.0f°，%d 个子元素，编号 %s。'
+            % (result['variant'], result['specification'],
+               result['channel_specification'], result['gap'],
+               result['height'], result['frame_height'], result['arm_length'],
+               result['crossarm_length'], result['post_cut_length'],
+               result['heading_deg'], result['child_count'], number)
         )
 
     def refresh_spec(self):
+        """按当前子项刷新规格 / 地面生根 / 只读尺寸（不生成几何）。"""
         variant_key = self.current_variant()
-        rack_type = self.current_rack_type()
-        self._spec.set(geom.specification(variant_key))
-        try:
-            self._width.set('%.0f' % geom.inplane_width(variant_key))
-        except ValueError:
-            self._width.set('—')
-        if self._options_valid():
-            self._set_text(self._spec_info_text,
-                '构件A：立柱与横担同规格 %s（%s）。%s'
-                % (geom.specification(variant_key),
-                   _family_description(variant_key, rack_type),
-                   _type_description(rack_type)))
-        else:
-            self._set_text(self._spec_info_text, self._invalid_message())
+        self._spec.set(geom.beam_specification(variant_key))
+        # 第 4 行复用「构件B」显示：槽钢规格 + 两片背靠背净距 S。
+        self._width.set('%s ×2（背靠背，腹板净距 S=%.0f）'
+                        % (geom.channel_specification(variant_key),
+                           geom.channel_gap(variant_key)))
+
+        ground_spec = geom.ground_anchor_spec(variant_key)
+        self._plate.set(_plate_specification(ground_spec))
+        self._holes.set(_hole_specification(ground_spec))
+        self._bolt.set('%s（h_ef≥%.0f）'
+                       % (_bolt_specification(ground_spec),
+                          ground_spec['embed']))
+        self._grout.set('高 %.0f（每边外扩 %.0f）'
+                        % (geom.GROUND_GROUT_THICKNESS_MM,
+                           geom.GROUND_GROUT_FLARE_MM))
+        self._min_h.set('%.0f' % geom.min_pavement_thickness(variant_key))
+        # 第 10 行显示立柱截面高 d（子项决定，与线长无关）。
+        self._span.set('%.0f' % geom.post_depth(variant_key))
         self.refresh_line_labels()
 
     def refresh_line_labels(self):
         self._show_line_values(self.post)
 
+    def refresh_check(self):
+        """尺寸不合规时把原因写进状态栏；合规时**不写**（数字已在只读行里）。"""
+        post = self.post
+        if post is None:
+            return
+        try:
+            _frame_metrics(self.current_variant(), post.height_mm,
+                           self.current_arm_length())
+        except (ValueError, TypeError) as error:
+            self.set_status('尺寸不合规：%s' % error, True)
+
     def _show_line_values(self, post):
         if post is None:
             self._height.set('—')
             self._arm_length.set('—')
+            self._frame_height.set('—')
             self._post_length.set('—')
             self._load.set('—')
             self._rack_number.set('—')
+            self.refresh_check()
             return
+        # 门架高 H ＝ 所选竖直线线长（地面 → 横担顶面）。
         self._height.set('%.1f' % post.height_mm)
-        variant_key = self.current_variant()
+        arm_length = self.current_arm_length()
         try:
-            self._arm_length.set(
-                '%.1f' % geom.arm_length(variant_key, self.current_span()))
-        except ValueError:
+            metrics = _frame_metrics(self.current_variant(), post.height_mm,
+                                     arm_length)
+        except (ValueError, TypeError) as error:
+            _log('line values rejected: %s' % error)
             self._arm_length.set('—')
-        try:
-            self._post_length.set(
-                '%.1f' % geom.post_length(variant_key, post.height_mm,
-                                          self.current_rack_type()))
-        except ValueError:
+            self._frame_height.set('—')
             self._post_length.set('—')
-
-        result = geom.allowable_load(
-            self.current_variant(), post.height_mm, self.current_span())
-        if result.value is None:
             self._load.set('—')
         else:
-            self._load.set('%.2f' % result.value)
-
+            self._arm_length.set('%.1f' % metrics['crossarm_length'])
+            self._frame_height.set('%.1f' % metrics['frame_height'])
+            self._post_length.set('%.1f' % metrics['post_cut_length'])
+            self._load.set(_load_text(metrics['allowable_load']))
         number = self.current_rack_number(post)
         self._rack_number.set(number if number else '（名称留空，不附加）')
+        self.refresh_check()
 
     # -- UI 刷新：只允许在这个 Tk 定时器里碰控件 ---------------------------
 
@@ -1271,29 +1540,16 @@ class _PortalFrameSettingsDialog(GlassDialog):
 
     def on_options_changed(self, event=None):
         self.refresh_spec()
-        if not self._options_valid():
-            # 子项与类型冲突：不生成（并撤掉可能过期的预览），只提示。
+        if self.current_arm_length() is None:
+            # L 不是数字：不生成（并撤掉可能过期的预览），只提示。
             self._cancel_pending_regeneration()
             self.discard_preview()
-            self.set_status(self._invalid_message(), True)
+            self.set_status('两立柱外缘间距 L 请填写数字（mm），当前不生成预览。', True)
             return
         self._schedule_regeneration(REGENERATE_DELAY_MS)
 
-    def _options_valid(self):
-        return geom.variant_supports_type(
-            self.current_variant(), self.current_rack_type())
-
-    def _invalid_message(self):
-        variant_key = self.current_variant()
-        rack_type = self.current_rack_type()
-        allowed = '/'.join(str(t) for t in geom.allowed_rack_types(variant_key))
-        return ('不合法组合：子项 %s 仅对类型 %s 有效，当前为类型 %d。'
-                % (variant_key, allowed, rack_type))
-
     def on_text_changed(self, *_args):
         self.refresh_spec()
-        if not self._options_valid():
-            return
         self._schedule_regeneration(TEXT_REGENERATE_DELAY_MS)
 
     def _schedule_regeneration(self, delay_ms):
@@ -1330,6 +1586,7 @@ class _PortalFrameSettingsDialog(GlassDialog):
             options = self.current_options()
         except ValueError as error:
             _log('regenerate: bad options: %s' % error)
+            self.discard_preview()
             self._pending_message = '参数有误：%s' % error
             self._pending_is_error = True
             return None
@@ -1338,44 +1595,37 @@ class _PortalFrameSettingsDialog(GlassDialog):
         try:
             handle, result, deleted = replace_portal_frame(
                 self.post, options['variant'], self.preview_handle,
-                options['rack_type'], options['span'], options['heading'],
+                options['arm_length'], options['heading'],
                 options['rack_name'])
         except Exception as error:
-            message = '门型架生成失败：%s' % error
-            _log_exception('preview failed')
-            self._pending_message = message
+            # 参数 / 几何不合规**只写进面板状态栏**：不 print 到控制台、也不弹
+            # MicroStation 消息 —— 高频改参数时会刷屏。细节仍进调试日志。
+            if isinstance(error, ValueError):
+                _log('regenerate rejected: %s' % error)
+            else:
+                _log_exception('preview failed')
+            self.discard_preview()
+            self._pending_message = '无法生成：%s' % error
             self._pending_is_error = True
-            try:
-                NotificationManager.OutputPrompt(message)
-            except Exception:
-                _log_exception('OutputPrompt failed')
-            print(message)
             return None
 
         self.preview_handle = handle
         self.preview_result = result
         self._preview_attached = False
         message = (
-            "预览已更新：%s，子项 %s，%s，H=%.0f mm，B=%.0f mm，"
-            "L=%.0f mm，朝向 %.0f°，单元含 %d 个子元素，编号 %s。%s"
-            "改参数会自动重建；点【确定】保留（并写入公共库清单），"
-            "点【取消】放弃。" % (
-                _type_description(result['rack_type']),
+            '预览已更新：%s %s + %s，H=%.0f（构架 %.1f），L=%.0f，横担 %.1f，'
+            '编号 %s。点【确定】保留并写入清单。' % (
                 result['variant'], result['specification'],
-                result['height'], result['span'], result['arm_length'],
-                result['heading_deg'], result['child_count'],
-                result['pipe_rack_number'] or '—',
-                '已替换上一版预览。' if deleted else '')
+                result['channel_specification'], result['height'],
+                result['frame_height'], result['arm_length'],
+                result['crossarm_length'], result['pipe_rack_number'] or '—',
+            )
         )
         if result['warnings']:
             message += '注意：%s' % '；'.join(result['warnings'])
         self._pending_result = result
         self._pending_message = message
         self._pending_is_error = False
-        try:
-            NotificationManager.OutputPrompt(message)
-        except Exception:
-            _log_exception('OutputPrompt failed')
         _log('regenerate: done')
         return result
 
@@ -1409,8 +1659,8 @@ class _PortalFrameSettingsDialog(GlassDialog):
 
     def confirm_tool(self):
         self._cancel_pending_regeneration()
-        if not self._options_valid():
-            self.set_status(self._invalid_message(), True)
+        if self.current_arm_length() is None:
+            self.set_status('两立柱外缘间距 L 请填写数字（mm），无法生成。', True)
             return
         self.confirmed = True
         # 清单写库在【确定】这一刻做（预览阶段完全不碰 ItemType，见文件顶部策略）：
@@ -1486,48 +1736,13 @@ class _PortalFrameSettingsDialog(GlassDialog):
             pass
 
 
-def _type_description(rack_type):
-    """类型的中文说明（正门 / 倒门 + 端焊 / 侧焊），供面板与提示文字复用。"""
-    hanger = geom.hanger_type(rack_type)
-    side = geom.side_welded_type(rack_type)
-    if hanger:
-        return ('类型 %d 倒门形架（立柱在上、%s·吊架）：辅助线【下端】为管底'
-                '标高 = 横担顶面、上端接已有钢结构；横担截面整体在管位面以下，'
-                '立柱下端下探到管位面以下与横担背靠背搭接。'
-                % (int(rack_type), '侧焊' if side else '端焊'))
-    return ('类型 %d 正门形架（立柱在下、%s）：辅助线【上端】为管底标高 = '
-            '横担顶面、下端为基座 / 生根面；立柱自下端向上，顶端止于横担下方。'
-            % (int(rack_type), '侧焊' if side else '端焊'))
-
-
-def _family_description(variant_key, rack_type=1):
-    hanger = geom.hanger_type(rack_type)
-    if hanger:
-        labels = {
-            'equal_angle': '等边角钢；横担水平肢在上作固定管子的面、竖直肢在 +v 侧'
-                           '向下；立柱下端下探到管位面以下、与横担竖直肢背面相贴'
-                           '（背靠背）搭接',
-            'channel': '平行腿槽钢；横担腹板竖直、在门架平面内；立柱腹板贴横担'
-                       '腹板背面（背靠背），下端下探到管位面以下搭接',
-        }
-    else:
-        labels = {
-            'equal_angle': '等边角钢；横担水平肢在上作固定管子的面、竖直肢在 +v 侧'
-                           '向下；立柱镜像到竖直肢外侧、与横担背面相贴（背靠背），'
-                           '顶端留 10 mm 焊接间隙',
-            'channel': '平行腿槽钢；横担腹板竖直、在门架平面内；立柱腹板贴横担'
-                       '腹板背面（背靠背），顶端留 10 mm 焊接间隙',
-        }
-    return labels.get(geom.VARIANTS[variant_key]['family'], '')
-
-
 # ---------------------------------------------------------------------------
 # 交互工具：点选竖直线
 # ---------------------------------------------------------------------------
 
 
 class PortalFrameByLineTool(DgnElementSetTool):
-    """点选一条竖直线并放置门型架的交互工具。"""
+    """点选一条竖直线（整组中心线）并放置地面上生根门型架的交互工具。"""
 
     def __init__(self, tool_id=0):
         DgnElementSetTool.__init__(self, tool_id)
@@ -1535,7 +1750,7 @@ class PortalFrameByLineTool(DgnElementSetTool):
         self.tool_settings = None
 
     def _GetToolName(self, name):
-        return WString('PortalFrameByLineTool')
+        return WString('G6GroundPortalFrameByLineTool')
 
     def _DoGroups(self):
         return False
@@ -1555,8 +1770,7 @@ class PortalFrameByLineTool(DgnElementSetTool):
         DgnElementSetTool._OnPostInstall(self)
         _log('_OnPostInstall: base done')
         NotificationManager.OutputPrompt(
-            '请点选一条竖直线段：线长即门架高 H，该线为整组门型架的中心线。'
-            '右键放弃。')
+            '请点选一条竖直线段（整组中心线）：上端＝横担顶面、下端＝地面。')
 
     def _OnPostLocate(self, path, cant_accept_reason):
         if _LOCATE_TRACE[0] < 5:
@@ -1595,20 +1809,19 @@ class PortalFrameByLineTool(DgnElementSetTool):
             return (BentleyStatus.eSUCCESS if result is not None
                     else BentleyStatus.eERROR)
         except Exception as error:
-            message = '门型架生成失败：%s' % error
+            # 同样只走面板状态栏（不弹消息、不 print），避免点错元素时刷屏。
             _log_exception('element modify failed')
             try:
-                self.tool_settings.note_hover_error(message)
-                NotificationManager.OutputPrompt(message)
+                self.tool_settings.note_hover_error('无法生成：%s' % error)
             except Exception:
                 pass
-            print(message)
             return BentleyStatus.eERROR
 
     def _OnRestartTool(self):
         settings = self.tool_settings
         self.tool_settings = None
-        PortalFrameByLineTool.InstallNewInstance(self.GetToolId(), settings, False)
+        PortalFrameByLineTool.InstallNewInstance(self.GetToolId(), settings,
+                                                 False)
 
     def _OnCleanup(self):
         settings = self.tool_settings
@@ -1652,11 +1865,11 @@ class PortalFrameByLineTool(DgnElementSetTool):
         return tool
 
 
-def show_portal_frame_dialog():
+def show_g6_portal_frame_dialog():
     return PortalFrameByLineTool.InstallNewInstance(0)
 
 
-def export_portal_frame_bom():
+def export_g6_portal_frame_bom():
     _reload_runtime_modules()
     return export_bom_json()
 
@@ -1665,22 +1878,22 @@ _COMMANDS_LOADED = False
 
 
 def RegisterKeyins():
-    """注册键入命令 PYPORTALFRAME PLACE / PYPORTALFRAME EXPORT。"""
+    """注册键入命令 PYG6FRAME PLACE / PYG6FRAME EXPORT。"""
     global _COMMANDS_LOADED
     if _COMMANDS_LOADED:
         return
-    command_xml = os.path.join(GEOM_DIR, '门型架（角钢和槽钢）.commands.xml')
+    command_xml = os.path.join(GEOM_DIR, 'G6门型架.commands.xml')
     PythonKeyinManager.GetManager().LoadCommandTableFromXml(
         WString(os.path.abspath(__file__)), WString(command_xml))
     _COMMANDS_LOADED = True
 
 
-def OpenPortalFrame():
+def OpenG6PortalFrame():
     PyMain()
 
 
-def ExportPortalFrameBom():
-    export_portal_frame_bom()
+def ExportG6PortalFrameBom():
+    export_g6_portal_frame_bom()
 
 
 def PyMain():
@@ -1693,7 +1906,7 @@ def PyMain():
     except Exception:
         _log_exception('register keyins failed')
     try:
-        show_portal_frame_dialog()
+        show_g6_portal_frame_dialog()
     except Exception as error:
         detail = traceback.format_exc()
         _log_exception('portal frame tool start failed')

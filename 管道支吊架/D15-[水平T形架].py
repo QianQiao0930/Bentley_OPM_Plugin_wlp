@@ -107,6 +107,17 @@ COMPONENT_B_NAME = '构件B'
 # 构件B 高度 L2 的默认值（mm）。
 DEFAULT_ARM_LENGTH_MM = 250.0
 
+# ---------------------------------------------------------------------------
+# 清单写库（共享支吊架库 ItemType）策略
+# ---------------------------------------------------------------------------
+# 本插件本来就只在 ``_PreviewSession.confirm()``（点【确定】）时写库，预览阶段
+# 不碰 ItemType —— 与 ``D5_D6_G12_D19`` / ``D8`` 的 ATTACH_ON_CONFIRM 口径一致。
+# 这里补一个逃生开关：写库走 MicroStation 原生 EC 调用
+# （``ItemTypeLibrary.Write()`` / ``CustomItemHost.ApplyCustomItem``），实测在
+# 反复触发的插件里会卡死后 access violation（见 模块/日志/门型架_fault.log）。
+# 置 False 后几何照常生成、照常落图，只是这批水平 T 形架不进清单统计。
+ITEM_TYPE_ATTACH = True
+
 # 选项变化后延迟重建的毫秒数：连点几下只重建一次。
 REGENERATE_DELAY_MS = 150
 TEXT_REGENERATE_DELAY_MS = 750
@@ -383,6 +394,25 @@ def _attach_support_items(cell, result):
     )
 
 
+def _write_support_items(handle, result):
+    """把一整组写进共享支吊架库（原生 EC 写入），返回写入条目数，失败只记日志。
+
+    先记一条含编号 / 构件的日志：这个原生调用是本插件已知的偶发卡死点，
+    崩了也能从日志最后一行看出崩在哪一项。
+    """
+    if not ITEM_TYPE_ATTACH:
+        _log('attach skipped (ITEM_TYPE_ATTACH=False)')
+        return 0
+    _log('attach on confirm: type=%s tag=%s items=%s'
+         % (SUPPORT_TYPE, result.get('pipe_rack_number') or '-',
+            [str(item.get('code')) for item in result.get('bom_items', ())]))
+    try:
+        return _attach_support_items(handle, result)
+    except Exception:
+        _log_exception('attach failed')
+        return 0
+
+
 def _build_h_frame_cell(line, variant_key, rack_type, arm_length_mm,
                         weld_joint, stiffener=None):
     """按所选水平辅助线构建一组水平 T 形架但**不写入模型**。
@@ -545,7 +575,8 @@ class _PreviewSession(object):
         # 先解除所有权，避免后续统计写入失败时误删已确认的正式元素。
         self.preview = None
         self.result = None
-        _attach_support_items(cell, result)
+        # 清单写库只在【确定】这一刻做（预览阶段完全不碰 ItemType）。
+        _write_support_items(cell, result)
         if delete_auxiliary_line and source_handle is not None:
             _delete_element(source_handle)
         return result
