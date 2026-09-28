@@ -93,7 +93,7 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel Margin="0,0,8,0">
                             <TextBlock Text="沿路径生成实体" FontWeight="SemiBold" />
-                            <TextBlock Text="点选开放路径，生成 SmartSolid 预览后确认。"
+                            <TextBlock Text="点选开放路径，生成三维实体预览后确认。"
                                        FontSize="10" Foreground="{StaticResource MutedBrush}"
                                        TextWrapping="Wrap" Margin="0,2,0,0" />
                         </StackPanel>

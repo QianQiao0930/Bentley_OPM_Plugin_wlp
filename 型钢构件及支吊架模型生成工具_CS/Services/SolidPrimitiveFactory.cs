@@ -62,7 +62,7 @@ namespace SteelSectionProbe
             var status=Create.BodyFromSweep(out body,profile,path,
                 Session.Instance.GetActiveDgnModelRef(),false,true,false,null,null,null,null);
             if(status!=BentleyStatus.Success || body==null)
-                throw new InvalidOperationException("SmartSolid 扫掠失败："+status);
+                throw new InvalidOperationException("三维实体扫掠失败："+status);
             return body;
         }
         internal static void Union(ref SolidKernelEntity target,IList<SolidKernelEntity> others,string name)
@@ -88,7 +88,7 @@ namespace SteelSectionProbe
             Element result;
             var status=Convert1.BodyToElement(out result,body,null,Session.Instance.GetActiveDgnModelRef());
             if(status!=BentleyStatus.Success || result==null)
-                throw new InvalidOperationException("SmartSolid 转 DGN 元素失败："+status);
+                throw new InvalidOperationException("三维实体转 DGN 元素失败："+status);
             var style=new ElementPropertiesSetter();
             style.SetColor(color);
             if(!style.Apply(result)) throw new InvalidOperationException("无法设置人孔构件颜色。");

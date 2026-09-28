@@ -24,6 +24,10 @@ namespace SteelSectionProbe
         /// 截面里的真圆弧保留为真圆弧（不会留下成排分面棱）。</summary>
         internal static Element AlongAxis(ModeData mode,DPoint3d origin,double uorPerMm,
             DVector3d axisX,DVector3d axisY,DVector3d axisZ,double lengthMm,uint color)
+        {return SolidPrimitiveFactory.Element(AlongAxisBody(mode,origin,uorPerMm,
+            axisX,axisY,axisZ,lengthMm),color);}
+        internal static SolidKernelEntity AlongAxisBody(ModeData mode,DPoint3d origin,double uorPerMm,
+            DVector3d axisX,DVector3d axisY,DVector3d axisZ,double lengthMm)
         {
             if(mode==null || mode.Segments==null || mode.Segments.Length<3)
                 throw new InvalidOperationException("型钢轮廓无效。");
@@ -51,7 +55,7 @@ namespace SteelSectionProbe
                 a0.Z+axisZ.Z*lengthUor);
             var path=CurveVector.Create(CurveVector.BoundaryType.Open);
             path.Add(CurvePrimitive.CreateLine(new DSegment3d(a0,b0)));
-            return SolidPrimitiveFactory.Element(SolidPrimitiveFactory.Sweep(profile,path),color);
+            return SolidPrimitiveFactory.Sweep(profile,path);
         }
         internal static Element Vertical(ModeData mode,double ox,double oy,double oz,
             double xx,double xy,double yx,double yy,double heightMm,int direction,double uorPerMm)

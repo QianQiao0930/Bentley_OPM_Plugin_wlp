@@ -267,6 +267,14 @@
         <Setter Property="MinWidth" Value="70" />
     </Style>
 
+    <!-- 首页卡片上的星标按钮：矮而窄，只放 ★☆ 字形，靠自身成为点击热区。 -->
+    <Style x:Key="StarButtonStyle" TargetType="Button" BasedOn="{StaticResource GhostButtonStyle}">
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="Height" Value="22" />
+        <Setter Property="Padding" Value="6,0" />
+        <Setter Property="ToolTipService.InitialShowDelay" Value="400" />
+    </Style>
+
     <Style TargetType="ScrollBar">
         <Setter Property="Width" Value="8" />
         <Setter Property="Background" Value="Transparent" />

@@ -109,7 +109,7 @@ namespace SteelSectionProbe
             var status=Create.BodyFromSweep(out body,profile,path,
                 Session.Instance.GetActiveDgnModelRef(),false,true,false,null,null,null,null);
             if (status!=BentleyStatus.Success || body==null)
-                throw new InvalidOperationException("SmartSolid 扫掠失败：" + status);
+                throw new InvalidOperationException("三维实体扫掠失败：" + status);
             return body;
         }
         private static void Subtract(ref SolidKernelEntity target,SolidKernelEntity cutter,string stage)
@@ -117,7 +117,7 @@ namespace SteelSectionProbe
             var tools=new[] { cutter };
             var status=Modify.BooleanSubtract(ref target,ref tools,tools.Length);
             if (status!=BentleyStatus.Success)
-                throw new InvalidOperationException("SmartSolid " + stage + "差集失败：" + status);
+                throw new InvalidOperationException("三维实体" + stage + "差集失败：" + status);
         }
         private static Element ConvertBody(SolidKernelEntity body)
         {
@@ -125,7 +125,7 @@ namespace SteelSectionProbe
             var status=Convert1.BodyToElement(out element,body,null,
                 Session.Instance.GetActiveDgnModelRef());
             if (status!=BentleyStatus.Success || element==null)
-                throw new InvalidOperationException("SmartSolid 转换为 DGN 元素失败：" + status);
+                throw new InvalidOperationException("三维实体转换为 DGN 元素失败：" + status);
             return element;
         }
         private static DPoint3d Point(VectorMm p,double scale)

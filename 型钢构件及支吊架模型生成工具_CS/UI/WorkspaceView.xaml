@@ -13,7 +13,7 @@
 
     <Grid Background="{StaticResource BackgroundBrush}">
         <Grid.RowDefinitions>
-            <RowDefinition Height="78" />
+            <RowDefinition Height="Auto" MinHeight="88" />
             <RowDefinition Height="*" />
             <RowDefinition Height="36" />
         </Grid.RowDefinitions>

@@ -25,7 +25,7 @@ namespace SteelSectionProbe
                 {
                     DEllipse3d arc;
                     if (!DEllipse3d.TryCircularArcFromStartMiddleEnd(start,point(segment.Xm,segment.Ym),end,out arc))
-                        throw new InvalidOperationException("Arc construction failed");
+                        throw new InvalidOperationException("圆弧构造失败");
                     result.Add(CurvePrimitive.CreateArc(arc));
                 }
             }
@@ -58,7 +58,7 @@ namespace SteelSectionProbe
         {
             double tx=next.X-start.X,ty=next.Y-start.Y,tz=next.Z-start.Z;
             double length=Math.Sqrt(tx*tx+ty*ty+tz*tz);
-            if (length<1e-10) throw new InvalidOperationException("Path start tangent is zero");
+            if (length<1e-10) throw new InvalidOperationException("路径起点切向量为零，无法生成截面");
             tx/=length; ty/=length; tz/=length;
             double ux=0,uy=0,uz=1;
             if (Math.Abs(tz)>1-1e-9) { ux=0;uy=1;uz=0; }

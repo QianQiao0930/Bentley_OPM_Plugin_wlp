@@ -13,6 +13,18 @@ namespace SteelSectionProbe
         internal const double DavitSupportChamferDegrees=30;
         internal const int DavitSupportArcSteps=8;
 
+        // 铰链销轴与开口销：与 罐壁人孔/tank_wall_manhole.py 的 LUG_* / HINGE_* / COTTER_* 一一对应。
+        internal const double HingeLugGapMm=75.0;              // 两只法兰吊耳之间的净距
+        internal const double HingeLugThicknessMm=16.0;        // 吊耳厚度（RING 16 THK）
+        internal const double HingeLugZmm=HingeLugGapMm/2.0+HingeLugThicknessMm/2.0; // ±45.5
+        internal const double HingePinDiameterMm=16.0;         // 销轴直径（图中 16 DIA）
+        internal const double HingePinHoleDiameterMm=18.0;     // 吊耳上的销轴孔
+        internal const double HingePinExtensionMm=20.0;        // 销轴伸出上下吊耳的长度
+        internal const double HingeCotterDiameterMm=4.0;       // 开口销直径（图中 4 mm DIA FOR COTTER PIN）
+        internal const double HingeCotterHoleDiameterMm=4.5;   // 销轴上的开口销孔
+        internal const double HingeCotterHalfLengthMm=14.0;    // 开口销半长（总长 28）
+        internal const double HingeCotterEndInsetMm=12.0;      // 开口销孔中心到销轴端面
+
         internal static TankManholePlan Calculate(TankManholeParameters p)
         {
             if(p==null) throw new InvalidOperationException("缺少人孔参数。");
@@ -146,6 +158,22 @@ namespace SteelSectionProbe
             segment.Y1=segment.PointY(0.0); segment.Z1=segment.PointZ(0.0);
             segment.Y2=segment.PointY(1.0); segment.Z2=segment.PointZ(1.0);
             segments.Add(segment);
+        }
+        /// <summary>铰链销轴半长 = 吊耳站位 + 半板厚 + 伸出量
+        /// （原脚本 pin_half = LUG_Z + LUG_THICKNESS/2 + PIN_EXTENSION）。</summary>
+        internal static double HingePinHalfLength()
+        {
+            return HingeLugZmm+HingeLugThicknessMm/2.0+HingePinExtensionMm;
+        }
+        /// <summary>销轴**上下两端**的开口销轴向站位（单位 mm，销轴轴线为 z=0），返回值恒为
+        /// {-z, +z} 这样一对。销轴两端都伸出上下吊耳，两端都要插开口销才能锁住销轴的轴向
+        /// 位置；以前只在下端生成，上端是光的，看上去就是"插销少了一个"。返回 {下端, 上端}。</summary>
+        internal static double[] HingeCotterStations()
+        {
+            double offset=HingePinHalfLength()-HingeCotterEndInsetMm;
+            if(offset<=HingeLugZmm+HingeLugThicknessMm/2.0)
+                throw new InvalidOperationException("销轴伸出长度不足以在吊耳外侧布置开口销。");
+            return new[]{-offset,offset};
         }
         internal static double[] BoltPosition(int index,int count,double radiusMm)
         {

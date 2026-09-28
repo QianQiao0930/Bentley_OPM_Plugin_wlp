@@ -119,26 +119,22 @@ namespace SteelSectionProbe
             }
 
             ProfileSummaryText.Text = Family.Label + "  /  " + profile.Name;
+            // 只显示 SteelSectionCatalog 登记过的字段（中文名 + 单位），界面不出现英文键。
             var rows = new List<DimensionDisplay>();
-            foreach (var pair in profile.Dimensions)
+            SectionField[] fields = SteelSectionCatalog.FieldsFor(Family == null ? null : Family.Id);
+            foreach (SectionField field in fields)
             {
+                double value;
+                if (!profile.Dimensions.TryGetValue(field.Key, out value)) continue;
                 rows.Add(new DimensionDisplay
                 {
-                    Name = pair.Key,
-                    Value = pair.Value.ToString("G", CultureInfo.InvariantCulture) + " " + UnitFor(pair.Key)
+                    Name = field.Label,
+                    Value = value.ToString("G", CultureInfo.InvariantCulture) + " " + field.Unit
                 });
             }
             DimensionItems.ItemsSource = rows;
             ProfilePreview.Mode = Mode;
             Restart();
-        }
-
-        private static string UnitFor(string key)
-        {
-            if (key == "mass") return "kg/m";
-            if (key == "area" || key == "A") return "cm²";
-            if (key.EndsWith("_cm", StringComparison.Ordinal)) return "cm";
-            return "mm";
         }
 
         private void RotationTextBox_PreviewTextInput(object sender, TextCompositionEventArgs e)
@@ -199,7 +195,7 @@ namespace SteelSectionProbe
                 SweepPlacement.Cancel();
                 Placement.Begin(app, Family, Profile, Mode);
                 sweepModeSelected = false;
-                SetStatus("正在放置 " + Profile.Name + "：移动鼠标查看预览，单击放置，右键 Reset 结束。", false);
+                SetStatus("正在放置 " + Profile.Name + "：移动鼠标查看预览，单击放置，右键重置结束。", false);
                 RefreshActionState();
             }
             catch (Exception ex) { SetStatus(ex.Message, true); }

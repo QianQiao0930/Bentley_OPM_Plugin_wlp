@@ -47,7 +47,11 @@
     <Compile Remove="Development\NozzleCheck\**\*.cs" />
     <Compile Remove="Development\E1GuideCheck\**\*.cs" />
     <Compile Remove="Development\G2AnchorCheck\**\*.cs" />
-    <Compile Remove="Development\PipeClampCheck\**\*.cs" /></ItemGroup>
+    <Compile Remove="Development\PipeClampCheck\**\*.cs" />
+    <Compile Remove="Development\VerticalPipeSupportCheck\**\*.cs" />
+    <Compile Remove="Development\EquipmentSupportCheck\**\*.cs" />
+    <Compile Remove="Development\HomeCheck\**\*.cs" />
+    <Compile Remove="Development\SteelSectionCheck\**\*.cs" /></ItemGroup>
 </Project>
 
 

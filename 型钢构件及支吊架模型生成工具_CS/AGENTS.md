@@ -350,6 +350,7 @@ internal sealed class ExamplePage : UserControl, IWorkspacePage
 - 删除源路径、辅助线等破坏性操作只能发生在明确确认之后；
 - `OnDeactivated()` 必须结束当前 Tool；
 - `OnWorkspaceClosing()` 必须可重复调用而不报错；
+- 点取工具的 `Begin()` 必须**幂等**：已经在点取中时只重新提示、不要"先 `End()` 再安装新实例"——那会先假发一次 `Ended`（页面据此清掉基点与预览、提示"已结束点取"），新装的实例还可能被上一个实例的延迟 `OnCleanup` 带掉，表现就是"再点一次「开始点取」后第一次点击被当成结束，得点两次才进得去"。工具需暴露 `IsActive`，页面在按钮回调里先判断：已在点取中就直接提示"可直接点取下一处，无需再点开始点取"（管夹类 `PipeClampLocateTool` / `ComponentLocateTool` / `NozzlePlacementTool` 均已按此实现）；按钮回调不要再额外手调事件处理函数（`End()` 已会触发 `Ended` 完成页面清理）；
 - 不得依赖垃圾回收器删除 DGN 元素。
 
 ## 8. 坐标、单位和几何约定
@@ -403,6 +404,7 @@ internal sealed class ExamplePage : UserControl, IWorkspacePage
 - 参数变化时更新页内预览，但不要在每次鼠标移动时执行昂贵实体建模；
 - 不在单个页面重新定义与 `Theme.xaml` 冲突的字体、颜色和按钮模板，特殊几何预览绘制除外；
 - 最小窗口尺寸下不得遮挡确认/取消按钮。
+- **界面文案一律中文**：状态栏、MicroStation 提示（`ShowPrompt` / `CommandState.CommandName`）、页内说明、参数表标签都要中文，包括异常消息（它们会经 `SetStatus(ex.Message)` 直接显示给用户）。英文产品名按中文习惯改写（`SmartSolid` → `三维实体`）；`DGN` / `Excel` / `JSON` / `ItemType` / `EC` 这类格式与技术名词保留。`ArgumentNullException("element")` 这类参数名不是界面文案，不受此约束。
 
 ## 10. Registration 与兼容性
 
@@ -496,7 +498,7 @@ bin/Release/net48_full/SteelSectionProbe.dll
 1. `GenericProfile` 同时包含原生 DGN 和 COM 轮廓创建；若继续扩大，应拆成纯轮廓服务与 Bentley 适配器；
 2. `SweepPlacement` 仍同时管理预览状态和底层扫掠创建；第一个需要程序化创建型钢杆件的支吊架功能应优先提取 `SteelMemberFactory`；
 3. `Statistics` 当前偏向型钢记录；扩展支吊架前应先定义稳定的 Assembly / Component 写入 API；
-4. `WorkspaceView` 和 `HomePage` 的功能注册目前是显式代码；功能数量较多后可引入轻量 `FeatureDescriptor`，但不要过早使用复杂依赖注入框架；
+4. 首页已改为数据驱动（`HomeFeatureCatalog` + `HomeFeatureRanker`，见第 28 节）；`WorkspaceView` 的页面注册仍是显式代码，新增功能页时**必须同时**在 `RegisterPage` 与 `HomeFeatureCatalog` 各加一处，两处 PageId 必须逐字一致；
 5. Bentley 运行时交互尚无法由普通 `dotnet test` 完整覆盖，因此编译通过不等于 OPM 实测通过。
 
 重构这些边界时，必须先让现有型钢页改用新服务，再让新功能复用；不要保留新旧两套并行实现。
@@ -550,7 +552,7 @@ bin/Release/net48_full/SteelSectionProbe.dll
 
 首页唯一入口 `tank-manhole`，详情页在 `UI/TankManhole/`，规格表和纯计算分别在 `Data/TankManhole/`、`Services/TankManhole/TankManholeCalculator.cs`，Bentley SmartSolid 在 `Services/TankManhole/`，点取与预览所有权在 `Tools/TankManhole/`。原始来源为仓库同级 `罐壁人孔/tank_wall_manhole.py`。公称尺寸使用 DN450 / DN500 / DN600，业务几何尺寸用 mm，只有 Frame 将尺寸转换成活动 DGN 的 UOR。两种开盖形式共用基础筒节、法兰、盲盖、螺栓和把手；吊杆与铰链各由独立 Builder 路径添加。组合单元名保持 `TANK_WALL_MANHOLE`。本功能是罐体设备附件，原脚本没有支吊架 Assembly / Component 清单契约，不写入 `PipeSupportComponents`。
 
-点取左键后才构造可撤销模型预览；参数变化重新构造时先写入新预览，再删除旧预览。右键 Reset、页面按钮、返回首页和关闭工作区均清理预览。C# 侧几何必须与 `罐壁人孔/tank_wall_manhole.py` 逐项对齐：吊杆回转支撑件的径向轮廓（双水平臂 16 厚、腹板 16 厚、背部外 R20 / 内 R10、开口端 30° 收窄到法兰厚度）其**外表面**在立柱轴线外 `D/2 + 20 + 16`——那 16 是原脚本 `BodyFromSweep` 把轮廓厚度加在扫掠路径终点之外产生的，改动支撑件时不要按脚本的长度公式（只算到路径终点）取 20；轮廓与尺寸放在 `TankManholeCalculator` 的 `DavitSupportAnchorY / DavitSupportOuterFaceY / DavitSupportChamferDistance / DavitSupportProfile`（纯计算，可在 `Development/TankManholeCheck/` 断言；`DavitSupportProfile` = 8 直线 + 4 真圆弧，`DavitSupportOutline` 把圆弧展开成 40 点仅供校验）。**圆角必须用真圆弧原语**（`CurvePrimitive.CreateArc` + `SolidPrimitiveFactory.Prism(profile, origin, extrusion)`）扫成真圆柱面；用 8 段折线近似会在圆角上留下成排分面棱（每段法向差 11.25°，OPM 里是一叠横线，而原脚本的 `BlendEdges` 是真圆角、没有这些线）。`SolidPrimitiveFactory.PolygonPrism` 只能给折线用，别拿它画圆角。吊杆的圆到扁头过渡同样按原脚本优先级：先 `Create.BodyFromLoft(profiles, guides, modelRef, periodic:false, segment:true)`（段间线性无平滑，等价原脚本的 `DgnRuledSweep`），失败才退回 24 段台阶近似（回退时轮廓反序，法向朝圆管一侧）；`BodyFromLoft` 的两个布尔量含义见 MSPy 存根 `Examples/Microstation/Intellisense/MSPyMstnPlatform.pyi`。M20 调节吊环螺栓圆环中心线半径 25（孔 Ø30）。30° 端部倒角用布尔差集；需在 OPM 核对。OPM 运行时必须检查所有 DN / 压力组合的扫掠和布尔差集、直纹放样、普通 Cell 形成、预览取消以及吊杆连接位置。纯计算检查位于 `Development/TankManholeCheck/`。
+点取左键后才构造可撤销模型预览；参数变化重新构造时先写入新预览，再删除旧预览。右键 Reset、页面按钮、返回首页和关闭工作区均清理预览。C# 侧几何必须与 `罐壁人孔/tank_wall_manhole.py` 逐项对齐：吊杆回转支撑件的径向轮廓（双水平臂 16 厚、腹板 16 厚、背部外 R20 / 内 R10、开口端 30° 收窄到法兰厚度）其**外表面**在立柱轴线外 `D/2 + 20 + 16`——那 16 是原脚本 `BodyFromSweep` 把轮廓厚度加在扫掠路径终点之外产生的，改动支撑件时不要按脚本的长度公式（只算到路径终点）取 20；轮廓与尺寸放在 `TankManholeCalculator` 的 `DavitSupportAnchorY / DavitSupportOuterFaceY / DavitSupportChamferDistance / DavitSupportProfile`（纯计算，可在 `Development/TankManholeCheck/` 断言；`DavitSupportProfile` = 8 直线 + 4 真圆弧，`DavitSupportOutline` 把圆弧展开成 40 点仅供校验）。**圆角必须用真圆弧原语**（`CurvePrimitive.CreateArc` + `SolidPrimitiveFactory.Prism(profile, origin, extrusion)`）扫成真圆柱面；用 8 段折线近似会在圆角上留下成排分面棱（每段法向差 11.25°，OPM 里是一叠横线，而原脚本的 `BlendEdges` 是真圆角、没有这些线）。`SolidPrimitiveFactory.PolygonPrism` 只能给折线用，别拿它画圆角。吊杆的圆到扁头过渡同样按原脚本优先级：先 `Create.BodyFromLoft(profiles, guides, modelRef, periodic:false, segment:true)`（段间线性无平滑，等价原脚本的 `DgnRuledSweep`），失败才退回 24 段台阶近似（回退时轮廓反序，法向朝圆管一侧）；`BodyFromLoft` 的两个布尔量含义见 MSPy 存根 `Examples/Microstation/Intellisense/MSPyMstnPlatform.pyi`。M20 调节吊环螺栓圆环中心线半径 25（孔 Ø30）。30° 端部倒角用布尔差集；需在 OPM 核对。**铰链销轴（`HINGE_PIN_DIA` 16、伸出吊耳 20、半长 73.5）上下两端必须各有一只开口销**：吊耳站位 ±45.5、板厚 16，销轴两端都伸出吊耳，只在下端装开口销上端就是光的（销轴会往上抽出）。两只开口销的位置、直径和朝向镜像对称，销轴上的开口销孔也掏两个，都放在 `TankManholeCalculator` 的 `HingeLugZmm / HingePinHalfLength / HingeCotterStations`（纯计算，`Development/TankManholeCheck/` 断言对称性与"孔必须在吊耳外侧"）。吊杆立柱的开口销**只有下端一只**属于正常：立柱顶端与吊杆竖直段端面对接，没有自由端可锁，不要照搬到上端。OPM 运行时必须检查所有 DN / 压力组合的扫掠和布尔差集、直纹放样、普通 Cell 形成、预览取消以及吊杆连接位置。纯计算检查位于 `Development/TankManholeCheck/`。
 ## 20. 实体管口
 
 `solid-nozzle` 首页入口位于 `UI/HomePage.xaml`，详情页在 `UI/Nozzle/`，纯参数和结果在 `Domain/Nozzle/`，嵌入尺寸表读取在 `Data/Nozzle/`，计算与 Bentley 建模在 `Services/Nozzle/`，点取和预览所有权在 `Tools/Nozzle/`。原始数据 `实体管口/flange_data.json` 原样复制为 `Resources/nozzle_flange_data.json` 并嵌入 DLL。新增法兰尺寸时修改原始数据并重新复制或建立数据生成脚本，不在页面硬编码尺寸。与罐壁人孔共用 `Services/SolidPrimitiveFactory.cs` 的圆柱、扫掠和布尔操作。
@@ -588,6 +590,10 @@ bin/Release/net48_full/SteelSectionProbe.dll
 | `DesignLengthMm` / `Quantity` / `Unit` / `PipeNumber` | 0 / 1 / 套 / 管道号 | 设计长度 / 数量 / 件·块·套 / 管道号 |
 
 **ASCII 代号只用于 ItemType 命名**（`PipeSupportAssembly_<代号>_<哈希>`），绝不写进属性值：写进去会让统计页的“按类型套数”显示英文代号，并与 Python 写入的同类记录分裂成两组。中文类型名一律由 `Data/<功能>/` 的常量或映射方法提供（`E1GuideCatalog.SupportType`、`ElbowTrunnionCatalog.SupportType`、`G2AnchorCatalog.SupportType`），不要在 `Statistics.cs` 里另写一份字面量。新增功能时必须同时在该功能的 `Development/<功能>Check/` 里断言这张映射，防止两边再次漂移。
+
+⚠️ **不要把尺寸编进 ItemType 名，值要写进 EC 实例**。旧写法把型材族/长度/编号编进类型名（`..._STEEL_SECTION_<族>_L<长度>`），值只存在于**类型默认值**里，于是每出现一个新规格就要新建一个 ItemType —— 而每次新建都要付一次 `library.Write()` 全库写盘，这就是“点确认很慢”的根因。写盘成本实测为 **约 数十 ms + 2 ms × 库内类型数**（537 个类型时 1.16~1.32 秒，空库时仅 ~63 ms）——注意**不是**“固定 1.17 秒”，537→547 的样本不足以区分固定与线性，别再沿用那个结论。`FindByName` 同规律但系数小约 500 倍（537 类型 2 ms/次），因此**缓存 ItemType 或去掉二次 `FindByName` 的收益≈0，不值得做**。正确写法：`Ensure()` 用**固定类型名**，再用 `ApplyRecord()`（内部 `CustomItemHost.ApplyCustomItem(type)` 返回 `IDgnECInstance` → 写 `instance["属性"].StringValue/IntValue/DoubleValue` → `instance.WriteChanges()`）把本条记录的差异写进**元素上的实例**。这样同一 DGN 内类型数量恒定，首次之后每次确认都命中、不再写盘。型钢实测 **1447.6 ms → 1.2 ms**；用日志里的“回读长度”验证过值确随记录变化（2439.742 → 2115.817），说明确实落在实例上而不是类型默认值里。约束：固定名**必须保留 `PipeSupportAssembly_` / `PipeSupportComponent_` 前缀**（`SupportStatisticsReader` 靠它分类）；一个元素上需要多条 Component 记录时按构件角色加后缀（`_A`/`_B`/`_PLATE`/…）而不是加尺寸。统计侧不需要改：读的本来就是实例属性值，且材料表按 `SupportType+ComponentName+Specification+Unit` 分组、与类型名无关；历史 DGN 里的旧类型照旧可读，新旧可共存。**全部 `AttachXxx` 已按此改造，编写新功能时照抄 `Statistics.Attach` 的写法**：在方法内拼好 `List<KeyValuePair<string,object[]>>`（用 `AddEntry` 辅助方法），最后一次性 `WriteRecords(element,entries)` —— 它会合并成**一次** `EnsureBatch`（最多一次写盘）、再逐条 `ApplyCustomItem` + 写实例值。`WriteRecords` 内置**同名守卫**：同一元素上若两条记录的类型名相同会抛中文异常（否则后一条静默覆盖前一条），因此不要试图绕过它：撞名必须改角色后缀，而不是放宽校验。需要多条 Component 记录时用常量角色后缀区分（`_A` / `_B` / `_PLATE` / `_BOLT` / `_EAR` / `_TRUNNION` …）；角色码来自**数据表**（如 T4 的 `T4ShoeCalculator.ComponentItems`）时，必须在对应 `Development/<功能>Check/` 里断言其唯一性（`PipeClampCheck` 已加）。
+这一版的固定类型名清单（保持 `PipeSupportAssembly_` / `PipeSupportComponent_` 前缀）：`STEEL_SECTION`；`<feature>` + `_TRUNNION`/`_PLATE`/`_LINER`（弯头耳轴）；`E1` + `_MEMBER`/`_LINER`；`G2` + `_PLATE`/`_BOLT`；`A2` + `_BODY`/`_BOLT`；`K1` + `_BLOCK`/`_PLATE`；`T4` + `<item[0]>`；`VP_EAR_PLATE`/`VP_TRUNNION` + `_EAR`/`_BASE`/`_BOLT`/`_TRUNNION`/`_END`/`_PAD`；`N8` + `_PLATE`/`_BOLT`；`<N3|N4 code>` + `_A`/`_B`/`_C`/`_PLATE`/`_BOLT`/`_STIFFENER`。
+写入 API（`ApplyCustomItem` 返回 `IDgnECInstance` → 写 `StringValue/IntValue/DoubleValue` → `WriteChanges()`）均已用 net8 只读元数据确认过签名，**不要因为“以前不用 WriteChanges 也能读出来”就省略它**：不写这条，值会留在类型默认值里（第一次的值），后续记录全部读到同一个数。
 
 ## 24. 放置管夹（A2 / E1 / K1 / T4 合并入口）
 
@@ -629,3 +635,38 @@ bin/Release/net48_full/SteelSectionProbe.dll
 **为什么这样做**：把"参考元素"的影响面收敛成**一次轴线读取**，生成那一段完全走活动文件里已经跑通的路径，避免"参考元素写不进 / 删不掉 / 几何读不稳"整类问题。新增管夹类型时，只要把选择结果喂进各自 Calculator 即可，无需再为参考元素写第二套生成逻辑。
 
 实现约束：临时线 id 存在 `PipeClampPage.tempAxisLineId`，**每次点选前先删旧的**（`ReadSelection` 开头）；建线失败要**退回直接读取的结果**而不是抛错（不能因为辅助线失败挡住生成）；删除失败只发状态栏提示，不影响已确认的管夹。异常退出（宿主崩溃）时可能残留一条普通直线 —— 这一点已在 README 里向用户说明。
+
+## 27. 立管耳轴（F6 / F7 / F10）
+
+首页唯一入口为 `vertical-pipe-support`。页面顶部先选类型，再点取立管或竖直辅助线；F6/F7 共用参数区，F10 使用独立参数区。纯数据与计算在 `Data/VerticalPipeSupport/`、`Services/VerticalPipeSupport/VerticalPipeSupportCalculator.cs`，实体在 `VerticalPipeSupportBuilder.cs`，预览生命周期在 `Tools/VerticalPipeSupport/`。点选复用只读的 `PipeClampLocateTool` 与 `PipeClampReader`，支持参考元素的模型引用。源元素保持不变。轴线偏离竖直超过 5° 时拒绝建模。`Statistics.AttachVerticalPipeSupport` 只在确认时写入公共清单；F6/F7 的 `SupportType` 必须是 Python 原值 `F6_F7-[立管的耳轴]`，F10 必须是 `F10-[小管径立管耳板]`。
+
+## 28. 首页排序与星标
+
+首页卡片的数据来自 `Data/Home/HomeFeatureCatalog.cs`（`FeatureDescriptor` 清单，**唯一来源**），顺序由 `Services/Home/HomeFeatureRanker.cs` 计算，偏好存储与使用统计在 `UI/Home/HomePreferences.cs`，卡片视图模型在 `UI/Home/HomeCardItem.cs`，渲染在 `UI/HomePage.xaml(.cs)`。**不要在 `HomePage.xaml` 里再手写卡片** —— 新增功能页只在清单里加一项。
+
+排序是**一个全序比较器**，关键字从高到低：置顶区（星级 ≥ `HomeFeatureRanker.PinThreshold` = 3）→ 星级降序 → 使用频率降序 → 出厂顺序（`DefaultOrder`）升序 → `PageId` 字典序。最后一级不能省：`List.Sort` 是**不稳定**排序，缺它会让同键卡片每次渲染顺序漂移。
+
+- `HomeFeatureRanker` 是**纯计算**：不引用 WPF / 文件系统，**也不读系统时钟** —— 当前时间由调用方以 `utcNow` 传入，否则不可重现、写不了断言。它必须能被 `Development/HomeCheck` 链接。
+- 使用频率是**衰减计数**（按月分桶 `yyyy-MM`、半衰期 1 个月、保留 12 个月），**不要改成累计总次数**：累计会让半年前的高频功能永久霸榜（本月 12 次应当压过上月 20 次，这才是“最近常用”）。
+- 冷启动（无偏好数据）全部落回出厂顺序，新用户看到的首页与改造前完全一致。
+- **评分后不立即重排**：星标只就地更新显示，重排只在 `WorkspaceView.ShowHome()` 的 `homePage.Refresh()` 里发生。卡片“点完就飞走”是体验事故。
+- 使用统计的**唯一埋点**是 `WorkspaceView.OpenPage(id)`（命令行入口 `STEELPROBE PLACE` 也走它），且**同一次会话内同一功能只记一次**（`SessionCounted`）—— 首页表达的是“多常需要这个功能”，不是“点了多少下按钮”。
+- 占位卡（`IsReady = false`）没有 PageId、不参与评分与统计，恒排在所有可用功能之后；灰化样式由 `HomePage.xaml` 里 `IsReady` 的 `DataTrigger` 负责（**不要另写一套卡片模板**）。
+- **卡片尺寸必须与文字内容、窗口宽度都脱钩**：`HomeCardStyle` 写死 **`Width = 300` + `Height = 100`** + `ClipToBounds`；标题 1 行（`Height 20`）、说明 2 行（`Height 30`）、使用情况 1 行（`Height 14`）都设固定高度 + `TextTrimming="CharacterEllipsis"`，右侧操作列 `Width="76"`、`进入` 按钮 `Width="64" MinWidth="0"`。内部纵向合计 83 ≤ 内容区 84（100 − 上下内边距 16），**改尺寸时要重算这个余量**。**绝不要用 `MinHeight` 或 `Auto` 列宽**：文字换行行数一变卡片就长高，整页跟着变、还会把按钮顶出可视区。`ItemsPanel` 用 **`WrapPanel`**（不是 `UniformGrid`）：卡片宽度已写死，放不下就换行，永远不会横向溢出或被裁掉。⚠️ 卡片尺寸若要调整，**只改 `HomeCardStyle` 的这两个值**即可 —— 首页窗口宽度是**运行时实测校准**的（见下条），不需要手工同步；改完用 `E:/Code/_home_ui_probe/` 的 `shot` 模式出图核对（首行必须是 2 列、右侧空白 ~8~20 DIP）。
+- ⚠️ **首页宽度必须实测校准，不能写死**：`WorkspaceView.ScheduleHomeWidthCheck()`（`ShowHome` 与窗体 `Shown` 各触发一次）用真实可视树量三件事 —— `HomePage.MeasureRowWidth()`（首行两张卡片的外缘宽，含卡片 Margin）、`HomePage.MeasureChromeWidth()`（页面宽 − 列表宽 = 滚动条 + ScrollViewer 内边距）、`ActualWidth − PageHost.ActualWidth`（**实测**页边距，不要读 `Margin` 设定值），相加再加 8 的呼吸余量，回调 `MainWindow.ApplyHomeWidth()` 设置 `ClientSize`。因此**卡片尺寸、字体、Dpi、页边距任何一项变了，首页都会自己算准**，且误差只可能偏宽、不会掉成单列。实测值缓存在 `MainWindow.homeWidthLogical`，后续回首页直接套用（无跳动）。`HomeWidthFallback = 670` 只是首帧兜底。
+- ⚠️ **窗口宽度必须按 DPI 换算，不能直接写进 `ClientSize`**：首页约 670 / 功能页 560 是 **96 dpi 基准的逻辑宽度**，而 `Form.ClientSize` 收的是**设备像素**；本窗体 `AutoScaleMode = Dpi` 又会在高 DPI 下把窗体尺寸再乘一次缩放系数，两者打架就会出现"返回首页后卡片宽度时宽时窄、和刚打开时不一样"。`MainWindow.SetHomeLayout` 统一用 `VisualTreeHelper.GetDpi(ElementHost.Child).DpiScaleX` 换算（150% 缩放下 670 逻辑宽 = 1005 设备像素）。新增任何"改窗体尺寸"的代码都要照此办理。
+- 存储 `%LOCALAPPDATA%\SteelSectionProbe\home_preferences.json` 只存 `PageId → {Stars, TotalUseCount, LastUsedUtc, MonthlyUse}`，**不存顺序**：增删功能、调权重都不需要迁移数据，也不会留下“存了顺序但功能已改名”的脏数据。读写失败一律静默回落（与各页 `LastChoice` 一致），绝不能挡住首页。
+- ⚠️ `HomeFeatureCatalog` 的 PageId 与页面 `PageId` 不一致时，`OpenPage` 会命中“未注册的功能模块”分支 —— 这一支**故意不静默返回**，就是为了让配置漂移可见。
+- 新增检查工程要照例在主 `SteelSupportModeler.csproj` 里加 `Compile Remove`（`Development\HomeCheck\**\*.cs`）。
+
+纯计算检查：`dotnet run --project Development/HomeCheck/HomeCheck.csproj -c Release`（清单一致性、五级关键字、≥3 星置顶、衰减频率、脏数据容错、使用情况文案）。
+
+## 29. 型钢生成的截面参数显示
+
+型钢页「03 当前截面参数」显示哪些行、每行中文名和单位是什么，**唯一来源是 `Data/SteelSection/SteelSectionCatalog.cs`**，它与 Python 原版 `型钢截面生成器/steel_sections/steel_registry.py` 每个家族的 `fields` 逐项一致（原版只显示这份精选字段，C# 曾经把 `profiles.bin` 里的全部原始键直接铺出来，于是界面出现 `mass` / `area` / `surface_area` / `Ix` … 且行数多一倍）。`SteelSectionPage.SelectProfile` 只遍历这张表，**没有登记的键一律不显示** —— 宁可少显示，也不要把英文键漏到界面上。
+
+新增型钢类型或字段时：改 `Development/profile_catalog/` 的数据与 `export_profiles.py`，重新生成 `Resources/profiles.bin`，同时在 `SteelSectionCatalog` 补中文名与单位，并更新 `Development/SteelSectionCheck` 里的期望字段表（那里逐字比对字段顺序）。
+
+纯计算检查：`dotnet run --project Development/SteelSectionCheck/SteelSectionCheck.csproj -c Release`。该工程自带一份 `profiles.bin` 嵌入资源（`LogicalName` 与主工程一致），所以能读真实数据并断言：7 个类型的字段顺序与 Python 注册表一致、每个字段在每个规格里都存在、中文名含汉字、单位在允许列表内、未登记类型返回空表。
+
+程序集内其它用户可见英文（`Statistics` 的 ItemType 写入失败、`RuntimeData` 的数据损坏、耳轴/管口的 `SmartSolid` 字样）也已统一为中文；新增功能时按第 9 节的文案规则办。

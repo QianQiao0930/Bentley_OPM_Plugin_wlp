@@ -65,16 +65,16 @@ namespace SteelSectionProbe
             var p=currentPlan;
             string pipeSpec="DN"+p.TrunnionDn+" Ø"+p.TrunnionOdMm.ToString("G")+" × "+
                 p.WallMm.ToString("G")+" mm，"+p.Parameters.Material;
-            Statistics.AttachElbowTrunnion(preview[0],p,
+            Statistics.AttachElbowTrunnion(preview[0],p,"TRUNNION",
                 p.Parameters.Trunnion==TrunnionOrientation.Vertical ? "竖直耳轴" : "水平耳轴",
                 pipeSpec,p.TubeLengthMm,true);
             if (p.PlateThicknessMm>0)
-                Statistics.AttachElbowTrunnion(preview[0],p,
+                Statistics.AttachElbowTrunnion(preview[0],p,"PLATE",
                     p.Parameters.Trunnion==TrunnionOrientation.Vertical ? "底板" : "端板",
                     p.Parameters.Plate+" 型，"+p.PlateThicknessMm.ToString("G")+" mm",
                     p.PlateThicknessMm,false);
             if (p.LinerThicknessMm>0)
-                Statistics.AttachElbowTrunnion(preview[0],p,"镜面不锈钢覆面",
+                Statistics.AttachElbowTrunnion(preview[0],p,"LINER","镜面不锈钢覆面",
                     "3 mm",p.LinerThicknessMm,false);
             preview=new List<Element>();
             currentPlan=null;

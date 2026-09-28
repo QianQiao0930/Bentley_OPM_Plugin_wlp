@@ -31,10 +31,33 @@ namespace SteelSectionProbe
             Reject(()=>TankManholeCalculator.Calculate(new TankManholeParameters {NeckLengthMm=0}),"非法筒节长度");
             Reject(()=>TankManholeCalculator.Calculate(new TankManholeParameters {HeadingDegrees=double.NaN}),"非法方向");
             CheckDavitSupport();
-            Console.WriteLine("罐壁人孔尺寸、站位、螺栓圆、吊杆回转支撑件和非法输入校验通过。");
+            CheckHingePin();
+            Console.WriteLine("罐壁人孔尺寸、站位、螺栓圆、吊杆回转支撑件、铰链销轴开口销和非法输入校验通过。");
         }
         private static void Near(double a,double b,double tolerance,string label)
         { if(Math.Abs(a-b)>tolerance) throw new Exception(label+": "+a+" 与 "+b+" 相差超过 "+tolerance); }
+        /// <summary>铰链销轴与开口销：销轴上下**两端**必须各有一个开口销，位置对称、
+        /// 落在上下吊耳之外，孔与销轴同轴才能插得进去。</summary>
+        private static void CheckHingePin()
+        {
+            Equal(TankManholeCalculator.HingeLugZmm,45.5,"吊耳站位");
+            Equal(TankManholeCalculator.HingeLugZmm*2,TankManholeCalculator.HingeLugGapMm+
+                TankManholeCalculator.HingeLugThicknessMm,"吊耳净距 75 + 板厚");
+            Equal(TankManholeCalculator.HingePinHalfLength(),73.5,"销轴半长 = 45.5 + 8 + 20");
+            var stations=TankManholeCalculator.HingeCotterStations();
+            Equal(stations.Length,2,"开口销数量（上下各一个）");
+            Near(stations[0]+stations[1],0.0,1e-12,"两只开口销关于销轴中心对称");
+            Equal(stations[1],-stations[0],"两只开口销等距反向");
+            Near(Math.Abs(stations[0]),
+                TankManholeCalculator.HingePinHalfLength()-TankManholeCalculator.HingeCotterEndInsetMm,
+                1e-12,"开口销孔到销轴端面 12");
+            double lugFace=TankManholeCalculator.HingeLugZmm+TankManholeCalculator.HingeLugThicknessMm/2.0;
+            if(Math.Abs(stations[0])<=lugFace) throw new Exception("开口销必须落在吊耳外侧，否则挡不住销轴。");
+            if(Math.Abs(stations[0])>TankManholeCalculator.HingePinHalfLength())
+                throw new Exception("开口销孔必须在销轴范围之内。");
+            if(!(TankManholeCalculator.HingeCotterHoleDiameterMm>TankManholeCalculator.HingeCotterDiameterMm))
+                throw new Exception("开口销孔必须大于开口销直径。");
+        }
         /// <summary>吊杆回转支撑件：与 Python 版（tank_wall_manhole.py）对齐后的径向几何。</summary>
         private static void CheckDavitSupport()
         {

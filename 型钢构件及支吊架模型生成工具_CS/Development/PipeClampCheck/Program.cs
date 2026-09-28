@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 namespace SteelSectionProbe
 {
     /// <summary>
@@ -311,6 +312,20 @@ namespace SteelSectionProbe
             Reject(()=>T4ShoeCalculator.BuildBooleanLayout(T4ShoeCalculator.BuildLayout(
                 new T4ShoeParameters {Dn=80,InsulationMm=1.0,LengthMm=300.0})),
                 "耳板根部穿入保温层 / 间隙不小于管夹内径");
+            // 构件角色码会被支吊架清单写成固定的 ItemType 名后缀（PipeSupportComponent_T4_<code>），
+            // 因此同一元素内必须互不重复，否则后一条记录会覆盖前一条。
+            foreach(bool pipe in new[]{false,true}) foreach(bool insu in new[]{false,true})
+            {
+                var codes=new List<string>();
+                foreach(var it in T4ShoeCalculator.ComponentItems(longShoe,bl,pipe,insu))
+                {
+                    Check(!codes.Contains(it[0]),
+                        "T4 构件角色码重复（会导致 ItemType 名冲突）："+it[0]+
+                        " 已生成管道="+pipe+" 已生成保温="+insu);
+                    codes.Add(it[0]);
+                }
+                Check(codes.Count>0,"T4 至少应有一条构件记录");
+            }
         }
     }
 }

@@ -17,7 +17,7 @@ namespace SteelSectionProbe
         private static string ReadString(BinaryReader reader)
         {
             uint length=reader.ReadUInt32();
-            if (length>100000) throw new InvalidDataException("Invalid profile string length");
+            if (length>100000) throw new InvalidDataException("型钢数据字符串长度非法");
             byte[] bytes=reader.ReadBytes((int)length);
             if (bytes.Length!=length) throw new EndOfStreamException();
             return Encoding.UTF8.GetString(bytes);
@@ -26,10 +26,10 @@ namespace SteelSectionProbe
         {
             using (Stream stream=Assembly.GetExecutingAssembly().GetManifestResourceStream("SteelSectionProbe.profiles.bin"))
             {
-                if (stream==null) throw new InvalidOperationException("Missing embedded profile data");
+                if (stream==null) throw new InvalidOperationException("缺少嵌入的型钢数据");
                 using (var reader=new BinaryReader(stream))
                 {
-                    if (Encoding.ASCII.GetString(reader.ReadBytes(4))!="SSP1") throw new InvalidDataException("Profile data format mismatch");
+                    if (Encoding.ASCII.GetString(reader.ReadBytes(4))!="SSP1") throw new InvalidDataException("型钢数据格式不匹配");
                     int familyCount=checked((int)reader.ReadUInt32());
                     FamilyData[] families=new FamilyData[familyCount];
                     for (int f=0; f<familyCount; f++)
@@ -60,7 +60,7 @@ namespace SteelSectionProbe
                         }
                         families[f]=family;
                     }
-                    if (stream.Position!=stream.Length) throw new InvalidDataException("Trailing profile data");
+                    if (stream.Position!=stream.Length) throw new InvalidDataException("型钢数据末尾存在多余内容");
                     return families;
                 }
             }

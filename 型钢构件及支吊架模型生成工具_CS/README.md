@@ -1,6 +1,28 @@
 # 型钢构件及支吊架模型生成工具：OpenPlant Modeler 2024 C# 版
 
-独立的 .NET Framework 4.8 / x64 AddIn。运行时只加载 C# DLL，不启动 Python。当前提供型钢截面放置、沿路径扫掠、构件特性查询、弯头耳轴、罐壁人孔、实体管口、放置管夹（A2 标准型 2 螺栓管夹 / E1 不保温管导向架 / K1 不保温管限位架 / T4 高温隔热限位管托）、G2 混凝土锚板与只读的支吊架统计，并按“工作区 + 功能页”组织，后续可继续接入各种支吊架功能。
+## N3 / N4 / N8 设备支架
+
+首页分别提供 N3 单三角架、N4 双三角架和 N8 设备预焊件连接板入口。N3 点取设备表面至横担末端的水平辅助线；N4 点取设备中心至管中心的水平辅助线，并由设备外径、预焊件长度和线长计算 L1。两者均可选择 A～F 子型及斜撑在上或在下；N4 修改参数后需手动更新预览才能确认。N8 独立选择板型、方向及安装面后点取放置点。三个入口各自生成可取消的 Cell 预览，确认时写入 `PipeSupportComponents`；N4 可选的设备预焊件仅作 75% 透明参照，不计入清单。
+
+规格与荷载表取自 `管道支吊架/模块/` 中的 Python N3、N4、N8 模块。纯计算检查位于 `Development/EquipmentSupportCheck/`。目前已通过 Release 编译和参数检查；OPM 2024 内的实际点取、实体布尔、预览清理及 ItemType 写入仍需实测。
+
+N3/N4 斜撑与 Python 一样先延长两端，再分别按设备面及横担底面/顶面做实体差集剪切。三角架页面的操作栏固定在底部，窄面板也能看到“确定生成”。确认时先显示写入状态，并将三角架 ItemType 定义合并成一次检查与写入；状态栏会显示确认耗时。
+
+N3/N4 与 N8 均**记住上次选择**（类型、子项、H、L2/L3/L4、设备外径、预焊件长度、各复选框、N8 的工况/安装面/朝向角），存于 `%LOCALAPPDATA%\SteelSectionProbe\bracket_last.json` 与 `n8_last.json`，重启 MicroStation 后仍然保留（N3 与 N4 各存一套，互不影响）。切换子项会把 H / L2 重置为该子项的最小值，这是既定行为，只在**进入页面时**才用记住的值覆盖。
+
+N3/N4 参数页采用纵向字段和换行摘要，窄窗口可完整阅读。N4 的两根横担、两根构件 C 和六块筋板按连接顺序做实体并集；构件 C 顶面与横担顶面齐平。N3 筋板并入横担实体。若 Bentley 内核无法完成并集，预览会报错，避免留下相互穿插的独立构件。
+
+N3 在规格区实时显示 `E = 横担长度 − H`（横担长度为辅助线长度减连接板厚度）。E 小于 150 mm 时以红字提示末端不符合图集要求，并禁止确认；等于 150 mm 可用。H、子项或辅助线变化后重新计算。
+
+N3/N4 点取辅助线后自动生成首次预览；此后参数一经输入或选择就标记“更新预览 ●”并禁止确认。第一次点击更新按钮即重建预览，不需要先让输入框失去焦点。
+
+## 立管耳轴（F6 / F7 / F10）
+
+首页“立管耳轴”进入统一页面，顶部先选 F6 单耳轴、F7 双耳轴或 F10 小管径立管耳板，再设置该类型参数并点取管道或竖直辅助线。点取位置投影到轴线后确定放置标高；轴线与竖直方向夹角须在 5° 内。管道使用 EC 公称直径自动匹配，辅助线使用面板 DN。F6/F7 适用 DN50～DN1200，F10 适用 DN15～DN50。F6/F7 的端板 A/B/C、STD 壁厚及可选补强板按原 Python 表推导；F10 的长度 1/2/3、高度 A/B/C/D、固定 Y/N 分别控制两块耳板、底板及可选 M12 螺栓。
+
+点取后先生成可撤销 Cell 预览，确认时才写入 `PipeSupportComponents`。切换类型、右键结束点取、取消预览、返回首页和关闭工作区均清理未确认元素。清单 `SupportType` 与 Python 保持一致：F6/F7 共用 `F6_F7-[立管的耳轴]`，F10 为 `F10-[小管径立管耳板]`。实现位于 `Domain/VerticalPipeSupport/`、`Data/VerticalPipeSupport/`、`Services/VerticalPipeSupport/`、`Tools/VerticalPipeSupport/` 和 `UI/VerticalPipeSupport/`。纯计算检查为 `Development/VerticalPipeSupportCheck/`；OPM 2024 中仍需对三个类型的布尔运算、参考管道点取、预览删除及 ItemType 写入进行实测。
+
+独立的 .NET Framework 4.8 / x64 AddIn。运行时只加载 C# DLL，不启动 Python。当前提供型钢截面放置、沿路径扫掠、构件特性查询、弯头耳轴、立管耳轴（F6/F7/F10）、罐壁人孔、实体管口、放置管夹（A2 标准型 2 螺栓管夹 / E1 不保温管导向架 / K1 不保温管限位架 / T4 高温隔热限位管托）、G2 混凝土锚板与只读的支吊架统计，并按“工作区 + 功能页”组织，后续可继续接入各种支吊架功能。
 
 VS Code 可打开仓库根目录的 [`型钢构件及支吊架模型生成工具.code-workspace`](../型钢构件及支吊架模型生成工具.code-workspace)。工程文件已更名为 `SteelSupportModeler.csproj`；为兼容已有 OPM 配置，输出 DLL、命名空间和 `STEELPROBE` 命令仍使用 `SteelSectionProbe`。
 
@@ -37,7 +59,39 @@ VS Code 可打开仓库根目录的 [`型钢构件及支吊架模型生成工具
 
 ## UI 规范
 
-工作区已迁移到 WPF/XAML，沿用仓库内支吊架面板的视觉语言：浅灰背景、白色卡片、微软雅黑、低对比度分区标题、固定底部实时状态栏和深色主操作按钮。首页采用单列功能入口；进入型钢页后可返回首页选择其他模块。Bentley `Adapter` 只作为 `ElementHost` 的薄宿主，`WorkspaceView` 负责页面导航，`SteelSectionPage` 负责型钢页展示与事件协调，几何建模仍由 `Services/` 和 `Tools/` 完成。
+工作区已迁移到 WPF/XAML，沿用仓库内支吊架面板的视觉语言：浅灰背景、白色卡片、微软雅黑、低对比度分区标题、固定底部实时状态栏和深色主操作按钮。首页以两列卡片列出全部功能入口，并按“星标 → 常用度”自动排序（见下节）；进入功能页后可返回首页选择其他模块。Bentley `Adapter` 只作为 `ElementHost` 的薄宿主，`WorkspaceView` 负责页面导航，`SteelSectionPage` 负责型钢页展示与事件协调，几何建模仍由 `Services/` 和 `Tools/` 完成。
+
+## 型钢生成
+
+7 类型钢（平行腿槽钢、普通热轧工字钢、热轧 H 型钢、斜腿槽钢、等边角钢、不等边角钢、HK 系列 H 型钢）共 1144 个规格，可放置二维闭合截面或沿开放路径扫掠成三维实体。
+
+「03 当前截面参数」只显示 `Data/SteelSection/SteelSectionCatalog.cs` 登记的中文字段（高度 H、腹板厚度 tw、截面面积、理论重量…），名称与单位与 Python 原版 `型钢截面生成器/steel_sections/steel_registry.py` 的 `fields` 逐项一致；未登记的字段不会显示，界面上不会出现英文键。放置与扫掠的提示语、MicroStation 命令行名称与异常消息全部为中文。
+
+```powershell
+dotnet run --project Development/SteelSectionCheck/SteelSectionCheck.csproj -c Release
+```
+
+该检查读取嵌入的 `profiles.bin`，断言 7 个类型的字段顺序与 Python 注册表一致、字段在数据中齐备、中文名含汉字、单位合法。
+
+## 首页功能排序与星标
+
+首页卡片由 `Data/Home/HomeFeatureCatalog.cs` 的清单渲染（不再手写 XAML），顺序由 `Services/Home/HomeFeatureRanker.cs` 计算：
+
+| 关键字 | 方向 | 说明 |
+| --- | --- | --- |
+| 置顶区 | — | 星级 ≥ 3 才置顶；整个置顶区排在所有未置顶功能之前 |
+| 星级 | 降序 | 5★ → 1★；1～2★ 不置顶，但仍在普通区里压过未评分 |
+| 使用频率 | 降序 | 衰减计数 `Σ 该月次数 × 0.5^距今天数月`（半衰期 1 个月，保留 12 个月） |
+| 出厂顺序 | 升序 | 从未使用、未评分时的兜底，等于改造前的首页顺序 |
+| PageId | 字典序 | 全序兜底（`List.Sort` 不稳定，缺这级顺序会漂移） |
+
+- **评分**：点卡片右侧的星标按钮，在弹出的菜单里选 1～5 星或「清除评分」。**评分后不立即重排**，回到首页才按新顺序排列（否则刚点完的卡片会从手下滑走）。
+- **卡片尺寸固定**：卡片固定 300 × 100，标题 1 行、说明 2 行、使用情况 1 行，超长文字用省略号裁剪；列表用自动换行布局，放不下就换行。因此功能说明写多长、窗口拉多宽，卡片尺寸都不变，也不会横向溢出。首页窗口宽度**按实际内容自动校准**（两列卡片 + 页边距 + 滚动条，实测得出），所以右侧不会留出多余空白；功能页宽 560（均按当前屏幕 DPI 换算成设备像素），进入/返回模块时版式不会跳。
+- **使用频率**：进入功能页时自动统计；同一次会话内同一功能只记一次，命令行入口 `STEELPROBE PLACE` 同样计数。
+- **重置**：首页底部「重置排序」清空全部星标与使用统计。
+- **存储**：`%LOCALAPPDATA%\SteelSectionProbe\home_preferences.json`，只存 `PageId → {Stars, TotalUseCount, LastUsedUtc, MonthlyUse}`，**不存顺序**；文件损坏或不可写时静默回落到出厂顺序，不影响首页显示。
+- **契约**：清单里的 `PageId` 必须与功能页 `IWorkspacePage.PageId` 逐字一致（不一致时状态栏报“未注册的功能模块”）。新增功能页只需在 `HomeFeatureCatalog` 加一项，首页无需改动。
+- 纯计算检查：`dotnet run --project Development/HomeCheck/HomeCheck.csproj -c Release`。
 
 ## 编译
 
@@ -142,7 +196,7 @@ dotnet build SteelSupportModeler.csproj -c Release /p:OutputPath=bin\Release\net
 
 ## 支吊架统计
 
-首页点击“支吊架统计”进入详情页，页面自动读取当前活动 DGN 文件的 `PipeSupportComponents` 公共 ItemType。直接显示支吊架总套数、整组与构件记录数、按类型套数及编号、逐组支吊架表和材料汇总表。三个明细表各有独立的底部横向滚动条，表格宽度跟随页面内容区，列内容可横向查看；蓝灰色 6 像素细滑块与页面主滚动条区分。底部可刷新，或导出 Excel（“汇总 / 支吊架表 / 材料汇总表”三张工作表）及 JSON 统一清单。另存为对话框默认建议 `活动DGN文件名_支吊架材料表_yyyyMMddHHmmss`，用户可直接改名。导出前会重新读取当前文件；本功能只读，不修改模型。
+首页点击“支吊架统计”进入详情页，页面自动读取当前活动 DGN 文件的 `PipeSupportComponents` 公共 ItemType。直接显示支吊架总套数、整组与构件记录数、按类型套数及编号、逐组支吊架表和材料汇总表。三个明细表各有独立的底部横向滚动条，表格宽度跟随页面内容区，列内容可横向查看；蓝灰色 6 像素细滑块与页面主滚动条区分。底部可刷新，或导出 Excel（“汇总 / 支吊架表 / 材料汇总表”三张工作表）及 JSON 统一清单。另存为对话框默认建议 `活动DGN文件名_支吊架材料表_yyyyMMddHHmmss`，用户可直接改名。导出前会重新读取当前文件；本功能只读，不修改模型。清单本身采用**固定 ItemType 名 + 值写入元素上的 EC 实例**：同一功能（如型钢）无论放多少种规格，库里都只占固定的几个 ItemType，每条记录的规格、长度、数量差异写在元素自己的实例属性上。这样 MicroStation“项”面板里看到的是稳定的少量类型，而不是每个尺寸一个；历史文件中按旧规则生成的类型名仍可正常读取与汇总。
 
 统计沿用原 `00-[支吊架统计].py` 与 `支吊架公共库.py` 的九个属性字段、Assembly / Component 分类及数量与总长汇总规则。C# 实现位于 `Domain/SupportStatistics/`、`Data/SupportStatistics/`、`Services/SupportStatistics/`、`UI/SupportStatistics/`。纯计算及导出格式检查：`dotnet run --project Development/SupportStatisticsCheck/SupportStatisticsCheck.csproj -c Release`。Bentley ItemType 跨模型读取与宿主内另存为对话框仍需在 OPM 2024 用真实 DGN 实测。
 
@@ -153,12 +207,12 @@ dotnet build SteelSupportModeler.csproj -c Release /p:OutputPath=bin\Release\net
 
 在三维 DGN 模型中点击“点取位置”，左键指定筒节在罐壁的中心，生成 `TANK_WALL_MANHOLE` 普通 Cell 预览。参数更改或“更新预览”会先建立新预览再删除旧预览；“确认生成”保留单元。右键、结束点取、取消预览、返回首页及关闭工作区都会清理未确认的预览。现阶段无需额外 Key-in，也不写入 `PipeSupportComponents`：该人孔属于罐体设备附件，原 Python 功能未提供支吊架清单字段。
 
-实现分布于 `Domain/TankManhole/`、`Data/TankManhole/`、`Services/TankManhole/`、`Tools/TankManhole/` 和 `UI/TankManhole/`。筒节、法兰、带孔盲盖、紧固件、把手、铰链销、吊杆和盖板连接件均由 C# SmartSolid 构造。几何与 `罐壁人孔/tank_wall_manhole.py` 逐项对齐：吊杆回转支撑件的径向轮廓（双水平臂 16 厚、腹板 16 厚、背部外 R20 / 内 R10、开口端 30° 收窄到法兰厚度）其**外表面**在立柱轴线外 `D/2 + 20 + 16`；那 16 是原脚本 `BodyFromSweep` 把轮廓厚度加在扫掠路径终点之外产生的（脚本自己的 `_davit_support_placement` 长度公式只算到路径终点），本版按脚本的实际出形取值。轮廓与尺寸由 `TankManholeCalculator.DavitSupportAnchorY / DavitSupportOuterFaceY / DavitSupportChamferDistance / DavitSupportProfile` 纯计算给出（`DavitSupportProfile` 返回 8 段直线 + 4 段**真圆弧**，`DavitSupportOutline` 只是把圆弧展开成点列供校验用）。R20/R10 必须用真圆弧原语（`CurvePrimitive.CreateArc`）扫成真圆柱圆角面——用 8 段折线近似时圆角面上会出现成排的分面棱，每段法向相差 11.25°，在 OPM 里表现为一叠显眼的横线（Python 版用 `BlendEdges` 真圆角，所以没有这些线）。吊杆的圆到扁头过渡与原脚本同序：先试 `Create.BodyFromLoft(..., periodic:false, segment:true)`（段间线性、不做平滑，等价于原脚本的 `DgnRuledSweep`），失败才退回 24 段台阶近似（回退时轮廓反序，法向朝圆管一侧）。M20 调节吊环螺栓的圆环中心线半径 25（孔 Ø30、外径 Ø70）。纯计算检查：`dotnet run --project Development/TankManholeCheck/TankManholeCheck.csproj -c Release`。已通过 Release 编译；Bentley 布尔差集、直纹放样、Cell 写入及预览删除尚未在 OPM 2024 中实测。
+实现分布于 `Domain/TankManhole/`、`Data/TankManhole/`、`Services/TankManhole/`、`Tools/TankManhole/` 和 `UI/TankManhole/`。筒节、法兰、带孔盲盖、紧固件、把手、铰链销、吊杆和盖板连接件均由 C# SmartSolid 构造。几何与 `罐壁人孔/tank_wall_manhole.py` 逐项对齐：吊杆回转支撑件的径向轮廓（双水平臂 16 厚、腹板 16 厚、背部外 R20 / 内 R10、开口端 30° 收窄到法兰厚度）其**外表面**在立柱轴线外 `D/2 + 20 + 16`；那 16 是原脚本 `BodyFromSweep` 把轮廓厚度加在扫掠路径终点之外产生的（脚本自己的 `_davit_support_placement` 长度公式只算到路径终点），本版按脚本的实际出形取值。轮廓与尺寸由 `TankManholeCalculator.DavitSupportAnchorY / DavitSupportOuterFaceY / DavitSupportChamferDistance / DavitSupportProfile` 纯计算给出（`DavitSupportProfile` 返回 8 段直线 + 4 段**真圆弧**，`DavitSupportOutline` 只是把圆弧展开成点列供校验用）。R20/R10 必须用真圆弧原语（`CurvePrimitive.CreateArc`）扫成真圆柱圆角面——用 8 段折线近似时圆角面上会出现成排的分面棱，每段法向相差 11.25°，在 OPM 里表现为一叠显眼的横线（Python 版用 `BlendEdges` 真圆角，所以没有这些线）。吊杆的圆到扁头过渡与原脚本同序：先试 `Create.BodyFromLoft(..., periodic:false, segment:true)`（段间线性、不做平滑，等价于原脚本的 `DgnRuledSweep`），失败才退回 24 段台阶近似（回退时轮廓反序，法向朝圆管一侧）。M20 调节吊环螺栓的圆环中心线半径 25（孔 Ø30、外径 Ø70）。**铰链销轴上下两端各有一只开口销**（销轴 Ø16、两端各伸出吊耳 20，半长 73.5；销轴两端各掏一个 Ø4.5 开口销孔，插 Ø4×28 开口销，两只镜像对称），位置由 `TankManholeCalculator.HingePinHalfLength / HingeCotterStations` 纯计算给出；吊杆立柱只在**下端**装一只开口销，因为立柱顶端与吊杆竖直段对接、没有自由端可锁。纯计算检查：`dotnet run --project Development/TankManholeCheck/TankManholeCheck.csproj -c Release`。已通过 Release 编译；Bentley 布尔差集、直纹放样、Cell 写入及预览删除尚未在 OPM 2024 中实测。
 ## 实体管口
 
 首页进入“实体管口”，选择 CL150 法兰等级、钢管系列（`Ia_Sch10` 或 `Ia_large_dia_welded_wall12.5`）和 DN 规格。DN 下拉框只显示法兰与钢管均有数据且外径一致的组合。可填写壁厚覆盖值；留空使用管表壁厚。管口总长度包含法兰厚度 C，钢管名义长度为“总长度 − C”。放置方向支持 ±X、±Y、±Z，螺栓孔默认不绘制。
 
-在三维 DGN 中点击“开始点取”，左键指定基点后生成一个 SmartSolid 预览；调整参数或继续左键点取会先建立新预览，再清理旧预览。“确认生成”保留当前实体，并可继续点取下一处；右键、结束点取、返回首页或关闭工具会取消未确认预览。尺寸来自原 `实体管口/flange_data.json`，作为 `Resources/nozzle_flange_data.json` 嵌入 DLL，运行时无需 Python 或外部 JSON。当前 CL150 表未提供密封面凸台尺寸，因此不生成凸台；若表内补充 `raised_face_od` 和 `raised_face_height`，建模服务可按数据生成。该功能是可视化设备管口，沿用原脚本约定，不写入支吊架材料表或 OPM 管道 EC 组件。
+在三维 DGN 中点击“开始点取”，左键指定基点后生成一个 SmartSolid 预览；调整参数或继续左键点取会先建立新预览，再清理旧预览。“确认生成”保留当前实体，并可继续点取下一处（此时点取仍在进行中，直接点下一处即可，无需再点“开始点取”）；右键、结束点取、返回首页或关闭工具会取消未确认预览。`NozzlePlacementTool.Begin()` 是幂等的：已经在点取中时只重新提示一次，不做“结束再安装”——后者会先假发一次 `Ended` 清掉页面状态，新实例还可能被上一个实例的延迟 `OnCleanup` 带掉，表现为“再点一次开始点取后第一次点击被当成结束，要点两次才进得去”。尺寸来自原 `实体管口/flange_data.json`，作为 `Resources/nozzle_flange_data.json` 嵌入 DLL，运行时无需 Python 或外部 JSON。当前 CL150 表未提供密封面凸台尺寸，因此不生成凸台；若表内补充 `raised_face_od` 和 `raised_face_height`，建模服务可按数据生成。该功能是可视化设备管口，沿用原脚本约定，不写入支吊架材料表或 OPM 管道 EC 组件。
 
 代码位于 `Domain/Nozzle/`、`Data/Nozzle/`、`Services/Nozzle/`、`Tools/Nozzle/` 和 `UI/Nozzle/`。实体管口和罐壁人孔共用 `Services/SolidPrimitiveFactory.cs` 的基础 SmartSolid 操作。纯计算和尺寸表校验：`dotnet run --project Development/NozzleCheck/NozzleCheck.csproj -c Release`。需在 OPM 2024 中实测六种轴向、大小口径的相并与孔切除、连续点取及预览清理。## 放置管夹（A2 / E1 / K1 / T4）
 

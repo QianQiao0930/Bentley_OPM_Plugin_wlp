@@ -14,7 +14,7 @@ namespace SteelSectionProbe
         private bool ready,active,updatingCatalog;
         public string PageId { get { return "solid-nozzle"; } }
         public string PageTitle { get { return "实体管口"; } }
-        public string PageSubtitle { get { return "选法兰、钢管和方向，点取基点生成 SmartSolid"; } }
+        public string PageSubtitle { get { return "选法兰、钢管和方向，点取基点生成三维实体"; } }
         public FrameworkElement View { get { return this; } }
         internal NozzlePage()
         {
@@ -126,6 +126,17 @@ namespace SteelSectionProbe
             try
             {
                 NozzleCalculator.Calculate(Parameters());
+                if(NozzlePlacementTool.IsActive)
+                {
+                    // 工具还装着（例如刚「确认生成」过、或上一次点取还没结束）：只恢复页面提示，
+                    // **不要重新安装** —— 重装会先"结束再安装"，白丢一次基线状态、也容易踩到
+                    // 延迟清理的竞态，表现就是"点两次才进得去"。
+                    SetStatus("已在点取中：直接在模型里点取下一处即可；要停止请点「结束点取」。",false);
+                    PreviewText.Text=origin.HasValue
+                        ? "点取进行中：可直接在模型里点取下一处基点。"
+                        : "点取进行中：在模型里左键点取管口基点。";
+                    return;
+                }
                 NozzlePlacementTool.Begin();
                 SetStatus("左键点取管口基点；右键结束并取消未确认预览。",false);
             }
@@ -161,7 +172,13 @@ namespace SteelSectionProbe
             SetStatus("已结束点取并取消未确认预览。",false);
         }
         private void End_Click(object sender,RoutedEventArgs e)
-        { NozzlePlacementTool.End();OnEnded(); }
+        {
+            // 结束点取：工具 End() 时已经会触发 Ended → OnEnded 清理页面状态；
+            // 工具已经结束（例如刚右键过）时事件不会再发，这里补调一次做兜底，
+            // 保证按一下「结束点取」就能清掉未确认预览，而且不会连发两条提示。
+            if(NozzlePlacementTool.IsActive) NozzlePlacementTool.End();
+            else OnEnded();
+        }
         private void Update_Click(object sender,RoutedEventArgs e) { Regenerate(); }
         private void Cancel_Click(object sender,RoutedEventArgs e)
         {
@@ -172,7 +189,7 @@ namespace SteelSectionProbe
         private void Confirm_Click(object sender,RoutedEventArgs e)
         {
             try { preview.Confirm();origin=null;ConfirmButton.IsEnabled=false;
-                PreviewText.Text="已确认生成管口。可继续点取下一处。";
+                PreviewText.Text="已确认生成管口。点取仍在进行中，可直接点取下一处（无需再点「开始点取」）；要停止请点「结束点取」。";
                 SetStatus("实体管口已确认生成。",false); }
             catch(Exception ex) { SetStatus(ex.Message,true); }
         }

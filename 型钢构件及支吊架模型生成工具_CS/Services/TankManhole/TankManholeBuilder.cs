@@ -109,21 +109,40 @@ namespace SteelSectionProbe
         private static void AddHinge(List<Element> r,TankManholeFrame f,TankManholePlan p)
         {
             double y=p.PostYmm,x=p.DavitXmm;
-            foreach(double z in new[]{-45.5,45.5})
+            double lugHalf=TankManholeCalculator.HingeLugThicknessMm/2.0;
+            foreach(double z in new[]{-TankManholeCalculator.HingeLugZmm,TankManholeCalculator.HingeLugZmm})
             {
-                AddPlate(r,f,p.FlangeBackMm-20,p.FlangeFrontMm,p.FlangeRadiusMm-45,y+25,z-8,16,2);
-                var plate=Plate(f,p.FlangeFrontMm,x+25,y-25,y+25,z-8,16);
-                SolidPrimitiveFactory.Subtract(ref plate,new[]{SolidPrimitiveFactory.Cylinder(f.Point(x,y,z-10),f.Point(x,y,z+10),9*f.Scale)},"铰链吊耳孔");
+                AddPlate(r,f,p.FlangeBackMm-20,p.FlangeFrontMm,p.FlangeRadiusMm-45,y+25,z-lugHalf,
+                    TankManholeCalculator.HingeLugThicknessMm,2);
+                var plate=Plate(f,p.FlangeFrontMm,x+25,y-25,y+25,z-lugHalf,
+                    TankManholeCalculator.HingeLugThicknessMm);
+                SolidPrimitiveFactory.Subtract(ref plate,new[]{SolidPrimitiveFactory.Cylinder(
+                    f.Point(x,y,z-10),f.Point(x,y,z+10),
+                    TankManholeCalculator.HingePinHoleDiameterMm/2*f.Scale)},"铰链吊耳孔");
                 r.Add(SolidPrimitiveFactory.Element(plate,2));
             }
-            var cover=Plate(f,p.CoverFrontMm-30,x+25,p.FlangeRadiusMm-25,y+25,-8,16);
-            SolidPrimitiveFactory.Subtract(ref cover,new[]{SolidPrimitiveFactory.PolygonPrism(Slot(f,x,y,-10,40,22,true),new DVector3d(0,0,20*f.Scale))},"铰链长圆孔");
+            var cover=Plate(f,p.CoverFrontMm-30,x+25,p.FlangeRadiusMm-25,y+25,-lugHalf,
+                TankManholeCalculator.HingeLugThicknessMm);
+            SolidPrimitiveFactory.Subtract(ref cover,new[]{SolidPrimitiveFactory.PolygonPrism(Slot(f,x,y,-10,40,22,true),
+                new DVector3d(0,0,(TankManholeCalculator.HingeLugThicknessMm+4)*f.Scale))},"铰链长圆孔");
             r.Add(SolidPrimitiveFactory.Element(cover,2));
-            double half=45.5+8+20;
-            var pin=SolidPrimitiveFactory.Cylinder(f.Point(x,y,-half),f.Point(x,y,half),8*f.Scale);
-            SolidPrimitiveFactory.Subtract(ref pin,new[]{SolidPrimitiveFactory.Cylinder(f.Point(x,y-10,-half+12),f.Point(x,y+10,-half+12),2.25*f.Scale)},"开口销孔");
+            // 销轴 + **上下对称**两只开口销：两端开口销孔与插销一一对应地成对生成。
+            double half=TankManholeCalculator.HingePinHalfLength();
+            double cotterBore=TankManholeCalculator.HingePinDiameterMm/2.0+2.0;   // 孔刀具径向余量
+            var stations=TankManholeCalculator.HingeCotterStations();
+            var pin=SolidPrimitiveFactory.Cylinder(f.Point(x,y,-half),f.Point(x,y,half),
+                TankManholeCalculator.HingePinDiameterMm/2*f.Scale);
+            var pinHoles=new List<SolidKernelEntity>();
+            foreach(double z in stations)
+                pinHoles.Add(SolidPrimitiveFactory.Cylinder(f.Point(x,y-cotterBore,z),f.Point(x,y+cotterBore,z),
+                    TankManholeCalculator.HingeCotterHoleDiameterMm/2*f.Scale));
+            SolidPrimitiveFactory.Subtract(ref pin,pinHoles,"开口销孔");
             r.Add(SolidPrimitiveFactory.Element(pin,5));
-            AddCylinder(r,f,x,y-14,-half+12,x,y+14,-half+12,2,5);
+            // 开口销本体：沿局部 y 的细圆柱，位置、尺寸、朝向与下端那根完全相同（镜像到上端）。
+            foreach(double z in stations)
+                AddCylinder(r,f,x,y-TankManholeCalculator.HingeCotterHalfLengthMm,z,
+                    x,y+TankManholeCalculator.HingeCotterHalfLengthMm,z,
+                    TankManholeCalculator.HingeCotterDiameterMm/2,5);
         }
         private static void AddDavit(List<Element> r,TankManholeFrame f,TankManholePlan p)
         {

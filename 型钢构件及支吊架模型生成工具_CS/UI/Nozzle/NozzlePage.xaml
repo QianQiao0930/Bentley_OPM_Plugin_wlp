@@ -31,7 +31,7 @@
             </StackPanel></Border>
             <Border Style="{StaticResource CardStyle}"><StackPanel>
                 <TextBlock Text="03  点取与预览" Style="{StaticResource SectionTitleStyle}" />
-                <TextBlock Text="左键点取基点，生成一个 SmartSolid 管口预览；修改参数可重建。右键结束点取并取消未确认预览。" Foreground="Black" TextWrapping="Wrap" Margin="0,0,0,8" />
+                <TextBlock Text="左键点取基点，生成一个三维实体管口预览；修改参数可重建。右键结束点取并取消未确认预览。" Foreground="Black" TextWrapping="Wrap" Margin="0,0,0,8" />
                 <WrapPanel><Button Content="开始点取" Style="{StaticResource PrimaryButtonStyle}" Click="Pick_Click" Margin="0,0,8,8" />
                     <Button Content="结束点取" Style="{StaticResource SecondaryButtonStyle}" Click="End_Click" Margin="0,0,8,8" />
                     <Button Content="更新预览" Style="{StaticResource SecondaryButtonStyle}" Click="Update_Click" Margin="0,0,8,8" /></WrapPanel>

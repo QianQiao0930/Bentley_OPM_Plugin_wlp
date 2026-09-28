@@ -34,14 +34,14 @@ namespace SteelSectionProbe
         {
             if(path==null || SteelSectionPage.Current==null) return;
             var chain=path.AsChainableElement();
-            if(chain==null) throw new InvalidOperationException("Select an open line, arc, chain, or spline");
+            if(chain==null) throw new InvalidOperationException("请选择一条开放直线、圆弧、链或样条曲线");
             Pt start=chain.StartPoint;
             double distance=Math.Min(chain.Length*0.001,Math.Max(chain.Length*0.00001,0.001));
             Pt near=chain.PointAtDistance(distance);
-            if(Distance(start,near)<1e-10) throw new InvalidOperationException("Path start tangent is zero");
+            if(Distance(start,near)<1e-10) throw new InvalidOperationException("路径起点切向量为零，无法生成截面");
             var dialog=SteelSectionPage.Current;
             SmartSolidElement newSolid=SteelMemberFactory.SweepAlongPath(app,dialog.Mode,start,near,dialog.Rotation,path);
-            if(newSolid==null) throw new InvalidOperationException("SweepProfileAlongPath returned null");
+            if(newSolid==null) throw new InvalidOperationException("扫掠未生成实体");
             app.ActiveModelReference.AddElement(newSolid);
             if(preview!=null && preview.IsValid) app.ActiveModelReference.RemoveElement(preview);
             preview=newSolid;
@@ -60,7 +60,7 @@ namespace SteelSectionProbe
             ulong id=checked((ulong)preview.ID64);
             var elementId=new ElementId(ref id);
             var native=Session.Instance.GetActiveDgnModel().FindElementById(elementId);
-            if(native==null) throw new InvalidOperationException("Cannot find swept element for statistics");
+            if(native==null) throw new InvalidOperationException("找不到扫掠实体，无法写入统计信息");
             var info=Session.Instance.GetActiveDgnModel().GetModelInfo();
             double lengthMm=path.AsChainableElement().Length*info.UorPerMaster/(info.UorPerMeter/1000.0);
             Statistics.Attach(native,dialog.Family,dialog.Profile,lengthMm);
@@ -108,23 +108,23 @@ namespace SteelSectionProbe
         {
             active=new PathLocator(app);
             app.CommandState.StartLocate(active);
-            app.CommandState.CommandName="Select steel sweep path";
+            app.CommandState.CommandName="选取型钢扫掠路径";
         }
         internal static void End()
         {
             if(active==null) return;
             App app=active.app; active=null; app.CommandState.StartDefaultCommand();
         }
-        public void Start() { app.ShowPrompt("Select one open path for steel sweep; Reset to cancel"); app.CommandState.EnableAccuSnap(); }
+        public void Start() { app.ShowPrompt("请在模型中选取一条开放路径用于型钢扫掠；右键重置取消"); app.CommandState.EnableAccuSnap(); }
         public void LocateFilter(ComElement element,ref Pt point,ref bool accept) { accept=SweepPlacement.IsOpenPath(element); }
         public void Accept(ComElement element,ref Pt point,View view)
         {
-            if(!SweepPlacement.IsOpenPath(element)) { app.ShowPrompt("Select an open path"); return; }
+            if(!SweepPlacement.IsOpenPath(element)) { app.ShowPrompt("请选择一条开放路径"); return; }
             try { SweepPlacement.SetPath(element); }
-            catch(Exception ex) { if(SteelSectionPage.Current!=null) SteelSectionPage.Current.SetStatus("扫掠失败："+ex.Message,true); app.ShowPrompt("Sweep failed: "+ex.Message); }
+            catch(Exception ex) { if(SteelSectionPage.Current!=null) SteelSectionPage.Current.SetStatus("扫掠失败："+ex.Message,true); app.ShowPrompt("扫掠失败："+ex.Message); }
             app.CommandState.StartDefaultCommand();
         }
-        public void LocateFailed() { app.ShowPrompt("Select an open line, arc, chain, or spline"); }
+        public void LocateFailed() { app.ShowPrompt("请选择一条开放直线、圆弧、链或样条曲线"); }
         public void LocateReset() { app.CommandState.StartDefaultCommand(); }
         public void Cleanup() { if(ReferenceEquals(active,this)) active=null; }
         public void Dynamics(ref Pt point,View view,MsdDrawingMode mode) { }

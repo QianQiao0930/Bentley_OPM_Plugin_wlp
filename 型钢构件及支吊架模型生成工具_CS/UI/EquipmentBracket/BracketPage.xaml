@@ -1,0 +1,61 @@
+<UserControl x:Class="SteelSectionProbe.BracketPage"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ x:ClassModifier="internal" Background="{DynamicResource BackgroundBrush}">
+ <UserControl.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries>
+  <ResourceDictionary Source="../Themes/Theme.xaml"/>
+ </ResourceDictionary.MergedDictionaries></ResourceDictionary></UserControl.Resources>
+ <Grid><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+ <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel>
+  <Border Style="{StaticResource CardStyle}"><StackPanel>
+   <TextBlock x:Name="TitleText" Style="{StaticResource SectionTitleStyle}"/>
+   <TextBlock x:Name="InstructionText" TextWrapping="Wrap" Margin="0,0,0,8"/>
+   <StackPanel>
+     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+      <StackPanel Grid.Column="0">
+       <TextBlock Text="类型"/><ComboBox x:Name="TypeCombo" SelectionChanged="Parameter_Changed"/>
+      </StackPanel>
+      <StackPanel Grid.Column="2">
+       <TextBlock Text="子项"/><ComboBox x:Name="SubtypeCombo" SelectionChanged="Subtype_Changed"/>
+      </StackPanel>
+     </Grid>
+     <TextBlock Text="H：横担顶面至斜撑连接板中心（mm）" TextWrapping="Wrap" Margin="0,8,0,0"/>
+     <TextBox x:Name="HeightText" TextChanged="Height_TextChanged"/>
+    <CheckBox x:Name="ReverseCheck" Content="反向（交换辅助线两端）" Margin="0,10,0,0" Checked="Parameter_Changed" Unchecked="Parameter_Changed"/>
+    <CheckBox x:Name="KeepLineCheck" Content="创建后保留所选辅助线" IsChecked="True" Margin="0,6,0,0" Checked="Parameter_Changed" Unchecked="Parameter_Changed"/>
+    <TextBlock x:Name="SectionText" TextWrapping="Wrap" Margin="0,10,0,0"/>
+    <Border x:Name="EPanel" Background="{StaticResource CardSoftBrush}" CornerRadius="4" Padding="10,8" Margin="0,10,0,0">
+     <TextBlock x:Name="EText" Text="E：点取辅助线后计算（最小 150 mm）。" TextWrapping="Wrap"/>
+    </Border>
+   </StackPanel></StackPanel></Border>
+  <Border x:Name="DoublePanel" Style="{StaticResource CardStyle}"><StackPanel>
+   <TextBlock Text="N4 设备与跨距尺寸" Style="{StaticResource SectionTitleStyle}"/>
+   <StackPanel>
+     <TextBlock Text="L2：两横担间距（mm）"/><TextBox x:Name="L2Text" TextChanged="Parameter_Changed"/>
+     <TextBlock Text="L3：管中心到外侧构件 C（mm）" Margin="0,8,0,0"/><TextBox x:Name="L3Text" TextChanged="Parameter_Changed"/>
+     <TextBlock Text="L4：管中心到内侧构件 C（mm）" Margin="0,8,0,0"/><TextBox x:Name="L4Text" TextChanged="Parameter_Changed"/>
+    </StackPanel>
+    <StackPanel>
+     <TextBlock Text="设备外径 2R（mm，必填）"/><TextBox x:Name="EquipmentOdText" TextChanged="Parameter_Changed"/>
+     <TextBlock Text="预焊件长度 D（mm，可为 0）" Margin="0,8,0,0"/><TextBox x:Name="PreweldText" Text="0" TextChanged="Parameter_Changed"/>
+     <CheckBox x:Name="ShowPreweldCheck" Content="显示设备预焊件参照" Margin="0,8,0,0" Checked="Parameter_Changed" Unchecked="Parameter_Changed"/>
+    </StackPanel>
+   </StackPanel></Border>
+ </StackPanel></ScrollViewer>
+ <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,8,4,0">
+  <StackPanel>
+   <TextBlock Text="03  点取与预览" Style="{StaticResource SectionTitleStyle}"/>
+   <TextBlock x:Name="PreviewInstructionText" TextWrapping="Wrap" Margin="0,0,0,8"/>
+   <WrapPanel>
+    <Button Content="开始点取" Style="{StaticResource PrimaryButtonStyle}" Click="Pick_Click" Margin="0,0,8,8"/>
+    <Button Content="结束点取" Style="{StaticResource SecondaryButtonStyle}" Click="End_Click" Margin="0,0,8,8"/>
+    <Button x:Name="UpdateButton" Content="更新预览" Style="{StaticResource SecondaryButtonStyle}" Click="Update_Click" Margin="0,0,8,8"/>
+   </WrapPanel>
+   <TextBlock x:Name="PreviewText" Text="尚未选择水平辅助线。" TextWrapping="Wrap" Margin="0,4,0,12"/>
+   <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+    <Button Content="取消预览" Style="{StaticResource SecondaryButtonStyle}" Click="Cancel_Click" Margin="0,0,8,0"/>
+    <Button x:Name="ConfirmButton" Content="确定生成" Style="{StaticResource PrimaryButtonStyle}" Click="Confirm_Click" IsEnabled="False"/>
+   </StackPanel>
+  </StackPanel>
+ </Border></Grid>
+</UserControl>

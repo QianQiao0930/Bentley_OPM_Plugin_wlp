@@ -35,7 +35,7 @@ namespace SteelSectionProbe
             End();
             active = new Placement(app, family, profile, mode);
             app.CommandState.StartPrimitive(active, false);
-            app.CommandState.CommandName = "Place " + family.Label + " " + profile.Name;
+            app.CommandState.CommandName = "放置 " + family.Label + " " + profile.Name;
         }
 
         internal static void End()
@@ -48,7 +48,7 @@ namespace SteelSectionProbe
 
         public void Start()
         {
-            app.ShowPrompt("指定 " + family.Label + " " + profile.Name + " 的插入点；Reset 结束");
+            app.ShowPrompt("指定 " + family.Label + " " + profile.Name + " 的插入点；左键确定预览，右键重置结束");
             app.CommandState.EnableAccuSnap();
             app.CommandState.StartDynamics();
         }
@@ -66,13 +66,13 @@ namespace SteelSectionProbe
                     info.UorPerMeter / 1000.0);
                 if (shape == null) throw new InvalidOperationException("截面元素创建失败");
                 shape.AddToModel();
-                app.ShowPrompt(profile.Name + " 已放置；继续点取或 Reset 结束");
+                app.ShowPrompt(profile.Name + " 已放置；继续点取或右键重置结束");
                 if (SteelSectionPage.Current != null)
-                    SteelSectionPage.Current.SetStatus("已放置 " + profile.Name + "。可继续点取，右键 Reset 结束。", false);
+                    SteelSectionPage.Current.SetStatus("已放置 " + profile.Name + "。可继续点取，右键重置结束。", false);
             }
             catch (Exception ex)
             {
-                app.ShowPrompt("SteelSectionProbe: " + ex.Message);
+                app.ShowPrompt("型钢生成：" + ex.Message);
                 if (SteelSectionPage.Current != null)
                     SteelSectionPage.Current.SetStatus(ex.Message, true);
             }
