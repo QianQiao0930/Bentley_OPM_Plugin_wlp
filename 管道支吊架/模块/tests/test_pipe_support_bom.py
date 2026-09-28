@@ -41,35 +41,45 @@ class NamingTests(unittest.TestCase):
         self.assertEqual('A_B', psb._ascii_token('A/B'))
         self.assertEqual('X', psb._ascii_token('构件'))  # 全非 ASCII -> X
 
-    def test_component_item_type_name(self):
-        name = psb._component_item_type_name('L_PIPE_RACK', 'Post', 1200.0)
-        self.assertTrue(name.startswith(psb.COMPONENT_PREFIX + '_L_PIPE_RACK_Post'))
-        self.assertTrue(name.endswith('_L1200_000'))
+    def test_stable_component_name_ignores_per_placement_data(self):
+        """构件稳定名不含长度：不同 L 复用同一个类（库不膨胀）。"""
+        self.assertEqual(
+            psb._stable_component_item_type_name('L_PIPE_RACK', 'Post', ),
+            psb._stable_component_item_type_name('L_PIPE_RACK', 'Post'))
+        self.assertEqual(
+            psb._stable_component_item_type_name('L_PIPE_RACK', 'Post'),
+            'PipeSupportComponent_L_PIPE_RACK_Post')
 
-    def test_assembly_item_type_name(self):
-        name = psb._assembly_item_type_name(
-            'TRIANGLE_BRACKET', 'D5-1-A-1000-1500', 'H125x125x6.5x9')
-        self.assertTrue(
-            name.startswith(psb.ASSEMBLY_PREFIX + '_TRIANGLE_BRACKET_'))
+    def test_stable_assembly_name_ignores_tag(self):
+        self.assertEqual(
+            psb._stable_assembly_item_type_name('TRIANGLE_BRACKET'),
+            'PipeSupportAssembly_TRIANGLE_BRACKET')
 
-    def test_assembly_name_is_stable_and_distinct(self):
-        first = psb._assembly_item_type_name('T', 'tag-1', 'spec-a')
-        again = psb._assembly_item_type_name('T', 'tag-1', 'spec-a')
-        other = psb._assembly_item_type_name('T', 'tag-2', 'spec-a')
+    def test_legacy_names_still_content_addressed(self):
+        """回退分支用的旧命名保持内容寻址（与改造前逐字一致）。"""
+        first = psb._legacy_assembly_item_type_name(
+            'T', 'tag-1', 'spec-a')
+        again = psb._legacy_assembly_item_type_name('T', 'tag-1', 'spec-a')
+        other = psb._legacy_assembly_item_type_name('T', 'tag-2', 'spec-a')
         self.assertEqual(first, again)
         self.assertNotEqual(first, other)
 
+        name = psb._legacy_component_item_type_name('L_PIPE_RACK', 'Post', 1200.0)
+        self.assertTrue(name.startswith(psb.COMPONENT_PREFIX + '_L_PIPE_RACK_Post'))
+        self.assertTrue(name.endswith('_L1200_000'))
+
 
 class PipeNumberAttachmentTests(unittest.TestCase):
-    def test_pipe_number_is_written_to_all_items_and_names_are_isolated(self):
-        original = psb._attach_item_with_defaults
+    def test_pipe_number_travels_in_values_and_names_stay_stable(self):
+        """新机制：管道号写进每条记录的实例值（不进名字）。"""
+        original = psb._attach_item_with_values
         calls = []
 
-        def capture(_element, name, defaults):
-            calls.append((name, defaults['PipeNumber']))
+        def capture(_element, name, values, legacy_name, legacy_defaults):
+            calls.append((name, values['PipeNumber']))
             return True
 
-        psb._attach_item_with_defaults = capture
+        psb._attach_item_with_values = capture
         try:
             kwargs = dict(support_type='竖直弯头的竖直耳轴',
                           support_code='F2', assembly_tag='F2-100',
@@ -84,13 +94,16 @@ class PipeNumberAttachmentTests(unittest.TestCase):
             self.assertEqual(2, psb.attach_components(None, **kwargs))
             empty = list(calls)
         finally:
-            psb._attach_item_with_defaults = original
+            psb._attach_item_with_values = original
 
         self.assertEqual(['P-101', 'P-101'], [value for _, value in first])
         self.assertEqual(['P-102', 'P-102'], [value for _, value in second])
         self.assertEqual(['', ''], [value for _, value in empty])
-        self.assertNotEqual([name for name, _ in first], [name for name, _ in second])
-        self.assertNotEqual([name for name, _ in first], [name for name, _ in empty])
+        # 稳定名不随管道号变：库内反复放置始终复用同一批类。
+        self.assertEqual([name for name, _ in first],
+                         [name for name, _ in second])
+        self.assertEqual([name for name, _ in first],
+                         [name for name, _ in empty])
 
 
 class SummariseTests(unittest.TestCase):

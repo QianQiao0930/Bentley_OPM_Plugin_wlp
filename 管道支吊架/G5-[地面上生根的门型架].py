@@ -451,7 +451,8 @@ def _build_member_element(variant_key, member_kind, post, frame_height_mm,
 
     ``frame_height_mm`` 是**构架高度**（锚板顶面 → 横担顶面）＝ ``H −
     ground_lift()``；立柱自锚板顶面（局部 w = 0）向上，横担顶面落在
-    ``w = 构架高度``。局部基 (u, v, w) 的原点取所选竖直线的下端（地面中心）。
+    ``w = 构架高度``。局部基 (u, v, w) 的原点取所选竖直线下端抬升
+    ``ground_lift()`` 之后的**锚板顶面中心**（地面 + 灌浆梯台厚 + 锚板厚）。
 
     截面朝向与扫掠起点由 ``G5门型架_几何`` 的 ``member_axes`` /
     ``member_origin_length`` 给出：立柱轴线在 ``post_axis_u``、并按
@@ -469,13 +470,19 @@ def _build_member_element(variant_key, member_kind, post, frame_height_mm,
     origin_uvw, length_mm = geom.member_origin_length(
         variant_key, member_kind, frame_height_mm, arm_length_mm, post_axis_u)
 
+    # 几何模块（与其纯逻辑单测）的局部 w = 0 是**锚板顶面**，而 ``post.base``
+    # 是所选竖直线的下端（地面 / 灌浆梯台底面），两者相差 ground_lift
+    # ＝ 灌浆梯台厚 + 锚板厚。origin 必须落在锚板顶面上：构架高度已经扣过
+    # ground_lift，若这里不再抬升，整榀钢构架会再低 ground_lift、横担顶面
+    # 就比线上端矮一截（＝灌浆台 + 锚板厚）。
+    ground_lift_mm = geom.ground_lift(variant_key)
     vertex = _to_uor(post.base, uor_per_mm)
     origin = (
         vertex[0] + origin_uvw[0] * uor_per_mm * run_dir[0]
         + origin_uvw[1] * uor_per_mm * v_dir[0],
         vertex[1] + origin_uvw[0] * uor_per_mm * run_dir[1]
         + origin_uvw[1] * uor_per_mm * v_dir[1],
-        vertex[2] + origin_uvw[2] * uor_per_mm,
+        vertex[2] + (origin_uvw[2] + ground_lift_mm) * uor_per_mm,
     )
     frame = steel_sweep_geometry.Frame(origin, axis_x, axis_y, axis_z)
     _log('build member %s: building profile, len=%.1f' % (member_kind, length_mm))

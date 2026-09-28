@@ -110,6 +110,41 @@ class DuctTableLookupTests(unittest.TestCase):
         self.assertIsNone(dn)
         self.assertIn('未匹配到表 1', note)
 
+    def test_oversized_duct_uses_maximum_table_size_and_actual_geometry(self):
+        table = dict(PIPE_DATA)
+        table[1200] = (1219.2, 19.05)
+        supported = tuple(sorted(table))
+        for diameter in (1281.0, 1300.0, 2000.0, 3000.0):
+            with self.subTest(diameter=diameter):
+                dims = resolve_elbow_dimensions(
+                    {'MAIN_DIAMETER': diameter, 'RADIUS': diameter * 1.5},
+                    {}, 'HVAC_ROUND_ELBOW', table, supported)
+                self.assertEqual(1200, dims['main_dn'])
+                self.assertIn('保底', dims['main_dn_note'])
+                self.assertEqual(diameter, dims['outside_diameter_mm'])
+                self.assertEqual(diameter * 1.5, dims['center_to_end_mm'])
+                self.assertEqual('D%d' % diameter, dims['main_label'])
+        dn, note = duct_table_dn(1280.0, table, supported)
+        self.assertEqual(1200, dn)
+        self.assertIn('就近匹配', note)
+
+    def test_oversized_pipe_still_rejected(self):
+        with self.assertRaisesRegex(ValueError, '不在当前参考表支持范围'):
+            resolve_pipe({'NOMINAL_DIAMETER': 2000.0,
+                          'OUTSIDE_DIAMETER': 2020.0, 'LENGTH': 6000.0})
+
+    def test_no_table_lookup_for_pad(self):
+        # 护板不查表：传空表时给出实际外径与 D 标签，main_dn 为 None。
+        dims = resolve_elbow_dimensions(
+            {'MAIN_DIAMETER': 1060.0, 'RADIUS': 1060.0}, {},
+            'HVAC_ROUND_ELBOW', None, ())
+        self.assertTrue(dims['is_duct'])
+        self.assertIsNone(dims['main_dn'])
+        self.assertEqual('', dims['main_dn_note'])
+        self.assertEqual('D1060', dims['main_label'])
+        self.assertAlmostEqual(1060.0, dims['outside_diameter_mm'])
+        self.assertAlmostEqual(1060.0, dims['center_to_end_mm'])
+
 
 class DuctDimensionTests(unittest.TestCase):
     def test_sample_duct_elbow_77462(self):
@@ -273,8 +308,29 @@ class ElbowPadDuctTests(unittest.TestCase):
         self.assertAlmostEqual(450.0, layout.bend_radius_mm)
         self.assertEqual('D450', layout.nps)
         self.assertEqual('弯头垫板-D450-1.0', layout.number)
-        # 板厚仍按就近匹配到的管道 DN（Y2 表 1）取。
-        self.assertGreater(layout.thickness, 0.0)
+        # 风管板厚直接按外径定（不查 Y2 表 1）。
+        self.assertAlmostEqual(6.0, layout.thickness)
+
+    def test_duct_thickness_rule(self):
+        # ≤2000 mm → 6；>2000 mm → 10。
+        self.assertAlmostEqual(6.0, pad_geom.duct_thickness_mm(450.0))
+        self.assertAlmostEqual(6.0, pad_geom.duct_thickness_mm(2000.0))
+        self.assertAlmostEqual(10.0, pad_geom.duct_thickness_mm(2000.1))
+        self.assertAlmostEqual(10.0, pad_geom.duct_thickness_mm(3000.0))
+        with self.assertRaises(ValueError):
+            pad_geom.duct_thickness_mm(0.0)
+
+    def test_oversized_duct_layout_uses_actual_od(self):
+        # 超出 Y2 表最大档（DN900）的风管：内弧按实际外径 Ø1060 贴合，dn 可传 None，
+        # 板厚按外径规则取 6，编号仍写 D1060。
+        layout = pad_geom.build_layout(None, 1.0, od_override_mm=1060.0,
+                                       size_label='D1060')
+        self.assertAlmostEqual(1060.0, layout.od_mm)
+        self.assertAlmostEqual(530.0, layout.inner_radius)
+        self.assertAlmostEqual(536.0, layout.outer_radius)
+        self.assertAlmostEqual(6.0, layout.thickness)
+        self.assertAlmostEqual(1060.0, layout.bend_radius_mm)
+        self.assertEqual('弯头垫板-D1060-1.0', layout.number)
 
     def test_duct_layout_scales_with_duct_diameter(self):
         layout = pad_geom.build_layout(300, 1.0, od_override_mm=315.0,

@@ -29,8 +29,9 @@ Y2 弧形垫板同款）。可连续点选，右键退出。
 
 **HVAC 圆风管弯头**（``OpenPlant_3D.HVAC_ROUND_ELBOW``）同样支持：外径取 EC 的
 ``MAIN_DIAMETER``（风管实际外径）、弯曲半径取 ``RADIUS``，倍率基准 = 风管外径
-（1.0D 即 R = 外径），板厚仍按就近匹配到的管道 DN 查 Y2 表 1；编号按实际外径写，
-如 ``弯头垫板-D450-1.0``。矩形风管不支持。管道弯头路径与报错文案保持不变。
+（1.0D 即 R = 外径）；**不查任何选型表**——内弧 = 外径/2、外弧 = 内弧 + T，
+板厚按外径直接定（≤2000 mm → 6、>2000 mm → 10）；编号按实际外径写，如
+``弯头垫板-D1060-1.0``。矩形风管不支持。管道弯头路径与报错文案保持不变。
 
 EC 读取遵循本仓库铁律：**不在工具回调里读 EC**——点选只把「元素 ID」入队，真正的
 读取与建模由面板主循环在 ``PyCadInputQueue.PythonMainLoop()`` 返回之后执行；
@@ -146,12 +147,6 @@ ELBOW_NUMBER_PROPERTIES = (
 ELBOW_TEXT_PROPERTIES = ('UNIT_OF_MEASURE', 'COMPONENT_NAME', 'NAME',
                          'LINENUMBER')
 
-# HVAC 圆风管：用来给风管外径就近匹配一个管道 DN 档（取 Y2 表 1 的板厚）。
-PAD_PIPE_DATA = dict(
-    (int(dn), (float(geom.od_mm(dn)), float(geom.plate_thickness_mm(dn))))
-    for dn in geom.dn_choices())
-PAD_SUPPORTED_DNS = tuple(sorted(PAD_PIPE_DATA))
-
 
 def _log(message):
     try:
@@ -169,7 +164,7 @@ def _log_exception(title):
 
 def _reload_runtime_modules():
     importlib.invalidate_caches()
-    for module in (geom, psb):
+    for module in (geom, psb, _elbow_logic):
         try:
             importlib.reload(module)
         except Exception:
@@ -479,14 +474,15 @@ def read_selected_elbow(element_id):
 
     is_duct = _elbow_logic.is_hvac_class(class_name)
     if is_duct:
-        # HVAC 圆风管弯头：外径取实际值、中心至端面取 RADIUS；板厚仍按就近
-        # 匹配到的管道 DN 查 Y2 表 1，编号与显示按实际外径写（D450）。
+        # HVAC 圆风管弯头：**不查选型表**（护板与表 1 无关）。外径取弯头实测值、
+        # 中心至端面取 RADIUS；内弧 = 外径/2，板厚由 geom.duct_thickness_mm 按
+        # 外径直接定（≤2000 → 6，>2000 → 10），编号按实际外径写（D1060）。
         dims = _elbow_logic.resolve_elbow_dimensions(
-            numbers, texts, class_name, PAD_PIPE_DATA, PAD_SUPPORTED_DNS)
+            numbers, texts, class_name, None, ())
         nominal_mm = dims['nominal_diameter_mm']
         outside_mm = dims['outside_diameter_mm']
         center_to_end_mm = dims['center_to_end_mm']
-        table_dn = dims['main_dn']
+        table_dn = None
         size_label = dims['main_label']
         duct_note = dims['main_dn_note']
     else:
@@ -762,7 +758,8 @@ def build_pad(elbow, dn, multiplier, material_code=DEFAULT_MATERIAL_CODE,
     """按所选弯头与参数在背弧上生成一块弯头弧形垫板。
 
     ``base_mm`` / ``size_label`` 仅用于 **HVAC 圆风管弯头**：内弧半径与弯曲半径
-    按风管实际外径贴合，编号写 ``D450``；管道弯头传 ``None``，行为与原来一致。
+    按风管实际外径贴合，板厚按外径直接定（≤2000 → 6，>2000 → 10，不查表），
+    编号写 ``D1060``；管道弯头传 ``None``，行为与原来一致（板厚查 Y2 表 1）。
 
     返回 ``(模型单元, layout)``。
     """
@@ -803,8 +800,10 @@ def _compose_message(elbow, layout, dn, dn_from_model, multiplier_auto,
                      multiplier_matched, panel_multiplier):
     parts = []
     if elbow.get('is_duct'):
-        parts.append('风管弯头：实际外径 Ø%.1f mm → Y2 表 1 档位 DN%d（板厚 T%.0f）。'
-                     % (elbow['outside_diameter_mm'], dn, layout.thickness))
+        parts.append('风管弯头：内弧按实际外径 Ø%.1f mm（R%.1f）贴合，'
+                     '板厚 T%.0f mm（直接按外径定，不查表）。'
+                     % (elbow['outside_diameter_mm'], layout.inner_radius,
+                        layout.thickness))
         if elbow.get('duct_dn_note'):
             parts.append(elbow['duct_dn_note'])
     elif dn_from_model:
@@ -1233,8 +1232,11 @@ class _ElbowPadPanel(GlassDialog):
             self.set_status('读取弯头失败：%s' % error, True)
             return
 
+        # 风管不查表：内弧/板厚全部由实际外径定，DN 不参与计算。
+        is_duct = bool(elbow.get('is_duct'))
         dn_from_model = elbow['dn'] is not None
-        dn = elbow['dn'] if dn_from_model else self.current_dn()
+        dn = None if is_duct else (elbow['dn'] if dn_from_model
+                                   else self.current_dn())
         base_mm = elbow.get('od_basis_mm')          # 风管：实际外径；管道：None
         size_label = elbow.get('size_label')
         self._duct_preview = ({'od_mm': base_mm, 'size_label': size_label}

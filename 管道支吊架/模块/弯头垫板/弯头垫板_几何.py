@@ -88,6 +88,12 @@ STEEL_DENSITY_KG_MM3 = pad_geom.STEEL_DENSITY_KG_MM3
 DN_MIN = pad_geom.DN_MIN
 DN_MAX = pad_geom.DN_MAX
 
+# HVAC 圆风管护板板厚（**不查 Y2 表 1**，直接按风管实际外径定）：
+# 外径 ≤ 2000 mm → 6 mm；> 2000 mm → 10 mm。
+DUCT_PLATE_THICKNESS_MM = 6.0
+DUCT_PLATE_THICKNESS_LARGE_MM = 10.0
+DUCT_PLATE_THICKNESS_LARGE_OD_MM = 2000.0
+
 
 # DN → NPS 英寸公称直径（mm，= 英寸 × 25.4）。
 # 弯头弯曲半径按**英寸公称**计算（ASME B16.9：中心至端面 = 1.5 × NPS 英寸），
@@ -131,6 +137,19 @@ def match_dn(nominal_mm, tolerance=5.0, ratio=0.05):
 def plate_thickness_mm(dn):
     """按 Y2 表 1 由管径取板厚 T（mm）。"""
     return pad_geom.plate_thickness_mm(dn)
+
+
+def duct_thickness_mm(outside_mm):
+    """HVAC 圆风管护板板厚（**不查表**，直接按风管实际外径）。
+
+    外径 ≤ 2000 mm → 6 mm；> 2000 mm → 10 mm。
+    """
+    value = float(outside_mm)
+    if not math.isfinite(value) or value <= 0.0:
+        raise ValueError('风管外径无效：%r' % (outside_mm,))
+    if value > DUCT_PLATE_THICKNESS_LARGE_OD_MM:
+        return DUCT_PLATE_THICKNESS_LARGE_MM
+    return DUCT_PLATE_THICKNESS_MM
 
 
 def material_choices():
@@ -198,16 +217,18 @@ def multiplier_from_center_to_end(dn, center_to_end_mm, base_mm=None):
 def bend_radius_mm(dn, multiplier, base_mm=None):
     """弯头中心线弯曲半径 R = 倍率 × 基准直径（mm）。
 
-    管道基准 = 英寸公称直径；风管传 ``base_mm`` = 风管实际外径。
+    管道基准 = 英寸公称直径（按 DN 查表校验范围）；风管传 ``base_mm`` =
+    风管实际外径，此时不再看 DN。
     """
-    dn = int(dn)
-    if dn < DN_MIN or dn > DN_MAX:
-        raise ValueError('管径 DN%d 超出本次范围 DN%d~%d。' % (dn, DN_MIN, DN_MAX))
     value = float(multiplier)
     if not math.isfinite(value) or not (MIN_MULTIPLIER <= value <= MAX_MULTIPLIER):
         raise ValueError('弯头倍率 %.3f 不合理，要求 %.1f~%.1f。'
                          % (value, MIN_MULTIPLIER, MAX_MULTIPLIER))
     if base_mm is None:
+        dn = int(dn)
+        if dn < DN_MIN or dn > DN_MAX:
+            raise ValueError('管径 DN%d 超出本次范围 DN%d~%d。'
+                             % (dn, DN_MIN, DN_MAX))
         base = nominal_mm(dn)
     else:
         base = float(base_mm)
@@ -225,10 +246,16 @@ def build_number(dn, multiplier, size_label=None):
     """垫板编号：``弯头垫板-管径-弯头倍率``（如 ``弯头垫板-100-1.5``）。
 
     ``size_label`` 给出尺寸文字（HVAC 圆风管用实际外径 ``D450`` →
-    ``弯头垫板-D450-1.0``）；``None`` 时按管道 DN 写。
+    ``弯头垫板-D450-1.0``）；``None`` 时按管道 DN 写（风管不查表时 ``dn`` 也可
+    为 ``None``，此时必须给 ``size_label``）。
     """
     text = str(size_label or '').strip()
-    size = text or ('%d' % int(dn))
+    if text:
+        size = text
+    elif dn is not None:
+        size = '%d' % int(dn)
+    else:
+        raise ValueError('管径与尺寸文字至少要给一个。')
     return '弯头垫板-%s-%.1f' % (size, float(multiplier))
 
 
@@ -254,29 +281,41 @@ Layout = namedtuple('Layout', (
 def build_layout(dn, multiplier=DEFAULT_MULTIPLIER,
                  material_code=DEFAULT_MATERIAL_CODE,
                  alpha_deg=WRAP_ALPHA_DEG, coverage_deg=COVERAGE_DEG,
-                 has_vent_hole=True, od_override_mm=None, size_label=None):
+                 has_vent_hole=True, od_override_mm=None, size_label=None,
+                 thickness_override_mm=None):
     """按 DN + 弯头倍率推导整套尺寸（mm），供建模 / 清单使用。
 
     截面与 Y2 一致（内弧 = 管外径/2，外弧 = 内弧 + T，张角 ``alpha_deg``），
     沿弯头中心线圆弧扫掠，覆盖 ``coverage_deg`` 且居中于弯头中点。
 
-    ``dn`` 用于取板厚（Y2 表 1）与范围校验；**HVAC 圆风管**另外传
-    ``od_override_mm`` = 风管实际外径（内弧按它贴合，而不是 ASME 表值）、
-    ``size_label`` = ``D450``（编号与显示用），倍率基准也随之取实际外径。
-    """
-    dn = int(dn)
-    if dn < DN_MIN or dn > DN_MAX:
-        raise ValueError('管径 DN%d 超出本次范围 DN%d~%d。'
-                         % (dn, DN_MIN, DN_MAX))
+    管道：``dn`` 决定管外径（ASME 表）与板厚（Y2 表 1）。
 
-    if od_override_mm is None:
-        od = od_mm(dn)
-        radius = bend_radius_mm(dn, multiplier)
-    else:
+    **HVAC 圆风管**（传 ``od_override_mm`` = 风管实际外径）：内弧 = 外径/2、
+    弯曲 R = 倍率 × 外径，**不查任何表**；板厚取 :func:`duct_thickness_mm`
+    （≤2000 mm → 6，>2000 mm → 10），也可用 ``thickness_override_mm`` 覆盖。
+    此时 ``dn`` 不参与计算，可传 ``None``，编号由 ``size_label``（``D1060``）给出。
+    """
+    is_duct = od_override_mm is not None
+    if not is_duct:
+        dn = int(dn)
+        if dn < DN_MIN or dn > DN_MAX:
+            raise ValueError('管径 DN%d 超出本次范围 DN%d~%d。'
+                             % (dn, DN_MIN, DN_MAX))
+
+    if is_duct:
         od = float(od_override_mm)
         if not math.isfinite(od) or od <= 0.0:
             raise ValueError('外径无效：%r' % (od_override_mm,))
         radius = bend_radius_mm(dn, multiplier, base_mm=od)
+        thickness = (duct_thickness_mm(od) if thickness_override_mm is None
+                     else float(thickness_override_mm))
+        if not math.isfinite(thickness) or thickness <= 0.0:
+            raise ValueError('板厚无效：%r' % (thickness_override_mm,))
+    else:
+        od = od_mm(dn)
+        radius = bend_radius_mm(dn, multiplier)
+        thickness = (plate_thickness_mm(dn) if thickness_override_mm is None
+                     else float(thickness_override_mm))
     multiplier = float(multiplier)
 
     row = material_for_code(material_code)
@@ -299,12 +338,16 @@ def build_layout(dn, multiplier=DEFAULT_MULTIPLIER,
     start = COVERAGE_CENTER_DEG - half
     end = COVERAGE_CENTER_DEG + half
 
-    thickness = plate_thickness_mm(dn)
     inner_radius = od / 2.0
     outer_radius = inner_radius + thickness
 
+    if size_label:
+        nps = str(size_label).strip()
+    else:
+        nps = nps_text(dn) if dn is not None else ''
+
     return Layout(
-        dn=dn, nps=(str(size_label).strip() if size_label else nps_text(dn)),
+        dn=dn, nps=nps,
         od_mm=od, pipe_radius=inner_radius,
         thickness=thickness, inner_radius=inner_radius,
         outer_radius=outer_radius,

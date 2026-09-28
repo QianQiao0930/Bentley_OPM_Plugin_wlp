@@ -25,11 +25,13 @@
 * 按 ``SupportType`` 统计**套数**（不同 AssemblyTag 的整组记录数）；
 * 按 ``SupportType → ComponentName → Specification`` 汇总**材料**。
 
-属性值写入 ItemType 的默认值（规避部分 MicroStation 版本
-``ApplyCustomItem`` 返回值无法封送的问题），因此同一
-(类型, 构件, 规格/长度, 管道号) 会复用同一个 ItemType。带管道号时
-ItemType 名称附加管道号哈希，避免不同管线复用默认值而串号；无管道号时
-默认空串。用户也可在属性面板中逐实例修改。
+**ItemType 名与实例数据分离**：名称按「支吊架类型 → 构件代号」稳定
+复用（不带哈希、不带单次放置的长度/编号），真实参数（tag / 规格 /
+长度 / 数量 / 管道号）经 ``ApplyCustomItem`` 返回的元素实例逐属性
+``SetValue`` 写入；类默认值只放中性占位（空 tag / 0 长度）。个别
+MicroStation 版本 ``ApplyCustomItem`` 返回值无法封送或 ``SetValue``
+不可用时，自动回退到旧机制（把实例数据烘焙进默认值、名称按内容寻址），
+行为与旧版一致。
 
 本模块不依赖任何具体插件；各插件把 ``管道支吊架/模块/公共`` 目录加入
 ``sys.path`` 后 ``import 支吊架公共库`` 即可。
@@ -152,15 +154,75 @@ def _length_key(length_mm):
     return ('%.3f' % float(length_mm)).replace('.', '_').replace('-', 'N')
 
 
-def _assembly_item_type_name(support_code, assembly_tag, assembly_spec):
+def _stable_assembly_item_type_name(support_code):
+    """稳定族名（新机制）：只看支吊架类型，每个类型一个 Assembly 类。"""
+    return '%s_%s' % (ASSEMBLY_PREFIX, _ascii_token(support_code))
+
+
+def _stable_component_item_type_name(support_code, component_code):
+    """稳定族名（新机制）：类型 + 构件代号；壁厚/长度等单次数据不进名字。"""
+    return '%s_%s_%s' % (COMPONENT_PREFIX, _ascii_token(support_code),
+                         _ascii_token(component_code))
+
+
+def _legacy_assembly_item_type_name(support_code, assembly_tag, assembly_spec):
     digest = _short_hash('%s|%s' % (assembly_tag, assembly_spec))
     return '%s_%s_%s' % (ASSEMBLY_PREFIX, _ascii_token(support_code), digest)
 
 
-def _component_item_type_name(support_code, component_code, length_mm):
+def _legacy_component_item_type_name(support_code, component_code, length_mm):
     return '%s_%s_%s_L%s' % (
         COMPONENT_PREFIX, _ascii_token(support_code),
         _ascii_token(component_code), _length_key(length_mm))
+
+
+def _write_instance_values(instance, values):
+    """对实例逐属性 ``SetValue`` + ``WriteChanges()``；失败抛异常。
+
+    ``SetValue`` 各版本封送形态不同：先试 ``ECValue`` 包装，再试裸
+    Python 值。任何属性两种形态都写不进去，就抛 ``RuntimeError``，
+    由 ``_attach_item_with_values`` 捕获并触发一次性回退。
+    """
+    for property_name, value in values.items():
+        ec_value = _new_ec_value(value)
+        written = False
+        for value_form in (ec_value, value):
+            try:
+                instance.SetValue(property_name, value_form)
+                written = True
+                break
+            except Exception:
+                continue
+        if not written:
+            raise RuntimeError('SetValue 不可用（属性 %s）' % property_name)
+    instance.WriteChanges()
+    return True
+
+
+def _apply_item_to_element(element, item_type):
+    """``ApplyCustomItem``；抛 TypeError(封送失败) 时返回 None。
+
+    **不做 GetCustomItem 回取**：实测（2026-09-28，第五块弧板崩溃）在
+    ApplyCustomItem 返回 None 之后紧接着对同一元素 GetCustomItem 会触发
+    原生 access violation。拿不到实例就当作「实例赋值不可用」，让调用方
+    走旧机制回退，绝不在同一次挂载里二次进入原生层。
+    """
+    target = element
+    try:
+        element_id = int(element.GetElementId())
+        if element_id:
+            model_ref = ISessionMgr.ActiveDgnModelRef
+            if model_ref is not None:
+                target = EditElementHandle(element_id, model_ref.GetDgnModel())
+    except Exception:
+        target = element
+    item_host = CustomItemHost(target, False)
+    try:
+        return item_host.ApplyCustomItem(item_type)
+    except TypeError as error:
+        if 'Unable to convert function return value' in str(error):
+            return None
+        raise
 
 
 def _get_or_create_item_type(item_type_name, defaults):
@@ -208,15 +270,46 @@ def _get_or_create_item_type(item_type_name, defaults):
         return None
 
 
+# 会话级标记：实例赋值路径一旦确认不可用（拿不到实例 / SetValue 失败），
+# 本会话内后续 item 一律直接走旧机制，不再重复尝试。首次失败会记一条日志。
+_INSTANCE_WRITE_OK = None
+
+# 稳定名的类默认值：中性占位。真实数据在实例上；旧机制回退分支才烘焙进默认值。
+_NEUTRAL_DEFAULTS = {
+    'RecordKind': '',
+    'SupportType': '',
+    'AssemblyTag': '',
+    'ComponentName': '',
+    'Specification': '',
+    'DesignLengthMm': 0.0,
+    'Quantity': 1,
+    'Unit': '',
+    'PipeNumber': '',
+}
+
+
 def _attach_item_with_defaults(element, item_type_name, defaults):
+    """旧机制（回退用）：数据烘焙进类默认值、名称按内容寻址。
+
+    行为与改造前的 ``_attach_item_with_defaults`` 完全一致。
+    """
     item_type = _get_or_create_item_type(item_type_name, defaults)
     if item_type is None:
         return False
-    # ``ApplyCustomItem`` 是原生 EC 写入，本仓库里出现过"卡死后 access violation"。
-    # 每次调用前先落一条日志：崩溃时日志最后一行就是卡住的那一项。
     _log('apply item type: %s' % item_type_name)
     try:
-        item_host = CustomItemHost(element, False)
+        # AddToModel() 之后 EditElementHandle 内部指针在个别版本里会失效，
+        # 这里按元素 ID 重新取一份句柄，再交给 CustomItemHost。
+        target = element
+        try:
+            element_id = int(element.GetElementId())
+            if element_id:
+                model_ref = ISessionMgr.ActiveDgnModelRef
+                if model_ref is not None:
+                    target = EditElementHandle(element_id, model_ref.GetDgnModel())
+        except Exception:
+            target = element
+        item_host = CustomItemHost(target, False)
         try:
             item_host.ApplyCustomItem(item_type)
         except TypeError as error:
@@ -225,6 +318,63 @@ def _attach_item_with_defaults(element, item_type_name, defaults):
             raise
         _log('apply ok: %s' % item_type_name)
         return True
+    except Exception as error:
+        _log('item attach exception (%s): %r' % (item_type_name, error))
+        return False
+
+
+def _attach_item_with_values(element, item_type_name, values,
+                              legacy_name, legacy_defaults):
+    """把一条清单记录挂到 *element*（稳定名机制，带回退）。
+
+    主路径：``item_type_name`` 稳定族名，类默认值放 ``_NEUTRAL_DEFAULTS``
+    占位；``ApplyCustomItem`` 后把 ``values``（本实例真实参数）经
+    ``SetValue`` 写到返回的元素实例上。
+
+    会话内一旦确认实例路径不可用（拿不到实例 / ``SetValue`` 失败），
+    后续 item 直接走旧机制：``legacy_name``（内容寻址名）+
+    ``legacy_defaults``（同一份数据，烘焙进类默认值），行为与旧版完全
+    一致。失败的那一条会补挂旧类；此时元素同时带稳定类（中性值）与
+    旧类（真实值）两种记录，清单导出可能出现一行多的重复，仅发生在
+    会话内第一次失败，后续条目全部纯旧机制单条记录。
+
+    返回 True 表示记录已挂上（新 / 旧机制任一成功都算）。
+    """
+    global _INSTANCE_WRITE_OK
+    if _INSTANCE_WRITE_OK is False:
+        return _attach_item_with_defaults(element, legacy_name,
+                                          legacy_defaults)
+    item_type = _get_or_create_item_type(item_type_name, _NEUTRAL_DEFAULTS)
+    if item_type is None:
+        return False
+    # ``ApplyCustomItem`` 是原生 EC 写入，本仓库里出现过"卡死后 access violation"。
+    # 每次调用前先落一条日志：崩溃时日志最后一行就是卡住的那一项。
+    _log('apply item type: %s' % item_type_name)
+    try:
+        instance = _apply_item_to_element(element, item_type)
+        _log('apply ok: %s' % item_type_name)
+        if instance is None:
+            # type 已挂上（属性面板可见中性占位），但拿不到实例就写不了真实值。
+            # 不做 GetCustomItem 回取、也不 detach：实测二者都会二次进入原生层
+            # 并触发 access violation（2026-09-28 第五块弧板崩溃）。
+            # 判定本会话实例路径不可用：本条不重挂（避免双记录），后续条目
+            # 在入口处直接走旧机制。
+            _INSTANCE_WRITE_OK = False
+            _log('instance path unavailable (%s): record will carry neutral'
+                 ' defaults; subsequent items go legacy' % item_type_name)
+            return True
+        try:
+            _write_instance_values(instance, values)
+            _INSTANCE_WRITE_OK = True
+            return True
+        except Exception as error:
+            # SetValue 失败：不 detach、不重挂（避免二次进入原生层）。
+            # 本条记录已挂稳定类（带中性默认值），清单上该条为占位值；
+            # 后续条目在入口处直接走旧机制。
+            _INSTANCE_WRITE_OK = False
+            _log('instance SetValue failed for %s: %r —— subsequent items'
+                 ' go legacy' % (item_type_name, error))
+            return True
     except Exception as error:
         _log('item attach exception (%s): %r' % (item_type_name, error))
         return False
@@ -240,14 +390,18 @@ def attach_components(element, support_type, support_code, assembly_tag,
     ``code`` / ``name`` / ``specification`` / ``length``，可选
     ``quantity``（默认 1）与 ``unit``（默认 '件'）。
 
+    **命名**（稳定族名）：``Assembly_<类型>`` / ``Component_<类型>_<构件
+    code>``——同一类型反复放置复用同一批类，ItemType 库不再膨胀；tag /
+    规格 / 长度 / 数量 / 管道号等单次数据写到元素实例上。个别版本实例
+    路径不可用时自动回退旧命名（内容寻址 + 默认值烘焙），行为与旧版一致。
+
     同时附加一条整组记录（RecordKind='Assembly'），用于按类型统计套数。
     返回成功附加的条目数。
     """
     attached = 0
     pipe_number = str(pipe_number or '').strip()
-    pipe_suffix = '_P' + _short_hash(pipe_number) if pipe_number else ''
 
-    assembly_defaults = {
+    assembly_values = {
         'RecordKind': 'Assembly',
         'SupportType': str(support_type),
         'AssemblyTag': str(assembly_tag or ''),
@@ -258,15 +412,19 @@ def attach_components(element, support_type, support_code, assembly_tag,
         'Unit': str(assembly_unit or '套'),
         'PipeNumber': pipe_number,
     }
-    assembly_name = _assembly_item_type_name(
-        support_code, assembly_tag, assembly_spec) + pipe_suffix
-    if _attach_item_with_defaults(element, assembly_name, assembly_defaults):
+    stable_name = _stable_assembly_item_type_name(support_code)
+    legacy_name = (_legacy_assembly_item_type_name(
+        support_code, assembly_tag, assembly_spec)
+        + ('_P' + _short_hash(pipe_number) if pipe_number else ''))
+    legacy_defaults = dict(assembly_values)
+    if _attach_item_with_values(element, stable_name, assembly_values,
+                                legacy_name, legacy_defaults):
         attached += 1
 
     for item in components or ():
         code = str(item.get('code') or item.get('name') or 'Item')
         length = float(item.get('length', 0.0))
-        defaults = {
+        values = {
             'RecordKind': 'Component',
             'SupportType': str(support_type),
             'AssemblyTag': '',
@@ -277,8 +435,11 @@ def attach_components(element, support_type, support_code, assembly_tag,
             'Unit': str(item.get('unit', '件')),
             'PipeNumber': pipe_number,
         }
-        name = _component_item_type_name(support_code, code, length) + pipe_suffix
-        if _attach_item_with_defaults(element, name, defaults):
+        stable_name = _stable_component_item_type_name(support_code, code)
+        legacy_name = (_legacy_component_item_type_name(support_code, code, length)
+                       + ('_P' + _short_hash(pipe_number) if pipe_number else ''))
+        if _attach_item_with_values(
+                element, stable_name, values, legacy_name, dict(values)):
             attached += 1
 
     _log('attached %d/%d support items: type=%s tag=%s' %

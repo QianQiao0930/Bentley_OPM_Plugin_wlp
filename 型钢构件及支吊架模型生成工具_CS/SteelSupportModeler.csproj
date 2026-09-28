@@ -9,7 +9,7 @@
     <RootNamespace>SteelSectionProbe</RootNamespace>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
-    <BentleyRoot Condition="'$(BentleyRoot)' == ''">C:\Program Files\Bentley\OpenPlant 2024\IsometricsManager</BentleyRoot>
+    <BentleyRoot Condition="'$(BentleyRoot)' == ''">C:\Program Files\Bentley\OpenPlant 2024\OpenPlantModeler</BentleyRoot>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="ustation"><HintPath>$(BentleyRoot)\ustation.dll</HintPath><Private>false</Private></Reference>

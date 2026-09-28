@@ -559,6 +559,10 @@ def duct_table_dn(outside_mm, pipe_data, supported_dns, od_ratio=0.05):
 
     优先按**实际外径数值**直接对 DN（Ø450 → DN450）；对不上时按 ``pipe_data``
     里的钢管外径就近匹配，差值不超过钢管外径的 ``od_ratio`` 才接受。
+    超过最大档外径且无法就近匹配的大风管，固定使用最大 DN 档作为建模保底。
+
+    只有**需要按表选规格**的调用方（如耳轴 / 底板）才走这里；弧形护板按风管
+    实际外径直接算板厚，不查表（见 :func:`_resolve_duct_dimensions`）。
 
     返回 ``(dn, note)``；匹配不到时 ``dn`` 为 ``None``、``note`` 说明原因。
     """
@@ -572,9 +576,17 @@ def duct_table_dn(outside_mm, pipe_data, supported_dns, od_ratio=0.05):
     pipe_od = pipe_data[best_dn][0]
     if abs(value - pipe_od) <= od_ratio * pipe_od:
         return int(best_dn), (
-            "风管 Ø%s mm 未直接对应管道 DN，已按外径就近匹配到 DN%d 档"
-            "（钢管外径 %.1f mm）选耳轴与底板，请复核。"
-            % (_dimension_text(value), best_dn, pipe_od))
+            "风管 Ø%s mm 无对应管道 DN，按外径就近匹配到 DN%d 档"
+            "（钢管外径 %.1f mm）**仅用于选耳轴 / 底板规格**；"
+            "耳轴鞍口与弧形护板均按风管实际外径 Ø%s mm 建模，请复核。"
+            % (_dimension_text(value), best_dn, pipe_od, _dimension_text(value)))
+    maximum_dn = max(supported_dns)
+    if value > max(maximum_dn, max(pipe_data[dn][0] for dn in supported_dns)):
+        return int(maximum_dn), (
+            "风管 Ø%s mm 超出现有选型表范围，固定采用 DN%d 最大档保底选耳轴 / 底板；"
+            "鞍口与通气孔定位仍按实际外径 Ø%s mm 建模。"
+            "保底规格仅用于建模，承载能力需另行校核。"
+            % (_dimension_text(value), maximum_dn, _dimension_text(value)))
     return None, (
         "风管 Ø%s mm 未匹配到表 1 的任何管道档位（DN15~DN1200），"
         "无法自动选耳轴；请先在脚本的 PIPE_DATA / SUPPORT_TABLE 里补充该规格。"
@@ -629,6 +641,10 @@ def _resolve_duct_dimensions(numbers, texts, pipe_data, supported_dns,
     中心至端面：HVAC 弯头的两个端口就在弯曲半径的端面上（实测 Ø450、R450 的样
     例元件范围为 675 = R450 + 管半径 225，两个方向都是），所以 ``RADIUS`` 即中心
     至端面；个别版本若给了 ``DESIGN_LENGTH_CENTER_TO_*`` 则优先用它。
+
+    ``pipe_data`` / ``supported_dns`` 传空（``None`` / ``()``）时**不查选型表**：
+    ``main_dn`` 返回 ``None``、``main_dn_note`` 为空串，尺寸只看风管实际外径。
+    弧形护板就走这条路；耳轴 / 底板需要按表选规格时才传表。
     """
     diameter_raw = _first_number(
         numbers, "OUTSIDE_DIAMETER", "MAIN_DIAMETER",
@@ -653,9 +669,14 @@ def _resolve_duct_dimensions(numbers, texts, pipe_data, supported_dns,
     run_mm = run_raw * scale_mm
     outlet_mm = outlet_raw * scale_mm
 
-    main_dn, note = duct_table_dn(outside_mm, pipe_data, supported_dns, od_ratio)
-    if main_dn is None:
-        raise ValueError(note)
+    if pipe_data and supported_dns:
+        main_dn, note = duct_table_dn(outside_mm, pipe_data, supported_dns,
+                                      od_ratio)
+        if main_dn is None:
+            raise ValueError(note)
+    else:
+        # 不查表：只按风管实际外径出尺寸（板厚由弧形护板按外径规则另算）。
+        main_dn, note = None, ""
     label = duct_size_label(outside_mm)
     return {
         "is_duct": True,
@@ -694,6 +715,8 @@ def resolve_elbow_dimensions(numbers, texts, class_name, pipe_data,
         }
 
     管道弯头走原逻辑（报错文案不变）；只有类名含 ``HVAC`` 才走风管分支。
+    风管传 ``pipe_data=None`` / ``supported_dns=()`` 即**不查选型表**（护板用），
+    此时 ``main_dn`` 为 ``None``、``main_dn_note`` 为空串。
     """
     numbers = numbers or {}
     texts = texts or {}
