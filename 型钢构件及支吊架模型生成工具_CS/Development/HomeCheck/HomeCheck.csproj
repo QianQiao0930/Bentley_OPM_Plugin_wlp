@@ -4,6 +4,8 @@
     <Compile Include="../../Domain/Home/FeatureDescriptor.cs" Link="FeatureDescriptor.cs" />
     <Compile Include="../../Domain/Home/HomePreferenceRecord.cs" Link="HomePreferenceRecord.cs" />
     <Compile Include="../../Services/Home/HomeFeatureRanker.cs" Link="HomeFeatureRanker.cs" />
+    <Compile Include="../../Services/Home/HomeRelativeTime.cs" Link="HomeRelativeTime.cs" />
     <Compile Include="../../Data/Home/HomeFeatureCatalog.cs" Link="HomeFeatureCatalog.cs" />
+    <Compile Include="../../Data/Home/HomeCategories.cs" Link="HomeCategories.cs" />
   </ItemGroup>
 </Project>

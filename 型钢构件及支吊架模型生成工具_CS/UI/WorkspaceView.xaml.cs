@@ -64,6 +64,7 @@ namespace SteelSectionProbe
             page.OnActivated();
             SubtitleText.Text = page.PageTitle + " · " + page.PageSubtitle;
             HomeButton.Visibility = Visibility.Visible;
+            SetHeaderVisible(true);
             SetStatus("已进入“" + page.PageTitle + "”。", false);
         }
 
@@ -82,8 +83,20 @@ namespace SteelSectionProbe
             homePage.Refresh();
             SubtitleText.Text = "选择建模或查询功能";
             HomeButton.Visibility = Visibility.Collapsed;
-            SetStatus("请选择一个功能模块。", false);
+            SetHeaderVisible(false);
+            SetStatus("请选择一个功能模块进入工作区。", false);
             ScheduleHomeWidthCheck();
+        }
+
+        /// <summary>
+        /// 首页由 <see cref="HomePage"/> 自带标题栏（应用图标 + 标题 + 搜索/排序），所以隐藏本层共用标题栏；
+        /// 功能页仍用共用标题栏显示"标题 + 副标题 + 返回首页"。行的 <c>MinHeight</c> 一并归零，
+        /// 否则隐藏后仍会留下 88 像素空白。
+        /// </summary>
+        private void SetHeaderVisible(bool visible)
+        {
+            HeaderRow.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+            HeaderRowDef.MinHeight = visible ? 88 : 0;
         }
 
         /// <summary>首页宽度校准的剩余尝试次数（防止布局抖动时反复改窗口尺寸）。</summary>

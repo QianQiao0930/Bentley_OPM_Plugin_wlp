@@ -92,8 +92,8 @@ namespace SteelSectionProbe
             if(ClientSize.Width!=width)ClientSize=new Size(width,ClientSize.Height);
         }
 
-        /// <summary>首页宽度兜底值（逻辑宽）：两列 300 宽卡片 + 页边距 + 滚动条 = 约 669，取整 670 防抖。</summary>
-        private const int HomeWidthFallback = 670;
+        /// <summary>首页宽度兜底值（逻辑宽）：两列 320 宽卡片 + 页边距 + 滚动条 = 约 700，再留余量取 720 防抖。</summary>
+        private const int HomeWidthFallback = 720;
 
         /// <summary>当前首页宽度（逻辑宽），首帧用兜底值，之后由实测校准。</summary>
         private int homeWidthLogical = HomeWidthFallback;

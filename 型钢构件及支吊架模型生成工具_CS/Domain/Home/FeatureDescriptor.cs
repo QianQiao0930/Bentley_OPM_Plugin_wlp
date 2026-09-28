@@ -18,6 +18,15 @@ namespace SteelSectionProbe
         public string Description = "";
         public int DefaultOrder;
 
+        /// <summary>
+        /// 首页分区键（见 <c>Data/Home/HomeCategories.cs</c>：建模类 / 支撑架类 / 统计与扩展 / 规划中）。
+        /// 首页据此把卡片分组显示；本类型只存字符串，不认识具体分类名，保持 Domain 层纯净。
+        /// </summary>
+        public string Category = "";
+
+        /// <summary>卡片左侧图标键（如 <c>elbow</c>），首页据此在 <c>HomePage.xaml</c> 里查几何资源。</summary>
+        public string Icon = "";
+
         /// <summary>false = 尚未开工的占位卡：不参与星标与使用统计，也没有进入按钮。</summary>
         public bool IsReady = true;
 
@@ -31,10 +40,23 @@ namespace SteelSectionProbe
             DefaultOrder = defaultOrder;
         }
 
-        /// <summary>路线图占位卡：无 PageId、不参与排序统计，固定排在所有可用功能之后。</summary>
-        internal static FeatureDescriptor Placeholder(string title, string description, int index)
+        public FeatureDescriptor(string pageId, string title, string description, int defaultOrder,
+            string category, string icon)
         {
-            var descriptor = new FeatureDescriptor("", title, description, PlaceholderDefaultOrder + index);
+            PageId = pageId;
+            Title = title;
+            Description = description;
+            DefaultOrder = defaultOrder;
+            Category = category;
+            Icon = icon;
+        }
+
+        /// <summary>路线图占位卡：无 PageId、不参与排序统计，固定排在所有可用功能之后。</summary>
+        internal static FeatureDescriptor Placeholder(string title, string description, int index,
+            string category, string icon)
+        {
+            var descriptor = new FeatureDescriptor("", title, description, PlaceholderDefaultOrder + index,
+                category, icon);
             descriptor.IsReady = false;
             return descriptor;
         }

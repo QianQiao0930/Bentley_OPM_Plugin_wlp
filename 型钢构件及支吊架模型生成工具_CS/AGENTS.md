@@ -642,7 +642,9 @@ bin/Release/net48_full/SteelSectionProbe.dll
 
 ## 28. 首页排序与星标
 
-首页卡片的数据来自 `Data/Home/HomeFeatureCatalog.cs`（`FeatureDescriptor` 清单，**唯一来源**），顺序由 `Services/Home/HomeFeatureRanker.cs` 计算，偏好存储与使用统计在 `UI/Home/HomePreferences.cs`，卡片视图模型在 `UI/Home/HomeCardItem.cs`，渲染在 `UI/HomePage.xaml(.cs)`。**不要在 `HomePage.xaml` 里再手写卡片** —— 新增功能页只在清单里加一项。
+首页卡片的数据来自 `Data/Home/HomeFeatureCatalog.cs`（`FeatureDescriptor` 清单，**唯一来源**），顺序由 `Services/Home/HomeFeatureRanker.cs` 计算，分区定义在 `Data/Home/HomeCategories.cs`，相对时间在 `Services/Home/HomeRelativeTime.cs`，偏好存储与使用统计在 `UI/Home/HomePreferences.cs`，卡片视图模型在 `UI/Home/HomeCardItem.cs`，渲染在 `UI/HomePage.xaml(.cs)`。**不要在 `HomePage.xaml` 里再手写卡片** —— 新增功能页只在清单里加一项（含分区与图标键）。
+
+首页结构：顶部标题栏（应用图标 + 标题/副标题 + 搜索框 + 排序下拉 + 重置排序）→「最近使用」→ 建模类 / 支撑架类 / 统计与扩展 → 规划中。**首页标题栏由 `HomePage` 自带**，`WorkspaceView` 在首页隐藏自己那层共用标题栏（`SetHeaderVisible(false)`，并把该行 `MinHeight` 归零），功能页仍显示「标题 + 副标题 + 返回首页」。
 
 排序是**一个全序比较器**，关键字从高到低：置顶区（星级 ≥ `HomeFeatureRanker.PinThreshold` = 3）→ 星级降序 → 使用频率降序 → 出厂顺序（`DefaultOrder`）升序 → `PageId` 字典序。最后一级不能省：`List.Sort` 是**不稳定**排序，缺它会让同键卡片每次渲染顺序漂移。
 
@@ -651,15 +653,18 @@ bin/Release/net48_full/SteelSectionProbe.dll
 - 冷启动（无偏好数据）全部落回出厂顺序，新用户看到的首页与改造前完全一致。
 - **评分后不立即重排**：星标只就地更新显示，重排只在 `WorkspaceView.ShowHome()` 的 `homePage.Refresh()` 里发生。卡片“点完就飞走”是体验事故。
 - 使用统计的**唯一埋点**是 `WorkspaceView.OpenPage(id)`（命令行入口 `STEELPROBE PLACE` 也走它），且**同一次会话内同一功能只记一次**（`SessionCounted`）—— 首页表达的是“多常需要这个功能”，不是“点了多少下按钮”。
-- 占位卡（`IsReady = false`）没有 PageId、不参与评分与统计，恒排在所有可用功能之后；灰化样式由 `HomePage.xaml` 里 `IsReady` 的 `DataTrigger` 负责（**不要另写一套卡片模板**）。
-- **卡片尺寸必须与文字内容、窗口宽度都脱钩**：`HomeCardStyle` 写死 **`Width = 300` + `Height = 100`** + `ClipToBounds`；标题 1 行（`Height 20`）、说明 2 行（`Height 30`）、使用情况 1 行（`Height 14`）都设固定高度 + `TextTrimming="CharacterEllipsis"`，右侧操作列 `Width="76"`、`进入` 按钮 `Width="64" MinWidth="0"`。内部纵向合计 83 ≤ 内容区 84（100 − 上下内边距 16），**改尺寸时要重算这个余量**。**绝不要用 `MinHeight` 或 `Auto` 列宽**：文字换行行数一变卡片就长高，整页跟着变、还会把按钮顶出可视区。`ItemsPanel` 用 **`WrapPanel`**（不是 `UniformGrid`）：卡片宽度已写死，放不下就换行，永远不会横向溢出或被裁掉。⚠️ 卡片尺寸若要调整，**只改 `HomeCardStyle` 的这两个值**即可 —— 首页窗口宽度是**运行时实测校准**的（见下条），不需要手工同步；改完用 `E:/Code/_home_ui_probe/` 的 `shot` 模式出图核对（首行必须是 2 列、右侧空白 ~8~20 DIP）。
-- ⚠️ **首页宽度必须实测校准，不能写死**：`WorkspaceView.ScheduleHomeWidthCheck()`（`ShowHome` 与窗体 `Shown` 各触发一次）用真实可视树量三件事 —— `HomePage.MeasureRowWidth()`（首行两张卡片的外缘宽，含卡片 Margin）、`HomePage.MeasureChromeWidth()`（页面宽 − 列表宽 = 滚动条 + ScrollViewer 内边距）、`ActualWidth − PageHost.ActualWidth`（**实测**页边距，不要读 `Margin` 设定值），相加再加 8 的呼吸余量，回调 `MainWindow.ApplyHomeWidth()` 设置 `ClientSize`。因此**卡片尺寸、字体、Dpi、页边距任何一项变了，首页都会自己算准**，且误差只可能偏宽、不会掉成单列。实测值缓存在 `MainWindow.homeWidthLogical`，后续回首页直接套用（无跳动）。`HomeWidthFallback = 670` 只是首帧兜底。
-- ⚠️ **窗口宽度必须按 DPI 换算，不能直接写进 `ClientSize`**：首页约 670 / 功能页 560 是 **96 dpi 基准的逻辑宽度**，而 `Form.ClientSize` 收的是**设备像素**；本窗体 `AutoScaleMode = Dpi` 又会在高 DPI 下把窗体尺寸再乘一次缩放系数，两者打架就会出现"返回首页后卡片宽度时宽时窄、和刚打开时不一样"。`MainWindow.SetHomeLayout` 统一用 `VisualTreeHelper.GetDpi(ElementHost.Child).DpiScaleX` 换算（150% 缩放下 670 逻辑宽 = 1005 设备像素）。新增任何"改窗体尺寸"的代码都要照此办理。
+- **分区与归类**：`FeatureDescriptor.Category` 存分区键，键/中文名/显示顺序的唯一来源是 `Data/Home/HomeCategories.cs`；`FeatureDescriptor.Icon` 存图标键，几何在 `HomePage.xaml` 的 `HomeIcon_<key>` 资源里，由 `HomePage.ResolveIcon` 注入 `HomeCardItem.IconGeometry`。新增功能必须同时给分区与图标键，否则 `Development/HomeCheck` 会报错。
+- **搜索与排序**：搜索即时过滤（标题/说明/分区中文名），无匹配显示 `EmptyHint`；排序下拉三档（默认排序 / 最近使用 / 常用优先）都**先按分区分组**，只改变分区内顺序，同值一律回落到排序器名次，避免漂移。搜索期间隐藏「最近使用」。
+- **最近使用**：只取 `IsReady` 且 `LastUsedUtc` 可解析的功能，按时间降序最多 4 项；相对时间文案由纯计算 `HomeRelativeTime` 生成（`刚刚 / N 分钟前 / N 小时前 / 昨天 / N 天前 / yyyy-MM-dd`）。同一功能会同时出现在「最近使用」与所属分区，因此 `HomePage` 用 `itemsByPageId` 把同 PageId 的多个 `HomeCardItem` 一起刷新（评分时两处同步）。
+- 占位卡（`IsReady = false`）没有 PageId、不参与评分与统计，固定落在「规划中」分区；用独立的 `PlannedCardTemplate`（灰化 + 「即将上线」角标 + 不可点击），可用卡用 `FeatureCardTemplate`，**不要为单个功能另写模板**。
+- **卡片尺寸必须与文字内容、窗口宽度都脱钩**：`HomeCardStyle` 写死 **`Width = 320` + `Height = 124`** + `ClipToBounds`；左侧 40×40 图标 + 标题 1 行（`Height 22`）+ 说明 2 行（`Height 34`），底部一行「时间 / 星标」，整卡可点进入（不再有独立的「进入」按钮）。内部纵向预算：上下内边距 26 + 内容行 56 + 间距 8 + 星标行 26 = 116 ≤ 124，**改尺寸时要重算这个余量**。**绝不要用 `MinHeight` 或 `Auto` 列宽**：文字换行行数一变卡片就长高，整页跟着变。`ItemsPanel` 用 **`WrapPanel`**（不是 `UniformGrid`）：卡片宽度已写死，放不下就换行，永远不会横向溢出或被裁掉。⚠️ 卡片尺寸若要调整，**只改 `HomeCardStyle` 的这两个值**即可 —— 首页窗口宽度是**运行时实测校准**的（见下条），不需要手工同步。
+- ⚠️ **首页宽度必须实测校准，不能写死**：`WorkspaceView.ScheduleHomeWidthCheck()`（`ShowHome` 与窗体 `Shown` 各触发一次）用真实可视树量三件事 —— `HomePage.MeasureRowWidth()`（首行两张卡片的外缘宽，含卡片 Margin）、`HomePage.MeasureChromeWidth()`（页面宽 − 列表宽 = 滚动条 + ScrollViewer 内边距）、`ActualWidth − PageHost.ActualWidth`（**实测**页边距，不要读 `Margin` 设定值），相加再加 8 的呼吸余量，回调 `MainWindow.ApplyHomeWidth()` 设置 `ClientSize`。因此**卡片尺寸、字体、Dpi、页边距任何一项变了，首页都会自己算准**，且误差只可能偏宽、不会掉成单列。实测值缓存在 `MainWindow.homeWidthLogical`，后续回首页直接套用（无跳动）。`HomeWidthFallback = 720` 只是首帧兜底（按两列 320 宽卡片留足余量）。
+- ⚠️ **窗口宽度必须按 DPI 换算，不能直接写进 `ClientSize`**：首页约 710 / 功能页 560 是 **96 dpi 基准的逻辑宽度**，而 `Form.ClientSize` 收的是**设备像素**；本窗体 `AutoScaleMode = Dpi` 又会在高 DPI 下把窗体尺寸再乘一次缩放系数，两者打架就会出现"返回首页后卡片宽度时宽时窄、和刚打开时不一样"。`MainWindow.SetHomeLayout` 统一用 `VisualTreeHelper.GetDpi(ElementHost.Child).DpiScaleX` 换算（150% 缩放下 710 逻辑宽 = 1065 设备像素）。新增任何"改窗体尺寸"的代码都要照此办理。
 - 存储 `%LOCALAPPDATA%\SteelSectionProbe\home_preferences.json` 只存 `PageId → {Stars, TotalUseCount, LastUsedUtc, MonthlyUse}`，**不存顺序**：增删功能、调权重都不需要迁移数据，也不会留下“存了顺序但功能已改名”的脏数据。读写失败一律静默回落（与各页 `LastChoice` 一致），绝不能挡住首页。
 - ⚠️ `HomeFeatureCatalog` 的 PageId 与页面 `PageId` 不一致时，`OpenPage` 会命中“未注册的功能模块”分支 —— 这一支**故意不静默返回**，就是为了让配置漂移可见。
 - 新增检查工程要照例在主 `SteelSupportModeler.csproj` 里加 `Compile Remove`（`Development\HomeCheck\**\*.cs`）。
 
-纯计算检查：`dotnet run --project Development/HomeCheck/HomeCheck.csproj -c Release`（清单一致性、五级关键字、≥3 星置顶、衰减频率、脏数据容错、使用情况文案）。
+纯计算检查：`dotnet run --project Development/HomeCheck/HomeCheck.csproj -c Release`（清单一致性、分区归类与图标、五级关键字、≥3 星置顶、衰减频率、相对时间文案、脏数据容错、使用情况文案）。
 
 ## 29. 型钢生成的截面参数显示
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 
 namespace SteelSectionProbe
 {
@@ -63,6 +64,7 @@ namespace SteelSectionProbe
         private static void Main()
         {
             CheckCatalog();
+            CheckCategories();
             CheckColdStart();
             CheckPinThreshold();
             CheckStarOrder();
@@ -72,7 +74,8 @@ namespace SteelSectionProbe
             CheckPlaceholders();
             CheckRobustness();
             CheckUsageLabel();
-            Console.WriteLine("首页排序：清单一致性、五级关键字、≥3 星置顶、衰减频率与容错全部通过。");
+            CheckRelativeTime();
+            Console.WriteLine("首页排序：清单一致性、分区归类、五级关键字、≥3 星置顶、衰减频率、相对时间与容错全部通过。");
         }
 
         /// <summary>清单本身的自检：PageId 唯一且非空、出厂顺序唯一、占位卡无 PageId。</summary>
@@ -103,6 +106,69 @@ namespace SteelSectionProbe
                 "steel-sections,component-properties,elbow-trunnion,support-statistics,tank-manhole,solid-nozzle," +
                 "pipe-clamp,vertical-pipe-support,g2-anchor-plate,n3-single-bracket,n4-double-bracket,n8-connection-plate,,",
                 "清单出厂顺序");
+        }
+
+        /// <summary>分区归类：每个功能都有已知分区与非空图标；可用功能不得落在"规划中"，占位卡必须落"规划中"。</summary>
+        private static void CheckCategories()
+        {
+            var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (HomeCategories.Definition section in HomeCategories.Sections())
+            {
+                True(section.Key.Length > 0, "分区键不能为空");
+                True(section.DisplayName.Length > 0, section.Key + " 缺中文名");
+                counts[section.Key] = 0;
+            }
+
+            foreach (FeatureDescriptor feature in HomeFeatureCatalog.All())
+            {
+                True(HomeCategories.IsKnown(feature.Category),
+                    feature.Title + " 的分区未知：" + feature.Category);
+                True(feature.Icon.Length > 0, feature.Title + " 缺图标键");
+                counts[feature.Category] = counts[feature.Category] + 1;
+
+                if (feature.IsReady)
+                    True(feature.Category != HomeCategories.Planned,
+                        "可用功能不应落在规划中：" + feature.Title);
+                else
+                    Equal(feature.Category, HomeCategories.Planned, feature.Title + " 占位卡分区");
+            }
+
+            foreach (KeyValuePair<string, int> item in counts)
+                True(item.Value > 0, "分区无任何卡片：" + item.Key);
+
+            // 关键功能的归类（防止日后误改分区）：
+            var byId = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (FeatureDescriptor feature in HomeFeatureCatalog.All())
+                if (feature.IsReady) byId[feature.PageId] = feature.Category;
+            Equal(byId["steel-sections"], HomeCategories.Modeling, "型钢生成分区");
+            Equal(byId["elbow-trunnion"], HomeCategories.Modeling, "弯头耳轴分区");
+            Equal(byId["n8-connection-plate"], HomeCategories.Support, "N8 分区");
+            Equal(byId["support-statistics"], HomeCategories.Stats, "支吊架统计分区");
+            Equal(byId["component-properties"], HomeCategories.Stats, "构件特性查询分区");
+
+            Equal(HomeCategories.DisplayNameOf(HomeCategories.Modeling), "建模类", "建模类中文名");
+            Equal(HomeCategories.DisplayNameOf("nope"), "", "未知分区应无中文名");
+            True(!HomeCategories.IsKnown(""), "空分区键不属于已知分区");
+        }
+
+        /// <summary>相对时间文案：刚刚 / 分钟 / 小时 / 昨天 / 天 / 日期，以及非法输入容错。</summary>
+        private static void CheckRelativeTime()
+        {
+            Equal(HomeRelativeTime.Label("", Now), "", "空串无文案");
+            Equal(HomeRelativeTime.Label("not-a-date", Now), "", "非法时间无文案");
+            Equal(HomeRelativeTime.Label(Now.AddSeconds(-30), Now), "刚刚", "半分钟内");
+            Equal(HomeRelativeTime.Label(Now.AddMinutes(-5), Now), "5 分钟前", "分钟档");
+            Equal(HomeRelativeTime.Label(Now.AddHours(-3), Now), "3 小时前", "小时档");
+            Equal(HomeRelativeTime.Label(Now.AddHours(-25), Now), "昨天", "跨日一天");
+            Equal(HomeRelativeTime.Label(Now.AddDays(-3), Now), "3 天前", "天档");
+            Equal(HomeRelativeTime.Label(Now.AddDays(-10), Now), "2026-09-17", "超过一周给日期");
+            Equal(HomeRelativeTime.Label(Now.AddHours(1), Now), "刚刚", "未来时间视为刚刚");
+
+            // 存盘格式是 ISO 8601（UTC），字符串入口必须能解析回来。
+            string iso = Now.AddMinutes(-5).ToString("o", CultureInfo.InvariantCulture);
+            Equal(HomeRelativeTime.Label(iso, Now), "5 分钟前", "ISO 记录时间");
+            True(HomeRelativeTime.Parse("") == null, "空串不解析");
+            True(!HomeRelativeTime.Parse("nonsense").HasValue, "非法串不解析");
         }
 
         /// <summary>冷启动：没有任何偏好数据时，顺序必须等于出厂顺序（与改造前的首页完全一致）。</summary>

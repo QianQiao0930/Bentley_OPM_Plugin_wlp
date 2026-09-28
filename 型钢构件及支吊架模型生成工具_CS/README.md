@@ -75,7 +75,12 @@ dotnet run --project Development/SteelSectionCheck/SteelSectionCheck.csproj -c R
 
 ## 首页功能排序与星标
 
-首页卡片由 `Data/Home/HomeFeatureCatalog.cs` 的清单渲染（不再手写 XAML），顺序由 `Services/Home/HomeFeatureRanker.cs` 计算：
+首页卡片由 `Data/Home/HomeFeatureCatalog.cs` 的清单渲染（不再手写 XAML），顺序由 `Services/Home/HomeFeatureRanker.cs` 计算。首页顶部自带标题栏（应用图标 + 标题 + 副标题 + **搜索框** + **排序下拉** + **重置排序**），下方依次是「最近使用」与四个分区（建模类 / 支撑架类 / 统计与扩展 / 规划中）：
+
+- **搜索**：输入关键词即时过滤卡片（匹配标题、说明或分区中文名），无匹配时显示提示；搜索期间隐藏「最近使用」。
+- **排序下拉**：`默认排序`（星标 → 使用频率 → 出厂顺序）／`最近使用`（按最近进入时间降序）／`常用优先`（按衰减频率降序）。三种口径都先按分区分组，仅改变分区内顺序。
+- **最近使用**：按 `LastUsedUtc` 取最近进入的至多 4 项，卡片左下角显示「刚刚 / N 分钟前 / N 小时前 / 昨天 / N 天前 / 日期」（`Services/Home/HomeRelativeTime.cs`，纯计算）。
+- **分区**：每个功能的分区键在 `FeatureDescriptor.Category`，分区键/中文名/显示顺序的唯一来源是 `Data/Home/HomeCategories.cs`；`FeatureDescriptor.Icon` 决定卡片左侧图标（`UI/HomePage.xaml` 里的 `HomeIcon_<key>` 几何）。
 
 | 关键字 | 方向 | 说明 |
 | --- | --- | --- |
@@ -85,12 +90,12 @@ dotnet run --project Development/SteelSectionCheck/SteelSectionCheck.csproj -c R
 | 出厂顺序 | 升序 | 从未使用、未评分时的兜底，等于改造前的首页顺序 |
 | PageId | 字典序 | 全序兜底（`List.Sort` 不稳定，缺这级顺序会漂移） |
 
-- **评分**：点卡片右侧的星标按钮，在弹出的菜单里选 1～5 星或「清除评分」。**评分后不立即重排**，回到首页才按新顺序排列（否则刚点完的卡片会从手下滑走）。
-- **卡片尺寸固定**：卡片固定 300 × 100，标题 1 行、说明 2 行、使用情况 1 行，超长文字用省略号裁剪；列表用自动换行布局，放不下就换行。因此功能说明写多长、窗口拉多宽，卡片尺寸都不变，也不会横向溢出。首页窗口宽度**按实际内容自动校准**（两列卡片 + 页边距 + 滚动条，实测得出），所以右侧不会留出多余空白；功能页宽 560（均按当前屏幕 DPI 换算成设备像素），进入/返回模块时版式不会跳。
+- **评分**：点卡片右下角的星标按钮，在弹出的菜单里选 1～5 星或「清除评分」。**评分后不立即重排**，回到首页才按新顺序排列（否则刚点完的卡片会从手下滑走）。同一功能若同时出现在「最近使用」与所属分区，两处显示同步更新。
+- **卡片尺寸固定**：卡片固定 320 × 124（规划中占位卡 320 × 84），标题 1 行、说明 2 行，超长文字用省略号裁剪；列表用自动换行布局，放不下就换行。因此功能说明写多长、窗口拉多宽，卡片尺寸都不变，也不会横向溢出。首页窗口宽度**按实际内容自动校准**（两列卡片 + 页边距 + 滚动条，实测得出），所以右侧不会留出多余空白；功能页宽 560（均按当前屏幕 DPI 换算成设备像素），进入/返回模块时版式不会跳。
 - **使用频率**：进入功能页时自动统计；同一次会话内同一功能只记一次，命令行入口 `STEELPROBE PLACE` 同样计数。
-- **重置**：首页底部「重置排序」清空全部星标与使用统计。
+- **重置**：标题栏右侧「重置排序」清空全部星标与使用统计。
 - **存储**：`%LOCALAPPDATA%\SteelSectionProbe\home_preferences.json`，只存 `PageId → {Stars, TotalUseCount, LastUsedUtc, MonthlyUse}`，**不存顺序**；文件损坏或不可写时静默回落到出厂顺序，不影响首页显示。
-- **契约**：清单里的 `PageId` 必须与功能页 `IWorkspacePage.PageId` 逐字一致（不一致时状态栏报“未注册的功能模块”）。新增功能页只需在 `HomeFeatureCatalog` 加一项，首页无需改动。
+- **契约**：清单里的 `PageId` 必须与功能页 `IWorkspacePage.PageId` 逐字一致（不一致时状态栏报“未注册的功能模块”）；`Category` 必须是 `HomeCategories` 里的已知键，`Icon` 必须能在 `HomePage.xaml` 找到对应几何。新增功能页只需在 `HomeFeatureCatalog` 加一项（含分区与图标键），首页无需改动。
 - 纯计算检查：`dotnet run --project Development/HomeCheck/HomeCheck.csproj -c Release`。
 
 ## 编译

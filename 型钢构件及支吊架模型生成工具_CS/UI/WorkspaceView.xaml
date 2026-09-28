@@ -13,12 +13,14 @@
 
     <Grid Background="{StaticResource BackgroundBrush}">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" MinHeight="88" />
+            <RowDefinition x:Name="HeaderRowDef" Height="Auto" MinHeight="88" />
             <RowDefinition Height="*" />
             <RowDefinition Height="36" />
         </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0" Margin="14,10,14,6">
+        <!-- 顶部标题栏：功能页显示“标题 + 副标题 + 返回首页”；首页由 HomePage 自带标题栏
+             （含搜索/排序），这里整块隐藏，避免出现两条标题。 -->
+        <Grid x:Name="HeaderRow" Grid.Row="0" Margin="14,10,14,6">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />

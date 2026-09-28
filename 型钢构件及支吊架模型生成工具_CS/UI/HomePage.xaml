@@ -9,23 +9,54 @@
                 <ResourceDictionary Source="Themes/Theme.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
-            <!-- 卡片尺寸写死：宽 300 × 高 100，与内部文字行数、窗口宽度都解耦。
-                 首页窗口宽度由 WorkspaceView 按真实可视树实测校准（MeasureRowWidth /
-                 MeasureChromeWidth / 实测页边距），所以这里改宽高不用手工去改窗口宽度，
-                 但改完要用 E:/Code/_home_ui_probe/ 的 shot 模式出图确认首行仍是 2 列。 -->
-            <Style x:Key="HomeCardStyle" TargetType="Border" BasedOn="{StaticResource CardStyle}">
-                <Setter Property="Width" Value="300" />
-                <Setter Property="Height" Value="100" />
-                <Setter Property="Padding" Value="12,8" />
-                <Setter Property="Margin" Value="0,0,8,8" />
-                <Setter Property="ClipToBounds" Value="True" />
+            <!-- ===== 图标几何（24×24 描边，Viewbox 缩放到 20） =====
+                 首页卡片按 FeatureDescriptor.Icon 查 HomeIcon_<key>；新增功能时在这里补一个几何即可。 -->
+            <Geometry x:Key="HomeIcon_app">M21 8 A2 2 0 0 0 20 6.27 L13 2.27 A2 2 0 0 0 11 2.27 L4 6.27 A2 2 0 0 0 3 8 V16 A2 2 0 0 0 4 17.73 L11 21.73 A2 2 0 0 0 13 21.73 L20 17.73 A2 2 0 0 0 21 16 Z M3.3 7 L12 12 L20.7 7 M12 22 V12</Geometry>
+            <Geometry x:Key="HomeIcon_search">M3 11 A8 8 0 1 1 19 11 A8 8 0 1 1 3 11 Z M21 21 L16.65 16.65</Geometry>
+            <Geometry x:Key="HomeIcon_clock">M2 12 A10 10 0 1 1 22 12 A10 10 0 1 1 2 12 Z M12 6 V12 L16 14</Geometry>
+            <Geometry x:Key="HomeIcon_steel">M4 5 H20 V7 H14 V17 H20 V19 H4 V17 H10 V7 H4 Z</Geometry>
+            <Geometry x:Key="HomeIcon_inspect">M4 8 V6 A2 2 0 0 1 6 4 H8 M16 4 H18 A2 2 0 0 1 20 6 V8 M20 16 V18 A2 2 0 0 1 18 20 H16 M8 20 H6 A2 2 0 0 1 4 18 V16 M8 11 A3 3 0 1 1 14 11 A3 3 0 1 1 8 11 Z M13.2 13.2 L17 17</Geometry>
+            <Geometry x:Key="HomeIcon_elbow">M15 10 L20 15 L15 20 M4 4 V11 A4 4 0 0 0 8 15 H20</Geometry>
+            <Geometry x:Key="HomeIcon_manhole">M2 12 A10 10 0 1 1 22 12 A10 10 0 1 1 2 12 Z M9 12 A3 3 0 1 1 15 12 A3 3 0 1 1 9 12 Z</Geometry>
+            <Geometry x:Key="HomeIcon_nozzle">M21 16 V8 A2 2 0 0 0 20 6.27 L13 2.27 A2 2 0 0 0 11 2.27 L4 6.27 A2 2 0 0 0 3 8 V16 A2 2 0 0 0 4 17.73 L11 21.73 A2 2 0 0 0 13 21.73 L20 17.73 A2 2 0 0 0 21 16 Z</Geometry>
+            <Geometry x:Key="HomeIcon_clamp">M5 3 H19 A2 2 0 0 1 21 5 V19 A2 2 0 0 1 19 21 H5 A2 2 0 0 1 3 19 V5 A2 2 0 0 1 5 3 Z M8 12 H16 M12 8 V16</Geometry>
+            <Geometry x:Key="HomeIcon_riser">M18 9 L12 3 L6 9 M12 3 V17 M5 21 H19</Geometry>
+            <Geometry x:Key="HomeIcon_anchor">M4 4 H10 A1 1 0 0 1 11 5 V10 A1 1 0 0 1 10 11 H4 A1 1 0 0 1 3 10 V5 A1 1 0 0 1 4 4 Z M14 4 H20 A1 1 0 0 1 21 5 V10 A1 1 0 0 1 20 11 H14 A1 1 0 0 1 13 10 V5 A1 1 0 0 1 14 4 Z M14 13 H20 A1 1 0 0 1 21 14 V19 A1 1 0 0 1 20 20 H14 A1 1 0 0 1 13 19 V14 A1 1 0 0 1 14 13 Z M4 13 H10 A1 1 0 0 1 11 14 V19 A1 1 0 0 1 10 20 H4 A1 1 0 0 1 3 19 V14 A1 1 0 0 1 4 13 Z</Geometry>
+            <Geometry x:Key="HomeIcon_triangle">M13.73 4 A2 2 0 0 0 10.27 4 L2.27 18 A2 2 0 0 0 4 21 H20 A2 2 0 0 0 21.73 18 Z</Geometry>
+            <Geometry x:Key="HomeIcon_link">M10 13 A5 5 0 0 0 17.54 13.54 L20.54 10.54 A5 5 0 0 0 13.47 3.47 L11.75 5.18 M14 11 A5 5 0 0 0 6.46 10.46 L3.46 13.46 A5 5 0 0 0 10.53 20.53 L12.24 18.82</Geometry>
+            <Geometry x:Key="HomeIcon_chart">M3 3 V19 A2 2 0 0 0 5 21 H21 M18 17 V9 M13 17 V5 M8 17 V14</Geometry>
+            <Geometry x:Key="HomeIcon_route">M6 19 A3 3 0 1 1 6 13 A3 3 0 1 1 6 19 Z M18 11 A3 3 0 1 1 18 5 A3 3 0 1 1 18 11 Z M6 13 V8 A3 3 0 0 1 9 5 H15</Geometry>
+            <Geometry x:Key="HomeIcon_puzzle">M4 6 H10 V4 A2 2 0 0 1 14 4 V6 H20 V12 H18 A2 2 0 0 1 18 16 H20 V20 H4 V16 H6 A2 2 0 0 1 6 12 H4 Z</Geometry>
+
+            <Style x:Key="HomeIconGlyphStyle" TargetType="Path">
+                <Setter Property="Stroke" Value="{StaticResource PrimaryBrush}" />
+                <Setter Property="StrokeThickness" Value="2" />
+                <Setter Property="StrokeStartLineCap" Value="Round" />
+                <Setter Property="StrokeEndLineCap" Value="Round" />
+                <Setter Property="StrokeLineJoin" Value="Round" />
             </Style>
 
-            <!-- 卡片内的三段文字都用固定行高 + 省略号裁剪：标题 1 行、说明 2 行、使用情况 1 行。
-                 合计 12(色条) + 20 + 34 + 17 = 83 ≤ 内容区 84（104 − 上下内边距 20）。 -->
+            <!-- 卡片尺寸写死：宽 320 × 高 124，与内部文字行数、窗口宽度都解耦。
+                 首页窗口宽度由 WorkspaceView 按真实可视树实测校准（MeasureRowWidth /
+                 MeasureChromeWidth / 实测页边距），所以这里改宽高不用手工去改窗口宽度。
+                 内部纵向预算：上下内边距 26 + 内容行 56 + 间距 8 + 星标行 26 = 116 ≤ 124。 -->
+            <Style x:Key="HomeCardStyle" TargetType="Border" BasedOn="{StaticResource CardStyle}">
+                <Setter Property="Width" Value="320" />
+                <Setter Property="Height" Value="124" />
+                <Setter Property="Padding" Value="16,13" />
+                <Setter Property="Margin" Value="0,0,12,12" />
+                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="ClipToBounds" Value="True" />
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="BorderBrush" Value="#B9C6D6" />
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
             <Style x:Key="CardTitleStyle" TargetType="TextBlock">
-                <Setter Property="Height" Value="20" />
-                <Setter Property="FontSize" Value="14" />
+                <Setter Property="Height" Value="22" />
+                <Setter Property="FontSize" Value="15" />
                 <Setter Property="FontWeight" Value="SemiBold" />
                 <Setter Property="TextWrapping" Value="NoWrap" />
                 <Setter Property="TextTrimming" Value="CharacterEllipsis" />
@@ -33,75 +64,73 @@
             </Style>
 
             <Style x:Key="CardDescriptionStyle" TargetType="TextBlock">
-                <Setter Property="Height" Value="30" />
-                <Setter Property="FontSize" Value="10.5" />
-                <Setter Property="Margin" Value="0,4,0,0" />
+                <Setter Property="Height" Value="34" />
+                <Setter Property="FontSize" Value="11.5" />
+                <Setter Property="Margin" Value="0,3,0,0" />
                 <Setter Property="TextWrapping" Value="Wrap" />
                 <Setter Property="TextTrimming" Value="CharacterEllipsis" />
                 <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
             </Style>
 
-            <Style x:Key="CardUsageStyle" TargetType="TextBlock">
-                <Setter Property="Height" Value="14" />
-                <Setter Property="FontSize" Value="10" />
-                <Setter Property="Margin" Value="0,2,0,0" />
+            <Style x:Key="CardTimeStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="11" />
+                <Setter Property="VerticalAlignment" Value="Center" />
                 <Setter Property="TextWrapping" Value="NoWrap" />
                 <Setter Property="TextTrimming" Value="CharacterEllipsis" />
                 <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
             </Style>
 
             <Style x:Key="HomeSectionTitleStyle" TargetType="TextBlock">
-                <Setter Property="FontSize" Value="13" />
+                <Setter Property="FontSize" Value="12.5" />
                 <Setter Property="FontWeight" Value="SemiBold" />
-                <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
-                <Setter Property="VerticalAlignment" Value="Bottom" />
-            </Style>
-
-            <Style x:Key="HomeSectionHintStyle" TargetType="TextBlock">
-                <Setter Property="FontSize" Value="10.5" />
                 <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
-                <Setter Property="Margin" Value="8,0,0,1" />
-                <Setter Property="VerticalAlignment" Value="Bottom" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="TextWrapping" Value="NoWrap" />
             </Style>
 
-            <Style TargetType="TextBlock">
-                <Setter Property="TextWrapping" Value="Wrap" />
-            </Style>
-
-            <!-- 一张功能卡：左列标题/说明/使用情况，右列星标按钮 + 进入按钮。 -->
+            <!-- 一张可用功能卡：左侧图标 + 标题/说明，底部一行时间 + 星标；整卡可点进入功能页。 -->
             <DataTemplate x:Key="FeatureCardTemplate">
-                <Border Style="{StaticResource HomeCardStyle}">
+                <Border Style="{StaticResource HomeCardStyle}"
+                        Cursor="Hand"
+                        MouseLeftButtonUp="Card_Click"
+                        ToolTip="{Binding UsageText}">
                     <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <!-- 右侧操作列宽度写死，不随星标/按钮文字变化（避免反过来压缩左侧文字区） -->
-                            <ColumnDefinition Width="76" />
-                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
 
-                        <!-- 左列用两行网格：说明区在上、使用情况钉在卡片底部。
-                             这样说明文字占 1 行还是 2 行，卡片内部布局都不会跳。 -->
-                        <Grid Grid.Column="0" Margin="0,0,10,0">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="*" />
-                            </Grid.RowDefinitions>
-                            <StackPanel Grid.Row="0">
-                                <Border x:Name="AccentBar" Width="28" Height="4" CornerRadius="2"
-                                        Background="{StaticResource AccentBrush}"
-                                        HorizontalAlignment="Left" Margin="0,0,0,8" />
-                                <TextBlock x:Name="TitleText" Text="{Binding Title}"
-                                           Style="{StaticResource CardTitleStyle}" />
-                                <TextBlock Text="{Binding Description}"
-                                           Style="{StaticResource CardDescriptionStyle}" />
+                        <Grid Grid.Row="0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border Width="40" Height="40" CornerRadius="8"
+                                    Background="{StaticResource CardSoftBrush}"
+                                    VerticalAlignment="Top">
+                                <Viewbox Width="20" Height="20"
+                                         HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Canvas Width="24" Height="24">
+                                        <Path Data="{Binding IconGeometry}" Style="{StaticResource HomeIconGlyphStyle}" />
+                                    </Canvas>
+                                </Viewbox>
+                            </Border>
+                            <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Top">
+                                <TextBlock Text="{Binding Title}" Style="{StaticResource CardTitleStyle}" />
+                                <TextBlock Text="{Binding Description}" Style="{StaticResource CardDescriptionStyle}" />
                             </StackPanel>
-                            <TextBlock x:Name="UsageLine" Grid.Row="1" Text="{Binding UsageText}"
-                                       VerticalAlignment="Bottom"
-                                       Style="{StaticResource CardUsageStyle}" />
                         </Grid>
 
-                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                            <Button x:Name="StarButton" Style="{StaticResource StarButtonStyle}"
-                                    Width="72" HorizontalAlignment="Center"
+                        <Grid Grid.Row="1" Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="{Binding TimeText}" Style="{StaticResource CardTimeStyle}" />
+                            <Button x:Name="StarButton" Grid.Column="1"
+                                    Style="{StaticResource GhostButtonStyle}"
+                                    Width="46" Height="26" MinWidth="0" Padding="4,0"
+                                    HorizontalAlignment="Right"
                                     ToolTip="点击设置星标：1～5 星，3 星及以上置顶"
                                     ContextMenuOpening="Star_MenuOpening"
                                     Click="Star_Click">
@@ -117,107 +146,230 @@
                                     </ContextMenu>
                                 </Button.ContextMenu>
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="{Binding StarFilled}" FontSize="12"
-                                               TextWrapping="NoWrap"
-                                               Foreground="{StaticResource AccentBrush}" />
-                                    <TextBlock Text="{Binding StarEmpty}" FontSize="12"
-                                               TextWrapping="NoWrap"
+                                    <TextBlock x:Name="StarGlyphText" Text="{Binding StarGlyph}"
+                                               FontSize="13" TextWrapping="NoWrap"
+                                               VerticalAlignment="Center"
                                                Foreground="{StaticResource MutedBrush}" />
-                                    <TextBlock Text="{Binding StarHint}" FontSize="10" Margin="2,0,0,0"
-                                               VerticalAlignment="Center" TextWrapping="NoWrap"
+                                    <TextBlock Text="{Binding RatingText}" FontSize="10.5" Margin="2,0,0,0"
+                                               TextWrapping="NoWrap" VerticalAlignment="Center"
                                                Foreground="{StaticResource MutedBrush}" />
                                 </StackPanel>
                             </Button>
-
-                            <Border x:Name="PlanningBadge" Visibility="Collapsed"
-                                    Background="#EEF1F5" CornerRadius="10" Padding="9,3"
-                                    HorizontalAlignment="Center">
-                                <TextBlock Text="规划中" FontSize="10" TextWrapping="NoWrap"
-                                           Foreground="{StaticResource MutedBrush}" />
-                            </Border>
-
-                            <Button x:Name="EntryButton" Content="进入"
-                                    Style="{StaticResource PrimaryButtonStyle}"
-                                    Width="64" Height="28" MinWidth="0"
-                                    Margin="0,6,0,0"
-                                    Click="Entry_Click" />
-                        </StackPanel>
+                        </Grid>
                     </Grid>
                 </Border>
                 <DataTemplate.Triggers>
-                    <!-- 占位卡：灰化、无星标、无进入按钮，只展示路线图。 -->
-                    <DataTrigger Binding="{Binding IsReady}" Value="False">
-                        <Setter TargetName="AccentBar" Property="Background" Value="Transparent" />
-                        <Setter TargetName="TitleText" Property="Foreground" Value="{StaticResource MutedBrush}" />
-                        <Setter TargetName="UsageLine" Property="Visibility" Value="Collapsed" />
-                        <Setter TargetName="StarButton" Property="Visibility" Value="Collapsed" />
-                        <Setter TargetName="PlanningBadge" Property="Visibility" Value="Visible" />
-                        <Setter TargetName="EntryButton" Property="Visibility" Value="Collapsed" />
+                    <DataTrigger Binding="{Binding HasRating}" Value="True">
+                        <Setter TargetName="StarGlyphText" Property="Foreground" Value="{StaticResource AccentBrush}" />
                     </DataTrigger>
                 </DataTemplate.Triggers>
+            </DataTemplate>
+
+            <!-- 规划中占位卡：灰化、无星标、不可进入，右上角挂"即将上线"。 -->
+            <DataTemplate x:Key="PlannedCardTemplate">
+                <Border Width="320" Height="84" Padding="16,12" Margin="0,0,12,12"
+                        CornerRadius="8" ClipToBounds="True"
+                        Background="{StaticResource BackgroundBrush}"
+                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                        Opacity="0.65">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Border Width="40" Height="40" CornerRadius="8"
+                                Background="{StaticResource CardBrush}"
+                                VerticalAlignment="Top">
+                            <Viewbox Width="20" Height="20"
+                                     HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Canvas Width="24" Height="24">
+                                    <Path Data="{Binding IconGeometry}"
+                                          Style="{StaticResource HomeIconGlyphStyle}"
+                                          Stroke="{StaticResource MutedBrush}" />
+                                </Canvas>
+                            </Viewbox>
+                        </Border>
+                        <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding Title}" Style="{StaticResource CardTitleStyle}" />
+                                <Border Grid.Column="1" Margin="8,1,0,0" VerticalAlignment="Top"
+                                        CornerRadius="9" Padding="8,2"
+                                        Background="{StaticResource CardBrush}"
+                                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                                    <TextBlock Text="即将上线" FontSize="10" TextWrapping="NoWrap"
+                                               Foreground="{StaticResource MutedBrush}" />
+                                </Border>
+                            </Grid>
+                            <TextBlock Text="{Binding Description}" Style="{StaticResource CardDescriptionStyle}" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
             </DataTemplate>
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto"
-                  HorizontalScrollBarVisibility="Disabled"
-                  Padding="0,0,4,0">
-        <StackPanel>
-            <TextBlock Text="选择功能模块"
-                       FontSize="17"
-                       FontWeight="SemiBold"
-                       Foreground="{StaticResource InkBrush}"
-                       Margin="0,2,0,3" />
-            <TextBlock Text="建模与查询功能均可从这里进入；卡片按“星标 → 常用度”自动排序。"
-                       FontSize="11"
-                       Foreground="{StaticResource MutedBrush}"
-                       TextWrapping="Wrap"
-                       Margin="0,0,0,12" />
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
 
-            <!-- 置顶区：星级达到 3 星才进入；没有置顶项时整段隐藏。 -->
-            <StackPanel x:Name="PinnedSection" Visibility="Collapsed" Margin="0,0,0,4">
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,7">
-                    <TextBlock Text="常用功能" Style="{StaticResource HomeSectionTitleStyle}" />
-                    <TextBlock Text="已置顶 · 按星级排序" Style="{StaticResource HomeSectionHintStyle}" />
-                </StackPanel>
-                <ItemsControl x:Name="PinnedList" ItemTemplate="{StaticResource FeatureCardTemplate}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <!-- 用 WrapPanel 而不是 UniformGrid：卡片宽度已写死，
-                                 放不下就换行，永远不会横向溢出或被裁掉。 -->
-                            <WrapPanel />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                </ItemsControl>
-            </StackPanel>
-
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,7">
-                <TextBlock Text="全部功能" Style="{StaticResource HomeSectionTitleStyle}" />
-                <TextBlock x:Name="OtherSectionHint" Text="按使用频率自动排序"
-                           Style="{StaticResource HomeSectionHintStyle}" />
-            </StackPanel>
-            <ItemsControl x:Name="OtherList" ItemTemplate="{StaticResource FeatureCardTemplate}">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <WrapPanel />
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-            </ItemsControl>
-
-            <Grid Margin="0,4,8,2">
+        <!-- ===== 标题栏：应用图标 + 标题/副标题 + 搜索/排序/重置 ===== -->
+        <Border Grid.Row="0" Margin="0,0,0,14" Padding="0,0,0,12"
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1">
+            <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" VerticalAlignment="Center"
-                           Text="排序规则：星标（≥3 星置顶）＞ 使用频率（按月衰减）＞ 出厂顺序"
-                           FontSize="10" Foreground="{StaticResource MutedBrush}"
-                           TextWrapping="Wrap" />
-                <Button x:Name="ResetButton" Grid.Column="1" Content="重置排序"
-                        Style="{StaticResource GhostButtonStyle}"
-                        Height="24" MinWidth="0" Padding="8,0" FontSize="10.5"
-                        Click="Reset_Click" />
+
+                <Grid VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Border Width="34" Height="34" CornerRadius="8" Background="{StaticResource PrimaryBrush}">
+                        <Viewbox Width="19" Height="19" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Canvas Width="24" Height="24">
+                                <Path Data="{StaticResource HomeIcon_app}"
+                                      Style="{StaticResource HomeIconGlyphStyle}" Stroke="White" />
+                            </Canvas>
+                        </Viewbox>
+                    </Border>
+                    <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="型钢构件及支吊架模型生成工具" FontSize="15" FontWeight="SemiBold"
+                                   Foreground="{StaticResource InkBrush}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="选择建模或查询功能" FontSize="10.5" Margin="0,3,0,0"
+                                   Foreground="{StaticResource MutedBrush}" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                </Grid>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Grid Width="172" Height="30" Margin="0,0,8,0">
+                        <Border Background="{StaticResource BackgroundBrush}"
+                                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                                CornerRadius="6" />
+                        <Viewbox Width="15" Height="15" Margin="9,0,0,0"
+                                 HorizontalAlignment="Left" VerticalAlignment="Center">
+                            <Canvas Width="24" Height="24">
+                                <Path Data="{StaticResource HomeIcon_search}"
+                                      Style="{StaticResource HomeIconGlyphStyle}"
+                                      Stroke="{StaticResource MutedBrush}" />
+                            </Canvas>
+                        </Viewbox>
+                        <TextBox x:Name="SearchBox" Height="28" Margin="1" Padding="28,0,8,0"
+                                 Background="Transparent" BorderThickness="0" FontSize="11.5"
+                                 VerticalContentAlignment="Center"
+                                 Foreground="{StaticResource InkBrush}"
+                                 TextChanged="Search_TextChanged" />
+                        <TextBlock x:Name="SearchPlaceholder" Text="搜索功能模块..."
+                                   Margin="30,0,0,0" VerticalAlignment="Center"
+                                   IsHitTestVisible="False" FontSize="11.5"
+                                   Foreground="{StaticResource MutedBrush}" />
+                    </Grid>
+
+                    <ComboBox x:Name="SortBox" Width="116" Height="30" Margin="0,0,8,0"
+                              FontSize="11" SelectionChanged="Sort_SelectionChanged">
+                        <ComboBoxItem Content="默认排序" />
+                        <ComboBoxItem Content="最近使用" />
+                        <ComboBoxItem Content="常用优先" />
+                    </ComboBox>
+
+                    <Button x:Name="ResetButton" Content="重置排序"
+                            Style="{StaticResource GhostButtonStyle}"
+                            Height="30" MinWidth="0" Padding="9,0" FontSize="11"
+                            ToolTip="清除所有星标与使用统计，首页恢复出厂顺序"
+                            Click="Reset_Click" />
+                </StackPanel>
             </Grid>
-        </StackPanel>
-    </ScrollViewer>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled" Padding="0,0,4,0">
+            <StackPanel>
+                <!-- 最近使用：按最近进入时间排序，最多 4 张；搜索或无记录时整段隐藏。 -->
+                <StackPanel x:Name="RecentSection" Margin="0,0,0,18">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <Viewbox Width="14" Height="14" VerticalAlignment="Center">
+                            <Canvas Width="24" Height="24">
+                                <Path Data="{StaticResource HomeIcon_clock}"
+                                      Style="{StaticResource HomeIconGlyphStyle}"
+                                      Stroke="{StaticResource MutedBrush}" />
+                            </Canvas>
+                        </Viewbox>
+                        <TextBlock Text="最近使用" Margin="6,0,0,0"
+                                   Style="{StaticResource HomeSectionTitleStyle}" />
+                    </StackPanel>
+                    <ItemsControl x:Name="RecentList" ItemTemplate="{StaticResource FeatureCardTemplate}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                </StackPanel>
+
+                <StackPanel x:Name="ModelingSection" Margin="0,0,0,18">
+                    <TextBlock Text="建模类" Margin="0,0,0,10"
+                               Style="{StaticResource HomeSectionTitleStyle}" />
+                    <ItemsControl x:Name="ModelingList" ItemTemplate="{StaticResource FeatureCardTemplate}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                </StackPanel>
+
+                <StackPanel x:Name="SupportSection" Margin="0,0,0,18">
+                    <TextBlock Text="支撑架类" Margin="0,0,0,10"
+                               Style="{StaticResource HomeSectionTitleStyle}" />
+                    <ItemsControl x:Name="SupportList" ItemTemplate="{StaticResource FeatureCardTemplate}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                </StackPanel>
+
+                <StackPanel x:Name="StatsSection" Margin="0,0,0,18">
+                    <TextBlock Text="统计与扩展" Margin="0,0,0,10"
+                               Style="{StaticResource HomeSectionTitleStyle}" />
+                    <ItemsControl x:Name="StatsList" ItemTemplate="{StaticResource FeatureCardTemplate}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                </StackPanel>
+
+                <!-- 规划中：占位卡，与上方分区以分隔线区分。 -->
+                <Border x:Name="PlannedSection" Margin="0,2,0,6" Padding="0,16,0,0"
+                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0">
+                    <StackPanel>
+                        <TextBlock Text="规划中" Margin="0,0,0,10"
+                                   Style="{StaticResource HomeSectionTitleStyle}" />
+                        <ItemsControl x:Name="PlannedList" ItemTemplate="{StaticResource PlannedCardTemplate}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock x:Name="EmptyHint" Visibility="Collapsed"
+                           Text="没有匹配的功能模块，换个关键词试试。"
+                           FontSize="12" Margin="0,24,0,0" HorizontalAlignment="Center"
+                           Foreground="{StaticResource MutedBrush}" />
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
 </UserControl>
