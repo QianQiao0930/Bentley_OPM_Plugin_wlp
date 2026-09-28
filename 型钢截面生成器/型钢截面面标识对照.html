@@ -53,9 +53,85 @@
   }
   .figure{padding:14px}
   .figure img{width:100%; height:auto; display:block; border-radius:8px}
+  .figure img{cursor:zoom-in; transition:box-shadow .18s ease, transform .18s ease}
+  .figure img:hover{box-shadow:0 10px 26px rgba(20,40,70,.22); transform:translateY(-1px)}
+  .figure img:focus-visible{outline:3px solid var(--accent); outline-offset:3px}
   .figure figcaption{
     margin-top:10px; font-size:12.5px; color:var(--muted); text-align:center;
   }
+  .figure figcaption .hint{
+    display:block; margin-top:2px; font-size:11.5px; color:#9aa5b1;
+  }
+
+  /* ===== 图片放大模态框 ===== */
+  .lightbox{
+    position:fixed; inset:0; z-index:999;
+    display:none; align-items:center; justify-content:center;
+    background:rgba(10,20,32,.88);
+    backdrop-filter:blur(2px);
+    -webkit-backdrop-filter:blur(2px);
+    opacity:0; transition:opacity .2s ease;
+  }
+  .lightbox.open{display:flex; opacity:1}
+  .lightbox .stage{
+    position:absolute; inset:0; overflow:hidden;
+    cursor:grab; touch-action:none;
+  }
+  .lightbox .stage.dragging{cursor:grabbing}
+  .lightbox .stage img{
+    position:absolute; top:50%; left:50%;
+    max-width:none; max-height:none;
+    transform-origin:center center;
+    border-radius:6px; background:#fff;
+    box-shadow:0 18px 60px rgba(0,0,0,.55);
+    user-select:none; -webkit-user-drag:none;
+    will-change:transform;
+  }
+  .lightbox .bar{
+    position:absolute; left:50%; bottom:22px; transform:translateX(-50%);
+    display:flex; align-items:center; gap:8px;
+    background:rgba(16,28,42,.86); border:1px solid rgba(255,255,255,.14);
+    padding:8px 12px; border-radius:999px;
+    box-shadow:0 10px 30px rgba(0,0,0,.4);
+    z-index:2;
+  }
+  .lightbox .bar button{
+    appearance:none; border:1px solid rgba(255,255,255,.18);
+    background:rgba(255,255,255,.06); color:#e8f0f9; cursor:pointer;
+    font-family:inherit; font-size:13px; line-height:1;
+    padding:8px 12px; border-radius:999px; min-width:38px;
+  }
+  .lightbox .bar button:hover{background:rgba(255,255,255,.16); color:#fff}
+  .lightbox .bar button:focus-visible{outline:2px solid #7fb6e6; outline-offset:2px}
+  .lightbox .bar .zoom-val{
+    min-width:56px; text-align:center; font-size:12.5px; color:#cfe0f0;
+    font-family:Consolas,"Courier New",monospace;
+  }
+  .lightbox .close{
+    position:absolute; top:18px; right:20px; z-index:3;
+    appearance:none; border:1px solid rgba(255,255,255,.2);
+    background:rgba(16,28,42,.8); color:#fff; cursor:pointer;
+    width:42px; height:42px; border-radius:50%;
+    font-size:22px; line-height:1; font-family:inherit;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .lightbox .close:hover{background:#c0392b; border-color:#c0392b}
+  .lightbox .cap{
+    position:absolute; top:22px; left:24px; right:90px; z-index:2;
+    color:#e8f0f9; font-size:14px; font-weight:600;
+    text-shadow:0 2px 10px rgba(0,0,0,.8); pointer-events:none;
+  }
+  .lightbox .tip{
+    position:absolute; left:24px; bottom:26px; z-index:2;
+    color:#93a6b8; font-size:12px; text-shadow:0 2px 10px rgba(0,0,0,.8);
+    pointer-events:none;
+  }
+  @media (max-width:700px){
+    .lightbox .tip{display:none}
+    .lightbox .bar{gap:6px; padding:7px 9px}
+    .lightbox .bar button{padding:7px 10px; font-size:12px}
+  }
+  body.lb-locked{overflow:hidden}
   .body{padding:20px 22px}
   .body h2{margin:0 0 4px; font-size:18px}
   .body .meta{
@@ -233,12 +309,30 @@
   </section>
 </div>
 
+<!-- ================= 图片放大模态框 ================= -->
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="放大查看截面示意图" hidden>
+  <div class="cap" id="lbCaption"></div>
+  <button class="close" id="lbClose" type="button" title="关闭 (Esc)" aria-label="关闭">×</button>
+  <div class="stage" id="lbStage">
+    <img id="lbImg" alt="" draggable="false">
+  </div>
+  <div class="tip">滚轮 / 双击放大 · 拖拽移动 · Esc 或点击空白处关闭</div>
+  <div class="bar">
+    <button type="button" id="lbOut" title="缩小">−</button>
+    <span class="zoom-val" id="lbZoom">100%</span>
+    <button type="button" id="lbIn" title="放大">＋</button>
+    <button type="button" id="lbReset" title="适应窗口">适应</button>
+    <button type="button" id="lbFull" title="原始大小">1:1</button>
+  </div>
+</div>
+
 <footer>
   示意图来源：本目录 <code class="inline">角钢.jpg / 槽钢.jpg / 工字钢.jpg</code>（已内嵌为 base64）。
   文字对照基于 <code class="inline">steel_sections</code> 包中对应的 <code class="inline">steel_*_geometry.py</code>。
 </footer>
 
 <script>
+  /* ================= 选项卡切换 ================= */
   var tabs = document.querySelectorAll('.tab');
   var panels = document.querySelectorAll('.panel');
   tabs.forEach(function(tab){
@@ -249,6 +343,205 @@
       document.getElementById(tab.dataset.target).classList.add('active');
     });
   });
+
+  /* ================= 图片点击放大（模态框） ================= */
+  (function(){
+    var box     = document.getElementById('lightbox');
+    var stage   = document.getElementById('lbStage');
+    var lbImg   = document.getElementById('lbImg');
+    var caption = document.getElementById('lbCaption');
+    var zoomVal = document.getElementById('lbZoom');
+    if(!box || !stage || !lbImg) return;
+
+    var figures = document.querySelectorAll('.figure img');
+    var lastFocus = null;
+    var natW = 0, natH = 0;      // 图片原始像素尺寸
+    var fitScale = 1;            // “适应窗口”比例
+    var scale = 1, dx = 0, dy = 0;
+    var MIN_RATIO = 0.15, MAX_RATIO = 12;   // 相对适应比例的缩放范围
+    var closeTimer = null;
+
+    /* 给每张图加上可点击的提示与键盘可达性 */
+    figures.forEach(function(img){
+      img.tabIndex = 0;
+      img.setAttribute('role', 'button');
+      img.setAttribute('title', '点击放大查看');
+      var cap = img.parentElement && img.parentElement.querySelector('figcaption');
+      if(cap && !cap.querySelector('.hint')){
+        var hint = document.createElement('span');
+        hint.className = 'hint';
+        hint.textContent = '点击图片可放大查看';
+        cap.appendChild(hint);
+      }
+      img.addEventListener('click', function(){ open(img); });
+      img.addEventListener('keydown', function(e){
+        if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); open(img); }
+      });
+    });
+
+    // 舞台铺满视口，直接用窗口尺寸，避免模态框隐藏时读不到布局尺寸
+    function vw(){ return window.innerWidth  || document.documentElement.clientWidth  || 1200; }
+    function vh(){ return window.innerHeight || document.documentElement.clientHeight || 800; }
+
+    function computeFit(){
+      var sw = vw() * 0.9, sh = vh() * 0.84;
+      fitScale = Math.min(sw / natW, sh / natH, 1) || 1;
+    }
+
+    function clampPan(){
+      var limitX = Math.max(0, (natW * scale - vw()) / 2) + 60;
+      var limitY = Math.max(0, (natH * scale - vh()) / 2) + 60;
+      dx = Math.min(limitX, Math.max(-limitX, dx));
+      dy = Math.min(limitY, Math.max(-limitY, dy));
+    }
+
+    function render(){
+      lbImg.style.width  = natW + 'px';
+      lbImg.style.height = natH + 'px';
+      lbImg.style.transform = 'translate(-50%,-50%) translate(' + dx + 'px,' + dy + 'px) scale(' + scale + ')';
+      zoomVal.textContent = Math.round(scale / fitScale * 100) + '%';
+    }
+
+    function setScale(next, anchorX, anchorY){
+      var maxScale = Math.max(fitScale * MAX_RATIO, 4);      // 至少可放大到 4 倍原始像素
+      var minScale = fitScale * MIN_RATIO;
+      next = Math.min(maxScale, Math.max(minScale, next));
+      if(anchorX === undefined){ anchorX = vw() / 2; anchorY = vh() / 2; }
+      var cx = anchorX - vw() / 2, cy = anchorY - vh() / 2;   // 相对图片中心
+      var u = (cx - dx) / scale, v = (cy - dy) / scale;       // 光标下的图片坐标
+      dx = cx - u * next;
+      dy = cy - v * next;
+      scale = next;
+      clampPan();
+      render();
+    }
+
+    function zoomBy(factor, anchorX, anchorY){ setScale(scale * factor, anchorX, anchorY); }
+
+    function fitToWindow(){
+      computeFit();
+      scale = fitScale; dx = 0; dy = 0;
+      render();
+    }
+
+    function open(img){
+      if(closeTimer){ clearTimeout(closeTimer); closeTimer = null; }
+      lastFocus = img;
+      natW = img.naturalWidth  || img.width  || 1000;
+      natH = img.naturalHeight || img.height || 1000;
+      lbImg.src = img.src;
+      lbImg.alt = img.alt || '放大图片';
+      var cap = img.parentElement && img.parentElement.querySelector('figcaption');
+      caption.textContent = cap ? cap.textContent.replace('点击图片可放大查看','').trim() : (img.alt || '');
+      fitToWindow();
+      box.hidden = false;
+      void box.offsetWidth;
+      box.classList.add('open');
+      document.body.classList.add('lb-locked');
+      document.getElementById('lbClose').focus();
+    }
+
+    function close(){
+      box.classList.remove('open');
+      document.body.classList.remove('lb-locked');
+      closeTimer = setTimeout(function(){ box.hidden = true; closeTimer = null; }, 200);
+      if(lastFocus && lastFocus.focus) lastFocus.focus();
+    }
+
+    /* ---- 按钮 ---- */
+    document.getElementById('lbClose').addEventListener('click', close);
+    document.getElementById('lbReset').addEventListener('click', fitToWindow);
+    document.getElementById('lbIn').addEventListener('click', function(){ zoomBy(1.25); });
+    document.getElementById('lbOut').addEventListener('click', function(){ zoomBy(0.8); });
+    document.getElementById('lbFull').addEventListener('click', function(){
+      setScale(1); dx = 0; dy = 0; clampPan(); render();
+    });
+
+    /* ---- 点击空白 / 双击 / 滚轮 ---- */
+    stage.addEventListener('click', function(e){
+      if(e.target === stage && !dragMoved) close();   // 点击图片外的空白处关闭
+    });
+    box.addEventListener('mousedown', function(e){
+      if(e.target === box) close();      // 点击遮罩空白处关闭
+    });
+    lbImg.addEventListener('click', function(e){ e.stopPropagation(); });
+    lbImg.addEventListener('dblclick', function(e){
+      e.preventDefault();
+      if(Math.abs(scale - 1) < 1e-6) fitToWindow();
+      else { setScale(1, e.clientX, e.clientY); }
+    });
+    stage.addEventListener('dblclick', function(e){
+      if(e.target !== stage) return;
+      if(Math.abs(scale - fitScale) < 1e-6) setScale(1, e.clientX, e.clientY);
+      else fitToWindow();
+    });
+
+    stage.addEventListener('wheel', function(e){
+      e.preventDefault();
+      zoomBy(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX, e.clientY);
+    }, { passive:false });
+
+    /* ---- 拖拽平移 ---- */
+    var dragging = false, dragMoved = false, startX = 0, startY = 0, baseX = 0, baseY = 0;
+    stage.addEventListener('pointerdown', function(e){
+      if(e.button !== 0) return;
+      if(e.target === lbImg || e.target === stage){
+        dragging = true; dragMoved = false;
+        startX = e.clientX; startY = e.clientY; baseX = dx; baseY = dy;
+        stage.classList.add('dragging');
+        if(stage.setPointerCapture) stage.setPointerCapture(e.pointerId);
+      }
+    });
+    stage.addEventListener('pointermove', function(e){
+      if(!dragging) return;
+      var mx = e.clientX - startX, my = e.clientY - startY;
+      if(Math.abs(mx) + Math.abs(my) > 4) dragMoved = true;
+      dx = baseX + mx;
+      dy = baseY + my;
+      clampPan(); render();
+    });
+    function endDrag(e){
+      if(!dragging) return;
+      dragging = false;
+      stage.classList.remove('dragging');
+      if(stage.releasePointerCapture && e && e.pointerId !== undefined){
+        try{ stage.releasePointerCapture(e.pointerId); }catch(err){}
+      }
+    }
+    stage.addEventListener('pointerup', endDrag);
+    stage.addEventListener('pointercancel', endDrag);
+    stage.addEventListener('pointerleave', endDrag);
+
+    /* ---- 键盘 ---- */
+    document.addEventListener('keydown', function(e){
+      if(box.hidden) return;
+      var step = 60;
+      switch(e.key){
+        case 'Escape': close(); break;
+        case '+': case '=': zoomBy(1.25); break;
+        case '-': case '_': zoomBy(0.8); break;
+        case '0': fitToWindow(); break;
+        case '1': setScale(1); dx = 0; dy = 0; clampPan(); render(); break;
+        case 'ArrowLeft':  dx += step; clampPan(); render(); e.preventDefault(); break;
+        case 'ArrowRight': dx -= step; clampPan(); render(); e.preventDefault(); break;
+        case 'ArrowUp':    dy += step; clampPan(); render(); e.preventDefault(); break;
+        case 'ArrowDown':  dy -= step; clampPan(); render(); e.preventDefault(); break;
+      }
+    });
+
+    /* ---- 窗口尺寸变化：重算适应比例 ---- */
+    var rt = null;
+    window.addEventListener('resize', function(){
+      if(box.hidden) return;
+      clearTimeout(rt);
+      rt = setTimeout(function(){
+        var ratio = scale / fitScale;
+        computeFit();
+        scale = fitScale * ratio;
+        clampPan(); render();
+      }, 120);
+    });
+  })();
 </script>
 </body>
 </html>

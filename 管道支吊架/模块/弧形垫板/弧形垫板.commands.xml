@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<KeyinTree xmlns="http://www.bentley.com/schemas/1.0/MicroStation/AddIn/KeyinTree.xsd">
+  <RootKeyinTable ID="root">
+    <Keyword SubtableRef="PYY2PAD" CommandClass="MacroCommand" CommandWord="PYY2PAD">
+      <Options Required="true" />
+    </Keyword>
+  </RootKeyinTable>
+  <SubKeyinTables>
+    <KeyinTable ID="PYY2PAD">
+      <Keyword CommandWord="PLACE" />
+      <Keyword CommandWord="EXPORT" />
+    </KeyinTable>
+  </SubKeyinTables>
+  <KeyinHandlers>
+    <KeyinHandler Keyin="PYY2PAD PLACE" Function="OpenY2Pad" />
+    <KeyinHandler Keyin="PYY2PAD EXPORT" Function="ExportY2PadBom" />
+  </KeyinHandlers>
+</KeyinTree>
