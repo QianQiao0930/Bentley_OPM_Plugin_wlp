@@ -18,13 +18,7 @@
 * 垫板中央（覆盖中点、背弧冠线）开 **气孔 Ø6**，沿背弧径向贯穿板厚。
 
 编号：``弯头垫板-管径-弯头倍率``（如 ``弯头垫板-100-1.5``）—— 图集未给编号，
-直接按名称编号，故编号中**不含**材料代码与长度。**HVAC 圆风管**按实际外径写，
-如 ``弯头垫板-D450-1.0``（Ø450 风管、R450）。
-
-HVAC 圆风管弯头（``OpenPlant_3D.HVAC_ROUND_ELBOW``）与管道弯头共用本模块的
-几何解析，差别只在尺寸来源：外径取 EC 的 ``MAIN_DIAMETER``（实际外径，不是
-ASME 表值）、弯曲半径取 ``RADIUS``，倍率基准 = 风管外径、板厚仍按就近匹配到
-的管道 DN 查 Y2 表 1（由 ``弯头垫板.py`` 传入 ``od_override_mm`` / ``size_label``）。
+直接按名称编号，故编号中**不含**材料代码与长度。
 
 弯头局部坐标（OPM 约定，沿用 ``F5-[水平弯头的水平耳轴]`` 的解析）：
 
@@ -168,11 +162,8 @@ def snap_multiplier(ratio):
     return min(STANDARD_MULTIPLIERS, key=lambda item: abs(item - value))
 
 
-def multiplier_from_center_to_end(dn, center_to_end_mm, base_mm=None):
+def multiplier_from_center_to_end(dn, center_to_end_mm):
     """由模型实测的中心至端面长度反推弯头倍率（90° 弯头该长度即弯曲半径）。
-
-    倍率基准 ``base_mm``：管道默认取 **NPS 英寸公称直径**（ASME B16.9 的 1.5D
-    即 1.5 × 英寸公称）；**HVAC 圆风管**传实际外径（1.0D 即 R = 外径）。
 
     返回 ``(倍率, 是否与标准倍率吻合)``；比值离最近标准值超过 5% 时后者为
     ``False``，提示模型可能不是标准弯头（面板会据此给出告警）。
@@ -184,22 +175,13 @@ def multiplier_from_center_to_end(dn, center_to_end_mm, base_mm=None):
     if not math.isfinite(center_to_end) or center_to_end <= 0.0:
         raise ValueError('弯头中心至端面长度必须大于 0（实测 %.3f mm）。'
                          % center_to_end)
-    if base_mm is None:
-        base = nominal_mm(dn)
-    else:
-        base = float(base_mm)
-        if not math.isfinite(base) or base <= 0.0:
-            raise ValueError('倍率基准直径无效：%r' % (base_mm,))
-    ratio = center_to_end / base
+    ratio = center_to_end / nominal_mm(dn)
     snapped = snap_multiplier(ratio)
     return snapped, abs(ratio - snapped) <= 0.05 * snapped
 
 
-def bend_radius_mm(dn, multiplier, base_mm=None):
-    """弯头中心线弯曲半径 R = 倍率 × 基准直径（mm）。
-
-    管道基准 = 英寸公称直径；风管传 ``base_mm`` = 风管实际外径。
-    """
+def bend_radius_mm(dn, multiplier):
+    """弯头中心线弯曲半径 R = 倍率 × 英寸公称直径（mm）。"""
     dn = int(dn)
     if dn < DN_MIN or dn > DN_MAX:
         raise ValueError('管径 DN%d 超出本次范围 DN%d~%d。' % (dn, DN_MIN, DN_MAX))
@@ -207,13 +189,7 @@ def bend_radius_mm(dn, multiplier, base_mm=None):
     if not math.isfinite(value) or not (MIN_MULTIPLIER <= value <= MAX_MULTIPLIER):
         raise ValueError('弯头倍率 %.3f 不合理，要求 %.1f~%.1f。'
                          % (value, MIN_MULTIPLIER, MAX_MULTIPLIER))
-    if base_mm is None:
-        base = nominal_mm(dn)
-    else:
-        base = float(base_mm)
-        if not math.isfinite(base) or base <= 0.0:
-            raise ValueError('倍率基准直径无效：%r' % (base_mm,))
-    return value * base
+    return value * nominal_mm(dn)
 
 
 # ---------------------------------------------------------------------------
@@ -221,15 +197,9 @@ def bend_radius_mm(dn, multiplier, base_mm=None):
 # ---------------------------------------------------------------------------
 
 
-def build_number(dn, multiplier, size_label=None):
-    """垫板编号：``弯头垫板-管径-弯头倍率``（如 ``弯头垫板-100-1.5``）。
-
-    ``size_label`` 给出尺寸文字（HVAC 圆风管用实际外径 ``D450`` →
-    ``弯头垫板-D450-1.0``）；``None`` 时按管道 DN 写。
-    """
-    text = str(size_label or '').strip()
-    size = text or ('%d' % int(dn))
-    return '弯头垫板-%s-%.1f' % (size, float(multiplier))
+def build_number(dn, multiplier):
+    """垫板编号：``弯头垫板-管径-弯头倍率``（如 ``弯头垫板-100-1.5``）。"""
+    return '弯头垫板-%d-%.1f' % (int(dn), float(multiplier))
 
 
 # ---------------------------------------------------------------------------
@@ -254,29 +224,18 @@ Layout = namedtuple('Layout', (
 def build_layout(dn, multiplier=DEFAULT_MULTIPLIER,
                  material_code=DEFAULT_MATERIAL_CODE,
                  alpha_deg=WRAP_ALPHA_DEG, coverage_deg=COVERAGE_DEG,
-                 has_vent_hole=True, od_override_mm=None, size_label=None):
+                 has_vent_hole=True):
     """按 DN + 弯头倍率推导整套尺寸（mm），供建模 / 清单使用。
 
     截面与 Y2 一致（内弧 = 管外径/2，外弧 = 内弧 + T，张角 ``alpha_deg``），
     沿弯头中心线圆弧扫掠，覆盖 ``coverage_deg`` 且居中于弯头中点。
-
-    ``dn`` 用于取板厚（Y2 表 1）与范围校验；**HVAC 圆风管**另外传
-    ``od_override_mm`` = 风管实际外径（内弧按它贴合，而不是 ASME 表值）、
-    ``size_label`` = ``D450``（编号与显示用），倍率基准也随之取实际外径。
     """
     dn = int(dn)
     if dn < DN_MIN or dn > DN_MAX:
         raise ValueError('管径 DN%d 超出本次范围 DN%d~%d。'
                          % (dn, DN_MIN, DN_MAX))
 
-    if od_override_mm is None:
-        od = od_mm(dn)
-        radius = bend_radius_mm(dn, multiplier)
-    else:
-        od = float(od_override_mm)
-        if not math.isfinite(od) or od <= 0.0:
-            raise ValueError('外径无效：%r' % (od_override_mm,))
-        radius = bend_radius_mm(dn, multiplier, base_mm=od)
+    radius = bend_radius_mm(dn, multiplier)
     multiplier = float(multiplier)
 
     row = material_for_code(material_code)
@@ -299,13 +258,13 @@ def build_layout(dn, multiplier=DEFAULT_MULTIPLIER,
     start = COVERAGE_CENTER_DEG - half
     end = COVERAGE_CENTER_DEG + half
 
+    od = od_mm(dn)
     thickness = plate_thickness_mm(dn)
     inner_radius = od / 2.0
     outer_radius = inner_radius + thickness
 
     return Layout(
-        dn=dn, nps=(str(size_label).strip() if size_label else nps_text(dn)),
-        od_mm=od, pipe_radius=inner_radius,
+        dn=dn, nps=nps_text(dn), od_mm=od, pipe_radius=inner_radius,
         thickness=thickness, inner_radius=inner_radius,
         outer_radius=outer_radius,
         alpha_deg=alpha, alpha_rad=math.radians(alpha),
@@ -318,7 +277,7 @@ def build_layout(dn, multiplier=DEFAULT_MULTIPLIER,
         pad_material=row['pad_material'],
         vent_hole_dia=float(VENT_HOLE_DIA_MM),
         has_vent_hole=bool(has_vent_hole),
-        number=build_number(dn, multiplier, size_label),
+        number=build_number(dn, multiplier),
     )
 
 
@@ -340,18 +299,17 @@ def _cross(first, second):
             first[0] * second[1] - first[1] * second[0])
 
 
-def build_frame(origin_mm, axis_x, axis_z, dn, multiplier, base_mm=None):
+def build_frame(origin_mm, axis_x, axis_z, dn, multiplier):
     """由 OPM 弯头局部坐标（端口 0 原点 / 入口切线 / 指向弯曲中心方向）建系。
 
     与 ``F5`` 的 ``horizontal_elbow_frame_from_matrix`` 同一套解析，但这里
     **不限制**弯头所在的平面（背弧垫板对任何朝向的弯头都成立）。
-    ``base_mm`` 为倍率基准直径（HVAC 圆风管传实际外径）。
     """
     axis_x = _normalize(axis_x)
     axis_z = _normalize(axis_z)
     if abs(sum(axis_x[index] * axis_z[index] for index in range(3))) > 0.02:
         raise ValueError('弯头变换矩阵的 X/Z 轴不正交。')
-    radius = bend_radius_mm(dn, multiplier, base_mm=base_mm)
+    radius = bend_radius_mm(dn, multiplier)
     origin = tuple(float(value) for value in origin_mm)
     arc_center = tuple(origin[index] + axis_z[index] * radius
                        for index in range(3))
@@ -485,19 +443,11 @@ def plate_mass_kg(layout):
     return plate_volume_mm3(layout) * STEEL_DENSITY_KG_MM3
 
 
-def size_text(layout):
-    """尺寸文字：HVAC 圆风管用 ``D450``，管道用 ``DN450（18"）``。"""
-    label = str(layout.nps or '').strip()
-    if label[:1] == 'D' and label[1:2].isdigit():
-        return label
-    return dn_label(layout.dn)
-
-
 def layout_summary(layout):
     """一行文字摘要（面板显示用）。"""
     return ('%s：%s OD%.1f / 内弧 R%.1f / 外弧 R%.1f（T%.0f）/ 弯曲 R%.1f'
             '（%.1fD）/ 覆盖 %.0f° / 周向 %.0f° / %s %s' % (
-                layout.number, size_text(layout), layout.od_mm,
+                layout.number, dn_label(layout.dn), layout.od_mm,
                 layout.inner_radius, layout.outer_radius, layout.thickness,
                 layout.bend_radius_mm, layout.multiplier,
                 layout.coverage_deg, layout.alpha_deg,

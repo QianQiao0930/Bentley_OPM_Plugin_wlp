@@ -27,11 +27,6 @@ Y2 弧形垫板同款）。可连续点选，右键退出。
 编号：``弯头垫板-管径-弯头倍率``（如 ``弯头垫板-100-1.5``）—— 图集未给编号，
 直接按名称编号，故编号中**不含**材料代码与覆盖角。
 
-**HVAC 圆风管弯头**（``OpenPlant_3D.HVAC_ROUND_ELBOW``）同样支持：外径取 EC 的
-``MAIN_DIAMETER``（风管实际外径）、弯曲半径取 ``RADIUS``，倍率基准 = 风管外径
-（1.0D 即 R = 外径），板厚仍按就近匹配到的管道 DN 查 Y2 表 1；编号按实际外径写，
-如 ``弯头垫板-D450-1.0``。矩形风管不支持。管道弯头路径与报错文案保持不变。
-
 EC 读取遵循本仓库铁律：**不在工具回调里读 EC**——点选只把「元素 ID」入队，真正的
 读取与建模由面板主循环在 ``PyCadInputQueue.PythonMainLoop()`` 返回之后执行；
 EC 实例在 ``FindInstances`` 的原始遍历内当场读成纯 Python 数据，绝不外传。
@@ -133,7 +128,6 @@ ELBOW_ANGLE_TOLERANCE_DEG = 0.5
 SUCCESS = 0
 
 # EC 属性：只读本工具关心的弯头属性（含 3×4 变换矩阵 M00~M11）。
-# HVAC 圆风管弯头的属性名（MAIN_DIAMETER / RADIUS …）由公共模块给出。
 ELBOW_NUMBER_PROPERTIES = (
     'ANGLE', 'NOMINAL_DIAMETER', 'NOMINAL_DIAMETER_RUN_END',
     'OUTSIDE_DIAMETER', 'WALL_THICKNESS', 'LENGTH',
@@ -141,16 +135,9 @@ ELBOW_NUMBER_PROPERTIES = (
     'DESIGN_LENGTH_CENTER_TO_OUTLET_END',
     'DESIGN_LENGTH_CENTER_TO_RUN_END_EFFECTIVE',
     'DESIGN_LENGTH_CENTER_TO_OUTLET_END_EFFECTIVE',
-) + _elbow_logic.HVAC_NUMBER_PROPERTIES + tuple(
-    'TRANSFORMATION_MATRIX.M%02d' % index for index in range(12))
+) + tuple('TRANSFORMATION_MATRIX.M%02d' % index for index in range(12))
 ELBOW_TEXT_PROPERTIES = ('UNIT_OF_MEASURE', 'COMPONENT_NAME', 'NAME',
                          'LINENUMBER')
-
-# HVAC 圆风管：用来给风管外径就近匹配一个管道 DN 档（取 Y2 表 1 的板厚）。
-PAD_PIPE_DATA = dict(
-    (int(dn), (float(geom.od_mm(dn)), float(geom.plate_thickness_mm(dn))))
-    for dn in geom.dn_choices())
-PAD_SUPPORTED_DNS = tuple(sorted(PAD_PIPE_DATA))
 
 
 def _log(message):
@@ -477,50 +464,34 @@ def read_selected_elbow(element_id):
     elif '90_DEGREE' not in class_name.upper():
         raise ValueError('无法确认所选弯头为 90° 弯头。')
 
-    is_duct = _elbow_logic.is_hvac_class(class_name)
-    if is_duct:
-        # HVAC 圆风管弯头：外径取实际值、中心至端面取 RADIUS；板厚仍按就近
-        # 匹配到的管道 DN 查 Y2 表 1，编号与显示按实际外径写（D450）。
-        dims = _elbow_logic.resolve_elbow_dimensions(
-            numbers, texts, class_name, PAD_PIPE_DATA, PAD_SUPPORTED_DNS)
-        nominal_mm = dims['nominal_diameter_mm']
-        outside_mm = dims['outside_diameter_mm']
-        center_to_end_mm = dims['center_to_end_mm']
-        table_dn = dims['main_dn']
-        size_label = dims['main_label']
-        duct_note = dims['main_dn_note']
-    else:
-        scale_mm = _elbow_logic.dimension_scale_to_mm(
-            texts.get('UNIT_OF_MEASURE'), numbers.get('NOMINAL_DIAMETER'))
+    scale_mm = _elbow_logic.dimension_scale_to_mm(
+        texts.get('UNIT_OF_MEASURE'), numbers.get('NOMINAL_DIAMETER'))
 
-        nominal_raw = _first_number(
-            numbers, 'NOMINAL_DIAMETER', 'NOMINAL_DIAMETER_RUN_END')
-        nominal_mm = (nominal_raw * scale_mm) if nominal_raw is not None else None
+    nominal_raw = _first_number(
+        numbers, 'NOMINAL_DIAMETER', 'NOMINAL_DIAMETER_RUN_END')
+    nominal_mm = (nominal_raw * scale_mm) if nominal_raw is not None else None
 
-        outside_raw = numbers.get('OUTSIDE_DIAMETER')
-        outside_mm = (outside_raw * scale_mm) if outside_raw is not None else None
+    outside_raw = numbers.get('OUTSIDE_DIAMETER')
+    outside_mm = (outside_raw * scale_mm) if outside_raw is not None else None
 
-        run_raw = _first_number(
-            numbers, 'DESIGN_LENGTH_CENTER_TO_RUN_END',
-            'DESIGN_LENGTH_CENTER_TO_RUN_END_EFFECTIVE')
-        outlet_raw = _first_number(
-            numbers, 'DESIGN_LENGTH_CENTER_TO_OUTLET_END',
-            'DESIGN_LENGTH_CENTER_TO_OUTLET_END_EFFECTIVE')
-        length_raw = numbers.get('LENGTH')
-        if run_raw is None and length_raw is not None:
-            run_raw = length_raw / 2.0
-        if outlet_raw is None and length_raw is not None:
-            outlet_raw = length_raw / 2.0
-        if run_raw is None or outlet_raw is None:
-            raise ValueError('弯头缺少中心至端面长度，无法反推弯曲半径。')
-        run_mm = run_raw * scale_mm
-        outlet_mm = outlet_raw * scale_mm
-        if abs(run_mm - outlet_mm) > max(run_mm, outlet_mm) * 0.02:
-            raise ValueError('弯头两端中心距不一致，本工具只支持标准 90° 圆弧弯头。')
-        center_to_end_mm = (run_mm + outlet_mm) / 2.0
-        table_dn = geom.match_dn(nominal_mm)
-        size_label = None
-        duct_note = ''
+    run_raw = _first_number(
+        numbers, 'DESIGN_LENGTH_CENTER_TO_RUN_END',
+        'DESIGN_LENGTH_CENTER_TO_RUN_END_EFFECTIVE')
+    outlet_raw = _first_number(
+        numbers, 'DESIGN_LENGTH_CENTER_TO_OUTLET_END',
+        'DESIGN_LENGTH_CENTER_TO_OUTLET_END_EFFECTIVE')
+    length_raw = numbers.get('LENGTH')
+    if run_raw is None and length_raw is not None:
+        run_raw = length_raw / 2.0
+    if outlet_raw is None and length_raw is not None:
+        outlet_raw = length_raw / 2.0
+    if run_raw is None or outlet_raw is None:
+        raise ValueError('弯头缺少中心至端面长度，无法反推弯曲半径。')
+    run_mm = run_raw * scale_mm
+    outlet_mm = outlet_raw * scale_mm
+    if abs(run_mm - outlet_mm) > max(run_mm, outlet_mm) * 0.02:
+        raise ValueError('弯头两端中心距不一致，本工具只支持标准 90° 圆弧弯头。')
+    center_to_end_mm = (run_mm + outlet_mm) / 2.0
 
     matrix = [numbers.get('TRANSFORMATION_MATRIX.M%02d' % index)
               for index in range(12)]
@@ -541,12 +512,9 @@ def read_selected_elbow(element_id):
     axis_x = _axis((0, 4, 8))    # 局部 X：端口 0 进入弯头的切线
     axis_z = _axis((2, 6, 10))   # 局部 Z：由端口 0 指向弯曲中心
 
-    _log('selected elbow id=%s class=%s %s nominal=%s OD=%s c2e=%.3f duct=%s '
-         'origin=%s' % (
-             element_id, class_name,
-             size_label or ('DN%s' % table_dn if table_dn else '?'),
-             nominal_mm, outside_mm, center_to_end_mm, is_duct,
-             tuple(round(value, 2) for value in origin)))
+    _log('selected elbow id=%s class=%s nominal=%s OD=%s c2e=%.3f origin=%s'
+         % (element_id, class_name, nominal_mm, outside_mm, center_to_end_mm,
+            tuple(round(value, 2) for value in origin)))
     return {
         'element_id': int(element_id),
         'class': class_name,
@@ -557,11 +525,7 @@ def read_selected_elbow(element_id):
         'nominal_diameter_mm': nominal_mm,
         'outside_diameter_mm': outside_mm,
         'center_to_end_mm': center_to_end_mm,
-        'dn': table_dn,
-        'is_duct': bool(is_duct),
-        'size_label': size_label,
-        'od_basis_mm': outside_mm if is_duct else None,
-        'duct_dn_note': duct_note,
+        'dn': geom.match_dn(nominal_mm),
         'origin_mm': origin,
         'axis_x': axis_x,
         'axis_z': axis_z,
@@ -730,11 +694,9 @@ def _assembly_element(dgn_model, bodies):
 
 def _attach_support_items(cell, layout, elbow):
     """把垫板写入共享支吊架库（整组记录 + 构件记录），供统一统计 / 清单。"""
-    size_text = (elbow.get('size_label')
-                 or 'DN%d（%s）' % (layout.dn, layout.nps))
-    specification = ('%s OD%.1f，T%.0f，弯头倍率 %.1fD（R%.1f），'
+    specification = ('DN%d（%s）OD%.1f，T%.0f，弯头倍率 %.1fD（R%.1f），'
                      '覆盖 %.0f°，α%.0f°，%s'
-                     % (size_text, layout.od_mm, layout.thickness,
+                     % (layout.dn, layout.nps, layout.od_mm, layout.thickness,
                         layout.multiplier, layout.bend_radius_mm,
                         layout.coverage_deg, layout.alpha_deg,
                         layout.pad_material))
@@ -757,12 +719,8 @@ def _attach_support_items(cell, layout, elbow):
 
 
 def build_pad(elbow, dn, multiplier, material_code=DEFAULT_MATERIAL_CODE,
-              alpha_deg=DEFAULT_ALPHA_DEG, coverage_deg=DEFAULT_COVERAGE_DEG,
-              base_mm=None, size_label=None):
+              alpha_deg=DEFAULT_ALPHA_DEG, coverage_deg=DEFAULT_COVERAGE_DEG):
     """按所选弯头与参数在背弧上生成一块弯头弧形垫板。
-
-    ``base_mm`` / ``size_label`` 仅用于 **HVAC 圆风管弯头**：内弧半径与弯曲半径
-    按风管实际外径贴合，编号写 ``D450``；管道弯头传 ``None``，行为与原来一致。
 
     返回 ``(模型单元, layout)``。
     """
@@ -774,10 +732,9 @@ def build_pad(elbow, dn, multiplier, material_code=DEFAULT_MATERIAL_CODE,
         raise RuntimeError('取不到活动 DGN 模型。')
 
     frame = geom.build_frame(elbow['origin_mm'], elbow['axis_x'],
-                             elbow['axis_z'], dn, multiplier, base_mm=base_mm)
+                             elbow['axis_z'], dn, multiplier)
     layout = geom.build_layout(dn, multiplier, material_code, alpha_deg,
-                               coverage_deg, od_override_mm=base_mm,
-                               size_label=size_label)
+                               coverage_deg)
     uor_per_mm = _uor_per_mm(dgn_model)
 
     body = _sweep_pad_body(frame, layout, model_ref, uor_per_mm)
@@ -802,12 +759,7 @@ def build_pad(elbow, dn, multiplier, material_code=DEFAULT_MATERIAL_CODE,
 def _compose_message(elbow, layout, dn, dn_from_model, multiplier_auto,
                      multiplier_matched, panel_multiplier):
     parts = []
-    if elbow.get('is_duct'):
-        parts.append('风管弯头：实际外径 Ø%.1f mm → Y2 表 1 档位 DN%d（板厚 T%.0f）。'
-                     % (elbow['outside_diameter_mm'], dn, layout.thickness))
-        if elbow.get('duct_dn_note'):
-            parts.append(elbow['duct_dn_note'])
-    elif dn_from_model:
+    if dn_from_model:
         parts.append('弯头公称直径 %s → DN%d。'
                      % ('%.1f mm' % elbow['nominal_diameter_mm']
                         if elbow['nominal_diameter_mm'] is not None
@@ -818,20 +770,16 @@ def _compose_message(elbow, layout, dn, dn_from_model, multiplier_auto,
                         else '%.1f mm' % elbow['nominal_diameter_mm'], dn))
 
     outside = elbow.get('outside_diameter_mm')
-    if (not elbow.get('is_duct') and outside is not None
-            and abs(outside - layout.od_mm) > 0.5):
+    if outside is not None and abs(outside - layout.od_mm) > 0.5:
         parts.append('注意：弯头外径实测 %.1f mm，与 ASME 表值 %.1f mm 不符，'
                      '垫板内弧按表值贴合，可能需人工复核。'
                      % (outside, layout.od_mm))
 
     if panel_multiplier is None:
-        base_mm = (elbow['outside_diameter_mm'] if elbow.get('is_duct')
-                   else geom.nominal_mm(dn))
-        base_name = '风管外径' if elbow.get('is_duct') else '公称'
-        ratio = elbow['center_to_end_mm'] / base_mm
-        parts.append('弯头倍率自动：中心至端面 %.1f mm ÷ %s %.1f mm = %.2fD，'
+        ratio = elbow['center_to_end_mm'] / geom.nominal_mm(dn)
+        parts.append('弯头倍率自动：中心至端面 %.1f mm ÷ 公称 %.1f mm = %.2fD，'
                      '吸附为 %.1fD%s。'
-                     % (elbow['center_to_end_mm'], base_name, base_mm, ratio,
+                     % (elbow['center_to_end_mm'], geom.nominal_mm(dn), ratio,
                         multiplier_auto,
                         '' if multiplier_matched else '（非标准弯头，请核对）'))
     else:
@@ -868,8 +816,6 @@ class _ElbowPadPanel(GlassDialog):
         self._pending_status = None
         self._pending_status_is_error = False
         self._close_requested = False
-        # 点选到 HVAC 圆风管弯头时记下外径 / 尺寸文字，供面板预览与编号使用。
-        self._duct_preview = None
 
         self._dn = tk.StringVar()
         self._multiplier = tk.StringVar()
@@ -1139,9 +1085,6 @@ class _ElbowPadPanel(GlassDialog):
 
     def _refresh_info(self):
         multiplier = self.current_multiplier()
-        duct = self._duct_preview
-        duct_text = ('风管：按实际外径 %s 贴合，倍率基准 = 风管外径。'
-                     % duct['size_label']) if duct else ''
         if multiplier is None:
             text = ('弯头倍率：自动（点选弯头后按「中心至端面 ÷ 公称直径」计算）。\n'
                     '管径：点选弯头后自动读取，读不到时用上面兜底 DN%d。' % DEFAULT_DN)
@@ -1149,9 +1092,7 @@ class _ElbowPadPanel(GlassDialog):
             try:
                 layout = geom.build_layout(
                     self.current_dn(), multiplier, self.current_material(),
-                    self.current_alpha(), self.current_coverage(),
-                    od_override_mm=duct['od_mm'] if duct else None,
-                    size_label=duct['size_label'] if duct else None)
+                    self.current_alpha(), self.current_coverage())
                 text = ('%s\n弯曲 R %.1f · 覆盖 %.0f° · 周向 %.0f° · 板厚 T %.0f · '
                         '气孔 Ø%.0f · 约 %.2f kg'
                         % (layout.number, layout.bend_radius_mm,
@@ -1160,8 +1101,6 @@ class _ElbowPadPanel(GlassDialog):
                            geom.plate_mass_kg(layout)))
             except Exception as error:
                 text = '参数无效：%s' % error
-        if duct_text:
-            text += '\n' + duct_text
         try:
             self._info_text.set(text)
         except tk.TclError:
@@ -1235,10 +1174,6 @@ class _ElbowPadPanel(GlassDialog):
 
         dn_from_model = elbow['dn'] is not None
         dn = elbow['dn'] if dn_from_model else self.current_dn()
-        base_mm = elbow.get('od_basis_mm')          # 风管：实际外径；管道：None
-        size_label = elbow.get('size_label')
-        self._duct_preview = ({'od_mm': base_mm, 'size_label': size_label}
-                              if base_mm else None)
         panel_multiplier = self.current_multiplier()
         multiplier_auto = None
         multiplier_matched = True
@@ -1246,14 +1181,13 @@ class _ElbowPadPanel(GlassDialog):
             if panel_multiplier is None:
                 multiplier_auto, multiplier_matched = (
                     geom.multiplier_from_center_to_end(
-                        dn, elbow['center_to_end_mm'], base_mm=base_mm))
+                        dn, elbow['center_to_end_mm']))
                 multiplier = multiplier_auto
             else:
                 multiplier = panel_multiplier
             cell, layout = build_pad(
                 elbow, dn, multiplier, self.current_material(),
-                self.current_alpha(), self.current_coverage(),
-                base_mm=base_mm, size_label=size_label)
+                self.current_alpha(), self.current_coverage())
         except Exception as error:
             _log_exception('build elbow pad failed')
             self.set_status('生成失败：%s' % error, True)

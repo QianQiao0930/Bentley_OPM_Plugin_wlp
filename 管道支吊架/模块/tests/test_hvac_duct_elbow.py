@@ -13,6 +13,9 @@ _TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 _GEOM_DIR = os.path.join(os.path.dirname(_TEST_DIR), '竖直弯头的竖直耳轴')
 if os.path.isdir(_GEOM_DIR) and _GEOM_DIR not in sys.path:
     sys.path.insert(0, _GEOM_DIR)
+_PAD_DIR = os.path.join(os.path.dirname(_TEST_DIR), '弯头垫板')
+if os.path.isdir(_PAD_DIR) and _PAD_DIR not in sys.path:
+    sys.path.insert(0, _PAD_DIR)
 
 from elbow_selection_logic import (  # noqa: E402
     duct_size_label,
@@ -25,6 +28,7 @@ from elbow_selection_logic import (  # noqa: E402
     main_size_token,
     resolve_elbow_dimensions,
 )
+import 弯头垫板_几何 as pad_geom  # noqa: E402
 
 
 # 与 F2/F4/F5 脚本里同一份表（子集足够覆盖测试用到的档位）。
@@ -250,6 +254,95 @@ class DuctNumberFormatTests(unittest.TestCase):
         number = f2_number(dims['main_dn'], 250, 9.27, 9.27, 'C1', 500, 'A',
                            horizontal_elbow=True, main_label=dims['main_label'])
         self.assertEqual('F2-D450-10"-C1-500-A-HE', number)
+
+
+class ElbowPadDuctTests(unittest.TestCase):
+    """弯头弧形垫板的风管分支：按实际外径贴合、编号写 D450。"""
+
+    def duct_layout(self, od=450.0, multiplier=1.0, table_dn=450):
+        return pad_geom.build_layout(
+            table_dn, multiplier, od_override_mm=od,
+            size_label=pad_geom.build_number(table_dn, multiplier, 'D%d'
+                                             % int(od)))
+
+    def test_duct_layout_uses_actual_diameter(self):
+        layout = pad_geom.build_layout(450, 1.0, od_override_mm=450.0,
+                                       size_label='D450')
+        self.assertAlmostEqual(450.0, layout.od_mm)
+        self.assertAlmostEqual(225.0, layout.inner_radius)
+        self.assertAlmostEqual(450.0, layout.bend_radius_mm)
+        self.assertEqual('D450', layout.nps)
+        self.assertEqual('弯头垫板-D450-1.0', layout.number)
+        # 板厚仍按就近匹配到的管道 DN（Y2 表 1）取。
+        self.assertGreater(layout.thickness, 0.0)
+
+    def test_duct_layout_scales_with_duct_diameter(self):
+        layout = pad_geom.build_layout(300, 1.0, od_override_mm=315.0,
+                                       size_label='D315')
+        self.assertAlmostEqual(315.0, layout.od_mm)
+        self.assertAlmostEqual(157.5, layout.inner_radius)
+        self.assertAlmostEqual(315.0, layout.bend_radius_mm)
+        self.assertEqual('弯头垫板-D315-1.0', layout.number)
+
+    def test_pipe_layout_unchanged(self):
+        layout = pad_geom.build_layout(450, 1.0)
+        self.assertAlmostEqual(pad_geom.od_mm(450), layout.od_mm)
+        self.assertAlmostEqual(pad_geom.bend_radius_mm(450, 1.0),
+                               layout.bend_radius_mm)
+        self.assertAlmostEqual(457.2, layout.bend_radius_mm)
+        self.assertEqual('18"', layout.nps)
+        self.assertEqual('弯头垫板-450-1.0', layout.number)
+
+    def test_bend_radius_base_override(self):
+        self.assertAlmostEqual(450.0, pad_geom.bend_radius_mm(450, 1.0,
+                                                              base_mm=450.0))
+        self.assertAlmostEqual(457.2, pad_geom.bend_radius_mm(450, 1.0))
+        with self.assertRaises(ValueError):
+            pad_geom.bend_radius_mm(450, 1.0, base_mm=0.0)
+
+    def test_multiplier_base_override(self):
+        self.assertEqual((1.0, True),
+                         pad_geom.multiplier_from_center_to_end(
+                             450, 450.0, base_mm=450.0))
+        self.assertEqual((1.0, True),
+                         pad_geom.multiplier_from_center_to_end(450, 450.0))
+        # 风管 Ø315 / R 472.5 = 1.5D：基准取实际外径才得到 1.5。
+        self.assertEqual((1.5, True),
+                         pad_geom.multiplier_from_center_to_end(
+                             300, 472.5, base_mm=315.0))
+
+    def test_build_frame_base_override(self):
+        duct = pad_geom.build_frame((0.0, 0.0, 0.0), (1.0, 0.0, 0.0),
+                                    (0.0, 1.0, 0.0), 450, 1.0, base_mm=450.0)
+        self.assertAlmostEqual(450.0, duct.radius_mm)
+        pipe = pad_geom.build_frame((0.0, 0.0, 0.0), (1.0, 0.0, 0.0),
+                                    (0.0, 1.0, 0.0), 450, 1.0)
+        self.assertAlmostEqual(457.2, pipe.radius_mm)
+
+    def test_build_number_label(self):
+        self.assertEqual('弯头垫板-D450-1.0',
+                         pad_geom.build_number(450, 1.0, 'D450'))
+        self.assertEqual('弯头垫板-450-1.5', pad_geom.build_number(450, 1.5))
+        self.assertEqual('弯头垫板-450-1.5', pad_geom.build_number(450, 1.5, ''))
+
+    def test_layout_summary_size_text(self):
+        duct = pad_geom.build_layout(450, 1.0, od_override_mm=450.0,
+                                     size_label='D450')
+        self.assertIn('弯头垫板-D450-1.0：D450 OD450.0',
+                      pad_geom.layout_summary(duct))
+        pipe = pad_geom.build_layout(450, 1.0)
+        self.assertIn('DN450（18"）', pad_geom.layout_summary(pipe))
+
+    def test_invalid_override_is_rejected(self):
+        with self.assertRaises(ValueError):
+            pad_geom.build_layout(450, 1.0, od_override_mm=0.0, size_label='D0')
+
+    def test_duct_number_matches_resolver_label(self):
+        dims = resolve_duct(HVAC_450_PROPERTIES)
+        layout = pad_geom.build_layout(
+            dims['main_dn'], 1.0, od_override_mm=dims['outside_diameter_mm'],
+            size_label=dims['main_label'])
+        self.assertEqual('弯头垫板-D450-1.0', layout.number)
 
 
 if __name__ == '__main__':
