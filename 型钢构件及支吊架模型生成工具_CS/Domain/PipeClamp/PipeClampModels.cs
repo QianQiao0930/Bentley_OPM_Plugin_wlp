@@ -118,6 +118,11 @@ namespace SteelSectionProbe
         internal double EarWidthMm,EarHeightMm,EarThicknessMm;
         internal double BoltCenterCMm,WeldLegKMm,PlateGapJMm;
         internal double SplitAngleDeg;
+        internal string Code="T4";
+        internal double MinLengthMm=T4ShoeCatalog.MinShoeLengthMm;
+        internal double EarEndOffsetMm=T4ShoeCatalog.EarEndOffsetMm;
+        internal double SupportEndOffsetMm=T4ShoeCatalog.SupportEndOffsetMm;
+        internal double BoltGroupSpacingMm;
         internal bool HasMiddleRib;
         internal double TopPlateTopZMm;
         internal string Number;

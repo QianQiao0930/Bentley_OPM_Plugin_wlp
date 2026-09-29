@@ -102,11 +102,11 @@ namespace SteelSectionProbe
                 ready.Add(feature);
             }
 
-            Equal(ready.Count, 16, "可用功能数");
+            Equal(ready.Count, 17, "可用功能数");
             Equal(placeholders, 1, "规划中占位卡数");
             Equal(Order(HomeFeatureRanker.Rank(all, new Dictionary<string, HomePreferenceRecord>(), Now)),
                 "steel-sections,component-properties,elbow-trunnion,support-statistics,tank-manhole,solid-nozzle," +
-                "pipe-clamp,vertical-pipe-support,g2-anchor-plate,n3-single-bracket,n4-double-bracket,triangle-bracket,portal-frame,t-frame,pad-plate,n8-connection-plate,",
+                "pipe-clamp,vertical-pipe-support,g2-anchor-plate,n3-single-bracket,n4-double-bracket,triangle-bracket,l-bracket,portal-frame,t-frame,pad-plate,n8-connection-plate,",
                 "清单出厂顺序");
         }
 
@@ -153,6 +153,7 @@ namespace SteelSectionProbe
             Equal(byId["n3-single-bracket"], HomeCategories.Support, "N3 分区");
             Equal(byId["n4-double-bracket"], HomeCategories.Support, "N4 分区");
             Equal(byId["triangle-bracket"], HomeCategories.Support, "三角架分区");
+            Equal(byId["l-bracket"], HomeCategories.Support, "L 型架分区");
             Equal(byId["portal-frame"], HomeCategories.Support, "门型架分区");
             Equal(byId["t-frame"], HomeCategories.Support, "T 型架分区");
             Equal(byId["pad-plate"], HomeCategories.Support, "垫板分区");
@@ -191,7 +192,7 @@ namespace SteelSectionProbe
         {
             List<HomeEntry> entries = HomeFeatureRanker.Rank(HomeFeatureCatalog.All(),
                 new Dictionary<string, HomePreferenceRecord>(), Now);
-            Equal(entries.Count, 17, "冷启动条目数");
+            Equal(entries.Count, 18, "冷启动条目数");
             Equal(PinnedOrder(entries), "", "冷启动不应有置顶项");
             for (int i = 1; i < entries.Count; i++)
             {

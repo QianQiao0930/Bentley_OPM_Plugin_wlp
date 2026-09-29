@@ -37,6 +37,7 @@ namespace SteelSectionProbe
             RegisterPage(new N3Page());
             RegisterPage(new N4Page());
             RegisterPage(new TriangleBracketPage());
+            RegisterPage(new LBracketPage());
             RegisterPage(new PortalFramePage());
             RegisterPage(new TFramePage());
             RegisterPage(new PadPlatePage());

@@ -1,0 +1,41 @@
+<UserControl x:Class="SteelSectionProbe.LBracketPage"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ x:ClassModifier="internal" Background="{DynamicResource BackgroundBrush}">
+ <UserControl.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries>
+  <ResourceDictionary Source="../Themes/Theme.xaml"/>
+ </ResourceDictionary.MergedDictionaries></ResourceDictionary></UserControl.Resources>
+ <Grid><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel>
+   <Border Style="{StaticResource CardStyle}"><StackPanel>
+    <TextBlock Text="01  D7 L 型架参数" Style="{StaticResource SectionTitleStyle}"/>
+    <TextBlock Text="点选一条两段 L 形辅助折线：竖直段为立杆轴线，水平段为横担顶面。类型 1/2 立杆在下，类型 3/4 立杆在上。" TextWrapping="Wrap" Margin="0,0,0,8"/>
+    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+     <StackPanel Grid.Column="0"><TextBlock Text="子项"/><ComboBox x:Name="VariantCombo" SelectionChanged="Parameter_Changed"/></StackPanel>
+     <StackPanel Grid.Column="2"><TextBlock Text="类型"/><ComboBox x:Name="TypeCombo" SelectionChanged="Parameter_Changed"/></StackPanel>
+    </Grid>
+    <Grid Margin="0,8,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+     <StackPanel Grid.Column="0"><TextBlock Text="B：水平参数（mm，用于查荷载）" TextWrapping="Wrap"/><TextBox x:Name="WidthText" Text="250" TextChanged="Parameter_Changed"/></StackPanel>
+     <StackPanel Grid.Column="2"><TextBlock Text="编号名称（留空不编号）"/><TextBox x:Name="NameText" Text="D7" TextChanged="Parameter_Changed"/></StackPanel>
+    </Grid>
+    <CheckBox x:Name="KeepLineCheck" Content="确认后保留辅助折线" IsChecked="True" Margin="0,8,0,0" Checked="Parameter_Changed" Unchecked="Parameter_Changed"/>
+    <TextBlock x:Name="SectionText" TextWrapping="Wrap" Margin="0,10,0,0"/>
+    <TextBlock x:Name="LimitText" TextWrapping="Wrap" Margin="0,8,0,0" Foreground="{StaticResource StatusBrush}"/>
+   </StackPanel></Border>
+  </StackPanel></ScrollViewer>
+  <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,8,4,0"><StackPanel>
+   <TextBlock Text="02  点取与预览" Style="{StaticResource SectionTitleStyle}"/>
+   <TextBlock Text="点选 L 形辅助折线，调整参数后更新预览；确认后写入支吊架清单。" TextWrapping="Wrap" Margin="0,0,0,8"/>
+   <WrapPanel>
+    <Button Content="开始点取" Style="{StaticResource PrimaryButtonStyle}" Click="Pick_Click" Margin="0,0,8,8"/>
+    <Button Content="结束点取" Style="{StaticResource SecondaryButtonStyle}" Click="End_Click" Margin="0,0,8,8"/>
+    <Button x:Name="UpdateButton" Content="更新预览" Style="{StaticResource SecondaryButtonStyle}" Click="Update_Click" Margin="0,0,8,8"/>
+   </WrapPanel>
+   <TextBlock x:Name="PreviewText" Text="尚未选择辅助折线。" TextWrapping="Wrap" Margin="0,4,0,12"/>
+   <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+    <Button Content="取消预览" Style="{StaticResource SecondaryButtonStyle}" Click="Cancel_Click" Margin="0,0,8,0"/>
+    <Button x:Name="ConfirmButton" Content="确定生成" Style="{StaticResource PrimaryButtonStyle}" Click="Confirm_Click" IsEnabled="False"/>
+   </StackPanel>
+  </StackPanel></Border>
+ </Grid>
+</UserControl>

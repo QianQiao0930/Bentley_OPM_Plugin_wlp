@@ -595,15 +595,23 @@ bin/Release/net48_full/SteelSectionProbe.dll
 这一版的固定类型名清单（保持 `PipeSupportAssembly_` / `PipeSupportComponent_` 前缀）：`STEEL_SECTION`；`<feature>` + `_TRUNNION`/`_PLATE`/`_LINER`（弯头耳轴）；`E1` + `_MEMBER`/`_LINER`；`G2` + `_PLATE`/`_BOLT`；`A2` + `_BODY`/`_BOLT`；`K1` + `_BLOCK`/`_PLATE`；`T4` + `<item[0]>`；`VP_EAR_PLATE`/`VP_TRUNNION` + `_EAR`/`_BASE`/`_BOLT`/`_TRUNNION`/`_END`/`_PAD`；`N8` + `_PLATE`/`_BOLT`；`<N3|N4 code>` + `_A`/`_B`/`_C`/`_PLATE`/`_BOLT`/`_STIFFENER`。
 写入 API（`ApplyCustomItem` 返回 `IDgnECInstance` → 写 `StringValue/IntValue/DoubleValue` → `WriteChanges()`）均已用 net8 只读元数据确认过签名，**不要因为“以前不用 WriteChanges 也能读出来”就省略它**：不写这条，值会留在类型默认值里（第一次的值），后续记录全部读到同一个数。
 
-## 24. 放置管夹（A2 / E1 / K1 / T4 合并入口）
+## 24. 放置管夹（A1 / A2 / A22 / A24 / E1 / K1 / T4 / L2 合并入口）
 
-首页只有 `pipe-clamp` 一个入口（`UI/PipeClamp/PipeClampPage.xaml`），页面顶部下拉切换四种管夹，参数区按类型切换可见性。**不要为管夹类功能再新增首页入口** —— 新管夹作为下拉里的一个 `PipeClampKind` 加进来即可（同步 `PipeClampCatalog`、`PipeClampLastChoice` 的记忆字段、`Development/PipeClampCheck` 的断言与 README 的类型表）。
+首页只有 `pipe-clamp` 一个入口（`UI/PipeClamp/PipeClampPage.xaml`），页面顶部下拉切换八种管夹，参数区按类型切换可见性。**不要为管夹类功能再新增首页入口** —— 新管夹作为下拉里的一个 `PipeClampKind` 加进来即可（同步 `PipeClampCatalog`、`PipeClampLastChoice` 的记忆字段、`Development/PipeClampCheck` 的断言与 README 的类型表）。
 
-四种管夹共用 `Tools/PipeClamp/PipeClampLocateTool.cs`（点选管道 / 直线 / 多段线，只上报元素 ID 与点击点）与 `PipeClampPreviewSession.cs`（预览生命周期 + 按种类分派清单写入）。`Data/PipeClamp/PipeClampReader.cs` 复用 `E1GuideReader` 的轴线与管道判定，再补公称直径、外径与保温厚度（EC 属性 `INSULATION_THICKNESS`；值落在 (0,1) 时按米计、乘 1000 转毫米）。
+八种管夹共用 `Tools/PipeClamp/PipeClampLocateTool.cs`（点选管道 / 直线 / 多段线，只上报元素 ID 与点击点）与 `PipeClampPreviewSession.cs`（预览生命周期 + 按种类分派清单写入）。A1 在定位后使用 `A1ClampOrientationTool` 显示随光标旋转的临时模型，第二次左键锁定开口方向。`Data/PipeClamp/PipeClampReader.cs` 复用 `E1GuideReader` 的轴线与管道判定，再补公称直径、外径与保温厚度（EC 属性 `INSULATION_THICKNESS`；值落在 (0,1) 时按米计、乘 1000 转毫米）。
 
+**点取 → 方向工具的交接**：同一次调用里"先 `End()` 再 `InstallTool()` 装另一个工具"是禁用的 —— `ExitTool()` 挂起的"退出当前工具"会在下一个原生事件结算，那时当前工具已经是新装的实例，会被误杀并触发一次伪 `Ended`（页面据此提示"已取消方向调整"）。交接一律用 `PipeClampLocateTool.RetireForHandoff()`（只清静态 active + 恢复 AccuSnap，不调 ExitTool、不发 Ended），旧实例由新工具 `InstallTool` 的工具切换收尾；`Begin()` 里也不要再写 `End()` 再装。
+
+**精确绘图（AccuDraw）**：`DgnPrimitiveTool` 不会自动接管罗盘，不显式激活时罗盘灰色、键盘焦点不在罗盘上，回车会被 MicroStation 当成打开 Key-in 对话框。`A1ClampOrientationTool.OnPostInstall` 在 `BeginDynamics()` 之后调用 `ActivateCompass()`：`AccuDraw.Active=true` → 旋转模式改 `AccuDraw.RotationMode.Context`（**顺序：先改模式再写矩阵**，反了新矩阵会被模式切换冲掉）→ `SetContext(SetOrigin|FixedOrigin|SetRMatrix, 管心, 径向基矩阵)` → `AccuDraw.Rotation` 兜底再写一次 → `SetContext(SetFocus)` 把焦点交给罗盘。罗盘三轴由 **`A1ClampCalculator.CompassFrame`** 给出（**X=管轴、Y=开口角 0° 方向、Z=平面法向**），即罗盘**顺着管轴**、罗盘平面同时包含管轴与开口方向（与 Python 端「本地 X 沿管轴」一致）；它与 `RadialFrame`（Z=管轴、X=0°、Y=角度增大，供 `AngleFromCursor` 用）是同一套基的循环换序，改一个必须同步另一个。⚠️ **不要用 `RadialFrame` 去定向罗盘**——那样罗盘平面垂直于管轴，在正对管道的视图里罗盘会侧立成一条线。矩阵三轴按**列**存（`FromColumns` 的 `ColumnX` 即传入的 X 轴，已实测），退出时还原激活状态与旋转模式。
+
+- **A1**（`A1ClampCatalog` / `A1ClampCalculator` / `A1ClampBuilder`）：弯弧圆心在管轴，真实半圆与两条 D 长度直腿相切。每腿两颗螺母，顶板既不建模也不计入清单。开口基准为水平管 +Z，近竖直管 +X；光标在径向平面内投影并按右手角度旋转。ItemType 名固定为 `PipeSupportAssembly_A1`、`PipeSupportComponent_A1_U_BOLT`、`PipeSupportComponent_A1_NUT`，尺寸和角度只能写入属性值。
 - **A2**（`A2ClampCatalog` / `A2ClampCalculator` / `A2ClampBuilder`）：表 1 只按**公称直径数值**匹配（与脚本 `_match_table_dn` 一致，不拿外径比）；保温时内孔 A′ = A + 2B，且孔心距 B 必须同步外移 B，否则孔会落进放大后的孔洞区域被剪掉、螺栓随之错位。绕轴角度由 `PipeClampFrame.Axes` 自动给出（局部 Z 竖直向上），不给用户旋转角入口。
+- **A22**（`A22ClampCatalog` / `A22ClampCalculator` / `A22ClampBuilder`）：`A = OD + 2×(承重板厚 + 保冷厚) + 10`，按 A 查表 1，`B=A/2+E`，`G=螺栓直径+3`；E 对应 A2 的 D。表 2 的承重板厚按 DN 分档。两片承重环在局部 Z 方向对开，各有左右法兰板；两套螺栓、螺母与四只垫圈独立成形。过渡圆角 `T≤15` 时 `R_MIN=T`，`T>15` 时 `R_MIN=2.5T`，以与承重环外圆和法兰平面相切的圆弧剖面拉伸建模；大圆角邻近螺栓处整平垫圈座面。
+- **A24**（`A24ClampCatalog` + A22 共用计算与实体剖面）：表 1 的 C/E/T/W/螺栓直径与 A22 同档，新增 F；四孔中心在 `±B`、`±(B+F)`，法兰两侧各延长 F。四套紧固件和八只垫圈独立建模、记入独立 A24 清单。A24 表 1 没有允许荷载，不能从 A22 借用。
 - **K1**（`K1LimitCatalog` / `K1LimitCalculator` / `K1LimitBuilder`）：只接受与水平面夹角 ≤ 5° 的管轴。子项 A 的半片 T 形截面在本地自建（8 点、无圆弧）；子项 B/C 的 H 型钢取 `geometric_center` 轮廓。**H 型钢轮廓的 2D x 是翼缘宽 B、y 是截面高 H**（见 `型钢截面生成器/steel_sections/steel_hbeam_geometry.py` 的顶点定义），换轴时别弄反，否则“腹板水平、两翼缘竖直”会变成另一种姿态。
-- **T4**（`T4ShoeCatalog` / `T4ShoeCalculator` / `T4ShoeBuilder`）：H 只能由隔热层厚度 B 查表得到，面板只读显示，**不要给用户直输 H 的入口**。布尔顺序固定为：外圆柱 − 内圆柱 − 45° 矩形贯穿体 → 每块耳板开孔后并入 → 底板 + 弧顶支撑（减圆柱成形、必要时再减对开间隙）并入。切口方向一律用 `T4ShoeCalculator.CutFrame` 的 (c, s) 做 (x, a, b) 映射，不要自己推坐标。
+- **T4**（`T4ShoeCatalog` / `T4ShoeCalculator` / `T4ShoeBuilder`）：H 只能由隔热层厚度 B 查表得到，面板只读显示，**不要给用户直输 H 的入口**。布尔顺序固定为：外圆柱 − 内圆柱 − 45° 矩形贯穿体 → 每块耳板开孔后并入 → 底板与支撑并入。DN50 及以下按详图 B 只用矩形底板和中央纵向腹板，不生成横向弧顶支撑；DN80 及以上另加弧顶横向支撑（减圆柱成形、必要时再减对开间隙）。切口方向一律用 `T4ShoeCalculator.CutFrame` 的 (c, s) 做 (x, a, b) 映射，不要自己推坐标。
+- **L2**（`L2ShoeCatalog` / `L2ShoeCalculator` + T4 共用布尔布局与实体 Builder）：表 1 的 L/F/E 分别为 DN15~150 的 150/80/35、DN200~600 的 300/150/75 mm；耳板与横向支撑端距由 layout 传递，不能套用 T4 固定 75 mm。H 按 L2 保冷厚度表（≤25→100，至 275→350）取值。L2 薄保冷层时耳板根部按内圆外径退让，防止穿入保冷层。LGEN2 注 8 的梯宽 C 未给尺寸，暂复用 T4 底板宽度表和耳板尺寸。L2 荷载、密度和位移取自己的表；不套用 T4 荷载。
 - **E1**：面板并入本页，数据 / 计算 / 建模仍在 `Data/E1Guide/`、`Domain/E1Guide/`、`Services/E1Guide/`。“确认后删除辅助线”只对单根普通直线有效，删除前要核对源元素仍是直线，且管道与多段线始终保留。
 
 型钢轮廓的三连查找统一走 `Data/ProfileLookup.cs`（纯查表，接受 `FamilyData[]`，因此纯计算检查工程也能链接），不要在功能里另写一套。新增管夹时若需要新增型钢规格，仍走 `Development/profile_catalog/` + `export_profiles.py` 的既有流程。
@@ -708,3 +716,7 @@ T 型架参数页的 H/L 或 L1/L2 上限与 `TFrameCalculator.Calculate` 的校
 首页只有 `pad-plate` 一个入口，页面顶部选 Y2 或弯头垫板。Y2 点取水平管道、HVAC 圆形直风管或直线；普通管道按 DN 查外径与板厚，HVAC 圆形直风管按 EC 实际外径贴合，不落到备用 DN。弯头垫板点取 90° 管道或 HVAC 圆风管弯头，读取 EC 矩阵、外径和弯曲半径；截面沿弯头中心线圆弧扫掠。风管护板厚度由实际外径决定：≤2000 mm 为 6 mm，>2000 mm 为 10 mm。Y2 风管编号的尺寸段采用 `D450` 这类实际外径文字，ItemType 名仍固定。两类垫板都用真圆弧截面和可选 Ø6 通气孔。
 
 预览可更新或取消；确认时 `Statistics.AttachPadPlate` 一次写入 Assembly 与 Pad 构件。ItemType 名固定为 `PipeSupportAssembly_Y2_ARC_PAD` / `PipeSupportComponent_Y2_ARC_PAD_PAD` 或 `PipeSupportAssembly_ELBOW_PAD` / `PipeSupportComponent_ELBOW_PAD_PAD`，尺寸、材料和编号只写实例属性。纯计算检查在 `Development/PadPlateCheck/`。Bentley 扫掠、气孔布尔与 EC 点取需要在 OPM 中实测。
+
+## 34. D7 L 型架
+
+首页 `l-bracket` 对应 Python `D7-[L形_倒L形架].py`。点取开放的两段 L 形辅助折线，竖直段为立杆轴线、水平段为横担顶面；类型 1/2 立杆在下，3/4 立杆在上。子项 A～D 可选四类，E/F 的 H 型钢仅允许类型 1/3。截面使用 `profiles.bin` 与 `SteelMemberFactory`，清单仅确认时由 `Statistics.AttachLBracket` 批量写入。ItemType 名固定为 `PipeSupportAssembly_L_PIPE_RACK`、`PipeSupportComponent_L_PIPE_RACK_Post` 和 `PipeSupportComponent_L_PIPE_RACK_Arm`，不得附加编号、尺寸或哈希。H 和 B 的标准上限及当前值在参数区展示，详细失败原因放预览文字，底部状态栏保持简短。纯计算检查在 `Development/LBracketCheck/`；折线点取与 Bentley 扫掠仍需 OPM 实测。

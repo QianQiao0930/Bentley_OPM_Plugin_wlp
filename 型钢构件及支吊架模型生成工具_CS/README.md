@@ -2,7 +2,11 @@
 
 ## 上次输入
 
-所有有参数输入的功能页都会跨会话记住上次输入。人孔、管夹、G2 锚板、N3/N4 和 N8 使用各自的 `LastChoice` 文件；型钢生成、构件特性查询、弯头耳轴、实体管口、立管耳轴、三角架、门型架、T 型架和垫板使用按页面独立的 `*_last_input.json`。偏好存放在 `%LOCALAPPDATA%\SteelSectionProbe`，离开页面或关闭工具时写入，重新打开工具时恢复。统计页没有参数输入，因此无需保存。模型中的点选、预览与生成状态不属于上次输入。
+所有有参数输入的功能页都会跨会话记住上次输入。人孔、管夹、G2 锚板、N3/N4 和 N8 使用各自的 `LastChoice` 文件；型钢生成、构件特性查询、弯头耳轴、实体管口、立管耳轴、三角架、L 型架、门型架、T 型架和垫板使用按页面独立的 `*_last_input.json`。偏好存放在 `%LOCALAPPDATA%\SteelSectionProbe`，离开页面或关闭工具时写入，重新打开工具时恢复。统计页没有参数输入，因此无需保存。模型中的点选、预览与生成状态不属于上次输入。
+
+## D7 L 型架
+
+首页的“L 型架”入口对应 Python `D7-[L形_倒L形架].py`。点取两段相连的 L 形辅助折线，竖直段决定立杆 H，水平段决定横担 L；类型 1/2 为立杆在下，3/4 为立杆在上的吊架。子项 A～F 使用 `profiles.bin` 截面，E/F 仅适用于类型 1/3。面板输入 B 查表 1/2 荷载，始终显示当前 H/B 与该子项标准上限；超限不能更新预览。确认时一次写入固定的 `PipeSupportAssembly_L_PIPE_RACK`、`PipeSupportComponent_L_PIPE_RACK_Post` 和 `PipeSupportComponent_L_PIPE_RACK_Arm`，尺寸与编号只写实例属性。预览可更新或取消，返回首页时清理。纯计算检查在 `Development/LBracketCheck/`；Bentley 折线点取与扫掠需在 OPM 中实测。
 
 ## D5 / D6 / G12 / D19 三角架
 
@@ -32,7 +36,7 @@ N3/N4 点取辅助线后自动生成首次预览；此后参数一经输入或�
 
 点取后先生成可撤销 Cell 预览，确认时才写入 `PipeSupportComponents`。切换类型、右键结束点取、取消预览、返回首页和关闭工作区均清理未确认元素。清单 `SupportType` 与 Python 保持一致：F6/F7 共用 `F6_F7-[立管的耳轴]`，F10 为 `F10-[小管径立管耳板]`。实现位于 `Domain/VerticalPipeSupport/`、`Data/VerticalPipeSupport/`、`Services/VerticalPipeSupport/`、`Tools/VerticalPipeSupport/` 和 `UI/VerticalPipeSupport/`。纯计算检查为 `Development/VerticalPipeSupportCheck/`；OPM 2024 中仍需对三个类型的布尔运算、参考管道点取、预览删除及 ItemType 写入进行实测。
 
-独立的 .NET Framework 4.8 / x64 AddIn。运行时只加载 C# DLL，不启动 Python。当前提供型钢截面放置、沿路径扫掠、构件特性查询、弯头耳轴、立管耳轴（F6/F7/F10）、罐壁人孔、实体管口、放置管夹（A2 标准型 2 螺栓管夹 / E1 不保温管导向架 / K1 不保温管限位架 / T4 高温隔热限位管托）、G2 混凝土锚板与只读的支吊架统计，并按“工作区 + 功能页”组织，后续可继续接入各种支吊架功能。
+独立的 .NET Framework 4.8 / x64 AddIn。运行时只加载 C# DLL，不启动 Python。当前提供型钢截面放置、沿路径扫掠、构件特性查询、弯头耳轴、立管耳轴（F6/F7/F10）、罐壁人孔、实体管口、放置管夹（A1 / A2 / A22 / E1 / K1 / T4）、G2 混凝土锚板与只读的支吊架统计，并按“工作区 + 功能页”组织，后续可继续接入各种支吊架功能。
 
 VS Code 可打开仓库根目录的 [`型钢构件及支吊架模型生成工具.code-workspace`](../型钢构件及支吊架模型生成工具.code-workspace)。工程文件已更名为 `SteelSupportModeler.csproj`；为兼容已有 OPM 配置，输出 DLL、命名空间和 `STEELPROBE` 命令仍使用 `SteelSectionProbe`。
 
@@ -233,20 +237,44 @@ dotnet build SteelSupportModeler.csproj -c Release /p:OutputPath=bin\Release\net
 
 在三维 DGN 中点击“开始点取”，左键指定基点后生成一个 SmartSolid 预览；调整参数或继续左键点取会先建立新预览，再清理旧预览。“确认生成”保留当前实体，并可继续点取下一处（此时点取仍在进行中，直接点下一处即可，无需再点“开始点取”）；右键、结束点取、返回首页或关闭工具会取消未确认预览。`NozzlePlacementTool.Begin()` 是幂等的：已经在点取中时只重新提示一次，不做“结束再安装”——后者会先假发一次 `Ended` 清掉页面状态，新实例还可能被上一个实例的延迟 `OnCleanup` 带掉，表现为“再点一次开始点取后第一次点击被当成结束，要点两次才进得去”。尺寸来自原 `实体管口/flange_data.json`，作为 `Resources/nozzle_flange_data.json` 嵌入 DLL，运行时无需 Python 或外部 JSON。当前 CL150 表未提供密封面凸台尺寸，因此不生成凸台；若表内补充 `raised_face_od` 和 `raised_face_height`，建模服务可按数据生成。该功能是可视化设备管口，沿用原脚本约定，不写入支吊架材料表或 OPM 管道 EC 组件。
 
-代码位于 `Domain/Nozzle/`、`Data/Nozzle/`、`Services/Nozzle/`、`Tools/Nozzle/` 和 `UI/Nozzle/`。实体管口和罐壁人孔共用 `Services/SolidPrimitiveFactory.cs` 的基础 SmartSolid 操作。纯计算和尺寸表校验：`dotnet run --project Development/NozzleCheck/NozzleCheck.csproj -c Release`。需在 OPM 2024 中实测六种轴向、大小口径的相并与孔切除、连续点取及预览清理。## 放置管夹（A2 / E1 / K1 / T4）
+代码位于 `Domain/Nozzle/`、`Data/Nozzle/`、`Services/Nozzle/`、`Tools/Nozzle/` 和 `UI/Nozzle/`。实体管口和罐壁人孔共用 `Services/SolidPrimitiveFactory.cs` 的基础 SmartSolid 操作。纯计算和尺寸表校验：`dotnet run --project Development/NozzleCheck/NozzleCheck.csproj -c Release`。需在 OPM 2024 中实测六种轴向、大小口径的相并与孔切除、连续点取及预览清理。
 
-首页只有一个“放置管夹”入口；进入后由页面最上方的下拉框切换四种管夹，参数区随类型切换。四种操作方式一致：点【开始点取】后在模型中悬停选择管道 / 直线 / 多段线，左键在点击处沿其轴线生成整组预览；改参数自动重建预览；点【确定生成】才写入 `PipeSupportComponents`。右键、结束点取、取消预览、返回首页与关闭工作区都会清理未确认预览。类型与各类型参数跨会话记住（`%LOCALAPPDATA%\SteelSectionProbe\pipe_clamp_last.json`）。
+## 放置管夹（A1 / A2 / A22 / A24 / E1 / K1 / T4 / L2）
+
+首页只有一个“放置管夹”入口；进入后由页面最上方的下拉框切换八种管夹，参数区随类型切换。01 管夹类型与 03 点取预览固定显示，只有 02 参数区滚动。A1 先点取管道或辅助线确定位置，再移动光标在管道径向平面内调整开口方向，左键锁定并生成预览；其余类型左键点取后直接生成预览。改参数可更新预览；点【确定生成】才写入 `PipeSupportComponents`。右键、结束点取、取消预览、返回首页与关闭工作区都会清理未确认预览。类型与各类型参数跨会话记住（`%LOCALAPPDATA%\SteelSectionProbe\pipe_clamp_last.json`）。
 
 | 类型 | 适用范围 | 编号 |
 | --- | --- | --- |
+| A1 U 型管卡 | DN15~900（表 1，27 档） | `A1-DN管径-M螺栓-角度°` |
 | A2 标准型 2 螺栓管夹 | DN15~750（表 1，24 档） | `DN管径` |
+| A22 保冷管用 2 螺栓管夹 | DN15~900（表 2；A 按表 1 的 13 档选型） | `A22-DN管径-保冷厚度` |
+| A24 保冷管用 4 螺栓管夹 | DN15~900（表 2；F 按表 1 的 13 档选型） | `A24-DN管径-保冷厚度` |
 | E1 不保温管导向架 | DN15~900（表 1 子项 A~E） | `E1-子项-H`（不锈钢加 `-S`） |
 | K1 不保温管限位架 | 1/2″~36″（子项 A~C） | `K1-子项[-管径]` |
-| T4 高温隔热限位管托 | DN80~600（表 1 / 表 2） | `名称-管径-温度代码-H-L-材料代码-F` |
+| T4 高温隔热限位管托 | DN15~600（表 1 / 表 2；DN50 及以下为详图 B 底座） | `名称-管径-温度代码-H-L-材料代码-F` |
+| L2 最小长度保冷管托 | DN15~600（表 1 / 表 2；DN50 及以下用简式底座） | `L2-DN管径-保冷厚度[-F代码]` |
+
+### A1 U 型管卡
+
+弯弧圆心落在管轴上，半径 C/2；两条直腿长度 D，弯弧为真半圆。四颗带中心孔六角螺母按 Python 版尺寸布置，通板没有实体也不计入清单。管道按 EC 公称直径匹配表 1；辅助线使用面板 DN 和点击点作为管中心。第二次左键锁定开口角度后生成可撤销预览；确认时写入固定 ItemType `PipeSupportAssembly_A1`、`PipeSupportComponent_A1_U_BOLT`、`PipeSupportComponent_A1_NUT`，角度、尺寸只写入记录字段。
 
 ### A2 标准型 2 螺栓管夹
 
 圆柱 ∪ 长方体后剪出管夹状，再开两个耳板螺栓孔并配 2 套简化紧固件（螺杆 + 六角头 + 带中心孔的六角螺母，不做布尔融合）。管夹内孔 A′ = A + 2×保温厚度，且孔心距 B 同步外移同样的保温厚度（否则孔会落进放大后的孔洞区域被剪掉、螺栓错位）。选中管道时按**公称直径**匹配表 1 并读其保温厚度；选中直线或匹配不上时改用面板管径与保温厚度。绕轴角度自动对齐（本地 Z 竖直向上），无需手工指定旋转角。
+
+### A22 保冷管用 2 螺栓管夹
+
+按 DN 查表 2 得承重板厚度（DN15~100 为 6、125~150 为 8、200~400 为 10、450~900 为 12 mm）；`A = 管道外径 + 2×(承重板厚度 + 保冷厚度) + 10`，再按 A 查表 1 得 C、E、T、W、螺栓与允许荷载。`B = A/2 + E`，孔径 `G = 螺栓直径 + 3`；E 对应 A2 的 D。几何是上下两片对合的圆弧承重板，各带左右法兰耳板，开两处贯穿孔，配两套螺杆、六角头、螺母和四只垫圈。承重环与法兰的过渡圆角按 `T≤15 时 R_MIN=T；T>15 时 R_MIN=2.5T`，使用与承重环外圆和法兰平面相切的圆弧剖面拉伸建模；大圆角靠近螺栓时整平垫圈座面。管道优先读取 EC 公称直径、外径与保冷厚度；缺失时使用面板 DN、表外径和面板厚度。按 `A22-DN管径-保冷厚度` 编号；超出 A=1400 mm 的表 1 上限时拒绝建模。
+
+### A24 保冷管用 4 螺栓管夹
+
+沿用 A22 的表 2、A/B/G 计算和相切过渡圆角；按 A24 表 1 查 F：A≤400 为 100、401~450 为 120、451~700 为 145、701~900 为 170、901~1050 为 195、1051~1400 为 225 mm。内侧两孔仍在 ±B，外侧两孔在 ±(B+F)；法兰每侧延长 F，总长比 A22 多 2F。每组有四套螺杆、螺母与八只垫圈，清单独立记为 A24。A24 表 1 未提供允许荷载，规格中不沿用 A22 的荷载数据。
+
+### L2 最小长度保冷管托
+
+按 L2 表 1 选最小长度 L、轴向螺栓组距 F、端距 E、T1/T2/T3、螺栓及荷载；DN15~150 为 L=150、F=80、E=35 mm，DN200~600 为 L=300、F=150、E=75 mm。表 2 按保冷厚度查 H：≤25→100、26~75→150、76~125→200、126~175→250、176~225→300、226~275→350 mm。四套螺栓。编号为 `L2-DN管径-保冷厚度[-F代码]`，其中末段 F 是图注 5 的编号字段，与表 1 中的孔组距 F 区分。
+
+实体直接复用 T4 的圆筒承重板、45° 对开、耳板开孔、紧固件和底座布尔建模；小管径只用底板与中央纵向腹板，DN80 及以上增加横向支撑。L2 图中梯宽 C 指向 LGEN2 注 8，所附资料未给出该尺寸；当前沿用 T4 按保冷层外径查底板宽度的规则，耳板尺寸与对开间隙也沿用同 DN 的 T4 参数。L2 表 1 给出的上、下弧形块密度与允许轴向位移写入规格说明，未改变几何。允许荷载使用 L2 自己的表值。
 
 ### K1 不保温管限位架
 
@@ -254,9 +282,9 @@ dotnet build SteelSupportModeler.csproj -c Release /p:OutputPath=bin\Release\net
 
 ### T4 高温隔热限位管托
 
-点选一条管道轴线。上下两片承重板包在保温层外（对开 45°、两端留间隙 J），用耳板 + 4 颗带碟簧垫圈的螺栓连接；底座 = 底板 + 横向弧顶支撑（L > 600 时加中间肋板）+ 中央纵向腹板，弧顶减圆柱成形。H 由隔热层厚度 B 查表得到（面板只读显示）；底板宽度按保温层外径 D = OD + 2B 查表 2。耳板沿轴 2 组（L≤600）或 3 组（L>600），每组两处分口各 2 块。可选创建管道本体与保温层，默认都不建。
+点选一条管道轴线。上下两片承重板包在保温层外（对开 45°、两端留间隙 J），用耳板与螺栓连接。DN15/20/25/40/50 按详图 B 建模：矩形底板 + 中央纵向腹板，无横向弧顶支撑，耳板固定两组、尺寸 40×40×12。DN80~600 保留底板 + 横向弧顶支撑（L > 600 时加中间肋板）+ 中央纵向腹板，弧顶减圆柱成形。H 由隔热层厚度 B 查表得到（面板只读显示）；底板宽度按保温层外径 D = OD + 2B 查表 2。DN80、DN100 的 M12、T1/T2/T3 与三向荷载已核对图示表 1；小管径图中未给出的 C、k、J 等尺寸暂沿用 DN80 数据。可选创建管道本体与保温层，默认都不建。
 
-四种管夹的分层位置：表数据与元素读取在 `Data/PipeClamp/`（`PipeClampCatalog`、`A2ClampCatalog`、`K1LimitCatalog`、`T4ShoeCatalog`、`PipeClampReader`）；纯参数与结果在 `Domain/PipeClamp/`；尺寸推导与 Bentley 建模在 `Services/PipeClamp/`（A2/K1/T4 各一对 Calculator + Builder，加共用的 `PipeClampFrame`）；点取与预览所有权在 `Tools/PipeClamp/`；页面在 `UI/PipeClamp/`。E1 的数据、计算与建模仍在 `Data/E1Guide/`、`Domain/E1Guide/`、`Services/E1Guide/`，只把面板并入了本页面，不再有独立入口。四种管夹共用 `Tools/PipeClamp/PipeClampLocateTool.cs` 与 `PipeClampPreviewSession.cs`。
+八种管夹的分层位置：表数据与元素读取在 `Data/PipeClamp/`；纯参数与结果在 `Domain/PipeClamp/`；尺寸推导与 Bentley 建模在 `Services/PipeClamp/`；点取与预览所有权在 `Tools/PipeClamp/`；页面在 `UI/PipeClamp/`。A1 使用专门的 `A1ClampOrientationTool` 完成第二阶段旋转。E1 的数据、计算与建模仍在 `Data/E1Guide/`、`Domain/E1Guide/`、`Services/E1Guide/`，只把面板并入了本页面。管夹共用 `PipeClampLocateTool` 与 `PipeClampPreviewSession`。
 
 ### E1 不保温管导向架
 
@@ -264,7 +292,7 @@ dotnet build SteelSupportModeler.csproj -c Release /p:OutputPath=bin\Release\net
 
 右键、结束点取、取消预览、返回首页和关闭窗口都会清理未确认预览。修改参数或重新点取会先写入替代预览再删除旧预览。A 为 50×10 板件；B、C、D、E 的型钢轮廓分别从本工程 `Resources/profiles.bin` 加载等边角钢 L50x50x6、平行腿槽钢 10、热轧 H 型钢 H100x100x6x8xr8 和 H150x150x7x10xr8，圆角保留真圆弧。E1 的 DN/外径与子项表在 `Data/E1Guide/E1GuideCatalog.cs`；修改这些值后重新编译。如需修改型钢规格，则修改 `Development/profile_catalog/` 并运行 `python -B Development/export_profiles.py`，然后重新编译；C# 运行时不读取或调用 Python 插件。
 
-纯计算检查：`dotnet run --project Development/PipeClampCheck/PipeClampCheck.csproj -c Release`（覆盖 A2 表 1 与尺寸推导、K1 子项/骑座高差/底板盒/坐标架、T4 表 1 表 2 与保温高度表/布尔布局/孔位校核，以及四种管夹的清单属性契约），另有 `dotnet run --project Development/E1GuideCheck/E1GuideCheck.csproj -c Release` 覆盖 E1 的纯计算。Bentley 环境中的 EC 管径与保温厚度读取、多段线段点取、型钢扫掠、布尔运算、普通 Cell 预览删除以及 ItemType 汇总还需在 OPM 2024 用真实 DGN 实测。
+纯计算检查：`dotnet run --project Development/PipeClampCheck/PipeClampCheck.csproj -c Release`（覆盖 A2、A22、A24 与 L2 的表数据及尺寸推导、K1 子项/骑座高差/底板盒/坐标架、T4 表 1 表 2 与保温高度表/布尔布局/孔位校核，以及八种管夹的清单属性契约），另有 `dotnet run --project Development/E1GuideCheck/E1GuideCheck.csproj -c Release` 覆盖 E1 的纯计算。Bentley 环境中的 EC 管径与保温厚度读取、多段线段点取、型钢扫掠、布尔运算、普通 Cell 预览删除以及 ItemType 汇总还需在 OPM 2024 用真实 DGN 实测。
 
 ## G2 混凝土锚板（膨胀螺栓）
 
@@ -285,7 +313,7 @@ MicroStation 的参考文件（reference attachment）里的元素，其 Element
 
 还有一道与 ID 无关的关卡：MicroStation **默认不把参考元素交给元素集合工具**，所以即使读得到几何，点上去仍会报"元素位于只读参考文件之中"。这是工具层的策略，不是元素读取的问题，也**不取决于参考附件的类型或设置**（参考文件本身在 MicroStation 里永远不可编辑，没有"改成可写"这种选项）。修法是覆写 `DgnElementSetTool.GetReferenceLocateOptions()` 返回 `RefLocateOption.TreatAsElement`（把参考元素当普通元素来定位），并在 `OnPostLocate` 里加一层兜底放行。三个点选工具（放置管夹 / 构件特性查询 / 弯头耳轴）都已覆写。
 
-适用功能：放置管夹（A2 / E1 / K1 / T4）、G2 混凝土锚板、弯头耳轴、构件特性查询。点取到参考元素时，界面会在元素信息与尺寸来源说明里标注"（参考文件）"。
+适用功能：放置管夹（A1 / A2 / A22 / E1 / K1 / T4）、G2 混凝土锚板、弯头耳轴、构件特性查询。点取到参考元素时，界面会在元素信息与尺寸来源说明里标注"（参考文件）"。
 
 **放置管夹有一条专门的"临时辅助线"流程**（`Services/PipeClamp/TempAxisLine.cs`）：点选参考文件里的管道时，插件先读出它的管轴与管道属性，再**在活动文件里按这段轴线生成一条普通直线**，然后用**已验证的按线路径**重新读一遍（并把参考元素读到的公称直径 / 保温 / 管道号并到这条线上），最后在确认或取消时**自动删除**这条临时线。这样"生成"这一段完全不接触参考文件 —— 不会碰到"参考元素写不进 / 删不掉 / 几何读不稳"这类问题，参考元素的影响面只剩一次轴线读取。临时线在切换到活动文件里的元素、重新点选、结束点取、切换管夹类型、离开页面时都会清理；异常退出（宿主崩溃）时最多残留一条普通直线，手动删除或撤消一步即可。界面会在预览行写明"已按参考管轴在活动文件中生成临时辅助线，确认或取消后自动删除"。
 

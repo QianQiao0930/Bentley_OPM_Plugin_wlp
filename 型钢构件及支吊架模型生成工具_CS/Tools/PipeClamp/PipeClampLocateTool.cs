@@ -6,7 +6,7 @@ namespace SteelSectionProbe
 {
     /// <summary>
     /// 管夹类功能共用的点选工具：悬停定位管道 / 直线 / 多段线，左键上报元素 ID 与点击点。
-    /// 四种管夹（A2 / E1 / K1 / T4）操作方式一致，因此共用同一个工具。
+    /// 五种管夹共用初始定位工具；A1 定位后另用工具调整开口方向。
     /// </summary>
     internal sealed class PipeClampLocateTool : DgnElementSetTool
     {
@@ -79,6 +79,20 @@ namespace SteelSectionProbe
                 AccuSnap.SnapEnabled=oldSnap; AccuSnap.LocateEnabled=oldLocate;
                 var ended=Ended; if(ended!=null) ended();
             }
+        }
+        /// <summary>
+        /// 交接给下一个工具（如 A1 方向工具）时"静默退役"：只清静态状态并恢复捕捉/定位，
+        /// **不调 ExitTool、不发 Ended**。ExitTool 会向状态机挂起一个"退出当前工具"，
+        /// 该退出在下一个原生输入事件才结算 —— 那时"当前工具"已经是紧随其后安装的新工具，
+        /// 新工具会被误杀并触发一次伪 Ended（同 2906eca 竞态，A1 方向调整刚装上就被
+        /// "已取消"即是此坑）。本实例的收尾由新工具 InstallTool 引发的工具切换完成，
+        /// 其 OnCleanup 因 active!=this 而静默。
+        /// </summary>
+        internal static void RetireForHandoff()
+        {
+            var tool=active; if(tool==null) return;
+            active=null;
+            AccuSnap.SnapEnabled=oldSnap; AccuSnap.LocateEnabled=oldLocate;
         }
         protected override void OnPostInstall()
         {

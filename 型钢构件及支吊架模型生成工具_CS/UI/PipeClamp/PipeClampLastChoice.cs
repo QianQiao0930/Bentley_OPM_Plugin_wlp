@@ -10,7 +10,16 @@ namespace SteelSectionProbe
         internal sealed class Data
         {
             public int KindIndex;
-            public int A2DnIndex,E1DnIndex,E1ItemIndex,K1DnIndex,K1SubitemIndex,T4DnIndex;
+            public int A1DnIndex,A2DnIndex,E1DnIndex,E1ItemIndex,K1DnIndex,K1SubitemIndex,T4DnIndex;
+            public int A22DnIndex=9;
+            public string A22Cold="50",A22Name="A22";
+            public int A24DnIndex=9;
+            public string A24Cold="50",A24Name="A24";
+            public int L2DnIndex=9;
+            public string L2Cold="50",L2FCode="";
+            public bool L2Pipe,L2InsulationBuild;
+            // 新增小管径后列表索引会移动；按实际 DN 保存，兼容旧文件中的 T4DnIndex。
+            public int? T4Dn;
             public string A2Insulation="0",E1Material="",K1Width="100",K1Material="Q235B";
             public string T4Insulation="50",T4Length="300",T4Name="T4",T4Temp="",T4Material="",T4F="";
             public bool E1Stainless,T4Pipe,T4InsulationBuild;

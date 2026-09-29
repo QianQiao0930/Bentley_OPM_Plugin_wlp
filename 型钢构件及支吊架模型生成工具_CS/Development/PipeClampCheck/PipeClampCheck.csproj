@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><LangVersion>7.3</LangVersion><NoWarn>0649</NoWarn></PropertyGroup>
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><LangVersion>7.3</LangVersion><NoWarn>0649</NoWarn></PropertyGroup>
   <ItemGroup>
     <Compile Include="../../Domain/ProfileModels.cs" Link="ProfileModels.cs" />
     <Compile Include="../../Data/RuntimeData.cs" Link="RuntimeData.cs" />
@@ -8,11 +8,20 @@
     <Compile Include="../../Domain/E1Guide/E1GuideSegment.cs" Link="E1GuideSegment.cs" />
     <Compile Include="../../Data/E1Guide/E1GuideCatalog.cs" Link="E1GuideCatalog.cs" />
     <Compile Include="../../Domain/PipeClamp/PipeClampModels.cs" Link="PipeClampModels.cs" />
+    <Compile Include="../../Domain/PipeClamp/A1ClampPlan.cs" Link="A1ClampPlan.cs" />
+    <Compile Include="../../Domain/PipeClamp/A22ClampPlan.cs" Link="A22ClampPlan.cs" />
     <Compile Include="../../Data/PipeClamp/PipeClampCatalog.cs" Link="PipeClampCatalog.cs" />
+    <Compile Include="../../Data/PipeClamp/A1ClampCatalog.cs" Link="A1ClampCatalog.cs" />
     <Compile Include="../../Data/PipeClamp/A2ClampCatalog.cs" Link="A2ClampCatalog.cs" />
+    <Compile Include="../../Data/PipeClamp/A22ClampCatalog.cs" Link="A22ClampCatalog.cs" />
+    <Compile Include="../../Data/PipeClamp/A24ClampCatalog.cs" Link="A24ClampCatalog.cs" />
+    <Compile Include="../../Data/PipeClamp/L2ShoeCatalog.cs" Link="L2ShoeCatalog.cs" />
     <Compile Include="../../Data/PipeClamp/K1LimitCatalog.cs" Link="K1LimitCatalog.cs" />
     <Compile Include="../../Data/PipeClamp/T4ShoeCatalog.cs" Link="T4ShoeCatalog.cs" />
     <Compile Include="../../Services/PipeClamp/A2ClampCalculator.cs" Link="A2ClampCalculator.cs" />
+    <Compile Include="../../Services/PipeClamp/A22ClampCalculator.cs" Link="A22ClampCalculator.cs" />
+    <Compile Include="../../Services/PipeClamp/L2ShoeCalculator.cs" Link="L2ShoeCalculator.cs" />
+    <Compile Include="../../Services/PipeClamp/A1ClampCalculator.cs" Link="A1ClampCalculator.cs" />
     <Compile Include="../../Services/PipeClamp/K1LimitCalculator.cs" Link="K1LimitCalculator.cs" />
     <Compile Include="../../Services/PipeClamp/T4ShoeCalculator.cs" Link="T4ShoeCalculator.cs" />
   </ItemGroup>

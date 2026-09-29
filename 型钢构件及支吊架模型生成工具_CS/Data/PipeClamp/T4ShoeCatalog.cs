@@ -45,7 +45,7 @@ namespace SteelSectionProbe
         internal const string SupportCode="INSULATED_PIPE_CLAMP";
         internal const string CellName="INSULATED_PIPE_CLAMP";
 
-        internal const int DnMin=80,DnMax=600;
+        internal const int DnMin=15,DnMax=600;
         internal const double MinShoeLengthMm=300.0;
         internal const double MinInsulationMm=1.0;
         internal const double MinHeightMm=1.0;
@@ -92,10 +92,18 @@ namespace SteelSectionProbe
         internal const uint InsulationColor=4;
 
         internal static readonly Dictionary<string,double> BoltDiametersMm=new Dictionary<string,double>{
-            {"M12",12.0},{"M16",16.0},{"M20",20.0},{"M24",24.0},{"M30",30.0}
+            {"M10",10.0},{"M12",12.0},{"M16",16.0},{"M20",20.0},{"M24",24.0},{"M30",30.0}
         };
 
         private static readonly T4ShoeRow[] Rows={
+            // 表 1 详图 B（2″ 及以下）：图中给出的 T1/T2/T3、螺栓与荷载；
+            // OD 沿用本工程 E1GuideCatalog 的同 DN 钢管数据；耳板为 40×40×12；
+            // C、k、J 等未在该局部表图列出的尺寸暂沿用 DN80 的规格。
+            Make(15,"1/2\"",21.3,"M12",40,40,12,25,6,25,8,8,6,10,2,5),
+            Make(20,"3/4\"",26.7,"M12",40,40,12,25,6,25,8,8,6,10,2,5),
+            Make(25,"1\"",33.4,"M12",40,40,12,25,6,25,8,8,6,10,2,5),
+            Make(40,"1 1/2\"",48.3,"M12",40,40,12,25,6,25,8,8,6,30,6,10),
+            Make(50,"2\"",60.3,"M12",40,40,12,25,6,25,8,8,6,30,6,10),
             Make(80,"3\"",88.9,"M12",40,40,16,25,6,25,10,8,6,40,8,30),
             Make(100,"4\"",114.3,"M12",40,40,16,25,6,25,10,8,6,40,8,30),
             Make(125,"5\"",141.3,"M16",50,50,20,30,6,25,10,8,10,70,15,60),
@@ -147,8 +155,11 @@ namespace SteelSectionProbe
 
         internal static double Outside(int dn) { return Require(dn).OutsideMm; }
         internal static double BoltDiameterMm(int dn) { return Require(dn).BoltDiameterMm; }
-        /// <summary>DN80~600 均为 4 颗螺栓（表 1）。</summary>
+        /// <summary>DN15~600 均为 4 颗螺栓（表 1）。</summary>
         internal static int BoltCount(int dn) { Require(dn); return 4; }
+
+        /// <summary>详图 B：2″ 及以下仅用底板和中央纵向腹板支撑。</summary>
+        internal static bool UsesSimpleBase(int dn) { Require(dn); return dn<=50; }
 
         internal static string DnLabel(int dn)
         {

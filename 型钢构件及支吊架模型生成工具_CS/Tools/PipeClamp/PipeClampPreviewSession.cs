@@ -8,7 +8,7 @@ using Bentley.MstnPlatformNET;
 namespace SteelSectionProbe
 {
     /// <summary>
-    /// 四种管夹共用的预览生命周期：重建时先写入新版预览、成功后再删除旧版；
+    /// 八种管夹共用的预览生命周期：重建时先写入新版预览、成功后再删除旧版；
     /// 确认时按当前种类写入 <c>PipeSupportComponents</c> ItemType；取消与离开页面都清理未确认元素。
     /// </summary>
     internal sealed class PipeClampPreviewSession
@@ -17,6 +17,8 @@ namespace SteelSectionProbe
         private PipeClampKind kind;
 
         private A2ClampPlan a2Plan;
+        private A22ClampPlan a22Plan;
+        private A1ClampPlan a1Plan;
         private E1GuidePlan e1Plan;
         private K1LimitPlan k1Plan;
         private T4ShoeLayout t4Layout;
@@ -33,6 +35,27 @@ namespace SteelSectionProbe
             Replace(A2ClampBuilder.Build(plan,center,axis),A2ClampCatalog.CellName,
                 PipeClampKind.A2StandardTwoBolt);
             a2Plan=plan;
+        }
+
+        internal void ShowA22(A22ClampPlan plan,DPoint3d center,DVector3d axis)
+        {
+            Replace(A22ClampBuilder.Build(plan,center,axis),A22ClampCatalog.CellName,
+                PipeClampKind.A22ColdTwoBolt);
+            a22Plan=plan;
+        }
+
+        internal void ShowA24(A22ClampPlan plan,DPoint3d center,DVector3d axis)
+        {
+            Replace(A22ClampBuilder.Build(plan,center,axis),A24ClampCatalog.CellName,
+                PipeClampKind.A24ColdFourBolt);
+            a22Plan=plan;
+        }
+
+        internal void ShowA1(A1ClampPlan plan,DPoint3d center,DVector3d axis)
+        {
+            Replace(A1ClampBuilder.Build(plan,center,axis),A1ClampCatalog.CellName,
+                PipeClampKind.A1UBolt);
+            a1Plan=plan;
         }
 
         internal void ShowE1(E1GuidePlan plan)
@@ -58,6 +81,15 @@ namespace SteelSectionProbe
             t4Boolean=boolean;
             t4BuildPipe=buildPipe;
             t4BuildInsulation=buildInsulation;
+        }
+
+        internal void ShowL2(T4ShoeLayout layout,T4ShoeBooleanLayout boolean,DPoint3d center,
+            DVector3d axis,bool buildPipe,bool buildInsulation)
+        {
+            var parts=T4ShoeBuilder.Build(layout,boolean,center,axis,buildPipe,buildInsulation);
+            Replace(parts,L2ShoeCatalog.CellName,PipeClampKind.L2ColdShoe);
+            t4Layout=layout;t4Boolean=boolean;
+            t4BuildPipe=buildPipe;t4BuildInsulation=buildInsulation;
         }
 
         /// <summary>写入新版预览，成功后再删除旧版；删除失败则回滚新版，保证不残留。</summary>
@@ -87,14 +119,23 @@ namespace SteelSectionProbe
             var element=preview;
             switch(kind)
             {
+                case PipeClampKind.A1UBolt:
+                    Statistics.AttachA1Clamp(element,a1Plan);break;
                 case PipeClampKind.A2StandardTwoBolt:
                     Statistics.AttachA2Clamp(element,a2Plan); break;
+                case PipeClampKind.A22ColdTwoBolt:
+                    Statistics.AttachA22Clamp(element,a22Plan); break;
+                case PipeClampKind.A24ColdFourBolt:
+                    Statistics.AttachA24Clamp(element,a22Plan); break;
                 case PipeClampKind.E1Guide:
                     Statistics.AttachE1Guide(element,e1Plan); break;
                 case PipeClampKind.K1Limit:
                     Statistics.AttachK1Limit(element,k1Plan); break;
                 case PipeClampKind.T4Insulated:
                     Statistics.AttachT4Shoe(element,t4Layout,t4Boolean,t4BuildPipe,
+                        t4BuildInsulation); break;
+                case PipeClampKind.L2ColdShoe:
+                    Statistics.AttachL2Shoe(element,t4Layout,t4Boolean,t4BuildPipe,
                         t4BuildInsulation); break;
                 default:
                     throw new InvalidOperationException("未知的管夹种类。");
@@ -112,7 +153,7 @@ namespace SteelSectionProbe
 
         private void ClearPlans()
         {
-            a2Plan=null; e1Plan=null; k1Plan=null; t4Layout=null; t4Boolean=null;
+            a1Plan=null;a2Plan=null;a22Plan=null;e1Plan=null;k1Plan=null;t4Layout=null;t4Boolean=null;
             t4BuildPipe=false; t4BuildInsulation=false;
         }
 

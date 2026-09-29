@@ -51,6 +51,7 @@
     <Compile Remove="Development\VerticalPipeSupportCheck\**\*.cs" />
     <Compile Remove="Development\EquipmentSupportCheck\**\*.cs" />
     <Compile Remove="Development\TriangleBracketCheck\**\*.cs" />
+    <Compile Remove="Development\LBracketCheck\**\*.cs" />
     <Compile Remove="Development\PortalFrameCheck\**\*.cs" />
     <Compile Remove="Development\TFrameCheck\**\*.cs" />
     <Compile Remove="Development\PadPlateCheck\**\*.cs" />

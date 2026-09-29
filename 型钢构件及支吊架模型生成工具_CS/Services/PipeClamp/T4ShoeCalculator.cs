@@ -49,6 +49,7 @@ namespace SteelSectionProbe
                 ?insulationMm.Value
                 :parameters.InsulationMm;
             var row=T4ShoeCatalog.Require(dn);
+            bool simpleBase=T4ShoeCatalog.UsesSimpleBase(dn);
             double insulation=insulationValue;
             // H（管道不含保温底部 → 管托底面）由隔热层厚度 B 查表得到，面板只读显示。
             double height=T4ShoeCatalog.HeightForInsulation(insulation);
@@ -94,7 +95,10 @@ namespace SteelSectionProbe
                 BoltCenterCMm=row.BoltCenterCMm,WeldLegKMm=row.WeldLegKMm,
                 PlateGapJMm=row.PlateGapJMm,
                 SplitAngleDeg=T4ShoeCatalog.DefaultSplitAngleDeg,
-                HasMiddleRib=shoeLength>T4ShoeCatalog.MiddleRibLengthMm,
+                Code="T4",MinLengthMm=T4ShoeCatalog.MinShoeLengthMm,
+                EarEndOffsetMm=T4ShoeCatalog.EarEndOffsetMm,
+                SupportEndOffsetMm=T4ShoeCatalog.SupportEndOffsetMm,
+                HasMiddleRib=!simpleBase && shoeLength>T4ShoeCatalog.MiddleRibLengthMm,
                 TopPlateTopZMm=-clampOuterRadius
             };
             layout.Number=T4ShoeCatalog.BuildNumber(parameters.Name,row.Dn,
@@ -132,28 +136,32 @@ namespace SteelSectionProbe
             double earWidth=layout.EarWidthMm;
             double earHeight=layout.EarHeightMm;
             double earThickness=layout.EarThicknessMm;
+            bool simpleBase=T4ShoeCatalog.UsesSimpleBase(layout.Dn);
 
-            if(length<T4ShoeCatalog.MinShoeLengthMm)
+            if(length<layout.MinLengthMm)
                 throw new InvalidOperationException("管夹长度 L 必须至少 "+
-                    F1(T4ShoeCatalog.MinShoeLengthMm)+" mm。");
+                    F1(layout.MinLengthMm)+" mm。");
             if(gapJ>=2.0*innerRadius)
                 throw new InvalidOperationException("承重板间隙 J 必须小于管夹内径。");
 
-            int count=T4ShoeCatalog.EarGroupCount!=0?T4ShoeCatalog.EarGroupCount
-                :(length>T4ShoeCatalog.MiddleRibLengthMm?3:2);
-            double span=length-2.0*T4ShoeCatalog.EarEndOffsetMm;
-            if(T4ShoeCatalog.EarEndOffsetMm<earWidth/2.0 || span/(count-1)<=earWidth)
+            int count=simpleBase?2:(T4ShoeCatalog.EarGroupCount!=0?T4ShoeCatalog.EarGroupCount
+                :(length>T4ShoeCatalog.MiddleRibLengthMm?3:2));
+            double span=length-2.0*layout.EarEndOffsetMm;
+            if(layout.EarEndOffsetMm<earWidth/2.0 || span/(count-1)<=earWidth)
                 throw new InvalidOperationException("耳板重叠或超出管夹端部，请增大 L 或调整端距及组数。");
             var earCenterX=new double[count];
             for(int i=0;i<count;i++) earCenterX[i]=-span/2.0+i*span/(count-1);
 
-            double supportEndOffset=T4ShoeCatalog.SupportEndOffsetMm;
-            if(!(layout.T2Mm/2.0<supportEndOffset && supportEndOffset<length/2.0-layout.T2Mm))
-                throw new InvalidOperationException("横向支撑端距不合理。");
             var supportCenterX=new List<double>();
-            supportCenterX.Add(-length/2.0+supportEndOffset);
-            if(length>T4ShoeCatalog.MiddleRibLengthMm) supportCenterX.Add(0.0);
-            supportCenterX.Add(length/2.0-supportEndOffset);
+            if(!simpleBase)
+            {
+                double supportEndOffset=layout.SupportEndOffsetMm;
+                if(!(layout.T2Mm/2.0<supportEndOffset && supportEndOffset<length/2.0-layout.T2Mm))
+                    throw new InvalidOperationException("横向支撑端距不合理。");
+                supportCenterX.Add(-length/2.0+supportEndOffset);
+                if(length>T4ShoeCatalog.MiddleRibLengthMm) supportCenterX.Add(0.0);
+                supportCenterX.Add(length/2.0-supportEndOffset);
+            }
 
             double baseBottomZ=layout.ShoeBottomZMm;
             double baseTopZ=layout.BaseTopZMm;
@@ -163,9 +171,11 @@ namespace SteelSectionProbe
             if(overlap>=Math.Min(layout.T3Mm,layout.T1Mm))
                 throw new InvalidOperationException("搭接量必须小于承重板及底板厚度。");
 
-            double halfSpan=layout.BaseWidthMm/2.0-T4ShoeCatalog.SupportSideInsetMm;
+            double halfSpan=simpleBase?layout.T2Mm/2.0:
+                layout.BaseWidthMm/2.0-T4ShoeCatalog.SupportSideInsetMm;
             double trimRadius=outerRadius-overlap;
-            if(!(layout.T2Mm/2.0<halfSpan && halfSpan<trimRadius))
+            if(!(halfSpan>0.0 && halfSpan<trimRadius) ||
+                (!simpleBase && halfSpan<=layout.T2Mm/2.0))
                 throw new InvalidOperationException("横向支撑宽度不适合当前管夹直径。");
             double supportTopZ=-Math.Sqrt(trimRadius*trimRadius-halfSpan*halfSpan);
 
@@ -174,8 +184,13 @@ namespace SteelSectionProbe
             if(bFar>=outerRadius)
                 throw new InvalidOperationException("耳板位置超出管夹外圆，请调整间隙、退让或耳板厚度。");
             double aRoot=Math.Sqrt(outerRadius*outerRadius-bFar*bFar)-T4ShoeCatalog.EarRootOverlapMm;
+            if((simpleBase || layout.Code=="L2") && bNear<innerRadius)
+                aRoot=Math.Max(aRoot,Math.Sqrt(innerRadius*innerRadius-bNear*bNear)+
+                    T4ShoeCatalog.EarRootOverlapMm);
             if(aRoot<=0.0 || Math.Sqrt(aRoot*aRoot+bNear*bNear)<=innerRadius)
                 throw new InvalidOperationException("耳板根部会穿入保温层，请调整耳板位置或搭接量。");
+            if(aRoot>=Math.Sqrt(outerRadius*outerRadius-bNear*bNear))
+                throw new InvalidOperationException("耳板根部无法与承重板搭接，请调整耳板位置。");
             if(earWidth>length)
                 throw new InvalidOperationException("耳板轴向宽度不得超过管夹长度。");
             if(aRoot+earHeight<=Math.Sqrt(outerRadius*outerRadius-bNear*bNear))
@@ -209,7 +224,7 @@ namespace SteelSectionProbe
             CutFrame(layout.SplitAngleDeg,out c,out s);
             if(c<=0.0) throw new InvalidOperationException("切口角度不合理。");
             double maxB=Math.Abs(s)*halfSpan+c*supportTopZ;
-            if(maxB>=gapJ/2.0)
+            if(!simpleBase && maxB>=gapJ/2.0)
                 throw new InvalidOperationException("当前切口角度或支撑宽度会使支撑接触上半承重板。");
 
             return new T4ShoeBooleanLayout {
@@ -245,8 +260,10 @@ namespace SteelSectionProbe
             if(bl!=null)
                 text+=" 耳板 "+bl.EarCenterXmm.Length+" 组 × 4 块（板 "+
                     F1(bl.EarWidthMm)+"×"+F1(bl.EarHeightMm)+"×"+F1(bl.EarThicknessMm)+
-                    "）；横向支撑 "+(bl.SupportCenterXmm.Length)+" 道"+
-                    (layout.HasMiddleRib?"（含中间肋板）":"")+"。";
+                    "）；"+(T4ShoeCatalog.UsesSimpleBase(layout.Dn)
+                        ?"底板 + 中央纵向腹板，无横向弧顶支撑。"
+                        :"横向支撑 "+bl.SupportCenterXmm.Length+" 道"+
+                            (layout.HasMiddleRib?"（含中间肋板）":"")+"。");
             return text;
         }
 
@@ -256,7 +273,6 @@ namespace SteelSectionProbe
             bool builtPipe,bool builtInsulation)
         {
             if(layout==null) throw new ArgumentNullException("layout");
-            var row=T4ShoeCatalog.Require(layout.Dn);
             double clampLength=bl!=null?bl.ClampLengthMm:layout.ShoeLengthMm;
             int groups=bl!=null?bl.EarCenterXmm.Length:0;
             string lengthText=clampLength.ToString("0",CultureInfo.InvariantCulture);
@@ -275,7 +291,7 @@ namespace SteelSectionProbe
             items.Add(new[]{"Ear","耳板",
                 F1(layout.EarWidthMm)+"×"+F1(layout.EarHeightMm)+"×"+F1(layout.EarThicknessMm),
                 "0",(4*groups).ToString(CultureInfo.InvariantCulture),"块"});
-            items.Add(new[]{"Bolt","螺栓",row.Bolt,
+            items.Add(new[]{"Bolt","螺栓",layout.Bolt,
                 layout.BoltLengthMm.ToString("0",CultureInfo.InvariantCulture),
                 (2*groups).ToString(CultureInfo.InvariantCulture),"套"});
             return items.ToArray();

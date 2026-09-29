@@ -9,7 +9,7 @@ namespace SteelSectionProbe
 {
     /// <summary>
     /// T4 高温隔热限位管托建模：外圆柱 − 内圆柱 − 45° 贯穿体 = 两片承重板；耳板开孔后
-    /// 与管夹布尔并；底座 = 底板 + 横向弧顶支撑（减圆柱成形）+ 中央纵向腹板；再配紧固件。
+    /// 与管夹布尔并；底座 = 底板 + 中央纵向腹板，DN80 及以上另加横向弧顶支撑；再配紧固件。
     /// 与 Python <c>T4-[高温隔热限位管托].py</c> 的 <c>_build_components</c> 逐项对齐。
     /// 局部坐标：原点 = 管道中线，X = 管轴，Z 竖直向上；尺寸为毫米。
     /// </summary>
@@ -107,7 +107,7 @@ namespace SteelSectionProbe
             return ring;
         }
 
-        /// <summary>底板 + 横向弧顶支撑 + 中央纵向腹板，弧顶减圆柱成形后并入管夹。</summary>
+        /// <summary>底板 + 中央纵向腹板；DN80 及以上另加横向弧顶支撑。</summary>
         private static void BuildSupport(PipeClampFrame frame,T4ShoeBooleanLayout bl,
             T4ShoeLayout layout,ref SolidKernelEntity ring)
         {
@@ -127,8 +127,12 @@ namespace SteelSectionProbe
             foreach(double x in bl.SupportCenterXmm)
                 plates.Add(new[]{x-halfThickness,x+halfThickness,-bl.SupportHalfSpanMm,
                     bl.SupportHalfSpanMm});
-            plates.Add(new[]{bl.SupportCenterXmm[0],
-                bl.SupportCenterXmm[bl.SupportCenterXmm.Length-1],-halfThickness,halfThickness});
+            double webStart=bl.SupportCenterXmm.Length>0?bl.SupportCenterXmm[0]:
+                -halfLength+layout.SupportEndOffsetMm;
+            double webEnd=bl.SupportCenterXmm.Length>0?
+                bl.SupportCenterXmm[bl.SupportCenterXmm.Length-1]:
+                halfLength-layout.SupportEndOffsetMm;
+            plates.Add(new[]{webStart,webEnd,-halfThickness,halfThickness});
 
             double c,s;
             T4ShoeCalculator.CutFrame(bl.CutAngleDeg,out c,out s);

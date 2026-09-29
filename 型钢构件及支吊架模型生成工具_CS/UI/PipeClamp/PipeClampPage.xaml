@@ -6,13 +6,27 @@
     <UserControl.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="../Themes/Theme.xaml" />
     </ResourceDictionary.MergedDictionaries></ResourceDictionary></UserControl.Resources>
-    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,4,0">
-        <StackPanel>
-            <Border Style="{StaticResource CardStyle}"><StackPanel>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+            <Border Grid.Row="0" Style="{StaticResource CardStyle}"><StackPanel>
                 <TextBlock Text="01  管夹类型" Style="{StaticResource SectionTitleStyle}" />
-                <TextBlock Text="四种管夹都是「点选管道 / 直线，在点击处沿其轴线生成整组」。先选类型并设好参数，再点【开始点取】。" Foreground="Black" TextWrapping="Wrap" Margin="0,0,0,8" />
+                <TextBlock Text="先选类型并设好参数，再点【开始点取】。A1 点位确定后可用鼠标调整开口方向。" Foreground="Black" TextWrapping="Wrap" Margin="0,0,0,8" />
                 <ComboBox x:Name="KindCombo" SelectionChanged="Kind_Changed" />
                 <TextBlock x:Name="KindHintText" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" Margin="0,6,0,0" />
+            </StackPanel></Border>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,4,0">
+        <StackPanel>
+            <Border x:Name="A1Panel" Style="{StaticResource CardStyle}"><StackPanel>
+                <TextBlock Text="02  A1 U 型管卡" Style="{StaticResource SectionTitleStyle}" />
+                <TextBlock Text="管道自动匹配公称直径；点选普通直线时使用下方 DN，点击点作为管中心。点位确定后移动光标调整开口方向，左键锁定。" Foreground="Black" TextWrapping="Wrap" Margin="0,0,0,8" />
+                <TextBlock Text="公称直径（读不到管道 DN 时使用）" Foreground="Black" />
+                <ComboBox x:Name="A1DnCombo" SelectionChanged="Parameter_Changed" />
+                <TextBlock x:Name="A1SpecText" Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" Margin="0,12,0,0" />
             </StackPanel></Border>
 
             <Border x:Name="A2Panel" Style="{StaticResource CardStyle}"><StackPanel>
@@ -28,6 +42,44 @@
                     </StackPanel>
                 </Grid>
                 <TextBlock x:Name="A2SpecText" Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" Margin="0,12,0,0" />
+            </StackPanel></Border>
+
+            <Border x:Name="A22Panel" Style="{StaticResource CardStyle}"><StackPanel>
+                <TextBlock Text="02  A22 保冷管用 2 螺栓管夹" Style="{StaticResource SectionTitleStyle}" />
+                <TextBlock Text="管道优先读取公称直径、外径和保冷厚度；普通直线或缺失属性时用面板值。承重板厚按 DN 查表 2，A/B/G 按公式计算。" Foreground="Black" TextWrapping="Wrap" Margin="0,0,0,8" />
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="公称直径（DN15~900；兜底）" Foreground="Black" TextWrapping="Wrap" />
+                        <ComboBox x:Name="A22DnCombo" SelectionChanged="Parameter_Changed" />
+                        <TextBlock Text="名称（编号首段）" Foreground="Black" Margin="0,9,0,0" />
+                        <TextBox x:Name="A22NameText" Text="A22" LostFocus="Parameter_Changed" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="保冷厚度（mm；兜底）" Foreground="Black" TextWrapping="Wrap" />
+                        <TextBox x:Name="A22ColdText" Text="50" LostFocus="Parameter_Changed" />
+                        <TextBlock Text="承重板厚按 DN 查表 2" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" Margin="0,9,0,0" />
+                    </StackPanel>
+                </Grid>
+                <TextBlock x:Name="A22SpecText" Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" Margin="0,12,0,0" />
+            </StackPanel></Border>
+
+            <Border x:Name="A24Panel" Style="{StaticResource CardStyle}"><StackPanel>
+                <TextBlock Text="02  A24 保冷管用 4 螺栓管夹" Style="{StaticResource SectionTitleStyle}" />
+                <TextBlock Text="承重环及过渡圆角沿用 A22；每侧两套螺栓，孔距 F 和两端增加的长度按 A 查表。管道优先读取公称直径、外径和保冷厚度。" Foreground="Black" TextWrapping="Wrap" Margin="0,0,0,8" />
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="公称直径（DN15~900；兜底）" Foreground="Black" TextWrapping="Wrap" />
+                        <ComboBox x:Name="A24DnCombo" SelectionChanged="Parameter_Changed" />
+                        <TextBlock Text="名称（编号首段）" Foreground="Black" Margin="0,9,0,0" />
+                        <TextBox x:Name="A24NameText" Text="A24" LostFocus="Parameter_Changed" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="保冷厚度（mm；兜底）" Foreground="Black" TextWrapping="Wrap" />
+                        <TextBox x:Name="A24ColdText" Text="50" LostFocus="Parameter_Changed" />
+                        <TextBlock Text="承重板厚和 F 自动查表" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" Margin="0,9,0,0" />
+                    </StackPanel>
+                </Grid>
+                <TextBlock x:Name="A24SpecText" Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" Margin="0,12,0,0" />
             </StackPanel></Border>
 
             <Border x:Name="E1Panel" Style="{StaticResource CardStyle}"><StackPanel>
@@ -71,10 +123,10 @@
 
             <Border x:Name="T4Panel" Style="{StaticResource CardStyle}"><StackPanel>
                 <TextBlock Text="02  T4 高温隔热限位管托" Style="{StaticResource SectionTitleStyle}" />
-                <TextBlock Text="点选一条管道轴线，在点击处生成上下两片包保温层的筒形承重板（对开 45°）与弧顶支撑底座。H 由隔热层厚度 B 查表。" Foreground="Black" TextWrapping="Wrap" Margin="0,0,0,8" />
+                <TextBlock Text="点选一条管道轴线，在点击处生成上下两片包保温层的筒形承重板（对开 45°）。DN50 及以下用底板和中央纵向腹板，DN80 及以上另加弧顶横向支撑。H 由隔热层厚度 B 查表。" Foreground="Black" TextWrapping="Wrap" Margin="0,0,0,8" />
                 <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0">
-                        <TextBlock Text="公称直径（表 1，DN80~600）" Foreground="Black" TextWrapping="Wrap" />
+                        <TextBlock Text="公称直径（表 1，DN15~600）" Foreground="Black" TextWrapping="Wrap" />
                         <ComboBox x:Name="T4DnCombo" SelectionChanged="Parameter_Changed" />
                         <TextBlock Text="隔热层厚度 B（mm；H 按 B 查表）" Foreground="Black" TextWrapping="Wrap" Margin="0,9,0,0" />
                         <TextBox x:Name="T4InsulationText" LostFocus="Parameter_Changed" />
@@ -94,9 +146,31 @@
                 <TextBlock x:Name="T4SpecText" Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" Margin="0,12,0,0" />
             </StackPanel></Border>
 
-            <Border Style="{StaticResource CardStyle}"><StackPanel>
+            <Border x:Name="L2Panel" Style="{StaticResource CardStyle}"><StackPanel>
+                <TextBlock Text="02  L2 最小长度保冷管托" Style="{StaticResource SectionTitleStyle}" />
+                <TextBlock Text="按 DN 查 L/F/E、板厚和螺栓；按保冷厚度查 H。DN15~150 的最小长度为 150 mm，DN200~600 为 300 mm。与 T4 共用承重环、耳板和底座几何。" Foreground="Black" TextWrapping="Wrap" Margin="0,0,0,8" />
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="公称直径（DN15~600；兜底）" Foreground="Black" TextWrapping="Wrap" />
+                        <ComboBox x:Name="L2DnCombo" SelectionChanged="Parameter_Changed" />
+                        <TextBlock Text="保冷厚度（mm；H 按表 2）" Foreground="Black" Margin="0,9,0,0" />
+                        <TextBox x:Name="L2ColdText" Text="50" LostFocus="Parameter_Changed" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="编号末段 F（注 5；可留空）" Foreground="Black" TextWrapping="Wrap" />
+                        <TextBox x:Name="L2FCodeText" LostFocus="Parameter_Changed" />
+                        <CheckBox x:Name="L2PipeCheck" Content="创建管道本体" Margin="0,9,0,0" Checked="Parameter_Changed" Unchecked="Parameter_Changed" />
+                        <CheckBox x:Name="L2InsulationCheck" Content="创建保冷层" Margin="0,6,0,0" Checked="Parameter_Changed" Unchecked="Parameter_Changed" />
+                    </StackPanel>
+                </Grid>
+                <TextBlock x:Name="L2SpecText" Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" Margin="0,12,0,0" />
+            </StackPanel></Border>
+        </StackPanel>
+        </ScrollViewer>
+
+            <Border Grid.Row="2" Style="{StaticResource CardStyle}"><StackPanel>
                 <TextBlock Text="03  点取与预览" Style="{StaticResource SectionTitleStyle}" />
-                <TextBlock Text="点【开始点取】后，在模型中悬停选择管道 / 直线 / 多段线，左键在点击处生成预览；改参数会自动重建。确认后才写入支吊架材料清单。右键结束点取并取消未确认预览。" Foreground="Black" TextWrapping="Wrap" Margin="0,0,0,8" />
+                <TextBlock Text="点【开始点取】后选择管道 / 直线 / 多段线。A1 再移动光标并左键锁定开口方向；其他类型直接生成预览。确认后才写入支吊架材料清单。右键取消当前操作。" Foreground="Black" TextWrapping="Wrap" Margin="0,0,0,8" />
                 <WrapPanel>
                     <Button Content="开始点取" Style="{StaticResource PrimaryButtonStyle}" Click="Pick_Click" Margin="0,0,8,8" />
                     <Button Content="结束点取" Style="{StaticResource SecondaryButtonStyle}" Click="End_Click" Margin="0,0,8,8" />
@@ -108,6 +182,5 @@
                     <Button x:Name="ConfirmButton" Content="确定生成" Style="{StaticResource PrimaryButtonStyle}" Click="Confirm_Click" IsEnabled="False" />
                 </StackPanel>
             </StackPanel></Border>
-        </StackPanel>
-    </ScrollViewer>
+    </Grid>
 </UserControl>

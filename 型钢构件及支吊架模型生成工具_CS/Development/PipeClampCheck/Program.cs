@@ -3,8 +3,7 @@ using System.Collections.Generic;
 namespace SteelSectionProbe
 {
     /// <summary>
-    /// 放置管夹（A2 / E1 / K1 / T4）的纯计算检查。断言对象为四种管夹的表数据、尺寸推导、
-    /// 坐标架、编号与非法输入拒绝，口径须与 Python 各脚本一致。
+    /// 放置管夹（A1 / A2 / A22 / A24 / E1 / K1 / T4 / L2）的纯计算检查。
     /// </summary>
     internal static class Program
     {
@@ -24,18 +23,22 @@ namespace SteelSectionProbe
         private static void Main()
         {
             CheckCatalog();
+            CheckA1();
             CheckA2();
+            CheckA22();
+            CheckA24();
             CheckK1();
             CheckT4();
-            Console.WriteLine("放置管夹：A2 / E1 / K1 / T4 的表数据、尺寸推导、坐标架与非法输入校验通过。");
+            CheckL2();
+            Console.WriteLine("放置管夹：A1 / A2 / A22 / A24 / E1 / K1 / T4 / L2 的表数据、尺寸推导、坐标架与非法输入校验通过。");
         }
 
-        /// <summary>四种管夹的清单属性契约（中文类型名 + ASCII 代号）。</summary>
+        /// <summary>管夹的清单属性契约（中文类型名 + ASCII 代号）。</summary>
         private static void CheckCatalog()
         {
             var types=PipeClampCatalog.All;
-            Equal(types.Length,4,"管夹类型数量");
-            string[] codes={"A2","E1","K1","T4"};
+            Equal(types.Length,8,"管夹类型数量");
+            string[] codes={"A2","E1","K1","T4","A1","A22","A24","L2"};
             for(int i=0;i<types.Length;i++)
             {
                 Equal(types[i].Code,codes[i],codes[i]+" 编号前缀");
@@ -47,6 +50,112 @@ namespace SteelSectionProbe
                 for(int j=i+1;j<types.Length;j++)
                     Check(types[i].SupportCode!=types[j].SupportCode,"管夹 SupportCode 重复");
         }
+
+        private static void CheckA1()
+        {
+            Equal(A1ClampCatalog.All.Length,27,"A1 表 1 行数");
+            foreach(var row in A1ClampCatalog.All)
+            {Equal(row.C,row.B+row.Bolt,"A1 DN"+row.Dn+" C=B+d");
+                Check(row.E<row.D,"A1 E 列只作参考且小于 D");
+                Check(row.B>row.OutsideMm,"A1 弯弧与管道留净空");}
+            var plan=A1ClampCalculator.Calculate(50,true,100,0,"P-1");
+            Equal(plan.Row.Dn,100,"A1 自动匹配 DN100");
+            Equal(plan.Row.C,132,"A1 DN100 两腿中心距");
+            Near(plan.NutCenterMm,86.075,.001,"A1 螺母中心");
+            Near(plan.NutLow1Mm,76.475,.001,"A1 第一螺母底");
+            Equal(plan.AssemblyTag,"A1-DN100-M12-0°","A1 编号");
+            Check(plan.PipeNumber=="P-1","A1 管道号");
+            Equal(A1ClampCalculator.Calculate(50,false,100,370,"").Row.Dn,50,
+                "普通辅助线使用面板 DN");
+            Near(A1ClampCalculator.AngleFromCursor(new[]{1.0,0.0,0.0},
+                new[]{0.0,0.0,1.0}),0,.001,"水平管朝上角度");
+            Near(A1ClampCalculator.AngleFromCursor(new[]{1.0,0.0,0.0},
+                new[]{0.0,-1.0,0.0}),90,.001,"水平管绕轴 90 度");
+            Near(A1ClampCalculator.AngleFromCursor(new[]{0.0,0.0,1.0},
+                new[]{1.0,0.0,0.0}),0,.001,"竖直管朝 +X");
+            Reject(()=>A1ClampCatalog.Require(1200),"A1 表外 DN");
+            CheckA1RadialFrame();
+            CheckA1CompassFrame();
+        }
+
+        /// <summary>
+        /// 精确绘图罗盘用的径向正交基：必须单位长、两两正交、右手系，
+        /// 且 Z 轴=管轴（罗盘平面法向落在管道径向平面内不能靠猜）。
+        /// </summary>
+        private static void CheckA1RadialFrame()
+        {
+            var axes=new[]{new[]{1.0,0.0,0.0},new[]{0.0,1.0,0.0},new[]{0.0,0.0,1.0},
+                new[]{1.0,2.0,3.0},new[]{-4.0,0.5,0.25},new[]{0.0,0.0,-2.5}};
+            foreach(var axis in axes)
+            {
+                double[] x,y,z;
+                A1ClampCalculator.RadialFrame(axis,out x,out y,out z);
+                string tag="管轴("+axis[0]+","+axis[1]+","+axis[2]+")";
+                Near(Norm(x),1,.001,tag+" X 轴单位长");
+                Near(Norm(y),1,.001,tag+" Y 轴单位长");
+                Near(Norm(z),1,.001,tag+" Z 轴单位长");
+                Near(Dot(x,y),0,.001,tag+" X⊥Y");
+                Near(Dot(x,z),0,.001,tag+" X⊥Z");
+                Near(Dot(y,z),0,.001,tag+" Y⊥Z");
+                Near(Cross(x,y)[0],z[0],.001,tag+" 右手系 X×Y=Z (x)");
+                Near(Cross(x,y)[1],z[1],.001,tag+" 右手系 X×Y=Z (y)");
+                Near(Cross(x,y)[2],z[2],.001,tag+" 右手系 X×Y=Z (z)");
+                // Z 轴必须与管轴同向（缩放后比较）
+                double axisLength=Norm(axis);
+                Near(z[0],axis[0]/axisLength,.001,tag+" Z 轴=管轴 (x)");
+                Near(z[1],axis[1]/axisLength,.001,tag+" Z 轴=管轴 (y)");
+                Near(z[2],axis[2]/axisLength,.001,tag+" Z 轴=管轴 (z)");
+                // X 轴上的向量角度必须是 0°，Y 轴上是 90°（罗盘读数=开口角）
+                Near(A1ClampCalculator.AngleFromCursor(axis,x),0,.001,tag+" X 轴=0°");
+                Near(A1ClampCalculator.AngleFromCursor(axis,y),90,.001,tag+" Y 轴=90°");
+            }
+            Reject(()=>{double[] x,y,z;A1ClampCalculator.RadialFrame(
+                new[]{0.0,0.0,0.0},out x,out y,out z);},"零管轴");
+        }
+
+        /// <summary>
+        /// 精确绘图罗盘基必须**顺着管轴**：X=管轴、Y=开口 0°（径向朝上）、Z=平面法向（切向）。
+        /// 关键断言是"管轴躺在罗盘平面内"（管轴·Z=0）—— 罗盘不能像径向基那样垂直于管轴。
+        /// </summary>
+        private static void CheckA1CompassFrame()
+        {
+            var axes=new[]{new[]{1.0,0.0,0.0},new[]{0.0,1.0,0.0},new[]{0.0,0.0,1.0},
+                new[]{1.0,2.0,3.0},new[]{-4.0,0.5,0.25},new[]{0.0,0.0,-2.5}};
+            foreach(var axis in axes)
+            {
+                double[] x,y,z;
+                A1ClampCalculator.CompassFrame(axis,out x,out y,out z);
+                string tag="管轴("+axis[0]+","+axis[1]+","+axis[2]+")";
+                Near(Norm(x),1,.001,tag+" 罗盘 X 单位长");
+                Near(Norm(y),1,.001,tag+" 罗盘 Y 单位长");
+                Near(Norm(z),1,.001,tag+" 罗盘 Z 单位长");
+                Near(Dot(x,y),0,.001,tag+" 罗盘 X⊥Y");
+                Near(Dot(x,z),0,.001,tag+" 罗盘 X⊥Z");
+                Near(Dot(y,z),0,.001,tag+" 罗盘 Y⊥Z");
+                Near(Cross(x,y)[0],z[0],.001,tag+" 罗盘右手系 X×Y=Z (x)");
+                Near(Cross(x,y)[1],z[1],.001,tag+" 罗盘右手系 X×Y=Z (y)");
+                Near(Cross(x,y)[2],z[2],.001,tag+" 罗盘右手系 X×Y=Z (z)");
+                double axisLength=Norm(axis);
+                // 罗盘 X 轴 = 管轴（顺着管道走向）
+                Near(x[0],axis[0]/axisLength,.001,tag+" 罗盘 X=管轴 (x)");
+                Near(x[1],axis[1]/axisLength,.001,tag+" 罗盘 X=管轴 (y)");
+                Near(x[2],axis[2]/axisLength,.001,tag+" 罗盘 X=管轴 (z)");
+                // 管轴必须躺在罗盘平面内（法向 Z 与管轴垂直）—— 罗盘顺着管轴，而不是垂直于管轴
+                var unit=new[]{axis[0]/axisLength,axis[1]/axisLength,axis[2]/axisLength};
+                Near(Dot(unit,z),0,.001,tag+" 管轴躺在罗盘平面内");
+                // 罗盘 Y = 开口 0°，罗盘 Z = 90°（与角度计算同一套基）
+                Near(A1ClampCalculator.AngleFromCursor(axis,y),0,.001,tag+" 罗盘 Y=0°");
+                Near(A1ClampCalculator.AngleFromCursor(axis,z),90,.001,tag+" 罗盘 Z=90°");
+            }
+            Reject(()=>{double[] x,y,z;A1ClampCalculator.CompassFrame(
+                new[]{0.0,0.0,0.0},out x,out y,out z);},"罗盘基零管轴");
+        }
+        private static double Norm(double[] v)
+        { return Math.Sqrt(Dot(v,v)); }
+        private static double Dot(double[] a,double[] b)
+        { return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]; }
+        private static double[] Cross(double[] a,double[] b)
+        { return new[]{a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]}; }
 
         private static void CheckA2()
         {
@@ -95,6 +204,95 @@ namespace SteelSectionProbe
 
             Reject(()=>A2ClampCatalog.Require(800),"表 1 之外的管径");
             Reject(()=>A2ClampCalculator.Calculate(100,-5.0),"负保温厚度");
+        }
+
+        private static void CheckA22()
+        {
+            Equal(A22ClampCatalog.All.Length,13,"A22 表 1 行数");
+            Equal(A22ClampCatalog.ForA(100).BoltDiameterMm,12,"A=100 表 1 首档");
+            Equal(A22ClampCatalog.ForA(100.1).W,75.0,"A 超过 100 进入下一档");
+            Equal(A22ClampCatalog.ForA(1400).AllowableLoadKn,72.0,"A=1400 表 1 末档");
+            Reject(()=>A22ClampCatalog.ForA(1400.1),"A 超过表 1 上限");
+            foreach(var sample in new[]{
+                new[]{100.0,6.0},new[]{225.0,10.0},new[]{400.0,12.0},
+                new[]{700.0,40.0},new[]{900.0,62.5}})
+            {
+                double a=sample[0],expectedR=sample[1];
+                var rounded=A22ClampCalculator.Calculate(100,a-22.0,0.0,"A22");
+                Near(rounded.RMinMm,expectedR,0.0001,"A22 过渡圆角 R_MIN A="+a);
+                double centerDistance=Math.Sqrt(rounded.TransitionEndYmm*
+                    rounded.TransitionEndYmm+Math.Pow(rounded.C+rounded.RMinMm,2));
+                Near(centerDistance,rounded.OuterRadiusMm+rounded.RMinMm,0.0001,
+                    "A22 圆角与承重环外圆相切 A="+a);
+                Near(Math.Sqrt(rounded.TransitionTangentYmm*rounded.TransitionTangentYmm+
+                    rounded.TransitionTangentZmm*rounded.TransitionTangentZmm),
+                    rounded.OuterRadiusMm,0.0001,"A22 圆弧切点在外圆上 A="+a);
+                Check(rounded.TransitionEndYmm<rounded.FlangeEndMm,
+                    "A22 圆角在法兰端部以内 A="+a);
+            }
+            foreach(int dn in E1GuideCatalog.Dns)
+            {
+                double expected=dn<=100?6.0:dn<=150?8.0:dn<=400?10.0:12.0;
+                Equal(A22ClampCatalog.BearingPlateThickness(dn),expected,
+                    "A22 表 2 DN"+dn);
+                var selected=A22ClampCalculator.Calculate(dn,E1GuideCatalog.Outside(dn),
+                    50.0,"A22");
+                Check(selected.B-selected.G/2.0>selected.FlangeRootMm,
+                    "A22 螺栓孔不能碰到承重环 DN"+dn);
+                Check(selected.B+selected.G/2.0<selected.FlangeEndMm,
+                    "A22 螺栓孔不能越过法兰端部 DN"+dn);
+            }
+            Equal(A22ClampCatalog.MatchDn(100).Value,100,"A22 按公称 DN 匹配");
+            var plan=A22ClampCalculator.Calculate(100,114.3,20.0,"A22");
+            Near(plan.A,176.3,0.0001,"A=OD+2×(承重板厚+保冷厚)+10");
+            Near(plan.B,113.15,0.0001,"B=0.5A+E");
+            Equal(plan.C,30.0,"A22 表 1 C");
+            Equal(plan.E,25.0,"A22 表 1 E");
+            Equal(plan.T,6.0,"A22 表 1 T");
+            Equal(plan.W,75.0,"A22 表 1 W");
+            Equal(plan.G,19.0,"G=M16+3");
+            Equal(plan.Number,"A22-DN100-20","A22 编号");
+            var fromPipe=A22ClampCalculator.Calculate(new A22ClampParameters {
+                FallbackDn=50,FallbackColdThicknessMm=10.0},true,100,120,30);
+            Equal(fromPipe.Dn,100,"管道 EC 公称直径覆盖面板 DN");
+            Equal(fromPipe.PipeOutsideMm,120.0,"管道 EC 外径覆盖表外径");
+            Equal(fromPipe.ColdThicknessMm,30.0,"管道 EC 保冷厚度覆盖面板");
+            var fromLine=A22ClampCalculator.Calculate(new A22ClampParameters {
+                FallbackDn=50,FallbackColdThicknessMm=10.0},false,100,120,30);
+            Equal(fromLine.Dn,50,"普通直线使用面板 DN");
+            Equal(fromLine.PipeOutsideMm,E1GuideCatalog.Outside(50),"普通直线使用表外径");
+            Equal(fromLine.ColdThicknessMm,10.0,"普通直线使用面板保冷厚度");
+            Reject(()=>A22ClampCalculator.Calculate(100,114.3,-1,"A22"),"保冷厚度不可为负");
+        }
+
+        private static void CheckA24()
+        {
+            double[] limits={100,150,200,225,250,350,400,450,550,700,900,1050,1400};
+            double[] fValues={100,100,100,100,100,100,100,120,145,145,170,195,225};
+            for(int i=0;i<limits.Length;i++)
+                Equal(A24ClampCatalog.FForA(limits[i]),fValues[i],"A24 F 分档 A="+limits[i]);
+            Reject(()=>A24ClampCatalog.FForA(1400.1),"A24 A 超出上限");
+            var a22=A22ClampCalculator.Calculate(100,114.3,20,"A22");
+            var a24=A22ClampCalculator.Calculate(100,114.3,20,"A24",true);
+            Equal(a24.Code,"A24","A24 类别");
+            Equal(a24.F,100,"A24 A=176.3 的孔距");
+            Equal(a24.B,a22.B,"A24 沿用 A22 的内侧孔位");
+            Equal(a24.FlangeEndMm-a22.FlangeEndMm,a24.F,"A24 单侧增加 F");
+            Equal(a24.BoltCentersYmm.Length,4,"A24 四套紧固件");
+            Equal(a24.BoltCentersYmm[0],-a24.B-a24.F,"A24 左外孔");
+            Equal(a24.BoltCentersYmm[1],-a24.B,"A24 左内孔");
+            Equal(a24.BoltCentersYmm[2],a24.B,"A24 右内孔");
+            Equal(a24.BoltCentersYmm[3],a24.B+a24.F,"A24 右外孔");
+            Equal(a24.RMinMm,a22.RMinMm,"A24 沿用 A22 圆角");
+            Check(a24.Specification.Contains("F=100"),"A24 规格应写入 F");
+            Check(!a24.Specification.Contains("kN"),"A24 原表未给允许荷载");
+            Equal(a24.Number,"A24-DN100-20","A24 编号");
+            foreach(int dn in E1GuideCatalog.Dns)
+            {
+                var plan=A22ClampCalculator.Calculate(dn,E1GuideCatalog.Outside(dn),50,"A24",true);
+                Check(plan.BoltCentersYmm[3]+plan.G/2.0<plan.FlangeEndMm,
+                    "A24 外侧孔不得越过法兰端 DN"+dn);
+            }
         }
 
         private static void CheckK1()
@@ -193,9 +391,91 @@ namespace SteelSectionProbe
             Reject(()=>K1LimitCalculator.Calculate(100,"B",0.0,"Q235B"),"已有钢构宽度为零");
         }
 
+        private static void CheckL2()
+        {
+            Equal(L2ShoeCatalog.All.Length,18,"L2 表 1 行数");
+            Equal(L2ShoeCatalog.HeightForCold(25),100,"L2 B=25 H=100");
+            Equal(L2ShoeCatalog.HeightForCold(26),150,"L2 B=26 H=150");
+            Equal(L2ShoeCatalog.HeightForCold(75),150,"L2 B=75 H=150");
+            Equal(L2ShoeCatalog.HeightForCold(76),200,"L2 B=76 H=200");
+            Equal(L2ShoeCatalog.HeightForCold(275),350,"L2 B=275 H=350");
+            Reject(()=>L2ShoeCatalog.HeightForCold(276),"L2 保冷厚度超过表 2");
+            Reject(()=>L2ShoeCatalog.Require(650),"L2 本阶段 DN 上限");
+            foreach(var row in L2ShoeCatalog.All)
+            {
+                Equal(row.LengthMm,2*row.EndEMm+row.SpacingFMm,
+                    "L2 L=2E+F DN"+row.Dn);
+                var layout=L2ShoeCalculator.BuildLayout(new L2ShoeParameters {
+                    Dn=row.Dn,ColdMm=50,FCode="A"},false,null,null);
+                var bl=T4ShoeCalculator.BuildBooleanLayout(layout);
+                Equal(layout.Code,"L2","L2 布局类别");
+                Equal(layout.HeightMm,150,"L2 B=50 查 H");
+                Equal(layout.ShoeLengthMm,row.LengthMm,"L2 最小长度 DN"+row.Dn);
+                Equal(layout.T1Mm,row.T1Mm,"L2 T1 DN"+row.Dn);
+                Equal(layout.T2Mm,row.T2Mm,"L2 T2 DN"+row.Dn);
+                Equal(layout.T3Mm,row.T3Mm,"L2 T3 DN"+row.Dn);
+                Equal(layout.Bolt,row.Bolt,"L2 螺栓 DN"+row.Dn);
+                Equal(bl.EarCenterXmm.Length,2,"L2 两组耳板 DN"+row.Dn);
+                Equal(bl.EarCenterXmm[1]-bl.EarCenterXmm[0],row.SpacingFMm,
+                    "L2 螺栓组中心距 F DN"+row.Dn);
+                Equal(bl.SupportCenterXmm.Length,row.Dn<=50?0:2,
+                    "L2 简式 / 横向支撑 DN"+row.Dn);
+                Equal(layout.Number,"L2-DN"+row.Dn+"-50-A","L2 编号 DN"+row.Dn);
+                var items=T4ShoeCalculator.ComponentItems(layout,bl,false,false);
+                Check(Array.Exists(items,x=>x[0]=="Bolt"&&x[4]=="4"),
+                    "L2 应有四套螺栓 DN"+row.Dn);
+                foreach(double cold in new[]{25.0,75.0,125.0,175.0,225.0,275.0})
+                {
+                    try { T4ShoeCalculator.BuildBooleanLayout(L2ShoeCalculator.BuildLayout(
+                        new L2ShoeParameters {Dn=row.Dn,ColdMm=cold},false,null,null)); }
+                    catch(Exception ex) { throw new Exception("L2 DN"+row.Dn+" B="+cold+"："+
+                        ex.Message,ex); }
+                }
+            }
+            var pipe=L2ShoeCalculator.BuildLayout(new L2ShoeParameters {Dn=50,ColdMm=25},
+                true,200,75);
+            Equal(pipe.Dn,200,"L2 管道 DN 覆盖面板");
+            Equal(pipe.InsulationMm,75,"L2 管道保冷厚度覆盖面板");
+            Equal(pipe.HeightMm,150,"L2 管道 B=75 H=150");
+            var line=L2ShoeCalculator.BuildLayout(new L2ShoeParameters {Dn=50,ColdMm=25},
+                false,200,75);
+            Equal(line.Dn,50,"L2 普通直线使用面板 DN");
+            Equal(line.HeightMm,100,"L2 B=25 H=100");
+        }
+
         private static void CheckT4()
         {
-            Equal(T4ShoeCatalog.All.Length,13,"T4 表 1 行数");
+            Equal(T4ShoeCatalog.All.Length,18,"T4 表 1 行数");
+            int[] smallDns={15,20,25,40,50};
+            double[] smallOds={21.3,26.7,33.4,48.3,60.3};
+            for(int i=0;i<smallDns.Length;i++)
+            {
+                var small=T4ShoeCatalog.Require(smallDns[i]);
+                Equal(small.OutsideMm,smallOds[i],"小管径外径 DN"+smallDns[i]);
+                Equal(small.Bolt,"M12","小管径螺栓 DN"+smallDns[i]);
+                Equal(small.EarWidthMm,40.0,"小管径耳板宽 DN"+smallDns[i]);
+                Equal(small.EarHeightMm,40.0,"小管径耳板高 DN"+smallDns[i]);
+                Equal(small.EarThicknessMm,12.0,"小管径耳板厚 DN"+smallDns[i]);
+                Equal(small.T1Mm,8.0,"小管径 T1 DN"+smallDns[i]);
+                Equal(small.T2Mm,8.0,"小管径 T2 DN"+smallDns[i]);
+                Equal(small.T3Mm,6.0,"小管径 T3 DN"+smallDns[i]);
+                Equal(small.VerticalLoadKn,i<3?10.0:30.0,"小管径垂直荷载 DN"+smallDns[i]);
+                Equal(small.LateralLoadKn,i<3?2.0:6.0,"小管径横向荷载 DN"+smallDns[i]);
+                Equal(small.AxialLoadKn,i<3?5.0:10.0,"小管径轴向荷载 DN"+smallDns[i]);
+                Check(T4ShoeCatalog.UsesSimpleBase(smallDns[i]),"DN50 及以下用简式底座");
+            }
+            foreach(int dn in new[]{80,100})
+            {
+                var checkedRow=T4ShoeCatalog.Require(dn);
+                Equal(checkedRow.Bolt,"M12","表图螺栓 DN"+dn);
+                Equal(checkedRow.T1Mm,10.0,"表图 T1 DN"+dn);
+                Equal(checkedRow.T2Mm,8.0,"表图 T2 DN"+dn);
+                Equal(checkedRow.T3Mm,6.0,"表图 T3 DN"+dn);
+                Equal(checkedRow.VerticalLoadKn,40.0,"表图垂直荷载 DN"+dn);
+                Equal(checkedRow.LateralLoadKn,8.0,"表图横向荷载 DN"+dn);
+                Equal(checkedRow.AxialLoadKn,30.0,"表图轴向荷载 DN"+dn);
+                Check(!T4ShoeCatalog.UsesSimpleBase(dn),"DN80 及以上保留横向支撑");
+            }
             var row=T4ShoeCatalog.Require(200);
             Equal(row.Nps,"8\"","DN200 NPS");
             Equal(row.OutsideMm,219.1,"DN200 外径");
@@ -204,7 +484,7 @@ namespace SteelSectionProbe
             Equal(row.T1Mm,12.0,"DN200 底板厚");
             Equal(row.T3Mm,12.0,"DN200 承重板厚");
             Equal(row.PlateGapJMm,30.0,"DN200 承重板间隙 J");
-            Equal(T4ShoeCatalog.BoltCount(200),4,"DN80~600 均 4 颗螺栓");
+            Equal(T4ShoeCatalog.BoltCount(200),4,"DN15~600 表中为 4 颗螺栓");
             Equal(T4ShoeCatalog.BoltDiameterMm(200),20.0,"M20 直径");
             Reject(()=>T4ShoeCatalog.Require(700),"表 1 之外的管径");
 
@@ -288,6 +568,16 @@ namespace SteelSectionProbe
             Equal(bl.EarCenterXmm.Length,2,"L=300 时耳板 2 组");
             Equal(bl.EarBounds.Length,4,"每组 4 块耳板");
             Equal(bl.SupportCenterXmm.Length,2,"L=300 时横向支撑 2 道");
+            foreach(int dn in smallDns) foreach(double insulation in new[]{25.0,50.0,100.0})
+            {
+                var smallLayout=T4ShoeCalculator.BuildLayout(new T4ShoeParameters {
+                    Dn=dn,InsulationMm=insulation,LengthMm=300.0});
+                var smallBoolean=T4ShoeCalculator.BuildBooleanLayout(smallLayout);
+                Equal(smallBoolean.SupportCenterXmm.Length,0,
+                    "详图 B 无横向弧板支撑 DN"+dn+" B"+insulation);
+                Equal(smallBoolean.EarCenterXmm.Length,2,
+                    "详图 B 两组耳板 DN"+dn+" B"+insulation);
+            }
             Near(bl.EarCenterXmm[0],-75.0,0.0001,"首组耳板位置");
             Near(bl.EarCenterXmm[1],75.0,0.0001,"尾组耳板位置");
             Equal(bl.HoleDiameterMm,22.0,"螺栓通孔 = M20 + 2");

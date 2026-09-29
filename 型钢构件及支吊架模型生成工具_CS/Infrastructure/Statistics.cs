@@ -238,6 +238,21 @@ namespace SteelSectionProbe
                 WriteRecords(element,entries);
             }
         }
+        /// <summary>A1 U 型管卡：整组、U 型螺栓和四颗螺母；通板没有建模也不入清单。</summary>
+        internal static void AttachA1Clamp(Element element,A1ClampPlan plan)
+        {
+            if(element==null||plan==null)throw new ArgumentNullException("element");
+            using(StatisticsTrace.Scope("A1 管卡 AttachA1Clamp")) {
+                var entries=new List<KeyValuePair<string,object[]>>();
+                AddEntry(entries,"PipeSupportAssembly_A1","Assembly",A1ClampCatalog.SupportType,
+                    plan.AssemblyTag,"支吊架",plan.AssemblySpecification,0,1,"套",plan.PipeNumber);
+                AddEntry(entries,"PipeSupportComponent_A1_U_BOLT","Component",A1ClampCatalog.SupportType,
+                    plan.AssemblyTag,"U型螺栓",plan.BoltSpecification,plan.BoltLengthMm,1,"件",plan.PipeNumber);
+                AddEntry(entries,"PipeSupportComponent_A1_NUT","Component",A1ClampCatalog.SupportType,
+                    plan.AssemblyTag,"螺母",plan.NutSpecification,0,4,"件",plan.PipeNumber);
+                WriteRecords(element,entries);
+            }
+        }
         /// <summary>A2 标准型 2 螺栓管夹：1 条 Assembly + 管架本体 + 螺栓 ×2。</summary>
         internal static void AttachA2Clamp(Element element,A2ClampPlan plan)
         {
@@ -251,6 +266,40 @@ namespace SteelSectionProbe
                     plan.AssemblyTag,"管架本体",plan.BodySpecification,plan.WidthMm,1,"件","");
                 AddEntry(entries,"PipeSupportComponent_A2_BOLT","Component",supportType,
                     plan.AssemblyTag,"螺栓",plan.BoltSpecification,0.0,2,"套","");
+                WriteRecords(element,entries);
+            }
+        }
+        /// <summary>A22 保冷管用 2 螺栓管夹：总成、两片本体和两套紧固件。</summary>
+        internal static void AttachA22Clamp(Element element,A22ClampPlan plan)
+        {
+            if(element==null||plan==null) throw new ArgumentNullException("element");
+            using(StatisticsTrace.Scope("A22 管夹 AttachA22Clamp")) {
+                var entries=new List<KeyValuePair<string,object[]>>();
+                AddEntry(entries,"PipeSupportAssembly_A22","Assembly",A22ClampCatalog.SupportType,
+                    plan.Number,"支吊架",plan.Specification,0.0,1,"套","");
+                AddEntry(entries,"PipeSupportComponent_A22_BODY","Component",A22ClampCatalog.SupportType,
+                    plan.Number,"管夹本体（上、下半）",plan.Specification,plan.W,2,"件","");
+                AddEntry(entries,"PipeSupportComponent_A22_BOLT","Component",A22ClampCatalog.SupportType,
+                    plan.Number,"螺栓及螺母", "M"+plan.BoltDiameterMm,0.0,2,"套","");
+                AddEntry(entries,"PipeSupportComponent_A22_WASHER","Component",A22ClampCatalog.SupportType,
+                    plan.Number,"垫圈","M"+plan.BoltDiameterMm,0.0,4,"件","");
+                WriteRecords(element,entries);
+            }
+        }
+        /// <summary>A24 总成、两片本体、四套紧固件和八只垫圈。</summary>
+        internal static void AttachA24Clamp(Element element,A22ClampPlan plan)
+        {
+            if(element==null||plan==null) throw new ArgumentNullException("element");
+            using(StatisticsTrace.Scope("A24 管夹 AttachA24Clamp")) {
+                var entries=new List<KeyValuePair<string,object[]>>();
+                AddEntry(entries,"PipeSupportAssembly_A24","Assembly",A24ClampCatalog.SupportType,
+                    plan.Number,"支吊架",plan.Specification,0.0,1,"套","");
+                AddEntry(entries,"PipeSupportComponent_A24_BODY","Component",A24ClampCatalog.SupportType,
+                    plan.Number,"管夹本体（上、下半）",plan.Specification,plan.W,2,"件","");
+                AddEntry(entries,"PipeSupportComponent_A24_BOLT","Component",A24ClampCatalog.SupportType,
+                    plan.Number,"螺栓及螺母","M"+plan.BoltDiameterMm,0.0,4,"套","");
+                AddEntry(entries,"PipeSupportComponent_A24_WASHER","Component",A24ClampCatalog.SupportType,
+                    plan.Number,"垫圈","M"+plan.BoltDiameterMm,0.0,8,"件","");
                 WriteRecords(element,entries);
             }
         }
@@ -296,6 +345,29 @@ namespace SteelSectionProbe
                         CultureInfo.InvariantCulture,out quantity);
                     AddEntry(entries,"PipeSupportComponent_T4_"+item[0],"Component",supportType,
                         layout.Number,item[1],item[2],length,quantity,item[5],"");
+                }
+                WriteRecords(element,entries);
+            }
+        }
+        internal static void AttachL2Shoe(Element element,T4ShoeLayout layout,
+            T4ShoeBooleanLayout boolean,bool builtPipe,bool builtInsulation)
+        {
+            if(element==null||layout==null)throw new ArgumentNullException("element");
+            using(StatisticsTrace.Scope("L2 管托 AttachL2Shoe")) {
+                var entries=new List<KeyValuePair<string,object[]>>();
+                AddEntry(entries,"PipeSupportAssembly_L2","Assembly",L2ShoeCatalog.SupportType,
+                    layout.Number,"支吊架",L2ShoeCalculator.Describe(layout,boolean),
+                    0.0,1,"套","");
+                foreach(var item in T4ShoeCalculator.ComponentItems(layout,boolean,builtPipe,builtInsulation))
+                {
+                    double length;double.TryParse(item[3],NumberStyles.Float,
+                        CultureInfo.InvariantCulture,out length);
+                    int quantity;int.TryParse(item[4],NumberStyles.Integer,
+                        CultureInfo.InvariantCulture,out quantity);
+                    string name=item[0]=="Insulation"?"保冷层":item[1];
+                    AddEntry(entries,"PipeSupportComponent_L2_"+item[0],"Component",
+                        L2ShoeCatalog.SupportType,layout.Number,name,item[2],length,
+                        quantity,item[5],"");
                 }
                 WriteRecords(element,entries);
             }
@@ -389,6 +461,21 @@ namespace SteelSectionProbe
             }
         }
         /// <summary>D5/D6/G12/D19：固定角色名，全部实例值一次 EnsureBatch 后写入。</summary>
+        internal static void AttachLBracket(Element element,LBracketPlan plan)
+        {
+            if(element==null||plan==null)throw new ArgumentNullException("element");
+            using(StatisticsTrace.Scope("D7 L 型架 AttachLBracket")) {
+                var entries=new List<KeyValuePair<string,object[]>>();
+                string type=LBracketCatalog.SupportType,tag=plan.Number;
+                AddEntry(entries,LBracketCatalog.AssemblyItemName,"Assembly",type,tag,
+                    "支吊架",plan.Specification,0,1,"套","");
+                AddEntry(entries,LBracketCatalog.ComponentItemName("Post"),"Component",type,tag,
+                    "立杆",plan.Variant.Specification,plan.PostCutLengthMm,1,"件","");
+                AddEntry(entries,LBracketCatalog.ComponentItemName("Arm"),"Component",type,tag,
+                    "横担",plan.Variant.Specification,plan.ArmCutLengthMm,1,"件","");
+                WriteRecords(element,entries);
+            }
+        }
         internal static void AttachTriangleBracket(Element element,TriangleBracketPlan plan)
         {
             if(element==null||plan==null)throw new ArgumentNullException("element");

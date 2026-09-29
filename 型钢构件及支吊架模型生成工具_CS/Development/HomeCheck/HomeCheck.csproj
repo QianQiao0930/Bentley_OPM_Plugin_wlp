@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><LangVersion>7.3</LangVersion></PropertyGroup>
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><LangVersion>7.3</LangVersion></PropertyGroup>
   <ItemGroup>
     <Compile Include="../../Domain/Home/FeatureDescriptor.cs" Link="FeatureDescriptor.cs" />
     <Compile Include="../../Domain/Home/HomePreferenceRecord.cs" Link="HomePreferenceRecord.cs" />
