@@ -28,7 +28,7 @@ namespace SteelSectionProbe
             return new Definition[]
             {
                 new Definition { Key = Modeling, DisplayName = "建模类" },
-                new Definition { Key = Support, DisplayName = "支撑架类" },
+                new Definition { Key = Support, DisplayName = "HGT21629 支吊架" },
                 new Definition { Key = Stats, DisplayName = "统计与扩展" },
                 new Definition { Key = Planned, DisplayName = "规划中" },
             };

@@ -36,22 +36,53 @@
                 <Setter Property="StrokeLineJoin" Value="Round" />
             </Style>
 
+            <!-- ===== 分区配色：图标胶囊底色 + 描边色 + 分区标题左侧强调条 =====
+                 建模类=钢青蓝、HGT21629 支吊架=青绿、统计与扩展=琥珀、规划中=灰。
+                 卡片本体是 Button（整卡即入口）：悬停提亮描边、按下变实底，见 HomeCardButtonStyle。 -->
+            <SolidColorBrush x:Key="CategoryModelingBrush" Color="#4C7DD0" />
+            <SolidColorBrush x:Key="CategorySupportBrush" Color="#1F8A7A" />
+            <SolidColorBrush x:Key="CategoryStatsBrush" Color="#C08A00" />
+            <SolidColorBrush x:Key="CategoryPlannedBrush" Color="#9AA7B6" />
+
             <!-- 卡片尺寸写死：宽 320 × 高 124，与内部文字行数、窗口宽度都解耦。
                  首页窗口宽度由 WorkspaceView 按真实可视树实测校准（MeasureRowWidth /
                  MeasureChromeWidth / 实测页边距），所以这里改宽高不用手工去改窗口宽度。
-                 内部纵向预算：上下内边距 26 + 内容行 56 + 间距 8 + 星标行 26 = 116 ≤ 124。 -->
-            <Style x:Key="HomeCardStyle" TargetType="Border" BasedOn="{StaticResource CardStyle}">
-                <Setter Property="Width" Value="320" />
+                 内部纵向预算：上下内边距 26 + 内容行 56 + 间距 8 + 星标行 26 = 116 ≤ 124。
+                 模板用 Button 而不是 Border：整卡天然就是入口按钮（悬停/按压/键盘触发统一走按钮状态），
+                 嵌在卡内的星标小按钮会先接管鼠标事件，不会误触发进入。 -->
+            <Style x:Key="HomeCardButtonStyle" TargetType="Button">
+                <Setter Property="Width" Value="240" />
                 <Setter Property="Height" Value="124" />
                 <Setter Property="Padding" Value="16,13" />
                 <Setter Property="Margin" Value="0,0,12,12" />
-                <Setter Property="CornerRadius" Value="8" />
-                <Setter Property="ClipToBounds" Value="True" />
-                <Style.Triggers>
-                    <Trigger Property="IsMouseOver" Value="True">
-                        <Setter Property="BorderBrush" Value="#B9C6D6" />
-                    </Trigger>
-                </Style.Triggers>
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="Focusable" Value="False" />
+                <Setter Property="Background" Value="{StaticResource CardBrush}" />
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="VerticalContentAlignment" Value="Stretch" />
+                <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="CardBorder" Background="{TemplateBinding Background}"
+                                    BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                                    CornerRadius="8" ClipToBounds="True"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="CardBorder" Property="BorderBrush" Value="#8FA4BD" />
+                                    <Setter TargetName="CardBorder" Property="Background" Value="#FDFEFF" />
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="CardBorder" Property="BorderBrush" Value="#6E8BAA" />
+                                    <Setter TargetName="CardBorder" Property="Background" Value="#F0F5FA" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
             </Style>
 
             <Style x:Key="CardTitleStyle" TargetType="TextBlock">
@@ -83,16 +114,30 @@
             <Style x:Key="HomeSectionTitleStyle" TargetType="TextBlock">
                 <Setter Property="FontSize" Value="12.5" />
                 <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="TextWrapping" Value="NoWrap" />
+            </Style>
+
+            <!-- 分区标题右侧的卡片计数（如「7 项」），由代码后台在 Refresh 时填写。 -->
+            <Style x:Key="HomeSectionCountStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="10.5" />
                 <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
                 <Setter Property="VerticalAlignment" Value="Center" />
                 <Setter Property="TextWrapping" Value="NoWrap" />
             </Style>
 
-            <!-- 一张可用功能卡：左侧图标 + 标题/说明，底部一行时间 + 星标；整卡可点进入功能页。 -->
+            <!-- 一张可用功能卡：整卡是入口按钮（悬停提亮、按压变实底），内容 = 左侧分类色图标胶囊 +
+                 标题/说明，底部一行时间；图标配色按分区键（Category）经 DataTrigger 分派。
+                 ⚠️ 星标按钮必须是卡片 Button 的**兄弟节点**（外层 Grid 的第二个子元素，叠在右下角），
+                 绝不能放进卡片 Button 的内容里：嵌套按钮虽然通常能先拿到按下事件，但卡片整体是按钮时
+                 仍会出现"点星标却进了功能页"。兄弟节点与卡片没有父子关系、不共享事件路由，
+                 从结构上就不可能连带触发卡片。 -->
             <DataTemplate x:Key="FeatureCardTemplate">
-                <Border Style="{StaticResource HomeCardStyle}"
-                        Cursor="Hand"
-                        MouseLeftButtonUp="Card_Click"
+              <Grid Margin="0,0,12,12">
+                <Button Style="{StaticResource HomeCardButtonStyle}"
+                        Margin="0"
+                        Click="Card_Click"
                         ToolTip="{Binding UsageText}">
                     <Grid>
                         <Grid.RowDefinitions>
@@ -105,13 +150,14 @@
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <Border Width="40" Height="40" CornerRadius="8"
+                            <Border x:Name="IconChip" Width="40" Height="40" CornerRadius="10"
                                     Background="{StaticResource CardSoftBrush}"
                                     VerticalAlignment="Top">
                                 <Viewbox Width="20" Height="20"
                                          HorizontalAlignment="Center" VerticalAlignment="Center">
                                     <Canvas Width="24" Height="24">
-                                        <Path Data="{Binding IconGeometry}" Style="{StaticResource HomeIconGlyphStyle}" />
+                                        <Path x:Name="IconGlyph" Data="{Binding IconGeometry}"
+                                              Style="{StaticResource HomeIconGlyphStyle}" />
                                     </Canvas>
                                 </Viewbox>
                             </Border>
@@ -126,39 +172,61 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="{Binding TimeText}" Style="{StaticResource CardTimeStyle}" />
-                            <Button x:Name="StarButton" Grid.Column="1"
-                                    Style="{StaticResource GhostButtonStyle}"
-                                    Width="46" Height="26" MinWidth="0" Padding="4,0"
-                                    HorizontalAlignment="Right"
-                                    ToolTip="点击设置星标：1～5 星，3 星及以上置顶"
-                                    ContextMenuOpening="Star_MenuOpening"
-                                    Click="Star_Click">
-                                <Button.ContextMenu>
-                                    <ContextMenu FontFamily="Microsoft YaHei UI" FontSize="12">
-                                        <MenuItem Header="★★★★★　5 星（最高）" Tag="5" Click="SetStars_Click" />
-                                        <MenuItem Header="★★★★　4 星" Tag="4" Click="SetStars_Click" />
-                                        <MenuItem Header="★★★　3 星（置顶）" Tag="3" Click="SetStars_Click" />
-                                        <MenuItem Header="★★　2 星" Tag="2" Click="SetStars_Click" />
-                                        <MenuItem Header="★　1 星" Tag="1" Click="SetStars_Click" />
-                                        <Separator />
-                                        <MenuItem Header="清除评分" Tag="0" Click="SetStars_Click" />
-                                    </ContextMenu>
-                                </Button.ContextMenu>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock x:Name="StarGlyphText" Text="{Binding StarGlyph}"
-                                               FontSize="13" TextWrapping="NoWrap"
-                                               VerticalAlignment="Center"
-                                               Foreground="{StaticResource MutedBrush}" />
-                                    <TextBlock Text="{Binding RatingText}" FontSize="10.5" Margin="2,0,0,0"
-                                               TextWrapping="NoWrap" VerticalAlignment="Center"
-                                               Foreground="{StaticResource MutedBrush}" />
-                                </StackPanel>
-                            </Button>
+                            <TextBlock Text="{Binding TimeText}" Style="{StaticResource CardTimeStyle}"
+                                       Margin="0,0,8,0" />
+                            <!-- 46×26 占位：把时间文字挤到左侧，正好给叠在卡片上的星标按钮让位。
+                                 高度固定 26，保证卡片内部纵向预算与改版前完全一致。 -->
+                            <Border Grid.Column="1" Width="46" Height="26" />
                         </Grid>
                     </Grid>
-                </Border>
+                </Button>
+
+                <!-- 星标按钮：与卡片 Button 是**兄弟节点**，叠在卡片右下角（对齐卡片内边距 16,13）。
+                     放在这里（而不是卡片内容里）是刻意的：没有父子关系就不会共享事件路由，
+                     点星标只弹评分菜单，永远进不了功能页。 -->
+                <Button x:Name="StarButton"
+                        Style="{StaticResource GhostButtonStyle}"
+                        Width="46" Height="26" MinWidth="0" Padding="4,0"
+                        HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                        Margin="0,0,16,13"
+                        ToolTip="点击设置星标：1～5 星，3 星及以上置顶"
+                        ContextMenuOpening="Star_MenuOpening"
+                        Click="Star_Click">
+                    <Button.ContextMenu>
+                        <ContextMenu FontFamily="Microsoft YaHei UI" FontSize="12">
+                            <MenuItem Header="★★★★★　5 星（最高）" Tag="5" Click="SetStars_Click" />
+                            <MenuItem Header="★★★★　4 星" Tag="4" Click="SetStars_Click" />
+                            <MenuItem Header="★★★　3 星（置顶）" Tag="3" Click="SetStars_Click" />
+                            <MenuItem Header="★★　2 星" Tag="2" Click="SetStars_Click" />
+                            <MenuItem Header="★　1 星" Tag="1" Click="SetStars_Click" />
+                            <Separator />
+                            <MenuItem Header="清除评分" Tag="0" Click="SetStars_Click" />
+                        </ContextMenu>
+                    </Button.ContextMenu>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock x:Name="StarGlyphText" Text="{Binding StarGlyph}"
+                                   FontSize="13" TextWrapping="NoWrap"
+                                   VerticalAlignment="Center"
+                                   Foreground="{StaticResource MutedBrush}" />
+                        <TextBlock Text="{Binding RatingText}" FontSize="10.5" Margin="2,0,0,0"
+                                   TextWrapping="NoWrap" VerticalAlignment="Center"
+                                   Foreground="{StaticResource MutedBrush}" />
+                    </StackPanel>
+                </Button>
+              </Grid>
                 <DataTemplate.Triggers>
+                    <DataTrigger Binding="{Binding Category}" Value="modeling">
+                        <Setter TargetName="IconChip" Property="Background" Value="#EAF1FC" />
+                        <Setter TargetName="IconGlyph" Property="Stroke" Value="{StaticResource CategoryModelingBrush}" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding Category}" Value="support">
+                        <Setter TargetName="IconChip" Property="Background" Value="#E4F4F1" />
+                        <Setter TargetName="IconGlyph" Property="Stroke" Value="{StaticResource CategorySupportBrush}" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding Category}" Value="stats">
+                        <Setter TargetName="IconChip" Property="Background" Value="#FBF3DD" />
+                        <Setter TargetName="IconGlyph" Property="Stroke" Value="{StaticResource CategoryStatsBrush}" />
+                    </DataTrigger>
                     <DataTrigger Binding="{Binding HasRating}" Value="True">
                         <Setter TargetName="StarGlyphText" Property="Foreground" Value="{StaticResource AccentBrush}" />
                     </DataTrigger>
@@ -167,7 +235,7 @@
 
             <!-- 规划中占位卡：灰化、无星标、不可进入，右上角挂"即将上线"。 -->
             <DataTemplate x:Key="PlannedCardTemplate">
-                <Border Width="320" Height="84" Padding="16,12" Margin="0,0,12,12"
+                <Border Width="240" Height="84" Padding="16,12" Margin="0,0,12,12"
                         CornerRadius="8" ClipToBounds="True"
                         Background="{StaticResource BackgroundBrush}"
                         BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
@@ -218,16 +286,19 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- ===== 标题栏：应用图标 + 标题/副标题 + 搜索/排序/重置 ===== -->
+        <!-- ===== 标题栏：两行布局（标题独占一行，搜索/排序/重置第二行右对齐）=====
+             ⚠️ 不要改回单行：首页宽度与功能页统一为 560 逻辑宽后，单行布局下主标题
+             （15px × 14 字 ≈ 210 DIP）只能拿到 127 DIP，会被省略号截成「型钢构件及支吊…」。
+             实测数据见 Development 的免宿主渲染：宽度 560 / 标题实际 127 / 需要 210。 -->
         <Border Grid.Row="0" Margin="0,0,0,14" Padding="0,0,0,12"
                 BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1">
             <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
 
-                <Grid VerticalAlignment="Center">
+                <Grid Grid.Row="0" VerticalAlignment="Center">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
@@ -248,7 +319,9 @@
                     </StackPanel>
                 </Grid>
 
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <!-- 第二行：搜索 / 排序 / 重置，右对齐。 -->
+                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right"
+                            VerticalAlignment="Center" Margin="0,10,0,0">
                     <Grid Width="172" Height="30" Margin="0,0,8,0">
                         <Border Background="{StaticResource BackgroundBrush}"
                                 BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
@@ -314,8 +387,13 @@
                 </StackPanel>
 
                 <StackPanel x:Name="ModelingSection" Margin="0,0,0,18">
-                    <TextBlock Text="建模类" Margin="0,0,0,10"
-                               Style="{StaticResource HomeSectionTitleStyle}" />
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <Border Width="4" Height="14" CornerRadius="2" VerticalAlignment="Center" Margin="0,0,7,0"
+                                Background="{StaticResource CategoryModelingBrush}" />
+                        <TextBlock x:Name="ModelingTitleText" Style="{StaticResource HomeSectionTitleStyle}" />
+                        <TextBlock x:Name="ModelingCountText" Margin="8,0,0,0"
+                                   Style="{StaticResource HomeSectionCountStyle}" />
+                    </StackPanel>
                     <ItemsControl x:Name="ModelingList" ItemTemplate="{StaticResource FeatureCardTemplate}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -326,8 +404,13 @@
                 </StackPanel>
 
                 <StackPanel x:Name="SupportSection" Margin="0,0,0,18">
-                    <TextBlock Text="支撑架类" Margin="0,0,0,10"
-                               Style="{StaticResource HomeSectionTitleStyle}" />
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <Border Width="4" Height="14" CornerRadius="2" VerticalAlignment="Center" Margin="0,0,7,0"
+                                Background="{StaticResource CategorySupportBrush}" />
+                        <TextBlock x:Name="SupportTitleText" Style="{StaticResource HomeSectionTitleStyle}" />
+                        <TextBlock x:Name="SupportCountText" Margin="8,0,0,0"
+                                   Style="{StaticResource HomeSectionCountStyle}" />
+                    </StackPanel>
                     <ItemsControl x:Name="SupportList" ItemTemplate="{StaticResource FeatureCardTemplate}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -338,8 +421,13 @@
                 </StackPanel>
 
                 <StackPanel x:Name="StatsSection" Margin="0,0,0,18">
-                    <TextBlock Text="统计与扩展" Margin="0,0,0,10"
-                               Style="{StaticResource HomeSectionTitleStyle}" />
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <Border Width="4" Height="14" CornerRadius="2" VerticalAlignment="Center" Margin="0,0,7,0"
+                                Background="{StaticResource CategoryStatsBrush}" />
+                        <TextBlock x:Name="StatsTitleText" Style="{StaticResource HomeSectionTitleStyle}" />
+                        <TextBlock x:Name="StatsCountText" Margin="8,0,0,0"
+                                   Style="{StaticResource HomeSectionCountStyle}" />
+                    </StackPanel>
                     <ItemsControl x:Name="StatsList" ItemTemplate="{StaticResource FeatureCardTemplate}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -353,8 +441,13 @@
                 <Border x:Name="PlannedSection" Margin="0,2,0,6" Padding="0,16,0,0"
                         BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0">
                     <StackPanel>
-                        <TextBlock Text="规划中" Margin="0,0,0,10"
-                                   Style="{StaticResource HomeSectionTitleStyle}" />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                            <Border Width="4" Height="14" CornerRadius="2" VerticalAlignment="Center" Margin="0,0,7,0"
+                                    Background="{StaticResource CategoryPlannedBrush}" />
+                            <TextBlock x:Name="PlannedTitleText" Style="{StaticResource HomeSectionTitleStyle}" />
+                            <TextBlock x:Name="PlannedCountText" Margin="8,0,0,0"
+                                       Style="{StaticResource HomeSectionCountStyle}" />
+                        </StackPanel>
                         <ItemsControl x:Name="PlannedList" ItemTemplate="{StaticResource PlannedCardTemplate}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>

@@ -1,0 +1,49 @@
+<UserControl x:Class="SteelSectionProbe.PadPlatePage"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ x:ClassModifier="internal" Background="{DynamicResource BackgroundBrush}">
+ <UserControl.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries>
+  <ResourceDictionary Source="../Themes/Theme.xaml"/>
+ </ResourceDictionary.MergedDictionaries></ResourceDictionary></UserControl.Resources>
+ <Grid><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel>
+   <Border Style="{StaticResource CardStyle}"><StackPanel>
+    <TextBlock Text="01  垫板型式" Style="{StaticResource SectionTitleStyle}"/>
+    <TextBlock Text="选择型式，再点取水平管道、水平直线或 90° 弯头。" TextWrapping="Wrap" Margin="0,0,0,8"/>
+    <ComboBox x:Name="KindCombo" SelectionChanged="Kind_Changed"/>
+    <TextBlock x:Name="KindHint" TextWrapping="Wrap" Margin="0,8,0,0"/>
+   </StackPanel></Border>
+   <Border Style="{StaticResource CardStyle}"><StackPanel>
+    <TextBlock Text="02  放置参数" Style="{StaticResource SectionTitleStyle}"/>
+    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+     <StackPanel Grid.Column="0"><TextBlock Text="备用管径 DN（未识别时）"/><ComboBox x:Name="DnCombo" SelectionChanged="Parameter_Changed"/></StackPanel>
+     <StackPanel Grid.Column="2"><TextBlock Text="材料代码"/><ComboBox x:Name="MaterialCombo" SelectionChanged="Parameter_Changed"/></StackPanel>
+    </Grid>
+    <Grid Margin="0,8,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+     <StackPanel Grid.Column="0"><TextBlock Text="截面张角 α（度）"/><TextBox x:Name="AlphaText" Text="120" TextChanged="Parameter_Changed"/></StackPanel>
+     <StackPanel x:Name="Y2Panel" Grid.Column="2"><TextBlock Text="沿管轴长度 L（mm）"/><TextBox x:Name="LengthText" Text="300" TextChanged="Parameter_Changed"/></StackPanel>
+     <StackPanel x:Name="ElbowCoveragePanel" Grid.Column="2" Visibility="Collapsed"><TextBlock Text="沿弯头覆盖角（度）"/><TextBox x:Name="CoverageText" Text="75" TextChanged="Parameter_Changed"/></StackPanel>
+    </Grid>
+    <StackPanel x:Name="ElbowPanel" Visibility="Collapsed" Margin="0,8,0,0">
+     <CheckBox x:Name="AutoMultiplierCheck" Content="按弯头实测中心距自动选择倍率" IsChecked="True" Checked="Parameter_Changed" Unchecked="Parameter_Changed"/>
+     <TextBlock Text="手动倍率（关闭自动时，0.5～5D）"/><TextBox x:Name="MultiplierText" Text="1.5" TextChanged="Parameter_Changed"/>
+    </StackPanel>
+    <CheckBox x:Name="VentHoleCheck" Content="生成 Ø6 通气孔" IsChecked="True" Margin="0,8,0,0" Checked="Parameter_Changed" Unchecked="Parameter_Changed"/>
+   </StackPanel></Border>
+  </StackPanel></ScrollViewer>
+  <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,8,4,0"><StackPanel>
+   <TextBlock Text="03  点选与预览" Style="{StaticResource SectionTitleStyle}"/>
+   <TextBlock Text="调整参数后更新预览；确定时写入统一支吊架清单。" TextWrapping="Wrap" Margin="0,0,0,8"/>
+   <WrapPanel>
+    <Button Content="开始点选" Style="{StaticResource PrimaryButtonStyle}" Click="Pick_Click" Margin="0,0,8,8"/>
+    <Button Content="结束点选" Style="{StaticResource SecondaryButtonStyle}" Click="End_Click" Margin="0,0,8,8"/>
+    <Button x:Name="UpdateButton" Content="更新预览" Style="{StaticResource SecondaryButtonStyle}" Click="Update_Click" Margin="0,0,8,8"/>
+   </WrapPanel>
+   <TextBlock x:Name="PreviewText" Text="尚未点选元素。" TextWrapping="Wrap" Margin="0,4,0,12"/>
+   <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+    <Button Content="取消预览" Style="{StaticResource SecondaryButtonStyle}" Click="Cancel_Click" Margin="0,0,8,0"/>
+    <Button x:Name="ConfirmButton" Content="确定生成" Style="{StaticResource PrimaryButtonStyle}" Click="Confirm_Click" IsEnabled="False"/>
+   </StackPanel>
+  </StackPanel></Border>
+ </Grid>
+</UserControl>

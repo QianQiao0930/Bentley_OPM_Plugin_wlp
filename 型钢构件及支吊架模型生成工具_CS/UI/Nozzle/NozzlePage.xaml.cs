@@ -28,11 +28,15 @@ namespace SteelSectionProbe
             AxisCombo.SelectedIndex=4;
             ready=true;
             RefreshDns(100);
+            PageLastInput.Restore(this,PageId,"RatingCombo","ScheduleCombo","DnCombo",
+                "WallText","LengthText","BoltHolesCheck","AxisCombo");
             UpdateSpecification();
         }
         public void OnActivated() { active=true; }
         public void OnDeactivated()
         {
+            PageLastInput.Save(this,PageId,"RatingCombo","ScheduleCombo","DnCombo",
+                "WallText","LengthText","BoltHolesCheck","AxisCombo");
             active=false;NozzlePlacementTool.End();
             try { preview.Cancel(); } catch(Exception ex) { SetStatus(ex.Message,true); }
             origin=null;ConfirmButton.IsEnabled=false;PreviewText.Text="尚未点取基点。";

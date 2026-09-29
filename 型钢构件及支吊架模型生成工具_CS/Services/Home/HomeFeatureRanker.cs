@@ -137,6 +137,22 @@ namespace SteelSectionProbe
             return value;
         }
 
+        /// <summary>
+        /// 星级优先级：置顶区（≥ <see cref="PinThreshold"/> 星）整体在前，再按星级降序。
+        /// 返回 0 = 两者同档，调用方再按自己的口径（最近时间 / 使用频率）继续比。
+        /// <para>
+        /// ⚠️ 首页的显式排序（「最近使用」「常用优先」）**必须先过这一级**：
+        /// 否则 5 星但用得少的功能会被"常用优先"挤到列表后面 —— 用户标星的意图被排序模式覆盖。
+        /// 放在这里（而不是页面里）是为了能被 <c>Development/HomeCheck</c> 断言。
+        /// </para>
+        /// </summary>
+        internal static int CompareStarTier(HomeEntry a, HomeEntry b)
+        {
+            if (a == null || b == null) return 0;
+            if (a.IsPinned != b.IsPinned) return a.IsPinned ? -1 : 1;
+            return b.Stars.CompareTo(a.Stars);
+        }
+
         /// <summary>全序比较器，见类型注释里的关键字表。</summary>
         internal static int Compare(HomeEntry x, HomeEntry y)
         {

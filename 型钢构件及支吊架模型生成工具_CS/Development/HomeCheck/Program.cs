@@ -68,6 +68,7 @@ namespace SteelSectionProbe
             CheckColdStart();
             CheckPinThreshold();
             CheckStarOrder();
+            CheckStarTierPriority();
             CheckFrequencyOrder();
             CheckDecay();
             CheckTieBreak();
@@ -75,7 +76,8 @@ namespace SteelSectionProbe
             CheckRobustness();
             CheckUsageLabel();
             CheckRelativeTime();
-            Console.WriteLine("首页排序：清单一致性、分区归类、五级关键字、≥3 星置顶、衰减频率、相对时间与容错全部通过。");
+            Console.WriteLine("首页排序：清单一致性、分区归类、五级关键字、≥3 星置顶（含显式排序的星级优先）、"
+                + "衰减频率、相对时间与容错全部通过。");
         }
 
         /// <summary>清单本身的自检：PageId 唯一且非空、出厂顺序唯一、占位卡无 PageId。</summary>
@@ -100,11 +102,11 @@ namespace SteelSectionProbe
                 ready.Add(feature);
             }
 
-            Equal(ready.Count, 12, "可用功能数");
-            Equal(placeholders, 2, "规划中占位卡数");
+            Equal(ready.Count, 16, "可用功能数");
+            Equal(placeholders, 1, "规划中占位卡数");
             Equal(Order(HomeFeatureRanker.Rank(all, new Dictionary<string, HomePreferenceRecord>(), Now)),
                 "steel-sections,component-properties,elbow-trunnion,support-statistics,tank-manhole,solid-nozzle," +
-                "pipe-clamp,vertical-pipe-support,g2-anchor-plate,n3-single-bracket,n4-double-bracket,n8-connection-plate,,",
+                "pipe-clamp,vertical-pipe-support,g2-anchor-plate,n3-single-bracket,n4-double-bracket,triangle-bracket,portal-frame,t-frame,pad-plate,n8-connection-plate,",
                 "清单出厂顺序");
         }
 
@@ -136,17 +138,30 @@ namespace SteelSectionProbe
             foreach (KeyValuePair<string, int> item in counts)
                 True(item.Value > 0, "分区无任何卡片：" + item.Key);
 
-            // 关键功能的归类（防止日后误改分区）：
+            // 关键功能的归类（防止日后误改分区）。分区口径（2026-09-28 用户确认）：
+            // 「HGT21629 支吊架」收纳全部支吊架类功能，建模类只留通用建模。
             var byId = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (FeatureDescriptor feature in HomeFeatureCatalog.All())
                 if (feature.IsReady) byId[feature.PageId] = feature.Category;
             Equal(byId["steel-sections"], HomeCategories.Modeling, "型钢生成分区");
-            Equal(byId["elbow-trunnion"], HomeCategories.Modeling, "弯头耳轴分区");
+            Equal(byId["tank-manhole"], HomeCategories.Modeling, "罐壁人孔分区");
+            Equal(byId["solid-nozzle"], HomeCategories.Modeling, "实体管口分区");
+            Equal(byId["elbow-trunnion"], HomeCategories.Support, "弯头耳轴分区");
+            Equal(byId["vertical-pipe-support"], HomeCategories.Support, "立管耳轴分区");
+            Equal(byId["pipe-clamp"], HomeCategories.Support, "放置管夹分区");
+            Equal(byId["g2-anchor-plate"], HomeCategories.Support, "混凝土锚板分区");
+            Equal(byId["n3-single-bracket"], HomeCategories.Support, "N3 分区");
+            Equal(byId["n4-double-bracket"], HomeCategories.Support, "N4 分区");
+            Equal(byId["triangle-bracket"], HomeCategories.Support, "三角架分区");
+            Equal(byId["portal-frame"], HomeCategories.Support, "门型架分区");
+            Equal(byId["t-frame"], HomeCategories.Support, "T 型架分区");
+            Equal(byId["pad-plate"], HomeCategories.Support, "垫板分区");
             Equal(byId["n8-connection-plate"], HomeCategories.Support, "N8 分区");
             Equal(byId["support-statistics"], HomeCategories.Stats, "支吊架统计分区");
             Equal(byId["component-properties"], HomeCategories.Stats, "构件特性查询分区");
 
             Equal(HomeCategories.DisplayNameOf(HomeCategories.Modeling), "建模类", "建模类中文名");
+            Equal(HomeCategories.DisplayNameOf(HomeCategories.Support), "HGT21629 支吊架", "支吊架分区中文名");
             Equal(HomeCategories.DisplayNameOf("nope"), "", "未知分区应无中文名");
             True(!HomeCategories.IsKnown(""), "空分区键不属于已知分区");
         }
@@ -176,7 +191,7 @@ namespace SteelSectionProbe
         {
             List<HomeEntry> entries = HomeFeatureRanker.Rank(HomeFeatureCatalog.All(),
                 new Dictionary<string, HomePreferenceRecord>(), Now);
-            Equal(entries.Count, 14, "冷启动条目数");
+            Equal(entries.Count, 17, "冷启动条目数");
             Equal(PinnedOrder(entries), "", "冷启动不应有置顶项");
             for (int i = 1; i < entries.Count; i++)
             {
@@ -217,6 +232,37 @@ namespace SteelSectionProbe
             records["b"].Stars = 2;   // 4 星 → 2 星：掉出置顶区，但星级仍高于 a 以下的 0 星
             Equal(PinnedOrder(HomeFeatureRanker.Rank(features, records, Now)), "a,c", "掉出置顶区");
             Equal(Order(HomeFeatureRanker.Rank(features, records, Now)), "a,c,b", "2 星应排到置顶区之后");
+        }
+
+        /// <summary>
+        /// 显式排序（首页「最近使用」/「常用优先」）的星级优先级：置顶区在前、星级降序，同级才交给频率/时间。
+        /// 回归点：曾出现"常用优先时星标最高的没有置顶" —— 显式排序只比频率，把星标完全忽略。
+        /// </summary>
+        private static void CheckStarTierPriority()
+        {
+            var features = new FeatureDescriptor[]
+            { Feature("five", 10), Feature("four", 20), Feature("three", 30), Feature("two", 40), Feature("zero", 50) };
+            var records = new Dictionary<string, HomePreferenceRecord>
+            {
+                { "five", Stars(5) }, { "four", Stars(4) }, { "three", Stars(3) }, { "two", Stars(2) },
+                // zero：0 星但本月高频 ——「常用优先」下它仍必须让位于低频的 5 星。
+                { "zero", Usage("2026-09", 99) },
+            };
+            var byId = new Dictionary<string, HomeEntry>(StringComparer.Ordinal);
+            foreach (HomeEntry entry in HomeFeatureRanker.Rank(features, records, Now))
+                byId[entry.Feature.PageId] = entry;
+
+            True(HomeFeatureRanker.CompareStarTier(byId["five"], byId["three"]) < 0, "5 星应排在 3 星之前");
+            True(HomeFeatureRanker.CompareStarTier(byId["four"], byId["three"]) < 0, "置顶区内 4 星排在 3 星之前");
+            True(HomeFeatureRanker.CompareStarTier(byId["three"], byId["four"]) > 0, "比较必须反对称");
+            Equal(HomeFeatureRanker.CompareStarTier(byId["three"], byId["three"]), 0,
+                "同为 3 星应返回 0，交回频率/时间继续比");
+            True(HomeFeatureRanker.CompareStarTier(byId["two"], byId["zero"]) < 0, "非置顶区仍按星级降序");
+
+            // 核心回归：高频 0 星不得压过低频 5 星。
+            True(byId["zero"].FrequencyScore > byId["five"].FrequencyScore, "前提：zero 的频率确实更高");
+            True(HomeFeatureRanker.CompareStarTier(byId["five"], byId["zero"]) < 0,
+                "「常用优先」下 5 星必须仍排在高频 0 星之前（星标优先于使用频率）");
         }
 
         /// <summary>同星级时按使用频率降序。</summary>
@@ -291,7 +337,7 @@ namespace SteelSectionProbe
                 if (entries[i].Feature.IsReady) continue;
                 if (entries[i].IsPinned) throw new Exception("占位卡不应置顶：" + entries[i].Feature.Title);
                 Equal(entries[i].Stars, 0, entries[i].Feature.Title + " 占位卡星标");
-                True(i >= entries.Count - 2, "占位卡必须排在最后：" + entries[i].Feature.Title);
+                True(i >= entries.Count - 1, "占位卡必须排在最后：" + entries[i].Feature.Title);
             }
         }
 

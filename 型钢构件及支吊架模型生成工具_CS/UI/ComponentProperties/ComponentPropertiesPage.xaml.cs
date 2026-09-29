@@ -29,6 +29,7 @@ namespace SteelSectionProbe
         internal ComponentPropertiesPage()
         {
             InitializeComponent();
+            PageLastInput.Restore(this,PageId,"UnitCombo","AllPropertiesCheck");
             ComponentLocateTool.ElementPicked += OnElementPicked;
             ComponentLocateTool.SelectionEnded += OnSelectionEnded;
         }
@@ -36,6 +37,7 @@ namespace SteelSectionProbe
         public void OnActivated() { active = true; }
         public void OnDeactivated()
         {
+            PageLastInput.Save(this,PageId,"UnitCombo","AllPropertiesCheck");
             active = false;
             requestVersion++;
             ComponentLocateTool.End();

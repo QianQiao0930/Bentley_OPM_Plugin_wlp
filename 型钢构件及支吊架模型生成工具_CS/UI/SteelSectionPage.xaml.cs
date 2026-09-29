@@ -50,6 +50,8 @@ namespace SteelSectionProbe
             if (FamilyCombo.Items.Count > 0) FamilyCombo.SelectedIndex = 0;
             updating = false;
             SelectFamily();
+            PageLastInput.Restore(this,PageId,"FamilyCombo","ProfileCombo","ModeCombo",
+                "RotationTextBox","DeletePathCheckBox");
             RefreshActionState();
         }
 
@@ -273,12 +275,16 @@ namespace SteelSectionProbe
 
         public void OnDeactivated()
         {
+            PageLastInput.Save(this,PageId,"FamilyCombo","ProfileCombo","ModeCombo",
+                "RotationTextBox","DeletePathCheckBox");
             Placement.End();
             SweepPlacement.Cancel();
         }
 
         public void OnWorkspaceClosing()
         {
+            PageLastInput.Save(this,PageId,"FamilyCombo","ProfileCombo","ModeCombo",
+                "RotationTextBox","DeletePathCheckBox");
             Placement.End();
             SweepPlacement.Cancel();
             if (ReferenceEquals(Current, this)) Current = null;

@@ -41,40 +41,48 @@ namespace SteelSectionProbe
                 }
                 props[pair.Key.Substring(classEnd+1)]=pair.Value;
             }
-            var candidate=groups.Where(g=>g.Key.IndexOf("ELBOW",StringComparison.OrdinalIgnoreCase)>=0)
-                .OrderByDescending(g=>g.Key.StartsWith("OpenPlant",StringComparison.OrdinalIgnoreCase)?1:0)
-                .ThenByDescending(g=>g.Value.ContainsKey("OUTSIDE_DIAMETER")?1:0)
-                .FirstOrDefault();
-            if (candidate.Value==null)
+            string classKey=ElbowTrunnionCatalog.SelectElbowClass(groups);
+            if (classKey==null)
                 throw new InvalidOperationException("所选元素不是带 OpenPlant EC 属性的弯头。");
-            var values=candidate.Value;
+            var values=groups[classKey];
             double angle;
             if (TryNumber(values,"ANGLE",out angle))
             {
                 if (Math.Abs(angle-90)>0.5)
                     throw new InvalidOperationException("当前只支持 90° 弯头。");
             }
-            else if (candidate.Key.IndexOf("90_DEGREE",StringComparison.OrdinalIgnoreCase)<0)
+            else if (classKey.IndexOf("90_DEGREE",StringComparison.OrdinalIgnoreCase)<0)
                 throw new InvalidOperationException("无法确认弯头角度为 90°。");
-            double nominal=Required(values,"NOMINAL_DIAMETER","NOMINAL_DIAMETER_RUN_END");
+            bool duct=classKey.IndexOf("HVAC",StringComparison.OrdinalIgnoreCase)>=0;
+            if(duct && (classKey.IndexOf("RECT",StringComparison.OrdinalIgnoreCase)>=0 ||
+                classKey.IndexOf("RECTANGULAR",StringComparison.OrdinalIgnoreCase)>=0))
+                throw new InvalidOperationException("当前只支持圆形风管弯头 HVAC_ROUND_ELBOW，暂不支持矩形风管。");
+            double diameter=duct
+                ? Required(values,"OUTSIDE_DIAMETER","MAIN_DIAMETER","RUN_DIAMETER","EQUIVALENT_DIAMETER")
+                : Required(values,"NOMINAL_DIAMETER","NOMINAL_DIAMETER_RUN_END");
             string unit=Text(values,"UNIT_OF_MEASURE");
-            double factor=ElbowTrunnionCalculator.UnitScale(unit,nominal);
-            int mainDn=ElbowTrunnionCatalog.MainDn(nominal*factor);
-            double outside=Required(values,"OUTSIDE_DIAMETER")*factor;
+            double factor=ElbowTrunnionCalculator.UnitScale(unit,diameter);
+            double outside=(duct?diameter:Required(values,"OUTSIDE_DIAMETER"))*factor;
             if (outside<=0) throw new InvalidOperationException("弯头外径无效。");
+            string dnNote="";
+            int mainDn=duct ? ElbowTrunnionCatalog.DuctMainDn(outside,out dnNote)
+                : ElbowTrunnionCatalog.MainDn(diameter*factor);
+            string mainLabel=duct ? "D"+Math.Floor(outside+0.5).ToString("0",CultureInfo.InvariantCulture) : "";
             double run,outlet,length;
             bool hasLength=TryNumber(values,"LENGTH",out length);
             if (!TryNumber(values,"DESIGN_LENGTH_CENTER_TO_RUN_END",out run) &&
                 !TryNumber(values,"DESIGN_LENGTH_CENTER_TO_RUN_END_EFFECTIVE",out run))
             {
-                if (!hasLength) throw new InvalidOperationException("缺少 Run 端中心距。");
-                run=length/2;
+                if(hasLength) run=length/2;
+                else if(!duct || !TryNumber(values,"RADIUS",out run) || run<=0)
+                    throw new InvalidOperationException(duct?"风管弯头缺少 RADIUS / 中心至端面长度。":"缺少 Run 端中心距。");
             }
             if (!TryNumber(values,"DESIGN_LENGTH_CENTER_TO_OUTLET_END",out outlet) &&
                 !TryNumber(values,"DESIGN_LENGTH_CENTER_TO_OUTLET_END_EFFECTIVE",out outlet))
             {
-                if (!hasLength) throw new InvalidOperationException("缺少 Outlet 端中心距。");
-                outlet=length/2;
+                if(hasLength) outlet=length/2;
+                else if(!duct || !TryNumber(values,"RADIUS",out outlet) || outlet<=0)
+                    throw new InvalidOperationException(duct?"风管弯头缺少 RADIUS / 中心至端面长度。":"缺少 Outlet 端中心距。");
             }
             var matrix=new double[12];
             for(int i=0;i<12;i++)
@@ -89,8 +97,9 @@ namespace SteelSectionProbe
             if (string.IsNullOrWhiteSpace(pipeNumber))
                 pipeNumber=snapshot.AllProperties.FirstOrDefault(v=>v.Key.StartsWith("OpenPlant",StringComparison.OrdinalIgnoreCase)
                     && v.Key.EndsWith(".LINENUMBER",StringComparison.OrdinalIgnoreCase)).Value;
-            return new ElbowTrunnionSelection { ElementId=id,ClassName=candidate.Key,
-                MainDn=mainDn,OutsideDiameterMm=outside,Frame=frame,
+            return new ElbowTrunnionSelection { ElementId=id,ClassName=classKey,
+                MainDn=mainDn,MainSizeLabel=mainLabel,MainDnNote=dnNote,
+                OutsideDiameterMm=outside,Frame=frame,
                 PipeNumber=pipeNumber };
         }
         private static double Required(IDictionary<string,string> values,params string[] names)

@@ -50,6 +50,10 @@
     <Compile Remove="Development\PipeClampCheck\**\*.cs" />
     <Compile Remove="Development\VerticalPipeSupportCheck\**\*.cs" />
     <Compile Remove="Development\EquipmentSupportCheck\**\*.cs" />
+    <Compile Remove="Development\TriangleBracketCheck\**\*.cs" />
+    <Compile Remove="Development\PortalFrameCheck\**\*.cs" />
+    <Compile Remove="Development\TFrameCheck\**\*.cs" />
+    <Compile Remove="Development\PadPlateCheck\**\*.cs" />
     <Compile Remove="Development\HomeCheck\**\*.cs" />
     <Compile Remove="Development\SteelSectionCheck\**\*.cs" /></ItemGroup>
 </Project>

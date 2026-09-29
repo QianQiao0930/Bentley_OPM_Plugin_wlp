@@ -11,6 +11,24 @@ namespace SteelSectionProbe
 
     internal static class ElbowTrunnionCatalog
     {
+        /// <summary>同一元素可能同时暴露管道基类和 HVAC 实际类，优先读取实际类。</summary>
+        internal static string SelectElbowClass(IDictionary<string,Dictionary<string,string>> groups)
+        {
+            string best=null;
+            int bestScore=-1;
+            foreach(var group in groups)
+            {
+                string key=group.Key;
+                if(!key.StartsWith("OpenPlant",StringComparison.OrdinalIgnoreCase) ||
+                    key.IndexOf("ELBOW",StringComparison.OrdinalIgnoreCase)<0) continue;
+                int score=(key.IndexOf("HVAC",StringComparison.OrdinalIgnoreCase)>=0?100:0)+
+                    (key.IndexOf("90_DEGREE",StringComparison.OrdinalIgnoreCase)>=0?3:0)+
+                    (group.Value.ContainsKey("ANGLE")?1:0)+
+                    (group.Value.ContainsKey("OUTSIDE_DIAMETER")?1:0);
+                if(score>bestScore) { bestScore=score; best=key; }
+            }
+            return best;
+        }
         private static readonly Dictionary<int, double[]> Pipe = new Dictionary<int, double[]>
         {
             {15,new[]{21.3,2.77}}, {20,new[]{26.9,2.87}}, {25,new[]{33.7,3.38}},
@@ -38,6 +56,36 @@ namespace SteelSectionProbe
             foreach (int dn in MainDns)
                 if (Math.Abs(nominalMm - dn) <= Math.Max(0.6, dn * 0.005)) return dn;
             throw new InvalidOperationException("弯头公称直径不在四个原脚本支持的规格内：" + nominalMm + " mm。");
+        }
+        /// <summary>风管按实际外径选表 1 档位；鞍口仍使用实际外径。</summary>
+        internal static int DuctMainDn(double outsideMm,out string note)
+        {
+            if(double.IsNaN(outsideMm)||double.IsInfinity(outsideMm)||outsideMm<=0)
+                throw new InvalidOperationException("风管外径必须大于 0。");
+            foreach(int dn in MainDns)
+                if(Math.Abs(outsideMm-dn)<=0.5) { note=""; return dn; }
+            int nearest=MainDns[0];
+            double distance=double.MaxValue;
+            foreach(int dn in MainDns)
+            {
+                double delta=Math.Abs(outsideMm-Pipe[dn][0]);
+                if(delta<distance) { distance=delta; nearest=dn; }
+            }
+            double pipeOd=Pipe[nearest][0];
+            if(distance<=pipeOd*0.05)
+            {
+                note="风管外径无对应管道 DN，按外径就近匹配到 DN"+nearest+
+                    " 档，仅用于选耳轴和底板；鞍口按风管实际外径建模，请复核。";
+                return nearest;
+            }
+            int maximum=MainDns[MainDns.Length-1];
+            if(outsideMm>Math.Max(maximum,Pipe[maximum][0]))
+            {
+                note="风管外径超出现有选型表范围，采用 DN"+maximum+
+                    " 最大档保底选耳轴和底板；鞍口按实际外径建模，承载能力需另行校核。";
+                return maximum;
+            }
+            throw new InvalidOperationException("风管外径未匹配到表 1 的任何管道档位，无法自动选耳轴。");
         }
         internal static TrunnionSize ForMainDn(int mainDn)
         {

@@ -59,6 +59,14 @@ namespace SteelSectionProbe
                     AddBolt(result,frame,plan,y,z);
         }
 
+        /// <summary>G12 复用 G2 的单根锚栓几何，腹板厚度由调用方写入 plan。</summary>
+        internal static List<Element> BuildSingleBolt(G2AnchorPlan plan,G2AnchorFrame frame)
+        {
+            var result=new List<Element>();
+            AddBolt(result,frame,plan,0,0);
+            return result;
+        }
+
         /// <summary>一根膨胀锚栓：埋入端套管 + 螺杆 + 垫圈 + 六角螺母，不做布尔融合（允许重合）。</summary>
         private static void AddBolt(List<Element> result,G2AnchorFrame frame,G2AnchorPlan plan,
             double y,double z)

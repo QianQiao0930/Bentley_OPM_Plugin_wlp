@@ -33,10 +33,16 @@ namespace SteelSectionProbe
             NamingUnitCombo.SelectedIndex=0;
             ready=true;
             UpdateVariant();
+            PageLastInput.Restore(this,PageId,"ElbowCombo","TrunnionCombo","ExtentText",
+                "HollowCheck","WallText","PlateCombo","MaterialCombo","NamingUnitCombo",
+                "PtfeCheck","FlatCheck","OutletCheck");
         }
         public void OnActivated() { active=true; }
         public void OnDeactivated()
         {
+            PageLastInput.Save(this,PageId,"ElbowCombo","TrunnionCombo","ExtentText",
+                "HollowCheck","WallText","PlateCombo","MaterialCombo","NamingUnitCombo",
+                "PtfeCheck","FlatCheck","OutletCheck");
             active=false;
             pickVersion++;
             ElbowTrunnionLocateTool.End();
@@ -166,7 +172,9 @@ namespace SteelSectionProbe
                     var candidate=ElbowTrunnionReader.Read(located.ModelRef,id,options.Elbow,options.Trunnion);
                     selection=candidate;
                     SelectionText.Text="元素 "+id+(located.IsFromReference()?"（参考文件）":"")+
-                        " · "+candidate.ClassName+" · DN"+candidate.MainDn;
+                        " · "+candidate.ClassName+" · "+
+                        (string.IsNullOrEmpty(candidate.MainSizeLabel)?"DN"+candidate.MainDn:candidate.MainSizeLabel)+
+                        (string.IsNullOrEmpty(candidate.MainDnNote)?"":"\n"+candidate.MainDnNote);
                     LiveLengthText.Text="移动鼠标拉伸取长；松开首击后，再左键固定长度。";
                     ConfirmButton.IsEnabled=false;
                     ElbowTrunnionDragTool.Begin(candidate,options,view,x,y);

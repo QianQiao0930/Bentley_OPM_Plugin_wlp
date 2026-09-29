@@ -267,8 +267,134 @@
         <Setter Property="MinWidth" Value="70" />
     </Style>
 
-    <Style TargetType="ScrollBar">
-        <Setter Property="Width" Value="8" />
+    <!-- ===== 滚动条：细轨道 + 圆角粗滑块；静止淡显、悬停加深、拖拽高亮 =====
+         滑块色阶：#C4CFDC（静止，85% 不透明）→ #8FA4BD（悬停）→ #2A3644（拖拽）。
+         轨道与翻页热区透明（RepeatButton 模板是纯透明矩形），点到空白处可整页翻。
+         垂直 12 宽、水平 12 高；Thumb 外缩 2 逻辑像素形成 8 宽胶囊形。
+         ⚠️ 必须用 x:Key：ScrollViewer 模板里生成的 ScrollBar 不会回查外层合并字典中的隐式样式
+         （实测即使把隐式样式放在 ScrollViewer.Resources 里，MinWidth 仍被系统主题夹成 17 DIP）。
+         解决方式是在下面的 ScrollViewer 自定义模板里**显式**给 PART_VerticalScrollBar /
+         PART_HorizontalScrollBar 指定 Style="{StaticResource AppScrollBarStyle}"，
+         这样所有页面的 ScrollViewer 都稳定使用本套滚动条。 -->
+    <Style x:Key="AppScrollBarStyle" TargetType="ScrollBar">
+        <Setter Property="Width" Value="12" />
+        <!-- ⚠️ MinWidth/MinHeight 必须显式归零：系统主题样式把它设成 SystemParameters.ScrollBarWidth
+             （150% 缩放下实测 17.33），不覆盖的话滑块宽度会被夹回系统默认，定制样式等于白写。 -->
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
         <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollBar">
+                    <ControlTemplate.Resources>
+                        <Style TargetType="RepeatButton">
+                            <Setter Property="Focusable" Value="False" />
+                            <Setter Property="Background" Value="Transparent" />
+                            <Setter Property="BorderThickness" Value="0" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="RepeatButton">
+                                        <Rectangle Fill="Transparent" />
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                        <Style TargetType="Thumb">
+                            <Setter Property="Background" Value="#C4CFDC" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Thumb">
+                                        <Border x:Name="ThumbBorder" Background="{TemplateBinding Background}"
+                                                CornerRadius="5" Margin="2" Opacity="0.85" />
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="ThumbBorder" Property="Opacity" Value="1" />
+                                                <Setter TargetName="ThumbBorder" Property="Background" Value="#8FA4BD" />
+                                            </Trigger>
+                                            <Trigger Property="IsDragging" Value="True">
+                                                <Setter TargetName="ThumbBorder" Property="Background" Value="#2A3644" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ControlTemplate.Resources>
+                    <Grid Background="{TemplateBinding Background}">
+                        <Track x:Name="PART_Track" IsDirectionReversed="True"
+                               Orientation="{TemplateBinding Orientation}">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton x:Name="DecreaseButton" Command="ScrollBar.PageUpCommand" />
+                            </Track.DecreaseRepeatButton>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton x:Name="IncreaseButton" Command="ScrollBar.PageDownCommand" />
+                            </Track.IncreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb />
+                            </Track.Thumb>
+                        </Track>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="Orientation" Value="Horizontal">
+                            <Setter Property="Width" Value="Auto" />
+                            <Setter Property="Height" Value="12" />
+                            <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False" />
+                            <Setter TargetName="DecreaseButton" Property="Command" Value="ScrollBar.PageLeftCommand" />
+                            <Setter TargetName="IncreaseButton" Property="Command" Value="ScrollBar.PageRightCommand" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 直接写在页面里的 ScrollBar（不在 ScrollViewer 模板内）走这条隐式样式。 -->
+    <Style TargetType="ScrollBar" BasedOn="{StaticResource AppScrollBarStyle}" />
+
+    <!-- ===== ScrollViewer：默认模板里的 ScrollBar 拿不到外层隐式样式（实测仍是系统 17 DIP），
+         因此这里自带模板并**显式**把 AppScrollBarStyle 挂到 PART_VerticalScrollBar / PART_HorizontalScrollBar。
+         ScrollViewer 元素本身在页面逻辑树里，隐式样式对它稳定生效 ⇒ 全工程滚动条统一。
+         Value 必须是单向绑定（ScrollBar 发命令、ScrollViewer 改 Offset，再回流到滑块），
+         双向会打断滚动；两个 PART_ 名称不能改，否则滚动内容出不来。 -->
+    <Style TargetType="ScrollViewer">
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollViewer">
+                    <Grid Background="{TemplateBinding Background}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <ScrollContentPresenter x:Name="PART_ScrollContentPresenter"
+                                                Grid.Row="0" Grid.Column="0"
+                                                Content="{TemplateBinding Content}"
+                                                ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                CanContentScroll="{TemplateBinding CanContentScroll}"
+                                                Margin="{TemplateBinding Padding}" />
+                        <ScrollBar x:Name="PART_VerticalScrollBar" Grid.Row="0" Grid.Column="1"
+                                   Style="{StaticResource AppScrollBarStyle}"
+                                   Minimum="0" Maximum="{TemplateBinding ScrollableHeight}"
+                                   Value="{Binding Path=VerticalOffset, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}"
+                                   ViewportSize="{TemplateBinding ViewportHeight}"
+                                   Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"
+                                   Focusable="False" />
+                        <ScrollBar x:Name="PART_HorizontalScrollBar" Grid.Row="1" Grid.Column="0"
+                                   Orientation="Horizontal"
+                                   Style="{StaticResource AppScrollBarStyle}"
+                                   Minimum="0" Maximum="{TemplateBinding ScrollableWidth}"
+                                   Value="{Binding Path=HorizontalOffset, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}"
+                                   ViewportSize="{TemplateBinding ViewportWidth}"
+                                   Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}"
+                                   Focusable="False" />
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 </ResourceDictionary>

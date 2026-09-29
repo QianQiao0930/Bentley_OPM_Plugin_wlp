@@ -28,7 +28,8 @@ namespace SteelSectionProbe
 
         internal string PageId { get { return Feature == null ? "" : Feature.PageId; } }
 
-        internal string Category { get { return Feature == null ? "" : Feature.Category; } }
+        /// <summary>所属分区键（public：卡片模板按它给图标底/描边分色，WPF 绑定不认 internal）。</summary>
+        public string Category { get { return Feature == null ? "" : Feature.Category; } }
 
         internal string IconKey { get { return Feature == null ? "" : Feature.Icon; } }
 

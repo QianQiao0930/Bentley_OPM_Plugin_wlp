@@ -38,6 +38,10 @@ namespace SteelSectionProbe
             RefreshTrunnionChoices();
             UpdatePanels();
             initializing=false;
+            PageLastInput.Restore(this,PageId,"KindCombo","TrunnionPipeDn","TrunnionDn",
+                "LengthText","WallText","EndTypeCombo","TrunnionMaterial","TrunnionAngle",
+                "PadCheck","PadThickness","EarPipeDn","EarLength","EarHeight",
+                "EarMaterial","EarAngle","FixedCheck");
         }
         public void OnActivated()
         {
@@ -49,6 +53,10 @@ namespace SteelSectionProbe
         public void OnWorkspaceClosing() { Close(); }
         private void Close()
         {
+            PageLastInput.Save(this,PageId,"KindCombo","TrunnionPipeDn","TrunnionDn",
+                "LengthText","WallText","EndTypeCombo","TrunnionMaterial","TrunnionAngle",
+                "PadCheck","PadThickness","EarPipeDn","EarLength","EarHeight",
+                "EarMaterial","EarAngle","FixedCheck");
             active=false;
             PipeClampLocateTool.Picked-=OnPicked;
             PipeClampLocateTool.Ended-=OnEnded;

@@ -388,6 +388,148 @@ namespace SteelSectionProbe
                 WriteRecords(element,entries);
             }
         }
+        /// <summary>D5/D6/G12/D19：固定角色名，全部实例值一次 EnsureBatch 后写入。</summary>
+        internal static void AttachTriangleBracket(Element element,TriangleBracketPlan plan)
+        {
+            if(element==null||plan==null)throw new ArgumentNullException("element");
+            using(StatisticsTrace.Scope("D5/D6/G12/D19 三角架 AttachTriangleBracket")) {
+                string type=plan.SupportType,tag=plan.Number;
+                var entries=new List<KeyValuePair<string,object[]>>();
+                AddEntry(entries,TriangleBracketCatalog.AssemblyItemName(plan.Parameters.Kind),"Assembly",type,tag,
+                    "支吊架",plan.AssemblySpecification,0.0,1,"套","");
+                AddTrianglePart(entries,plan.Parameters.Kind,type,tag,"A","构件A（横担）",plan.Variant.SectionA,
+                    plan.BeamLengthMm,plan.QuantityA);
+                AddTrianglePart(entries,plan.Parameters.Kind,type,tag,"B","构件B（斜撑）",
+                    plan.Variant.SectionB+"（45°）",plan.BraceLengthMm,plan.QuantityB);
+                if(plan.Parameters.Kind=="D19")
+                {
+                    var v=plan.Variant;
+                    string spec=v.ConnectorLength+"×"+v.ConnectorHeight+"×"+
+                        v.ConnectorThickness+" 钢板（S="+v.WebGap+"）";
+                    AddTrianglePart(entries,plan.Parameters.Kind,type,tag,"C","构件C（端部连接板）",
+                        spec,v.ConnectorThickness,1);
+                }
+                if(plan.Parameters.Kind=="G12")
+                {
+                    var item=G2AnchorCatalog.Require(plan.Variant.BoltSubtype);
+                    string spec="M"+item.BoltDiameterMm+"×"+item.BoltLengthMm+
+                        "（横担 2 + 斜撑 2，S="+plan.Variant.BoltSpacing+
+                        "，C="+plan.Variant.BoltEdge+"）";
+                    AddTrianglePart(entries,plan.Parameters.Kind,type,tag,"C","构件C（膨胀锚栓）",
+                        spec,item.BoltLengthMm,4);
+                }
+                if(plan.Plate!=null)
+                {
+                    AddTrianglePart(entries,plan.Parameters.Kind,type,tag,"PLATE_A","G2 端板（横担）",
+                        plan.Plate.PlateSpecification,plan.Plate.PlateThicknessMm,1);
+                    AddTrianglePart(entries,plan.Parameters.Kind,type,tag,"PLATE_B","G2 端板（斜撑）",
+                        plan.Plate.PlateSpecification,plan.Plate.PlateThicknessMm,1);
+                    AddTrianglePart(entries,plan.Parameters.Kind,type,tag,"BOLT_A","G2 膨胀锚栓（横担）",
+                        plan.Plate.BoltSpecification,plan.Plate.BoltLengthMm,4);
+                    AddTrianglePart(entries,plan.Parameters.Kind,type,tag,"BOLT_B","G2 膨胀锚栓（斜撑）",
+                        plan.Plate.BoltSpecification,plan.Plate.BoltLengthMm,4);
+                }
+                WriteRecords(element,entries);
+            }
+        }
+        /// <summary>D8/D13/G5/G6 门型架：每种架型使用固定附加项名，规格与编号只写实例值。</summary>
+        internal static void AttachPortalFrame(Element element,PortalFramePlan plan)
+        {
+            if(element==null||plan==null)throw new ArgumentNullException("element");
+            using(StatisticsTrace.Scope("门型架 AttachPortalFrame")) {
+                string kind=plan.Parameters.Kind,type=plan.SupportType,tag=plan.Number;
+                var v=plan.Variant;
+                var entries=new List<KeyValuePair<string,object[]>>();
+                AddEntry(entries,PortalFrameCatalog.AssemblyItemName(kind),"Assembly",type,tag,
+                    "支吊架",plan.AssemblySpecification,0,1,"套","");
+                AddPortalPart(entries,kind,type,tag,"Post","立柱",v.PostSpecification,
+                    plan.PostLengthMm,2,"件");
+                AddPortalPart(entries,kind,type,tag,"Arm","横担",v.ArmSpecification,
+                    kind=="G6"?plan.SpanMm:plan.ArmLengthMm,plan.ArmQuantity,"件");
+                if(v.Ground!=null)
+                {
+                    var g=v.Ground;
+                    string plate=g.PlateSide+"×"+g.PlateSide+"×"+g.PlateThickness;
+                    AddPortalPart(entries,kind,type,tag,"AnchorPlate","锚板",plate,
+                        g.PlateThickness,2,"块");
+                    AddPortalPart(entries,kind,type,tag,"AnchorBolt","膨胀锚栓",
+                        "M"+g.BoltDiameter+"×"+g.BoltLength,g.BoltLength,8,"根");
+                    AddPortalPart(entries,kind,type,tag,"Nut","螺母","M"+g.BoltDiameter,
+                        0,8,"个");
+                    AddPortalPart(entries,kind,type,tag,"GroundGrout","现场灌浆",
+                        "高 25（底面向外扩 20 的梯台）",25,2,"处");
+                }
+                WriteRecords(element,entries);
+            }
+        }
+        /// <summary>D12/G4/D15 T 型架：固定组合代号与角色，预览期间不触碰公共库。</summary>
+        internal static void AttachTFrame(Element element,TFramePlan plan)
+        {
+            if(element==null||plan==null)throw new ArgumentNullException("element");
+            using(StatisticsTrace.Scope("T 型架 AttachTFrame")) {
+                string kind=plan.Parameters.Kind,type=plan.SupportType,tag=plan.Number;
+                var v=plan.Variant;
+                var entries=new List<KeyValuePair<string,object[]>>();
+                AddEntry(entries,TFrameCatalog.AssemblyItemName(kind),"Assembly",type,tag,
+                    "支吊架",plan.AssemblySpecification,0,1,"套","");
+                bool horizontal=kind=="D15";
+                AddTPart(entries,kind,type,tag,horizontal?"MemberA":"Post",
+                    horizontal?"构件A":"立柱",v.SpecA,plan.PostLengthMm,1,"根");
+                AddTPart(entries,kind,type,tag,horizontal?"MemberB":"Arm",
+                    horizontal?"构件B":"横担",v.SpecB,plan.L2Mm,1,"根");
+                if(v.Ground!=null)
+                {
+                    var g=v.Ground;
+                    AddTPart(entries,kind,type,tag,"AnchorPlate","锚板",
+                        "E×E×T="+g.PlateSide+"×"+g.PlateSide+"×"+g.PlateThickness+
+                        "，4-φ"+g.HoleDiameter+" 孔（F="+g.HoleSpacing+"）",
+                        g.PlateThickness,1,"块");
+                    AddTPart(entries,kind,type,tag,"AnchorBolt","膨胀锚栓",
+                        "M"+g.BoltDiameter+"×"+g.BoltLength+"（h_ef="+g.Embedment+"）",
+                        g.BoltLength,4,"套");
+                    AddTPart(entries,kind,type,tag,"AnchorNut","螺母",
+                        "M"+g.BoltDiameter,0,4,"个");
+                    AddTPart(entries,kind,type,tag,"Grout","现场灌浆",
+                        "高 25，每边斜向外扩 20（梯台）",25,1,"处");
+                }
+                WriteRecords(element,entries);
+            }
+        }
+        /// <summary>Y2 / 弯头垫板各一套固定 ItemType，实例尺寸仅写在字段中。</summary>
+        internal static void AttachPadPlate(Element element,PadPlatePlan plan)
+        {
+            if(element==null||plan==null)throw new ArgumentNullException("element");
+            using(StatisticsTrace.Scope("垫板 AttachPadPlate")) {
+                var entries=new List<KeyValuePair<string,object[]>>();
+                AddEntry(entries,PadPlateCatalog.AssemblyItemName(plan.Kind),"Assembly",
+                    plan.SupportType,plan.Number,"支吊架",plan.Specification,0,1,"套",plan.PipeNumber);
+                AddEntry(entries,PadPlateCatalog.ComponentItemName(plan.Kind),"Component",
+                    plan.SupportType,plan.Number,plan.Kind==PadPlateKind.Y2?"弧形垫板":"弯头垫板",
+                    plan.Specification,plan.ComponentLengthMm,1,"件",plan.PipeNumber);
+                WriteRecords(element,entries);
+            }
+        }
+        private static void AddTPart(IList<KeyValuePair<string,object[]>> entries,
+            string kind,string type,string tag,string role,string name,string spec,
+            double length,int quantity,string unit)
+        {
+            AddEntry(entries,TFrameCatalog.ComponentItemName(kind,role),"Component",type,tag,
+                name,spec,length,quantity,unit,"");
+        }
+        private static void AddPortalPart(IList<KeyValuePair<string,object[]>> entries,
+            string kind,string type,string tag,string role,string name,string spec,
+            double length,int quantity,string unit)
+        {
+            AddEntry(entries,PortalFrameCatalog.ComponentItemName(kind,role),"Component",type,tag,
+                name,spec,length,quantity,unit,"");
+        }
+        private static void AddTrianglePart(IList<KeyValuePair<string,object[]>> entries,
+            string kind,string type,string tag,string role,string name,string spec,
+            double length,int quantity)
+        {
+            AddEntry(entries,TriangleBracketCatalog.ComponentItemName(kind,role),"Component",type,tag,
+                name,spec,length,quantity,"件","");
+        }
         private static void AddBracketPart(IList<KeyValuePair<string,object[]>> entries,string code,
             string type,BracketPlan plan,string suffix,string name,string spec,double length,
             int quantity,string unit)

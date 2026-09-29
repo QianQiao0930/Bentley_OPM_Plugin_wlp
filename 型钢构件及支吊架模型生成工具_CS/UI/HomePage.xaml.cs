@@ -1,10 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
-using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace SteelSectionProbe
 {
@@ -53,8 +54,8 @@ namespace SteelSectionProbe
         }
 
         /// <summary>
-        /// 按当前偏好、搜索词与排序方式重建卡片。**评分时不调用** —— 只在回到首页、
-        /// 切换排序/搜索时调用，否则用户刚点完星标的卡片会立刻换位置。
+        /// 按当前偏好、搜索词与排序方式重建卡片。调用时机：回到首页、切换排序/搜索，
+        /// 以及**点星标之后**（用户要求的"即时重排"，见 <see cref="SetStars_Click"/>）。
         /// </summary>
         internal void Refresh()
         {
@@ -86,9 +87,12 @@ namespace SteelSectionProbe
             RecentList.ItemsSource = recentItems;
             SetSection(RecentSection, recentItems.Count);
 
-            // ---- 分类分区（建模类 / 支撑架类 / 统计与扩展 / 规划中）。顺序与显示名来自 HomeCategories ----
+            // ---- 分类分区（建模类 / HGT21629 支吊架 / 统计与扩展 / 规划中）。
+            //      顺序与显示名来自 HomeCategories —— 标题文本不写死在 XAML 里，避免两处漂移。 ----
             var hosts = new Dictionary<string, FrameworkElement>(StringComparer.Ordinal);
             var lists = new Dictionary<string, ItemsControl>(StringComparer.Ordinal);
+            var titles = new Dictionary<string, TextBlock>(StringComparer.Ordinal);
+            var counts = new Dictionary<string, TextBlock>(StringComparer.Ordinal);
             hosts[HomeCategories.Modeling] = ModelingSection;
             hosts[HomeCategories.Support] = SupportSection;
             hosts[HomeCategories.Stats] = StatsSection;
@@ -97,6 +101,14 @@ namespace SteelSectionProbe
             lists[HomeCategories.Support] = SupportList;
             lists[HomeCategories.Stats] = StatsList;
             lists[HomeCategories.Planned] = PlannedList;
+            titles[HomeCategories.Modeling] = ModelingTitleText;
+            titles[HomeCategories.Support] = SupportTitleText;
+            titles[HomeCategories.Stats] = StatsTitleText;
+            titles[HomeCategories.Planned] = PlannedTitleText;
+            counts[HomeCategories.Modeling] = ModelingCountText;
+            counts[HomeCategories.Support] = SupportCountText;
+            counts[HomeCategories.Stats] = StatsCountText;
+            counts[HomeCategories.Planned] = PlannedCountText;
 
             int shown = 0;
             foreach (HomeCategories.Definition section in HomeCategories.Sections())
@@ -106,10 +118,23 @@ namespace SteelSectionProbe
                 List<HomeCardItem> items = BuildItems(group, utcNow, false);
                 lists[section.Key].ItemsSource = items;
                 SetSection(hosts[section.Key], items.Count);
+                SetSectionHeader(titles, counts, section, items.Count);
                 shown += items.Count;
             }
 
             EmptyHint.Visibility = shown == 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        /// <summary>分区标题与卡片计数（如「HGT21629 支吊架 · 7 项」）；未知分区不写。 </summary>
+        private static void SetSectionHeader(Dictionary<string, TextBlock> titles,
+            Dictionary<string, TextBlock> counts, HomeCategories.Definition section, int count)
+        {
+            TextBlock title;
+            if (titles.TryGetValue(section.Key, out title) && title != null)
+                title.Text = HomeCategories.DisplayNameOf(section.Key);
+            TextBlock countText;
+            if (counts.TryGetValue(section.Key, out countText) && countText != null)
+                countText.Text = count.ToString(CultureInfo.InvariantCulture) + " 项";
         }
 
         /// <summary>未知分类的卡片不渲染（不静默串到别的分区），因此只在已知分区里收集。</summary>
@@ -211,6 +236,10 @@ namespace SteelSectionProbe
         /// <summary>
         /// 分区内排序：默认沿用排序器给出的全序；"最近使用/常用优先"是用户显式指定的另一种口径，
         /// 同值时仍回落到排序器名次，避免顺序漂移。
+        /// <para>
+        /// ⚠️ 两档显式排序都**先过 <see cref="HomeFeatureRanker.CompareStarTier"/>**（置顶区 → 星级降序）：
+        /// 星标是用户的显式意图，不能被"最近/常用"覆盖（曾出现"常用优先时 5 星没有置顶"）。
+        /// </para>
         /// </summary>
         private void SortGroup(List<HomeEntry> group, Dictionary<string, int> rankOf)
         {
@@ -221,7 +250,9 @@ namespace SteelSectionProbe
             {
                 comparison = delegate(HomeEntry a, HomeEntry b)
                 {
-                    int compare = CompareRecent(a, b);
+                    int compare = HomeFeatureRanker.CompareStarTier(a, b);
+                    if (compare != 0) return compare;
+                    compare = CompareRecent(a, b);
                     if (compare != 0) return compare;
                     return RankIndexOf(rankOf, a).CompareTo(RankIndexOf(rankOf, b));
                 };
@@ -230,9 +261,11 @@ namespace SteelSectionProbe
             {
                 comparison = delegate(HomeEntry a, HomeEntry b)
                 {
+                    int compare = HomeFeatureRanker.CompareStarTier(a, b);
+                    if (compare != 0) return compare;
                     if (a.FrequencyScore != b.FrequencyScore)
                         return b.FrequencyScore.CompareTo(a.FrequencyScore);
-                    int compare = RankIndexOf(rankOf, a).CompareTo(RankIndexOf(rankOf, b));
+                    compare = RankIndexOf(rankOf, a).CompareTo(RankIndexOf(rankOf, b));
                     if (compare != 0) return compare;
                     return a.Feature.DefaultOrder.CompareTo(b.Feature.DefaultOrder);
                 };
@@ -261,7 +294,7 @@ namespace SteelSectionProbe
             Refresh();
         }
 
-        private void Card_Click(object sender, MouseButtonEventArgs e)
+        private void Card_Click(object sender, RoutedEventArgs e)
         {
             HomeCardItem item = ItemOf(sender);
             if (item == null || !item.CanRate) return;
@@ -271,7 +304,7 @@ namespace SteelSectionProbe
         /// <summary>
         /// 一行两张卡片实际需要多宽（含卡片间距与右外边距，单位 = WPF 逻辑宽）。
         /// <para>
-        /// 取值来自**真实可视树**，不看 <c>HomeCardStyle</c> 里写死的数字，也不依赖当前是排成
+        /// 取值来自**真实可视树**，不看 <c>HomeCardButtonStyle</c> 里写死的数字，也不依赖当前是排成
         /// 一行还是两行（内容尺寸与排布结果无关）。可视树尚未布局时返回 0，调用方应保留原宽度。
         /// </para>
         /// </summary>
@@ -346,19 +379,26 @@ namespace SteelSectionProbe
             if (!int.TryParse(menuItem.Tag.ToString(), out stars)) return;
             HomePreferences.SetStars(item.PageId, stars);
 
-            // 同一功能可能同时显示在"最近使用"与所属分类里，就地刷新它的全部实例。
+            // 同一功能可能同时显示在"最近使用"与所属分类里，先就地刷新它的全部实例
+            //（星标字形立刻变化，不必等重建完成）。
             List<HomeCardItem> bucket;
             if (itemsByPageId.TryGetValue(item.PageId, out bucket))
                 foreach (HomeCardItem each in bucket) each.ApplyStars(stars);
 
             string message;
             if (stars <= 0)
-                message = "已清除“" + item.Title + "”的星标。";
+                message = "已清除“" + item.Title + "”的星标，已按新顺序重排。";
             else if (stars >= HomeFeatureRanker.PinThreshold)
-                message = "已把“" + item.Title + "”标为 " + stars + " 星，将置顶显示；回到首页即按新顺序排列。";
+                message = "已把“" + item.Title + "”标为 " + stars + " 星，已将卡片置顶。";
             else
                 message = "已把“" + item.Title + "”标为 " + stars + " 星（3 星及以上才会置顶）。";
             if (StatusRequested != null) StatusRequested(message, false);
+
+            // ⚠️ **即时重排**：星标一改就重建卡片顺序，不等回到首页。
+            // 不能直接在这里 Refresh()：此刻 ContextMenu 还没关（正处在它自己的菜单项 Click 里），
+            // 重建 ItemsSource 会把菜单的 PlacementTarget 从可视树上摘掉。改排队到 Background 优先级，
+            // 它在"本帧输入处理完（菜单关完）"之后执行，视觉上仍是点完即变。
+            Dispatcher.BeginInvoke(new Action(Refresh), DispatcherPriority.Background);
         }
 
         private void Reset_Click(object sender, RoutedEventArgs e)

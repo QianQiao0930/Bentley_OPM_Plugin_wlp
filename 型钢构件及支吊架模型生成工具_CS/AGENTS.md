@@ -644,22 +644,27 @@ bin/Release/net48_full/SteelSectionProbe.dll
 
 首页卡片的数据来自 `Data/Home/HomeFeatureCatalog.cs`（`FeatureDescriptor` 清单，**唯一来源**），顺序由 `Services/Home/HomeFeatureRanker.cs` 计算，分区定义在 `Data/Home/HomeCategories.cs`，相对时间在 `Services/Home/HomeRelativeTime.cs`，偏好存储与使用统计在 `UI/Home/HomePreferences.cs`，卡片视图模型在 `UI/Home/HomeCardItem.cs`，渲染在 `UI/HomePage.xaml(.cs)`。**不要在 `HomePage.xaml` 里再手写卡片** —— 新增功能页只在清单里加一项（含分区与图标键）。
 
-首页结构：顶部标题栏（应用图标 + 标题/副标题 + 搜索框 + 排序下拉 + 重置排序）→「最近使用」→ 建模类 / 支撑架类 / 统计与扩展 → 规划中。**首页标题栏由 `HomePage` 自带**，`WorkspaceView` 在首页隐藏自己那层共用标题栏（`SetHeaderVisible(false)`，并把该行 `MinHeight` 归零），功能页仍显示「标题 + 副标题 + 返回首页」。
+首页结构：顶部标题栏（应用图标 + 标题/副标题 + 搜索框 + 排序下拉 + 重置排序）→「最近使用」→ 建模类 / **HGT21629 支吊架** / 统计与扩展 → 规划中。**首页标题栏由 `HomePage` 自带**，`WorkspaceView` 在首页隐藏自己那层共用标题栏（`SetHeaderVisible(false)`，并把该行 `MinHeight` 归零），功能页仍显示「标题 + 副标题 + 返回首页」。
+
+2026-09-28 分区口径：「HGT21629 支吊架」收纳全部支吊架类功能（弯头耳轴、立管耳轴、放置管夹、混凝土锚板、N3/N4/N8）；建模类只保留通用建模（型钢、罐壁人孔、实体管口）。
 
 排序是**一个全序比较器**，关键字从高到低：置顶区（星级 ≥ `HomeFeatureRanker.PinThreshold` = 3）→ 星级降序 → 使用频率降序 → 出厂顺序（`DefaultOrder`）升序 → `PageId` 字典序。最后一级不能省：`List.Sort` 是**不稳定**排序，缺它会让同键卡片每次渲染顺序漂移。
 
 - `HomeFeatureRanker` 是**纯计算**：不引用 WPF / 文件系统，**也不读系统时钟** —— 当前时间由调用方以 `utcNow` 传入，否则不可重现、写不了断言。它必须能被 `Development/HomeCheck` 链接。
 - 使用频率是**衰减计数**（按月分桶 `yyyy-MM`、半衰期 1 个月、保留 12 个月），**不要改成累计总次数**：累计会让半年前的高频功能永久霸榜（本月 12 次应当压过上月 20 次，这才是“最近常用”）。
 - 冷启动（无偏好数据）全部落回出厂顺序，新用户看到的首页与改造前完全一致。
-- **评分后不立即重排**：星标只就地更新显示，重排只在 `WorkspaceView.ShowHome()` 的 `homePage.Refresh()` 里发生。卡片“点完就飞走”是体验事故。
+- **评分后立即重排**（2026-09-28 用户改的口径，推翻早期的"不立即重排"）：`SetStars_Click` 先就地刷新星标字形，再 `Dispatcher.BeginInvoke(Refresh, DispatcherPriority.Background)` 重建顺序。**不要改成直接 `Refresh()`** —— 此刻还处在 ContextMenu 菜单项的 Click 里，重建 `ItemsSource` 会把菜单的 `PlacementTarget` 从可视树上摘掉；Background 优先级排在"本帧输入处理完（菜单关完）"之后，视觉上仍是点完即变。回到首页时的 `WorkspaceView.ShowHome()` → `Refresh()` 保留作为兜底。
 - 使用统计的**唯一埋点**是 `WorkspaceView.OpenPage(id)`（命令行入口 `STEELPROBE PLACE` 也走它），且**同一次会话内同一功能只记一次**（`SessionCounted`）—— 首页表达的是“多常需要这个功能”，不是“点了多少下按钮”。
 - **分区与归类**：`FeatureDescriptor.Category` 存分区键，键/中文名/显示顺序的唯一来源是 `Data/Home/HomeCategories.cs`；`FeatureDescriptor.Icon` 存图标键，几何在 `HomePage.xaml` 的 `HomeIcon_<key>` 资源里，由 `HomePage.ResolveIcon` 注入 `HomeCardItem.IconGeometry`。新增功能必须同时给分区与图标键，否则 `Development/HomeCheck` 会报错。
 - **搜索与排序**：搜索即时过滤（标题/说明/分区中文名），无匹配显示 `EmptyHint`；排序下拉三档（默认排序 / 最近使用 / 常用优先）都**先按分区分组**，只改变分区内顺序，同值一律回落到排序器名次，避免漂移。搜索期间隐藏「最近使用」。
+- ⚠️ **两档显式排序（最近使用 / 常用优先）必须先过 `HomeFeatureRanker.CompareStarTier`**（置顶区 → 星级降序），同级才比最近时间 / 使用频率。少了这一级就会出现"标了 5 星、但『常用优先』时被高频低星功能压到后面"——星标是用户的显式意图，不能被排序模式覆盖。该比较器放在纯计算层就是为了能被 `Development/HomeCheck.CheckStarTierPriority` 断言（含"高频 0 星不得压过低频 5 星"的回归用例）。
+- ⚠️ **星标按钮必须是卡片 Button 的兄弟节点，不能放进卡片内容里**：`FeatureCardTemplate` 的结构是「外层 Grid → 卡片 `Button` + 星标 `Button`（`HorizontalAlignment=Right` / `VerticalAlignment=Bottom` / `Margin=0,0,16,13` 叠在右下角）」。卡片整体是入口按钮，若把星标放进它的内容里，嵌套按钮虽通常能先拿到按下事件，仍会出现"点星标却进了功能页"。兄弟节点与卡片没有父子关系、不共享事件路由，从结构上杜绝；卡片底部留一个 `46×26` 的透明占位 Border 保证时间文字不被星标压住、且卡片纵向预算不变。
 - **最近使用**：只取 `IsReady` 且 `LastUsedUtc` 可解析的功能，按时间降序最多 4 项；相对时间文案由纯计算 `HomeRelativeTime` 生成（`刚刚 / N 分钟前 / N 小时前 / 昨天 / N 天前 / yyyy-MM-dd`）。同一功能会同时出现在「最近使用」与所属分区，因此 `HomePage` 用 `itemsByPageId` 把同 PageId 的多个 `HomeCardItem` 一起刷新（评分时两处同步）。
 - 占位卡（`IsReady = false`）没有 PageId、不参与评分与统计，固定落在「规划中」分区；用独立的 `PlannedCardTemplate`（灰化 + 「即将上线」角标 + 不可点击），可用卡用 `FeatureCardTemplate`，**不要为单个功能另写模板**。
-- **卡片尺寸必须与文字内容、窗口宽度都脱钩**：`HomeCardStyle` 写死 **`Width = 320` + `Height = 124`** + `ClipToBounds`；左侧 40×40 图标 + 标题 1 行（`Height 22`）+ 说明 2 行（`Height 34`），底部一行「时间 / 星标」，整卡可点进入（不再有独立的「进入」按钮）。内部纵向预算：上下内边距 26 + 内容行 56 + 间距 8 + 星标行 26 = 116 ≤ 124，**改尺寸时要重算这个余量**。**绝不要用 `MinHeight` 或 `Auto` 列宽**：文字换行行数一变卡片就长高，整页跟着变。`ItemsPanel` 用 **`WrapPanel`**（不是 `UniformGrid`）：卡片宽度已写死，放不下就换行，永远不会横向溢出或被裁掉。⚠️ 卡片尺寸若要调整，**只改 `HomeCardStyle` 的这两个值**即可 —— 首页窗口宽度是**运行时实测校准**的（见下条），不需要手工同步。
-- ⚠️ **首页宽度必须实测校准，不能写死**：`WorkspaceView.ScheduleHomeWidthCheck()`（`ShowHome` 与窗体 `Shown` 各触发一次）用真实可视树量三件事 —— `HomePage.MeasureRowWidth()`（首行两张卡片的外缘宽，含卡片 Margin）、`HomePage.MeasureChromeWidth()`（页面宽 − 列表宽 = 滚动条 + ScrollViewer 内边距）、`ActualWidth − PageHost.ActualWidth`（**实测**页边距，不要读 `Margin` 设定值），相加再加 8 的呼吸余量，回调 `MainWindow.ApplyHomeWidth()` 设置 `ClientSize`。因此**卡片尺寸、字体、Dpi、页边距任何一项变了，首页都会自己算准**，且误差只可能偏宽、不会掉成单列。实测值缓存在 `MainWindow.homeWidthLogical`，后续回首页直接套用（无跳动）。`HomeWidthFallback = 720` 只是首帧兜底（按两列 320 宽卡片留足余量）。
-- ⚠️ **窗口宽度必须按 DPI 换算，不能直接写进 `ClientSize`**：首页约 710 / 功能页 560 是 **96 dpi 基准的逻辑宽度**，而 `Form.ClientSize` 收的是**设备像素**；本窗体 `AutoScaleMode = Dpi` 又会在高 DPI 下把窗体尺寸再乘一次缩放系数，两者打架就会出现"返回首页后卡片宽度时宽时窄、和刚打开时不一样"。`MainWindow.SetHomeLayout` 统一用 `VisualTreeHelper.GetDpi(ElementHost.Child).DpiScaleX` 换算（150% 缩放下 710 逻辑宽 = 1065 设备像素）。新增任何"改窗体尺寸"的代码都要照此办理。
+- **卡片尺寸、分区色与整卡入口**：功能卡模板现在是 **`HomeCardButtonStyle`**，`Width = 240` + `Height = 124` 写死（占位卡 `PlannedCardTemplate` 是 `240 × 84`），`ClipToBounds`，整卡即 `Button`（悬停提亮、按压变实底，不再有独立的「进入」按钮）；嵌套在卡内的星标小按钮会先接管鼠标事件，不会误触发进入。左侧 40×40 图标胶囊按分区着色（建模=钢青蓝、HGT21629 支吊架=青绿、统计与扩展=琥珀），由 `HomeCardItem.Category` 经 `DataTrigger` 分派。标题 1 行（`Height 22`）+ 说明 2 行（`Height 34`），底部一行「时间 / 星标」。内部纵向预算：上下内边距 26 + 内容行 56 + 间距 8 + 星标行 26 = 116 ≤ 124，**改尺寸时要重算这个余量**。**绝不要用 `MinHeight` 或 `Auto` 列宽**：文字换行行数一变卡片就长高，整页跟着变。`ItemsPanel` 用 **`WrapPanel`**（不是 `UniformGrid`）：卡片宽度已写死，放不下就换行，永远不会横向溢出或被裁掉。⚠️ 卡片尺寸若要调整，**只改 `HomeCardButtonStyle` 的这两个值**即可 —— 首页窗口宽度是**运行时实测校准**的（见下条），不需要手工同步。
+- **滚动条统一样式**：`UI/Themes/Theme.xaml` 提供 `AppScrollBarStyle` + 自定义 `ScrollViewer` 模板，把样式显式挂到 `PART_VerticalScrollBar` / `PART_HorizontalScrollBar`，全工程所有页面一致（12 DIP 宽、圆角胶囊滑块、悬停加深）。不用隐式样式——`ScrollViewer` 模板内生成的 `ScrollBar` 不会回查外层合并字典的隐式样式，且必须覆盖系统主题的 `MinWidth/MinHeight`，否则会被夹回系统默认 17 DIP。
+- ⚠️ **首页宽度必须实测校准，不能写死**：`WorkspaceView.ScheduleHomeWidthCheck()`（`ShowHome` 与窗体 `Shown` 各触发一次）用真实可视树量三件事 —— `HomePage.MeasureRowWidth()`（首行两张卡片的外缘宽，含卡片 Margin）、`HomePage.MeasureChromeWidth()`（页面宽 − 列表宽 = 滚动条 + ScrollViewer 内边距）、`ActualWidth − PageHost.ActualWidth`（**实测**页边距，不要读 `Margin` 设定值），相加再加 8 的呼吸余量，回调 `MainWindow.ApplyHomeWidth()` 设置 `ClientSize`。因此**卡片尺寸、字体、Dpi、页边距任何一项变了，首页都会自己算准**，且误差只可能偏宽、不会掉成单列。实测值缓存在 `MainWindow.homeWidthLogical`，后续回首页直接套用（无跳动）。**卡片改为 240 宽后，实测所需宽度 ≈ 552，被下限夹到 560**；`HomeWidthFallback = 560` 与功能页同宽，首帧不再"先宽后窄"跳动。
+- ⚠️ **窗口宽度必须按 DPI 换算，不能直接写进 `ClientSize`**：首页与功能页**同为 560 逻辑宽**（2026-09-28 起卡片收窄到 240 后两列仍放得下），而 `Form.ClientSize` 收的是**设备像素**；本窗体 `AutoScaleMode = Dpi` 又会在高 DPI 下把窗体尺寸再乘一次缩放系数，两者打架就会出现"返回首页后卡片宽度时宽时窄、和刚打开时不一样"。`MainWindow.SetHomeLayout` 统一用 `VisualTreeHelper.GetDpi(ElementHost.Child).DpiScaleX` 换算（150% 缩放下 560 逻辑宽 = 840 设备像素）。新增任何"改窗体尺寸"的代码都要照此办理。
 - 存储 `%LOCALAPPDATA%\SteelSectionProbe\home_preferences.json` 只存 `PageId → {Stars, TotalUseCount, LastUsedUtc, MonthlyUse}`，**不存顺序**：增删功能、调权重都不需要迁移数据，也不会留下“存了顺序但功能已改名”的脏数据。读写失败一律静默回落（与各页 `LastChoice` 一致），绝不能挡住首页。
 - ⚠️ `HomeFeatureCatalog` 的 PageId 与页面 `PageId` 不一致时，`OpenPage` 会命中“未注册的功能模块”分支 —— 这一支**故意不静默返回**，就是为了让配置漂移可见。
 - 新增检查工程要照例在主 `SteelSupportModeler.csproj` 里加 `Compile Remove`（`Development\HomeCheck\**\*.cs`）。
@@ -675,3 +680,31 @@ bin/Release/net48_full/SteelSectionProbe.dll
 纯计算检查：`dotnet run --project Development/SteelSectionCheck/SteelSectionCheck.csproj -c Release`。该工程自带一份 `profiles.bin` 嵌入资源（`LogicalName` 与主工程一致），所以能读真实数据并断言：7 个类型的字段顺序与 Python 注册表一致、每个字段在每个规格里都存在、中文名含汉字、单位在允许列表内、未登记类型返回空表。
 
 程序集内其它用户可见英文（`Statistics` 的 ItemType 写入失败、`RuntimeData` 的数据损坏、耳轴/管口的 `SmartSolid` 字样）也已统一为中文；新增功能时按第 9 节的文案规则办。
+
+## 30. D5 / D6 / G12 / D19 三角架
+
+首页使用 `triangle-bracket`，名称“三角架”，描述含 `D5_D6_G12_D19`。功能分层在各层的 `TriangleBracket/`；点选水平辅助线复用 `BracketLocateTool` 与 `PipeClampReader`，型钢实体复用 `SteelMemberFactory` 和 `profiles.bin`，G2 端板及锚栓复用 `G2AnchorBuilder`。D5 为 H 型钢与角钢且可选 G2 端板；D6、G12 为单片槽钢，G12 另有四根锚栓；D19 为双槽钢和端部连接板。确认前只有可取消的预览，确认后才写清单。
+
+`Statistics.AttachTriangleBracket` 一次性批量写入 `PipeSupportComponents`。四个架型保留 Python 中文 `SupportType`；ItemType 名使用固定组合代号加角色后缀（`A`、`B`、`C`、`PLATE_A`、`PLATE_B`、`BOLT_A`、`BOLT_B`），不含尺寸或哈希。不得改变 `PipeSupportAssembly_` / `PipeSupportComponent_` 前缀，统计页依赖它们分类。纯计算检查在 `Development/TriangleBracketCheck/`。
+
+## 31. D8 / D13 / G5 / G6 门型架
+
+首页只有 `portal-frame` 一个入口，进入后选 D8、D13、G5、G6 及各自子项。点取整组中心竖直辅助线，线长为 H；平面方向角由页面输入。D8 输入立柱净距 B，D13/G5 输入横担全长 L，G6 输入两柱外缘间距 L。D8 类型 1～4 覆盖正门、倒门及端焊、侧焊；D13 类型 1～2 覆盖正门、倒门；G5/G6 地面生根每柱一套锚板、四根膨胀锚栓、螺母和灌浆梯台。
+
+实现分层在各层 `PortalFrame/`。型钢规格与截面从 `profiles.bin` 查询，荷载表与地脚参数记录在 `PortalFrameCatalog`。预览可以更新或取消；`Statistics.AttachPortalFrame` 仅在确认时批量写入固定名称的 Assembly / Post / Arm / AnchorPlate / AnchorBolt / Nut / GroundGrout 角色，无实例哈希。纯计算检查在 `Development/PortalFrameCheck/`。
+
+G5/G6 及复用此地脚的 G4，现场灌浆梯台采用方体减四侧楔体。OPM 的 `Create.BodyFromLoft` 对此处两张方形截面返回 `Error`，不要重新改回无回退的放样调用。
+
+## 32. D12 / G4 / D15 T 型架
+
+首页只有 `t-frame` 一个入口，页面顶部选择 D12、G4、D15。D12/G4 点取竖直辅助线，D15 点取水平辅助线。D12 支持正 T / 倒 T，G4 为地面生根正 T，D15 支持对称 / 偏心与接点焊接形式。D15 筋板尺寸只进入编号，不生成筋板实体。型钢来自 `profiles.bin`，G4 地脚几何复用 `PortalFrameBuilder.BuildGround`。确认预览时由 `Statistics.AttachTFrame` 一次写入固定的组合代号与构件角色 ItemType，不使用哈希或尺寸作为类型名。纯计算检查在 `Development/TFrameCheck/`。
+
+D15 截面姿态集中在 `TFrameSectionAxes`，对应 Python `水平T形架_几何.member_axes` 的负角旋转约定。槽钢构件 B 的截面 X 轴为 `-u`、Y 轴为 `+w`；槽钢构件 A 的截面 X 轴为 `+v`、Y 轴为 `+w`。不要把正 90° 误当成数学上的正向旋转，否则槽钢开口会反向。
+
+T 型架参数页的 H/L 或 L1/L2 上限与 `TFrameCalculator.Calculate` 的校验共用 `TFrameCalculator.Limits`，切换子项、类型、输入值及点选辅助线后更新“当前值 / 标准上限”。D15 的辅助线标准上限为 `L1 上限 + 构件 B 腹板厚 tb`。校验允许 1 mm 测量容差；超限错误必须写明当前值和标准上限，不要只提示“超出上限”。
+
+## 33. Y2 弧形垫板 / 弯头垫板
+
+首页只有 `pad-plate` 一个入口，页面顶部选 Y2 或弯头垫板。Y2 点取水平管道、HVAC 圆形直风管或直线；普通管道按 DN 查外径与板厚，HVAC 圆形直风管按 EC 实际外径贴合，不落到备用 DN。弯头垫板点取 90° 管道或 HVAC 圆风管弯头，读取 EC 矩阵、外径和弯曲半径；截面沿弯头中心线圆弧扫掠。风管护板厚度由实际外径决定：≤2000 mm 为 6 mm，>2000 mm 为 10 mm。Y2 风管编号的尺寸段采用 `D450` 这类实际外径文字，ItemType 名仍固定。两类垫板都用真圆弧截面和可选 Ø6 通气孔。
+
+预览可更新或取消；确认时 `Statistics.AttachPadPlate` 一次写入 Assembly 与 Pad 构件。ItemType 名固定为 `PipeSupportAssembly_Y2_ARC_PAD` / `PipeSupportComponent_Y2_ARC_PAD_PAD` 或 `PipeSupportAssembly_ELBOW_PAD` / `PipeSupportComponent_ELBOW_PAD_PAD`，尺寸、材料和编号只写实例属性。纯计算检查在 `Development/PadPlateCheck/`。Bentley 扫掠、气孔布尔与 EC 点取需要在 OPM 中实测。

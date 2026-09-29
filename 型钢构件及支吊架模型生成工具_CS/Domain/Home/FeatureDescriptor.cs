@@ -19,7 +19,7 @@ namespace SteelSectionProbe
         public int DefaultOrder;
 
         /// <summary>
-        /// 首页分区键（见 <c>Data/Home/HomeCategories.cs</c>：建模类 / 支撑架类 / 统计与扩展 / 规划中）。
+        /// 首页分区键（见 <c>Data/Home/HomeCategories.cs</c>：建模类 / HGT21629 支吊架 / 统计与扩展 / 规划中）。
         /// 首页据此把卡片分组显示；本类型只存字符串，不认识具体分类名，保持 Domain 层纯净。
         /// </summary>
         public string Category = "";

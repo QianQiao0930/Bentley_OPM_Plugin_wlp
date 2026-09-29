@@ -36,6 +36,10 @@ namespace SteelSectionProbe
             RegisterPage(new VerticalPipeSupportPage());
             RegisterPage(new N3Page());
             RegisterPage(new N4Page());
+            RegisterPage(new TriangleBracketPage());
+            RegisterPage(new PortalFramePage());
+            RegisterPage(new TFramePage());
+            RegisterPage(new PadPlatePage());
             RegisterPage(new N8Page());
             ShowHome();
         }

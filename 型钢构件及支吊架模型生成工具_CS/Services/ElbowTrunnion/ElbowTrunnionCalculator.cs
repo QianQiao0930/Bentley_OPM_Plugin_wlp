@@ -188,7 +188,8 @@ namespace SteelSectionProbe
             string suffix=Math.Abs(plan.WallMm-size.WallMm)<1e-6 ? "" :
                 "("+plan.WallMm.ToString("G",CultureInfo.InvariantCulture)+")";
             string extent=Math.Floor(p.ExtentMm+0.5).ToString("0",CultureInfo.InvariantCulture);
-            string mainDiameter=p.NamingUnit==PipeNamingUnit.Imperial
+            string mainDiameter=!string.IsNullOrEmpty(plan.Selection.MainSizeLabel)
+                ? plan.Selection.MainSizeLabel : p.NamingUnit==PipeNamingUnit.Imperial
                 ? Nps[plan.Selection.MainDn] : "DN"+plan.Selection.MainDn;
             string trunnionDiameter=p.NamingUnit==PipeNamingUnit.Imperial
                 ? Nps[size.Dn] : "DN"+size.Dn;

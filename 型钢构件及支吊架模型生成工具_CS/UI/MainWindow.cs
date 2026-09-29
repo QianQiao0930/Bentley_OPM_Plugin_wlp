@@ -72,11 +72,12 @@ namespace SteelSectionProbe
         }
 
         /// <summary>
-        /// 首页宽、功能页窄。数字是 <b>96 dpi 下的逻辑宽度</b>，会按实际 DPI 换算成设备像素。
+        /// 首页与功能页**同为 560 逻辑宽**（2026-09-28 起：卡片收窄到 240 后两列放得下，
+        /// 首页不再需要比功能页宽）。数字是 <b>96 dpi 下的逻辑宽度</b>，会按实际 DPI 换算成设备像素。
         /// <para>
-        /// 首页宽不是拍脑袋定的：<see cref="WorkspaceView.ScheduleHomeWidthCheck"/> 会按真实可视树
-        /// 实测"两列卡片 + 页边距 + 滚动条"需要的宽度，再回调 <see cref="ApplyHomeWidth"/> 收窄窗口，
-        /// 所以这里的 <c>HomeWidthFallback</c> 只是**首次布局前的兜底值**（取一个两列一定放得下的宽度）。
+        /// 兜底值之外还有一层保险：<see cref="WorkspaceView.ScheduleHomeWidthCheck"/> 会按真实可视树
+        /// 实测"两列卡片 + 页边距 + 滚动条"需要的宽度，再回调 <see cref="ApplyHomeWidth"/> 校准
+        /// （实测 552 → 被下限夹到 560）。万一以后卡片改宽，窗口会自动跟着加宽而不是掉成单列。
         /// </para>
         /// <para>
         /// ⚠️ 设计尺寸不能直接写进 <see cref="ClientSize"/> —— 那是以<b>设备像素</b>为单位的，
@@ -92,8 +93,12 @@ namespace SteelSectionProbe
             if(ClientSize.Width!=width)ClientSize=new Size(width,ClientSize.Height);
         }
 
-        /// <summary>首页宽度兜底值（逻辑宽）：两列 320 宽卡片 + 页边距 + 滚动条 = 约 700，再留余量取 720 防抖。</summary>
-        private const int HomeWidthFallback = 720;
+        /// <summary>
+        /// 首页宽度兜底值（逻辑宽）。**与功能页同宽 = 560**：卡片改成 240 宽后两列只需
+        /// 24 页边距 + 2×(240+12) + 16 滚动条开销 + 8 余量 = 552 ≤ 560，正好放得下，
+        /// 所以首页不再比功能页宽，首帧也不会出现"先宽后窄"的跳动。
+        /// </summary>
+        private const int HomeWidthFallback = 560;
 
         /// <summary>当前首页宽度（逻辑宽），首帧用兜底值，之后由实测校准。</summary>
         private int homeWidthLogical = HomeWidthFallback;

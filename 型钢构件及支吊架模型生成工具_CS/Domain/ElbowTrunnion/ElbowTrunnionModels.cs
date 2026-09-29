@@ -51,6 +51,7 @@ namespace SteelSectionProbe
     {
         internal ulong ElementId = 0;
         internal string ClassName = "", PipeNumber = "";
+        internal string MainSizeLabel = "", MainDnNote = "";
         internal int MainDn;
         internal double OutsideDiameterMm;
         internal ElbowFrame Frame;

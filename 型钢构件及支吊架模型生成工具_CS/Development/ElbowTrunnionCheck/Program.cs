@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace SteelSectionProbe
 {
@@ -24,6 +25,15 @@ namespace SteelSectionProbe
         {
             Equal(ElbowTrunnionCalculator.ExtentFromViewProjection(
                 10,20,10,120,10,70,1000),500,"视图投影拉伸长度");
+            var ecGroups=new Dictionary<string,Dictionary<string,string>>(StringComparer.OrdinalIgnoreCase) {
+                {"OpenPlant_3D.LONG_RADIUS_90_DEGREE_PIPE_ELBOW",
+                    new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase) { {"ANGLE","90"} }},
+                {"OpenPlant_3D.HVAC_ROUND_ELBOW",
+                    new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase) {
+                        {"ANGLE","90"},{"MAIN_DIAMETER","450"},{"RADIUS","450"} }}
+            };
+            if(ElbowTrunnionCatalog.SelectElbowClass(ecGroups)!="OpenPlant_3D.HVAC_ROUND_ELBOW")
+                throw new Exception("风管弯头不能被管道 90° 基类遮盖");
             Reject(()=>ElbowTrunnionCalculator.ExtentFromViewProjection(
                 10,20,10,20,15,30,1000),"端视图中不可见的拉伸方向");
             var vf=ElbowTrunnionCalculator.Frame(Matrix(false),1,100,100,
@@ -40,7 +50,21 @@ namespace SteelSectionProbe
             Equal(f2.TubeEndMm.Z,100,"F2 竖直耳轴上端");
             Equal(f2.TubeStartMm.Z,-990,"F2 底板高度");
             if (!f2.AssemblyTag.StartsWith("F2-DN100-DN")) throw new Exception("F2 公制编号");
+            string ductNote;
+            if(ElbowTrunnionCatalog.DuctMainDn(450,out ductNote)!=450 || ductNote!="")
+                throw new Exception("风管 D450 直接匹配 DN450");
+            if(ElbowTrunnionCatalog.DuctMainDn(315,out ductNote)!=300 || !ductNote.Contains("就近匹配"))
+                throw new Exception("风管 D315 就近匹配 DN300");
+            if(ElbowTrunnionCatalog.DuctMainDn(2000,out ductNote)!=1200 || !ductNote.Contains("保底"))
+                throw new Exception("大风管采用最大选型档");
+            Reject(()=>{ string note; ElbowTrunnionCatalog.DuctMainDn(90,out note); },"无法匹配的风管外径");
+            var duct=new ElbowTrunnionSelection { MainDn=450,MainSizeLabel="D450",
+                OutsideDiameterMm=450,Frame=vf };
+            if(!ElbowTrunnionCalculator.Calculate(duct,vertical).AssemblyTag.StartsWith("F2-D450-DN"))
+                throw new Exception("风管公制编号应使用实际外径 D450");
             vertical.NamingUnit=PipeNamingUnit.Imperial;
+            if(!ElbowTrunnionCalculator.Calculate(duct,vertical).AssemblyTag.StartsWith("F2-D450-"))
+                throw new Exception("风管英制编号仍应使用 D450");
             if (!ElbowTrunnionCalculator.Calculate(vs,vertical).AssemblyTag.StartsWith("F2-4\"-"))
                 throw new Exception("F2 英制编号");
             vertical.NamingUnit=PipeNamingUnit.Metric;
