@@ -24,5 +24,13 @@
     <Compile Include="../../Services/PipeClamp/A1ClampCalculator.cs" Link="A1ClampCalculator.cs" />
     <Compile Include="../../Services/PipeClamp/K1LimitCalculator.cs" Link="K1LimitCalculator.cs" />
     <Compile Include="../../Services/PipeClamp/T4ShoeCalculator.cs" Link="T4ShoeCalculator.cs" />
+    <Compile Include="../../Data/ColdRiserGuide/L7GuideCatalog.cs" Link="L7GuideCatalog.cs" />
+    <Compile Include="../../Domain/ColdRiserGuide/L7GuidePlan.cs" Link="L7GuidePlan.cs" />
+    <Compile Include="../../Services/ColdRiserGuide/L7GuideCalculator.cs" Link="L7GuideCalculator.cs" />
+    <Compile Include="../../Domain/N8ConnectionPlate/N8ConnectionPlateModels.cs" Link="N8ConnectionPlateModels.cs" />
+    <Compile Include="../../Data/N8ConnectionPlate/N8Catalog.cs" Link="N8Catalog.cs" />
+    <Compile Include="../../Domain/G2Anchor/G2AnchorModels.cs" Link="G2AnchorModels.cs" />
+    <Compile Include="../../Data/G2Anchor/G2AnchorCatalog.cs" Link="G2AnchorCatalog.cs" />
   </ItemGroup>
+  <ItemGroup><EmbeddedResource Include="../../Resources/profiles.bin" LogicalName="SteelSectionProbe.profiles.bin" /></ItemGroup>
 </Project>

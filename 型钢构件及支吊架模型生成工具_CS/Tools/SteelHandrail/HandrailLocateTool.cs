@@ -4,41 +4,42 @@ using Bentley.MstnPlatformNET;
 
 namespace SteelSectionProbe
 {
-    internal sealed class PortalFrameLocateTool:DgnElementSetTool
+    internal sealed class HandrailLocateTool:DgnElementSetTool
     {
-        private static PortalFrameLocateTool active;
-        private static bool snap,locate,horizontal;
-        internal static bool IsActive{get{return active!=null;}}
+        private static HandrailLocateTool active;
+        private static bool snap,locate;
+        internal static bool IsActive {get{return active!=null;}}
         internal static event Action<LocatedElement> Picked;
         internal static event Action Ended;
-        private PortalFrameLocateTool():base(0,0){}
+        private HandrailLocateTool():base(0,0){}
         protected override RefLocateOption GetReferenceLocateOptions()
         {return RefLocateOption.TreatAsElement;}
         protected override bool OnPostLocate(HitPath path,out string reason)
         {
-            if(base.OnPostLocate(path,out reason))return true;
             var element=path==null?null:path.GetHeadElement();
-            if(LocatedElement.IsReference(element)){reason="";return true;}
-            return false;
+            if(LocatedElement.IsReference(element)){reason="请选择活动模型中的围栏辅助线。";return false;}
+            return base.OnPostLocate(path,out reason);
         }
-        internal static void Begin(bool horizontalLine=false)
+        internal static void Begin()
         {
-            horizontal=horizontalLine;
             if(active!=null){AccuSnap.SnapEnabled=true;AccuSnap.LocateEnabled=true;return;}
-            var created=new PortalFrameLocateTool();
+            var created=new HandrailLocateTool();
             snap=AccuSnap.SnapEnabled;locate=AccuSnap.LocateEnabled;active=created;
-            try{created.InstallTool();AccuSnap.SnapEnabled=true;AccuSnap.LocateEnabled=true;}
-            catch{active=null;AccuSnap.SnapEnabled=snap;AccuSnap.LocateEnabled=locate;throw;}
+            try {created.InstallTool();AccuSnap.SnapEnabled=true;AccuSnap.LocateEnabled=true;}
+            catch {active=null;AccuSnap.SnapEnabled=snap;AccuSnap.LocateEnabled=locate;throw;}
         }
         internal static void End()
         {
             var tool=active;if(tool==null)return;active=null;
-            try{tool.ExitTool();}
-            finally{AccuSnap.SnapEnabled=snap;AccuSnap.LocateEnabled=locate;
+            try {tool.ExitTool();}
+            finally {AccuSnap.SnapEnabled=snap;AccuSnap.LocateEnabled=locate;
                 var ended=Ended;if(ended!=null)ended();}
         }
         protected override void OnPostInstall()
-        {base.OnPostInstall();NotificationManager.OutputPrompt(horizontal?"请选择水平辅助线，线长为 L1；左键预览，右键退出。":"请选择门型架中心竖直辅助线，线长为 H；左键预览，右键退出。");}
+        {
+            base.OnPostInstall();
+            NotificationManager.OutputPrompt("请选择水平或带坡度的围栏辅助线；左键生成预览，右键取消并退出。");
+        }
         protected override bool OnDataButton(DgnButtonEvent ev)
         {
             var hit=DoLocate(ev,true,(int)ComponentMode.None);

@@ -69,6 +69,28 @@ namespace SteelSectionProbe
             return result;
         }
 
+        /// <summary>供 L7 等立管导向架复用 T4 的对开承重板、开孔耳板及紧固件，
+        /// 不生成 T4 的底板、腹板、横向支撑、管道或保温层。</summary>
+        internal static List<Element> BuildBearingClamp(T4ShoeLayout layout,
+            T4ShoeBooleanLayout bl,DPoint3d center,DVector3d axis)
+        {
+            if(layout==null||bl==null)throw new ArgumentNullException("layout");
+            var model=Session.Instance.GetActiveDgnModel();
+            if(model==null||!model.Is3d)
+                throw new InvalidOperationException("承重夹板需要三维 DGN 模型。");
+            var frame=new PipeClampFrame(center,model.GetModelInfo().UorPerMeter/1000.0,
+                axis.X,axis.Y,axis.Z);
+            var result=new List<Element>();
+            result.Add(SolidPrimitiveFactory.Element(BuildRing(frame,bl,layout),
+                T4ShoeCatalog.ClampColor));
+            for(int i=0;i<bl.EarCenterXmm.Length;i++)
+            {
+                AddFasteners(result,frame,bl,layout,bl.EarCenterXmm[i],bl.EarHoleA[2]);
+                AddFasteners(result,frame,bl,layout,bl.EarCenterXmm[i],bl.EarHoleA[0]);
+            }
+            return result;
+        }
+
         /// <summary>外圆柱 − 内圆柱 − 45° 矩形贯穿体，再逐块布尔并入开孔耳板。</summary>
         private static SolidKernelEntity BuildRing(PipeClampFrame frame,
             T4ShoeBooleanLayout bl,T4ShoeLayout layout)

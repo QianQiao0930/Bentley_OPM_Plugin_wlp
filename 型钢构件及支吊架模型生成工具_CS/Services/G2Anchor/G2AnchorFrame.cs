@@ -32,6 +32,11 @@ namespace SteelSectionProbe
             zx=axisZ[0];zy=axisZ[1];zz=axisZ[2];
         }
 
+        internal G2AnchorFrame(DPoint3d origin,double scale,DVector3d x,DVector3d y,DVector3d z)
+        {
+            Origin=origin;Scale=scale;
+            xx=x.X;xy=x.Y;xz=x.Z;yx=y.X;yy=y.Y;yz=y.Z;zx=z.X;zy=z.Y;zz=z.Z;
+        }
         /// <summary>局部毫米坐标 -> 世界 UOR 点。</summary>
         internal DPoint3d Point(double x,double y,double z)
         {

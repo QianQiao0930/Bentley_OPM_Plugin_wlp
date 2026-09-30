@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Globalization;
 using System.Collections.Generic;
 using Bentley.DgnPlatformNET;
@@ -286,6 +286,65 @@ namespace SteelSectionProbe
                 WriteRecords(element,entries);
             }
         }
+        internal static void AttachHandrail(Element element,HandrailPlan plan)
+        {
+            if(element==null||plan==null)throw new ArgumentNullException("element");
+            using(StatisticsTrace.Scope("普通钢结构围栏 AttachHandrail")) {
+                var entries=new List<KeyValuePair<string,object[]>>();
+                string type=HandrailCatalog.SupportType,tag=plan.Number;
+                AddEntry(entries,"PipeSupportAssembly_STEEL_HANDRAIL","Assembly",type,tag,
+                    "围栏","类型 "+(int)plan.Parameters.Connection+" / 路径长 "+plan.LengthMm.ToString("0.#",CultureInfo.InvariantCulture)+
+                    " mm / "+plan.Stations.Count+" 根立柱",plan.LengthMm,1,"套","");
+                foreach(var item in plan.Materials)
+                    AddEntry(entries,"PipeSupportComponent_STEEL_HANDRAIL_"+item.Code,"Component",type,tag,
+                        item.Name,item.Specification,item.LengthMm,item.Quantity,"件","");
+                WriteRecords(element,entries);
+            }
+        }
+        internal static void AttachL7Guide(Element element,L7GuidePlan plan)
+        {
+            if(element==null||plan==null)throw new ArgumentNullException("element");
+            bool type2=!plan.HasMember;
+            string feature=plan.Code+(plan.Kind==L7GuideKind.Type2?"_TYPE2":"_TYPE1");
+            using(StatisticsTrace.Scope("L7 "+(type2?"类型2":"类型1")+" 立管导向架 AttachL7Guide")) {
+                string type=L7GuideCatalog.SupportType(plan),tag=plan.Number,pipe=plan.PipeNumber;
+                var entries=new List<KeyValuePair<string,object[]>>();
+                AddEntry(entries,"PipeSupportAssembly_"+feature,"Assembly",type,tag,
+                    "支吊架",plan.Specification,0,1,"套",pipe);
+                AddEntry(entries,"PipeSupportComponent_"+feature+"_BEARING","Component",type,tag,
+                    "承重板（对开）","T3="+plan.Bearing.T3Mm.ToString("0.#",CultureInfo.InvariantCulture),
+                    plan.BearingLengthMm,2,"件",pipe);
+                int groups=plan.BearingBoolean.EarCenterXmm.Length;
+                AddEntry(entries,"PipeSupportComponent_"+feature+"_EAR","Component",type,tag,
+                    "承重板耳板",plan.Bearing.EarWidthMm+"×"+plan.Bearing.EarHeightMm+"×"+
+                    plan.Bearing.EarThicknessMm,0,4*groups,"块",pipe);
+                AddEntry(entries,"PipeSupportComponent_"+feature+"_BEARING_BOLT","Component",type,tag,
+                    "承重板螺栓及螺母",plan.Bearing.Bolt,plan.Bearing.BoltLengthMm,
+                    2*groups,"套",pipe);
+                AddEntry(entries,"PipeSupportComponent_"+feature+"_BEARING_WASHER","Component",type,tag,
+                    "承重板垫圈",plan.Bearing.Bolt,0,4*groups,"件",pipe);
+                AddEntry(entries,"PipeSupportComponent_"+feature+"_CLAMP","Component",type,tag,
+                    (type2?"A24":"A22")+" 管夹本体",plan.Clamp.Specification,
+                    plan.Clamp.W,2,"件",pipe);
+                if(!type2)
+                    AddEntry(entries,"PipeSupportComponent_"+feature+"_MEMBER_A","Component",type,tag,
+                        "构件 A",plan.MemberLabel,plan.MemberLengthMm,1,"根",pipe);
+                AddEntry(entries,"PipeSupportComponent_"+feature+"_BOLT","Component",type,tag,
+                    "螺栓及螺母","M"+plan.Clamp.BoltDiameterMm,0,type2?4:2,"套",pipe);
+                AddEntry(entries,"PipeSupportComponent_"+feature+"_WASHER","Component",type,tag,
+                    "垫圈","M"+plan.Clamp.BoltDiameterMm,0,type2?8:4,"件",pipe);
+                if(plan.Connection!=null) {
+                    var n=plan.Connection;
+                    AddEntry(entries,"PipeSupportComponent_"+feature+"_N8_PLATE","Component",type,tag,
+                        "N8 连接板",n.Number+" / "+n.E+"×"+n.E+"×"+n.T,n.T,1,"块",pipe);
+                    AddEntry(entries,"PipeSupportComponent_"+feature+"_N8_BOLT","Component",type,tag,
+                        "N8 螺栓及螺母","M"+n.BoltDiameter+"×"+n.BoltLength,n.BoltLength,n.BoltCount,"套",pipe);
+                    AddEntry(entries,"PipeSupportComponent_"+feature+"_N8_WASHER","Component",type,tag,
+                        "N8 垫圈","M"+n.BoltDiameter,0,2*n.BoltCount,"件",pipe);
+                }
+                WriteRecords(element,entries);
+            }
+        }
         /// <summary>A24 总成、两片本体、四套紧固件和八只垫圈。</summary>
         internal static void AttachA24Clamp(Element element,A22ClampPlan plan)
         {
@@ -529,10 +588,16 @@ namespace SteelSectionProbe
                 var entries=new List<KeyValuePair<string,object[]>>();
                 AddEntry(entries,PortalFrameCatalog.AssemblyItemName(kind),"Assembly",type,tag,
                     "支吊架",plan.AssemblySpecification,0,1,"套","");
-                AddPortalPart(entries,kind,type,tag,"Post","立柱",v.PostSpecification,
+                AddPortalPart(entries,kind,type,tag,kind=="D16"?"MemberA":"Post",kind=="D16"?"构件 A":"立柱",v.PostSpecification,
                     plan.PostLengthMm,2,"件");
-                AddPortalPart(entries,kind,type,tag,"Arm","横担",v.ArmSpecification,
+                AddPortalPart(entries,kind,type,tag,kind=="D16"?"MemberB":"Arm",kind=="D16"?"构件 B":"横担",v.ArmSpecification,
                     kind=="G6"?plan.SpanMm:plan.ArmLengthMm,plan.ArmQuantity,"件");
+                if(plan.Plate!=null){
+                    AddPortalPart(entries,kind,type,tag,"G2Plate","混凝土锚板",plan.Plate.PlateSpecification,
+                        plan.Plate.PlateThicknessMm,2,"块");
+                    AddPortalPart(entries,kind,type,tag,"G2Bolt","膨胀锚栓",plan.Plate.BoltSpecification,
+                        plan.Plate.BoltLengthMm,8,"根");
+                }
                 if(v.Ground!=null)
                 {
                     var g=v.Ground;

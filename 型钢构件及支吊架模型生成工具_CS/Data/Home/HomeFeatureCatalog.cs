@@ -1,4 +1,4 @@
-namespace SteelSectionProbe
+﻿namespace SteelSectionProbe
 {
     /// <summary>
     /// 首页功能清单（唯一来源）。改造前这些卡片是手写在 <c>UI/HomePage.xaml</c> 里的，
@@ -23,6 +23,8 @@ namespace SteelSectionProbe
             {
                 new FeatureDescriptor("steel-sections", "型钢生成",
                     "二维截面或沿路径生成三维型钢。", 10, HomeCategories.Modeling, "steel"),
+                new FeatureDescriptor("steel-handrail", "普通钢结构围栏",
+                    "沿水平或坡段路径生成立柱、扶手和踢脚板。", 15, HomeCategories.Modeling, "handrail"),
                 new FeatureDescriptor("component-properties", "构件特性查询",
                     "点取构件，查看 EC 属性与几何特性。", 20, HomeCategories.Stats, "inspect"),
                 new FeatureDescriptor("elbow-trunnion", "弯头耳轴",
@@ -37,6 +39,8 @@ namespace SteelSectionProbe
                     "A1、A2、A22、A24、E1、K1、T4、L2 管夹与管托。", 70, HomeCategories.Support, "clamp"),
                 new FeatureDescriptor("vertical-pipe-support", "立管耳轴",
                     "F6、F7、F10；点取立管或竖直辅助线。", 80, HomeCategories.Support, "riser"),
+                new FeatureDescriptor("cold-riser-guide", "保冷立管导向架",
+                    "L7 / L8 类型 1/2：点取立管并旋转安装方向。", 85, HomeCategories.Support, "riser"),
                 new FeatureDescriptor("g2-anchor-plate", "混凝土锚板",
                     "G2 锚板与 4 根膨胀锚栓。", 90, HomeCategories.Support, "anchor"),
                 new FeatureDescriptor("n3-single-bracket", "N3 单三角架",
@@ -48,7 +52,7 @@ namespace SteelSectionProbe
                 new FeatureDescriptor("l-bracket", "L 型架",
                     "D7：L 形与倒 L 形管架。", 116, HomeCategories.Support, "triangle"),
                 new FeatureDescriptor("portal-frame", "门型架",
-                    "D8_D13_G5_G6：正门、倒门与地面生根。", 117, HomeCategories.Support, "triangle"),
+                    "D8_D13_G5_G6_D16_D20：竖直与水平门型架。", 117, HomeCategories.Support, "triangle"),
                 new FeatureDescriptor("t-frame", "T 型架",
                     "D12_G4_D15：正 T、倒 T 与水平 T。", 118, HomeCategories.Support, "triangle"),
                 new FeatureDescriptor("pad-plate", "垫板",

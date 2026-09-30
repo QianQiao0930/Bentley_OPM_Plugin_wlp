@@ -26,6 +26,7 @@ namespace SteelSectionProbe
 
             SteelSections = new SteelSectionPage();
             RegisterPage(SteelSections);
+            RegisterPage(new HandrailPage());
             RegisterPage(new ComponentPropertiesPage());
             RegisterPage(new ElbowTrunnionPage());
             RegisterPage(new SupportStatisticsPage());
@@ -34,6 +35,7 @@ namespace SteelSectionProbe
             RegisterPage(new PipeClampPage());
             RegisterPage(new G2AnchorPage());
             RegisterPage(new VerticalPipeSupportPage());
+            RegisterPage(new ColdRiserGuidePage());
             RegisterPage(new N3Page());
             RegisterPage(new N4Page());
             RegisterPage(new TriangleBracketPage());

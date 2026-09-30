@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Globalization;
 using System.Windows;
@@ -16,16 +16,18 @@ namespace SteelSectionProbe
         private bool active,ready,locating,dirty;
         public string PageId{get{return "portal-frame";}}
         public string PageTitle{get{return "门型架";}}
-        public string PageSubtitle{get{return "D8 / D13 / G5 / G6";}}
+        public string PageSubtitle{get{return "D8 / D13 / G5 / G6 / D16 / D20";}}
         public FrameworkElement View{get{return this;}}
         internal PortalFramePage()
         {
             InitializeComponent();
-            KindCombo.ItemsSource=new[]{"D8 角钢与槽钢","D13 H 型钢","G5 地面生根","G6 H 型钢与双槽钢"};
+            KindCombo.ItemsSource=new[]{"D8 角钢与槽钢","D13 H 型钢","G5 地面生根","G6 H 型钢与双槽钢","D16 水平门型架","D20 H 型钢与双槽钢"};
             KindCombo.SelectedIndex=0;
+            WeldCombo.ItemsSource=new[]{"A","B","C","D"};WeldCombo.SelectedIndex=0;
+            PlateSubtypeCombo.ItemsSource=new[]{"A","B","C","D"};PlateSubtypeCombo.SelectedIndex=0;
             ready=true;UpdateKind(true);
             PageLastInput.Restore(this,PageId,"KindCombo","VariantCombo","TypeCombo",
-                "SpanText","HeadingText","NameText","KeepLineCheck");
+                "SpanText","HeadingText","NameText","KeepLineCheck","WeldCombo","L3Text","L4Text","PlateCheck","PlateSubtypeCombo","PlateOffsetText");
         }
         public void OnActivated(){active=true;PortalFrameLocateTool.Picked+=OnPicked;
             PortalFrameLocateTool.Ended+=OnEnded;}
@@ -34,7 +36,7 @@ namespace SteelSectionProbe
         private void Close()
         {
             PageLastInput.Save(this,PageId,"KindCombo","VariantCombo","TypeCombo",
-                "SpanText","HeadingText","NameText","KeepLineCheck");
+                "SpanText","HeadingText","NameText","KeepLineCheck","WeldCombo","L3Text","L4Text","PlateCheck","PlateSubtypeCombo","PlateOffsetText");
             active=false;PortalFrameLocateTool.Picked-=OnPicked;PortalFrameLocateTool.Ended-=OnEnded;
             if(locating)PortalFrameLocateTool.End();locating=false;
             try{preview.Cancel();}catch(Exception ex){Status(ex.Message,true);}
@@ -43,12 +45,17 @@ namespace SteelSectionProbe
         private string Kind{get{return PortalFrameCatalog.Kinds[Math.Max(0,KindCombo.SelectedIndex)];}}
         private char Variant{get{return PortalFrameCatalog.Variants(Kind)[Math.Max(0,VariantCombo.SelectedIndex)];}}
         private void Kind_Changed(object sender,SelectionChangedEventArgs e)
-        {if(!ready)return;UpdateKind(true);Changed();}
+        {if(!ready)return;
+            if(locating)PortalFrameLocateTool.End();
+            try{preview.Cancel();}catch(Exception ex){Status(ex.Message,true);}
+            line=null;ConfirmButton.IsEnabled=false;UpdateKind(true);
+            PreviewText.Text=Kind=="D16"?"请选择一条水平辅助线，线长为 L1。":"请选择中心竖直辅助线，线长为 H。";Changed();}
         private void UpdateKind(bool reset)
         {
             string kind=Kind;
             if(reset)
             {
+                ready=false;
                 VariantCombo.ItemsSource=null;
                 var chars=PortalFrameCatalog.Variants(kind);
                 var choices=new string[chars.Length];
@@ -56,16 +63,29 @@ namespace SteelSectionProbe
                 VariantCombo.ItemsSource=choices;VariantCombo.SelectedIndex=0;
                 TypeCombo.ItemsSource=kind=="D8"
                     ?new[]{"类型 1：正门端焊","类型 2：正门侧焊","类型 3：倒门端焊","类型 4：倒门侧焊"}
+                    :kind=="D16"?new[]{"类型 1：水平门型","类型 2：水平井型"}
                     :kind=="D13"?new[]{"类型 1：正门","类型 2：倒门"}
-                    :new[]{"地面生根"};
+                    :kind=="D20"?new[]{"门型架"}:new[]{"地面生根"};
                 TypeCombo.SelectedIndex=0;SpanText.Text=kind=="D8"?"500":"1000";
-                NameText.Text=kind;
+                NameText.Text=kind;ready=true;
             }
-            SpanLabel.Text=kind=="D8"?"立柱净距 B（mm）":
-                kind=="G6"?"两柱外缘间距 L（mm）":"横担全长 L（mm）";
+            bool horizontal=kind=="D16";
+            HorizontalPanel.Visibility=horizontal?Visibility.Visible:Visibility.Collapsed;
+            PlatePanel.Visibility=horizontal?Visibility.Visible:Visibility.Collapsed;
+            PlateSubtypeCombo.IsEnabled=PlateOffsetText.IsEnabled=horizontal&&PlateCheck.IsChecked==true;
+            L3Text.IsEnabled=L4Text.IsEnabled=horizontal&&TypeCombo.SelectedIndex==1;
+            HeadingText.IsEnabled=!horizontal;
+            HeadingLabel.Text=horizontal?"方向由水平辅助线读取":"平面方向角（度）";
+            LineInstruction.Text=horizontal?"选择一条水平辅助线：起点为生根中心，线长为 L1。":
+                "点取整组中心竖直辅助线；线长为门架高度 H。";
+            PickInstruction.Text=horizontal?"请选择水平辅助线，线长为 L1；调整参数后更新预览。":"请选择竖直辅助线，调整参数后更新预览。";
+            SpanLabel.Text=horizontal?"L2（mm，A 内侧净距）":kind=="D8"?"立柱净距 B（mm）":
+                kind=="D20"?"立杆中心间距 L（mm）":kind=="G6"?"两柱外缘间距 L（mm）":"横担全长 L（mm）";
             var v=PortalFrameCatalog.Variant(kind,Variant);
-            SectionText.Text="立柱："+v.PostSpecification+"    横担："+v.ArmSpecification+
-                (kind=="G6"?" ×2，槽钢腹板净距 S="+v.ChannelGap+" mm":"")+
+            SectionText.Text=(horizontal?"构件 A：":"立柱：")+v.PostSpecification+(horizontal?"    构件 B：":"    横担：")+v.ArmSpecification+
+                (kind=="D20"?"\n标准上限：H ≤"+PortalFrameCatalog.MaxHeight(kind,Variant)+" mm；L ≤2000 mm。立杆实长 H+50。":"")+
+                (horizontal?"\n标准上限：L1 ≤1000 mm；L2 ≤"+PortalFrameCatalog.MaxSpan(kind,Variant)+" mm。":"")+
+                (kind=="G6"||kind=="D20"?" ×2，槽钢腹板净距 S="+v.ChannelGap+" mm":"")+
                 (v.Ground==null?"":"\n地面生根：锚板 "+v.Ground.PlateSide+"×"+
                     v.Ground.PlateSide+"×"+v.Ground.PlateThickness+
                     "；每柱 4 根 M"+v.Ground.BoltDiameter+" 锚栓；地坪最小厚度 "+
@@ -83,16 +103,26 @@ namespace SteelSectionProbe
         private PortalFrameParameters Parameters()
         {return new PortalFrameParameters{Kind=Kind,Variant=Variant,
             Type=Math.Max(0,TypeCombo.SelectedIndex)+1,
-            SpanMm=Number(SpanText.Text,Kind=="D8"?"B":"L"),
-            HeadingDegrees=Number(HeadingText.Text,"方向角"),Name=NameText.Text,
+            SpanMm=Number(SpanText.Text,Kind=="D16"?"L2":Kind=="D8"?"B":"L"),
+            L3Mm=Kind=="D16"&&TypeCombo.SelectedIndex==1?Number(L3Text.Text,"L3"):0,
+            L4Mm=Kind=="D16"&&TypeCombo.SelectedIndex==1?Number(L4Text.Text,"L4"):0,
+            AddPlate=Kind=="D16"&&PlateCheck.IsChecked==true,
+            PlateSubtype=PlateSubtypeCombo.SelectedItem as string??"A",
+            PlateOffsetMm=Kind=="D16"&&PlateCheck.IsChecked==true?Number(PlateOffsetText.Text,"端板外移量"):0,
+            Weld=(WeldCombo.SelectedItem as string??"A")[0],
+            HeadingDegrees=Kind=="D16"?0:Number(HeadingText.Text,"方向角"),Name=NameText.Text,
             KeepAuxiliaryLine=KeepLineCheck.IsChecked==true};}
-        private static double LineHeightMm(PipeClampSelection value)
-        {return Math.Abs(value.AxisZ);}
-        private static void ValidateLine(PipeClampSelection value)
+        private double LineHeightMm(PipeClampSelection value)
+        {return Kind=="D16"?Math.Sqrt(value.AxisX*value.AxisX+value.AxisY*value.AxisY):Math.Abs(value.AxisZ);}
+        private void ValidateLine(PipeClampSelection value)
         {
             if(value.IsPipe||!value.IsAuxiliaryLine)
-                throw new InvalidOperationException("请选择绘制好的竖直辅助直线。");
+                throw new InvalidOperationException(Kind=="D16"?"请选择绘制好的水平辅助直线。":"请选择绘制好的竖直辅助直线。");
             double horizontal=Math.Sqrt(value.AxisX*value.AxisX+value.AxisY*value.AxisY);
+            if(Kind=="D16"){
+                if(horizontal<1e-9||Math.Abs(value.AxisZ)>1)throw new InvalidOperationException("D16 辅助线应为水平直线，两端高差须不超过 1 mm。");
+                return;
+            }
             if(LineHeightMm(value)<1e-9||Math.Atan2(horizontal,LineHeightMm(value))>5*Math.PI/180)
                 throw new InvalidOperationException("辅助线与竖直方向的夹角不得超过 5°。");
         }
@@ -106,10 +136,10 @@ namespace SteelSectionProbe
                 preview.Show(plan,line);dirty=false;UpdateButton.Content="更新预览";
                 ConfirmButton.IsEnabled=true;
                 PreviewText.Text="编号："+plan.Number+"\n"+plan.AssemblySpecification+
-                    "\n净距 B="+plan.SpanMm.ToString("0.#")+" mm；立柱下料="+
+                    (Kind=="D16"?"\nL2=" :"\n净距 B=")+plan.SpanMm.ToString("0.#")+(Kind=="D16"?" mm；构件 A 实长=":" mm；立柱下料=")+
                     plan.PostLengthMm.ToString("0.#")+" mm"+
                     (plan.AllowableLoadKn.HasValue?"\n允许垂直荷载："+
-                        plan.AllowableLoadKn.Value.ToString("0.#")+" kN":"\n该 H/L 档位无允许荷载值");
+                        plan.AllowableLoadKn.Value.ToString("0.#")+" kN":Kind=="D16"?"\n该 L1 档位在标准表中无允许荷载值":"\n该 H/L 档位无允许荷载值");
                 Status("门型架预览已生成。",false);
             }
             catch(Exception ex){ConfirmButton.IsEnabled=false;PreviewText.Text="预览未更新："+ex.Message;
@@ -139,7 +169,8 @@ namespace SteelSectionProbe
             line=null;dirty=false;ConfirmButton.IsEnabled=false;
             PreviewText.Text="已结束点取。";UpdateButton.Content="更新预览";}
         private void Pick_Click(object sender,RoutedEventArgs e)
-        {try{PortalFrameLocateTool.Begin();locating=true;}catch(Exception ex){Status(ex.Message,true);}}
+        {try{if(PortalFrameLocateTool.IsActive&&locating){Status("可直接点取下一条辅助线。",false);return;}
+            PortalFrameLocateTool.Begin(Kind=="D16");locating=true;}catch(Exception ex){Status(ex.Message,true);}}
         private void End_Click(object sender,RoutedEventArgs e){PortalFrameLocateTool.End();}
         private void Update_Click(object sender,RoutedEventArgs e){Regenerate();}
         private void Cancel_Click(object sender,RoutedEventArgs e)

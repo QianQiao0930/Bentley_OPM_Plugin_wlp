@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -7,7 +7,7 @@ namespace SteelSectionProbe
 {
     internal static class PortalFrameCatalog
     {
-        internal static readonly string[] Kinds={"D8","D13","G5","G6"};
+        internal static readonly string[] Kinds={"D8","D13","G5","G6","D16","D20"};
         private static readonly string[] Angles={"L50x50x6","L75x75x7","L100x100x10"};
         private static readonly string[] HBeams={"H100x100x6x8xr8","H150x150x7x10xr8",
             "H200x200x8x12xr13","H250x250x9x14xr13"};
@@ -41,16 +41,18 @@ namespace SteelSectionProbe
             "C:1000:1000=60,1500=40,2000=40;C:2000:1000=40,1500=30,2000=30;C:3000:1000=20,1500=20,2000=20;"+
             "D:1000:1000=100,1500=80,2000=80;D:2000:1000=60,1500=60,2000=60;D:3000:1000=40,1500=40,2000=40";
         internal static string Variants(string kind)
-        {switch(kind){case "D8":return "ABCDE";case "D13":case "G6":return "ABCD";
+        {switch(kind){case "D8":case "D16":return "ABCDE";case "D13":case "G6":case "D20":return "ABCD";
             case "G5":return "ABCDEFG";default:throw new InvalidOperationException("未知门型架种类。");}}
         internal static string SupportType(string kind)
         {switch(kind){case "D8":return "D8-[门型架_倒门型架（角钢和槽钢）]";
+            case "D16":return "D16-[水平门形/井形架]";
+            case "D20":return "D20-[门形架（槽钢与H型钢组合）]";
             case "D13":return "D13-[门型架_倒门型架（H型钢）]";
             case "G5":return "G5-[地面上生根的门型架]";
             case "G6":return "G6-[地面上生根的门型架（槽钢和H型钢组合）]";
             default:throw new InvalidOperationException("未知门型架种类。");}}
         internal static string SupportCode(string kind)
-        {switch(kind){case "D8":return "PORTAL_FRAME";case "D13":return "PORTAL_FRAME_H";
+        {switch(kind){case "D20":return "D20_PORTAL_FRAME";case "D16":return "D16_HORIZONTAL_PORTAL_FRAME";case "D8":return "PORTAL_FRAME";case "D13":return "PORTAL_FRAME_H";
             case "G5":return "G5_GROUND_PORTAL_FRAME";case "G6":return "G6_GROUND_PORTAL_FRAME";
             default:throw new InvalidOperationException("未知门型架种类。");}}
         internal static string AssemblyItemName(string kind){return "PipeSupportAssembly_"+SupportCode(kind);}
@@ -61,7 +63,15 @@ namespace SteelSectionProbe
             int index=Variants(kind).IndexOf(key);
             if(index<0)throw new InvalidOperationException("门型架子项不适用于当前种类。");
             var v=new PortalFrameVariant();
-            if(kind=="D8")
+            if(kind=="D16")
+            {
+                string[] family={"equal_angle","equal_angle","parallel_channel","hot_rolled_h","hot_rolled_h"};
+                string[] a={"L75x75x7","L100x100x10","14a",HBeams[1],HBeams[2]};
+                string[] b={"L75x75x7","L100x100x10","14a","10","14a"};
+                v.PostFamily=family[index];v.PostProfile=a[index];
+                v.ArmFamily=index<2?"equal_angle":"parallel_channel";v.ArmProfile=b[index];
+            }
+            else if(kind=="D8")
             {
                 if(index<3){v.PostFamily=v.ArmFamily="equal_angle";
                     v.PostProfile=v.ArmProfile=Angles[index];}
@@ -81,7 +91,7 @@ namespace SteelSectionProbe
                 v.PostFamily="hot_rolled_h";v.PostProfile=HBeams[index];
                 v.ArmFamily="parallel_channel";v.ArmProfile=Channels[index];
                 v.ChannelGap=new[]{25d,50d,70d,100d}[index];
-                v.Ground=Ground(G6Ground[index]);
+                if(kind=="G6")v.Ground=Ground(G6Ground[index]);
             }
             v.PostSpecification=Specification(v.PostProfile);
             v.ArmSpecification=Specification(v.ArmProfile);
@@ -109,6 +119,20 @@ namespace SteelSectionProbe
                 yield return Tuple.Create(double.Parse(bits[1],CultureInfo.InvariantCulture),bits[2]);}}
         internal static double? Load(string kind,char key,double height,double span)
         {
+            if(kind=="D20") {
+                int i=Variants(kind).IndexOf(key);
+                double[,] loads={{17,15,10,-1},{-1,60,30,-1},{-1,90,60,40},{-1,150,120,80}};
+                if(i<0)throw new InvalidOperationException("D20 子项无效。");
+                if(height>MaxHeight(kind,key)+1)return null;
+                for(int col=0;col<4;col++)if(span<=500*(col+1))return loads[i,col]<0?(double?)null:loads[i,col];
+                return null;
+            }
+            if(kind=="D16") {
+                int i=Variants(kind).IndexOf(key);if(i<0)throw new InvalidOperationException("D16 子项无效。");
+                double[,] loads={{4,2,1.2,0.8},{6,4,2.4,1.6},{10,6,4,2},{-1,25,16,12},{-1,40,30,20}};
+                for(int col=0;col<4;col++)if(height<=250*(col+1))return loads[i,col]<0?(double?)null:loads[i,col];
+                return null;
+            }
             var ordered=Rows(kind,key).OrderBy(x=>x.Item1).ToArray();
             var row=kind=="D8"||kind=="D13"
                 ?ordered.LastOrDefault(x=>x.Item1<=height+1)
@@ -120,9 +144,11 @@ namespace SteelSectionProbe
                     return load<0?(double?)null:load;}}
             return null;
         }
-        internal static double MaxHeight(string kind,char key){return Rows(kind,key).Max(x=>x.Item1);}
+        internal static double MaxHeight(string kind,char key){return kind=="D20"?new[]{1000d,2000,3000,3000}[Variants(kind).IndexOf(key)]:kind=="D16"?1000:Rows(kind,key).Max(x=>x.Item1);}
         internal static double MaxSpan(string kind,char key)
-        {return Rows(kind,key).SelectMany(x=>x.Item2.Split(','))
+        {if(kind=="D20")return 2000;
+            if(kind=="D16")return key<='B'?1000:1200;
+            return Rows(kind,key).SelectMany(x=>x.Item2.Split(','))
             .Max(x=>double.Parse(x.Split('=')[0],CultureInfo.InvariantCulture));}
     }
 }

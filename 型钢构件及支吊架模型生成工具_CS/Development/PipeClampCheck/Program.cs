@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 namespace SteelSectionProbe
 {
@@ -30,7 +30,90 @@ namespace SteelSectionProbe
             CheckK1();
             CheckT4();
             CheckL2();
-            Console.WriteLine("放置管夹：A1 / A2 / A22 / A24 / E1 / K1 / T4 / L2 的表数据、尺寸推导、坐标架与非法输入校验通过。");
+            CheckL7();
+            CheckL8();
+            Console.WriteLine("放置管夹及 L7/L8 类型1/2：表数据、尺寸推导、坐标架与非法输入校验通过。");
+        }
+
+        private static void CheckL8()
+        {
+            var l7=L7GuideCalculator.Calculate(100,114.3,50,500,30,"P");
+            var l8=L7GuideCalculator.Calculate(ColdRiserGuideSeries.L8,L7GuideKind.Type1,
+                100,114.3,50,500,30,"P",300,"S");
+            Equal(l8.MemberLengthMm,l7.MemberLengthMm,"L8 类型1复用长度");
+            Equal(l8.MemberProfile,l7.MemberProfile,"L8 类型1复用截面");
+            Equal(l8.Clamp.A,l7.Clamp.A,"L8 类型1复用 A22");
+            Check(l8.Connection==null,"L8 类型1不带 N8");
+            Equal(l8.Number,"L8-1-DN100-50-300-S-500","L8 编号字段顺序");
+            var p=L7GuideCalculator.Calculate(ColdRiserGuideSeries.L8,L7GuideKind.Type2,
+                100,114.3,50,500,30,"P",450,"C1");
+            Equal(p.Clamp.Code,"A22","L8 类型2使用 A22");
+            Equal(p.MemberProfile,"12.6","L8 类型2槽钢");
+            Equal(p.Connection.Type,1,"L8 N8 类型1");
+            Equal(p.MemberStartMm+p.MemberLengthMm+p.Connection.T,p.LengthMm,"L8 端板与构件末端贴合");
+            Equal(p.Connection.BoltCount,4,"N8 四套螺栓");
+            Equal(p.Number,"L8-2-DN100-50-450-C1-500","L8 类型2编号");
+            Equal(L7GuideCatalog.CellName(p),"L8_COLD_RISER_GUIDE_TYPE2","L8 单元名");
+            foreach(int dn in L7GuideCatalog.Dns)Check(L7GuideCatalog.AllowableLoad(dn)>0,"荷载表");
+            Equal(L7GuideCatalog.AllowableLoad(15),0.4,"DN15 荷载");
+            Equal(L7GuideCatalog.AllowableLoad(150),7.5,"DN150 荷载");
+            Equal(L7GuideCatalog.AxialTravel(300).Value,30,"300 位移");
+            Equal(L7GuideCatalog.AxialTravel(450).Value,100,"450 位移");
+            Equal(L7GuideCatalog.AxialTravel(600).Value,180,"600 位移");
+            Check(!L7GuideCatalog.AxialTravel(400).HasValue,"不外推位移");
+            string f,s,label;
+            foreach(double d in new[]{100.0,100.01,450,450.01,700}) {
+                int type=L7GuideCatalog.EquipmentMember(d,out f,out s,out label);
+                Equal(type,d<=450?1:2,"N8 分段边界");
+                Check(ProfileLookup.Mode(RuntimeData.Families,f,s,"geometric_center")!=null,"型钢目录规格存在");
+            }
+            Reject(()=>L7GuideCatalog.EquipmentMember(701,out f,out s,out label),"L8 A 超限");
+            Reject(()=>L7GuideCatalog.Material("X"),"非法材料");
+            Reject(()=>L7GuideCatalog.AllowableLoad(32),"非标准 DN");
+            Reject(()=>L7GuideCalculator.Calculate(ColdRiserGuideSeries.L8,L7GuideKind.Type2,
+                100,114.3,50,double.NaN,0,"",300,"C1"),"L8 无效 L1");
+        }
+
+        private static void CheckL7()
+        {
+            var small=L7GuideCalculator.Calculate(15,21.3,50,50,370,"P-1");
+            Equal(small.LengthMm,300,"L7 最小 L");
+            Equal(small.MemberStartMm+small.MemberLengthMm,300,"L7 管心至末端");
+            Equal(small.AngleDeg,10,"L7 角度归一化");
+            Equal(small.MemberLabel,"H100×100×6×8","L7 按保冷后 A 选构件 A");
+            Equal(small.BearingLengthMm,300,"L7 承重夹板默认长度");
+            Equal(small.BearingBoolean.EarCenterXmm.Length,2,"L7 夹板两组耳板");
+            Equal(small.Bearing.BoltCount,4,"L7 承重夹板 4 套螺栓");
+            Check(small.PipeNumber=="P-1","L7 管道号");
+            Equal(L7GuideCalculator.Calculate(15,21.3,25,300,0,"").MemberLabel,
+                "∠75×7","L7 A≤100 角钢实选");
+            var large=L7GuideCalculator.Calculate(150,168.3,100,1500,0,"");
+            Equal(large.LengthMm,1000,"L7 大于 1 m 钳位");
+            Equal(large.MemberStartMm+large.MemberLengthMm,1000,"L7 上限从管心计");
+            Check(large.MemberLabel=="H100×100×6×8"||
+                large.MemberLabel=="H125×125×6.5×9","L7 型钢表选型");
+            Reject(()=>L7GuideCalculator.Calculate(200,219.1,50,300,0,""),"L7 超出 DN150");
+            Reject(()=>L7GuideCalculator.Calculate(15,21.3,50,300,0,"",200),
+                "L7 夹板长度小于 300");
+            string family,profile,label;
+            L7GuideCatalog.Member(100,out family,out profile,out label);
+            Equal(profile,"L75x75x7","L7 A=100 边界");
+            L7GuideCatalog.Member(450,out family,out profile,out label);
+            Equal(profile,"H100x100x6x8xr8","L7 A=450 边界");
+            L7GuideCatalog.Member(700,out family,out profile,out label);
+            Equal(profile,"H125x125x6.5x9xr8","L7 A=700 边界");
+            Reject(()=>L7GuideCatalog.Member(701,out family,out profile,out label),
+                "L7 A>700");
+            var type2=L7GuideCalculator.Calculate(L7GuideKind.Type2,100,114.3,50,
+                double.NaN,90,"P-2",300);
+            Equal(type2.Clamp.Code,"A24","L7 类型2 中心四螺栓管夹");
+            Equal(type2.Clamp.BoltCentersYmm.Length,4,"L7 类型2 A24 螺栓数量");
+            Equal(type2.MemberLengthMm,0,"L7 类型2 无构件 A");
+            Equal(type2.BearingLengthMm,300,"L7 类型2 默认夹板长度");
+            Check(type2.Number.StartsWith("L7-2-DN100-",StringComparison.Ordinal),
+                "L7 类型2 编号");
+            Equal(L7GuideCatalog.CellName(L7GuideKind.Type2),
+                "L7_COLD_RISER_GUIDE_TYPE2","L7 类型2 单元名");
         }
 
         /// <summary>管夹的清单属性契约（中文类型名 + ASCII 代号）。</summary>
@@ -114,8 +197,7 @@ namespace SteelSectionProbe
         }
 
         /// <summary>
-        /// 精确绘图罗盘基必须**顺着管轴**：X=管轴、Y=开口 0°（径向朝上）、Z=平面法向（切向）。
-        /// 关键断言是"管轴躺在罗盘平面内"（管轴·Z=0）—— 罗盘不能像径向基那样垂直于管轴。
+        /// 罗盘法线沿管轴，平面与管轴垂直；保持开口角基准不变。
         /// </summary>
         private static void CheckA1CompassFrame()
         {
@@ -136,16 +218,13 @@ namespace SteelSectionProbe
                 Near(Cross(x,y)[1],z[1],.001,tag+" 罗盘右手系 X×Y=Z (y)");
                 Near(Cross(x,y)[2],z[2],.001,tag+" 罗盘右手系 X×Y=Z (z)");
                 double axisLength=Norm(axis);
-                // 罗盘 X 轴 = 管轴（顺着管道走向）
-                Near(x[0],axis[0]/axisLength,.001,tag+" 罗盘 X=管轴 (x)");
-                Near(x[1],axis[1]/axisLength,.001,tag+" 罗盘 X=管轴 (y)");
-                Near(x[2],axis[2]/axisLength,.001,tag+" 罗盘 X=管轴 (z)");
-                // 管轴必须躺在罗盘平面内（法向 Z 与管轴垂直）—— 罗盘顺着管轴，而不是垂直于管轴
-                var unit=new[]{axis[0]/axisLength,axis[1]/axisLength,axis[2]/axisLength};
-                Near(Dot(unit,z),0,.001,tag+" 管轴躺在罗盘平面内");
-                // 罗盘 Y = 开口 0°，罗盘 Z = 90°（与角度计算同一套基）
-                Near(A1ClampCalculator.AngleFromCursor(axis,y),0,.001,tag+" 罗盘 Y=0°");
-                Near(A1ClampCalculator.AngleFromCursor(axis,z),90,.001,tag+" 罗盘 Z=90°");
+                Near(z[0],axis[0]/axisLength,.001,tag+" 罗盘法线沿管轴 x");
+                Near(z[1],axis[1]/axisLength,.001,tag+" 罗盘法线沿管轴 y");
+                Near(z[2],axis[2]/axisLength,.001,tag+" 罗盘法线沿管轴 z");
+                Near(Dot(axis,x),0,.001,tag+" 管轴垂直罗盘X");
+                Near(Dot(axis,y),0,.001,tag+" 管轴垂直罗盘Y");
+                Near(A1ClampCalculator.AngleFromCursor(axis,x),0,.001,tag+" 罗盘 X=0°");
+                Near(A1ClampCalculator.AngleFromCursor(axis,y),90,.001,tag+" 罗盘 Y=90°");
             }
             Reject(()=>{double[] x,y,z;A1ClampCalculator.CompassFrame(
                 new[]{0.0,0.0,0.0},out x,out y,out z);},"罗盘基零管轴");

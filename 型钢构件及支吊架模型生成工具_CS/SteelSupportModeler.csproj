@@ -56,6 +56,7 @@
     <Compile Remove="Development\TFrameCheck\**\*.cs" />
     <Compile Remove="Development\PadPlateCheck\**\*.cs" />
     <Compile Remove="Development\HomeCheck\**\*.cs" />
+    <Compile Remove="Development\SteelHandrailCheck\**\*.cs" />
     <Compile Remove="Development\SteelSectionCheck\**\*.cs" /></ItemGroup>
 </Project>
 

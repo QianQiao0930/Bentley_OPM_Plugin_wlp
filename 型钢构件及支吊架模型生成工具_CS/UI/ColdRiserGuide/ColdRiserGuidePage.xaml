@@ -1,0 +1,49 @@
+<UserControl x:Class="SteelSectionProbe.ColdRiserGuidePage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:ClassModifier="internal" Background="{DynamicResource BackgroundBrush}">
+    <UserControl.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="../Themes/Theme.xaml" />
+    </ResourceDictionary.MergedDictionaries></ResourceDictionary></UserControl.Resources>
+    <Grid>
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <Border Grid.Row="0" Style="{StaticResource CardStyle}"><StackPanel>
+            <TextBlock Text="01  保冷立管导向架类型" Style="{StaticResource SectionTitleStyle}"/>
+            <TextBlock Text="先选择 L7 / L8，再选择类型，随后点取放置（DN15～DN150）。" TextWrapping="Wrap" Margin="0,0,0,8"/>
+            <ComboBox x:Name="SeriesCombo" SelectionChanged="Series_Changed" Margin="0,0,0,8"/>
+            <ComboBox x:Name="KindCombo" SelectionChanged="Kind_Changed"/>
+        </StackPanel></Border>
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel>
+                <Border Style="{StaticResource CardStyle}"><StackPanel>
+                    <TextBlock Text="02  规格与构件" Style="{StaticResource SectionTitleStyle}"/>
+                    <TextBlock Text="点取真实管道时读取管径、外径及保冷厚度；点取竖直辅助线时使用下方数值。" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <TextBlock Text="公称直径（辅助线时使用）"/><ComboBox x:Name="DnCombo" SelectionChanged="Data_Changed"/>
+                    <TextBlock Text="保冷厚度（mm；无属性时使用）" Margin="0,8,0,0"/>
+                    <TextBox x:Name="ColdText" Text="50" TextChanged="Data_Changed"/>
+                    <TextBlock Text="承重夹板沿管轴长度（mm，默认 300）" Margin="0,8,0,0"/>
+                    <TextBox x:Name="BearingLengthText" Text="300" TextChanged="Data_Changed"/>
+                    <StackPanel x:Name="MaterialPanel" Margin="0,8,0,0">
+                        <TextBlock Text="材料代码（L8 编号）"/>
+                        <ComboBox x:Name="MaterialCombo" SelectionChanged="Data_Changed"/>
+                    </StackPanel>
+                    <TextBlock x:Name="DataText" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                    <TextBlock x:Name="Type1Info" Text="类型 1：构件 A 按 A22 计算内径 A 选型。L 从管中心至构件末端；默认 300 mm，拉伸范围 300～1000 mm。" TextWrapping="Wrap" Margin="0,10,0,0"/>
+                    <TextBlock x:Name="MeasureText" Text="L = 300 mm；待点取方向" Margin="0,5,0,0"/>
+                </StackPanel></Border>
+            </StackPanel>
+        </ScrollViewer>
+        <Border Grid.Row="2" Style="{StaticResource CardStyle}"><StackPanel>
+            <TextBlock Text="03  点取与确认" Style="{StaticResource SectionTitleStyle}"/>
+            <TextBlock x:Name="ProcessText" Text="类型 1：点取标高 → XY 罗盘定方向 → 拉伸构件 A → 预览 → 确定。" TextWrapping="Wrap" Margin="0,0,0,8"/>
+            <WrapPanel><Button Content="开始点取" Style="{StaticResource PrimaryButtonStyle}" Click="Pick_Click" Margin="0,0,8,8"/>
+                <Button Content="结束操作" Style="{StaticResource SecondaryButtonStyle}" Click="End_Click" Margin="0,0,8,8"/>
+                <Button Content="更新预览" Style="{StaticResource SecondaryButtonStyle}" Click="Update_Click" Margin="0,0,8,8"/></WrapPanel>
+            <TextBlock x:Name="PreviewText" Text="尚未点取立管。" TextWrapping="Wrap" Margin="0,4,0,12"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="取消预览" Style="{StaticResource SecondaryButtonStyle}" Click="Cancel_Click" Margin="0,0,8,0"/>
+                <Button x:Name="ConfirmButton" Content="确定生成" Style="{StaticResource PrimaryButtonStyle}" Click="Confirm_Click" IsEnabled="False"/>
+            </StackPanel>
+        </StackPanel></Border>
+    </Grid>
+</UserControl>

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Bentley.DgnPlatformNET;
 using Bentley.DgnPlatformNET.Elements;
 using Bentley.GeometryNET;
@@ -47,7 +47,7 @@ namespace SteelSectionProbe
         protected override void OnPostInstall()
         {
             base.OnPostInstall();
-            NotificationManager.OutputPrompt("精确绘图罗盘已顺着管轴定向：X 沿管道走向、Y 为开口 0°（朝上），"
+            NotificationManager.OutputPrompt("精确绘图罗盘已垂直于管轴：法线沿管轴，X 为开口 0°，"
                 +"回车锁轴、Tab 切换字段；移动光标调整 A1 开口方向，左键锁定方向并生成预览；右键取消。");
             BeginDynamics();
             // 动态绘图起来之后再接管罗盘（与 Python 端 F2 弯头耳轴的 _start_drag 同序）：
@@ -56,12 +56,12 @@ namespace SteelSectionProbe
             ActivateCompass();
         }
         /// <summary>
-        /// 激活精确绘图罗盘并把罗盘平面转到**顺着管轴**的平面（管轴 + 开口 0° 方向）：
+        /// 激活精确绘图罗盘并把罗盘平面转到垂直于管轴的径向平面：
         /// 1) <see cref="AccuDraw.Active"/>=true —— 未激活时罗盘灰色、不接收键盘；
         /// 2) SetOrigin|FixedOrigin —— 原点固定在管心，调方向时罗盘不跟着光标跑；
         /// 3) SetRMatrix —— 罗盘三轴取 <see cref="A1ClampCalculator.CompassFrame"/>：
-        ///    X=管轴（罗盘顺着管道走向，与 Python 端"本地 X 沿管轴"一致），Y=开口角 0° 方向，
-        ///    Z=平面法向。（矩阵按列存三轴：已用元数据探针实测 FromColumns 的 ColumnX 即传入的 X 轴。）
+        ///    X=开口角 0° 方向，Y=角度增大方向，
+        ///    Z=管轴（平面法向）。（矩阵按列存三轴：已用元数据探针实测 FromColumns 的 ColumnX 即传入的 X 轴。）
         /// 4) 旋转模式改 Context 并记住原值，退出时连同激活状态一起还原 —— 不影响别的命令。
         /// </summary>
         private void ActivateCompass()

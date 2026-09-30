@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Globalization;
 
 namespace SteelSectionProbe
@@ -57,22 +57,11 @@ namespace SteelSectionProbe
             xAxis=ez;
             yAxis=new[]{-ey[0],-ey[1],-ey[2]};
         }
-        /// <summary>
-        /// 精确绘图罗盘的右手正交基（**顺着管轴**定向，与 Python 端「本地 X 沿管轴」一致）：
-        /// xAxis = 管轴（罗盘 X 轴顺着管道走向）；yAxis = 开口角 0° 方向（径向、默认朝上）；
-        /// zAxis = 罗盘平面法向（切向，= xAxis×yAxis）。
-        /// 于是罗盘平面同时包含管轴与开口方向 —— 顺着管轴，也正是"管道径向所在的平面"。
-        /// 三轴与 <see cref="RadialFrame"/> 同一套基，只是换了一组循环次序，角度仍由
-        /// <see cref="AngleFromCursor"/> 在径向平面内求，罗盘定向不会改动开口角的定义。
-        /// </summary>
+        /// <summary>罗盘位于管道径向平面：X 为开口 0°，Y 为角度增大方向，Z 法线沿管轴。</summary>
         internal static void CompassFrame(double[] axis,out double[] xAxis,out double[] yAxis,
             out double[] zAxis)
         {
-            double[] up,turning,alongAxis;
-            RadialFrame(axis,out up,out turning,out alongAxis);
-            xAxis=alongAxis;   // 罗盘 X：顺管轴
-            yAxis=up;          // 罗盘 Y：开口 0°（径向朝上）
-            zAxis=turning;     // 罗盘 Z：平面法向（切向），X×Y=Z 保持右手系
+            RadialFrame(axis,out xAxis,out yAxis,out zAxis);
         }
         private static double Dot(double[] a,double[] b)
         { return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]; }

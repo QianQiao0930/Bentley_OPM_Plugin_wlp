@@ -57,7 +57,11 @@ namespace SteelSectionProbe
                 throw new Exception("风管 D315 就近匹配 DN300");
             if(ElbowTrunnionCatalog.DuctMainDn(2000,out ductNote)!=1200 || !ductNote.Contains("保底"))
                 throw new Exception("大风管采用最大选型档");
-            Reject(()=>{ string note; ElbowTrunnionCatalog.DuctMainDn(90,out note); },"无法匹配的风管外径");
+            if(ElbowTrunnionCatalog.DuctMainDn(80,out ductNote)!=80 || ductNote!="")
+                throw new Exception("风管 D80 直接匹配新增 DN80 档");
+            if(ElbowTrunnionCatalog.DuctMainDn(90,out ductNote)!=80 || !ductNote.Contains("就近匹配"))
+                throw new Exception("风管 D90 按外径匹配 DN80 档");
+            Reject(()=>{ string note; ElbowTrunnionCatalog.DuctMainDn(180,out note); },"无法匹配的风管外径");
             var duct=new ElbowTrunnionSelection { MainDn=450,MainSizeLabel="D450",
                 OutsideDiameterMm=450,Frame=vf };
             if(!ElbowTrunnionCalculator.Calculate(duct,vertical).AssemblyTag.StartsWith("F2-D450-DN"))
@@ -93,13 +97,60 @@ namespace SteelSectionProbe
             f5p.NamingUnit=PipeNamingUnit.Imperial;
             if (!ElbowTrunnionCalculator.Calculate(hs,f5p).AssemblyTag.StartsWith("F5-4\"-"))
                 throw new Exception("F5 英制编号");
-            Reject(()=>ElbowTrunnionCatalog.MainDn(65),"未列出的主 DN65");
+            CheckAdditionalMainDns(vf,hf);
+            Reject(()=>ElbowTrunnionCatalog.MainDn(90),"未列出的主管 DN90");
+            Reject(()=>ElbowTrunnionCatalog.MainDn(1300),"超出 DN1200");
             Reject(()=>ElbowTrunnionCalculator.Frame(Matrix(true),1,100,100,
                 ElbowOrientation.Vertical,false),"错误的弯头方向");
             vertical.ExtentMm=20;
             Reject(()=>ElbowTrunnionCalculator.Calculate(vs,vertical),"过短的 F2 高度");
             CheckListingContract(f4);
             Console.WriteLine("ElbowTrunnionCheck: 4 variants, projection, geometry, numbering, listing contract and invalid input passed.");
+        }
+
+        private static void CheckAdditionalMainDns(ElbowFrame verticalFrame,ElbowFrame horizontalFrame)
+        {
+            int[] mainDns={65,80,125};
+            double[] outside={76.1,88.9,139.7};
+            int[] trunnionDns={50,50,80};
+            double[] trunnionOutside={60.3,60.3,88.9};
+            double[] walls={3.91,3.91,5.49};
+            string[] nps={"2-1/2\"","3\"","5\""};
+            for(int i=0;i<mainDns.Length;i++)
+            {
+                int dn=mainDns[i];
+                Equal(ElbowTrunnionCatalog.MainDn(dn),dn,"主管识别 DN"+dn);
+                Equal(ElbowTrunnionCatalog.MainDn(dn+0.2),dn,"主管识别测量容差");
+                var size=ElbowTrunnionCatalog.ForMainDn(dn);
+                Equal(size.Dn,trunnionDns[i],"耳轴公称直径");
+                Equal(size.OutsideMm,trunnionOutside[i],"耳轴外径");
+                Equal(size.WallMm,walls[i],"耳轴默认壁厚");
+                Equal(size.SquarePlateMm,200,"方形底板边长");
+                Equal(size.PlateThicknessMm,10,"竖直耳轴底板厚度");
+                foreach(ElbowOrientation elbow in Enum.GetValues(typeof(ElbowOrientation)))
+                foreach(TrunnionOrientation trunnion in Enum.GetValues(typeof(TrunnionOrientation)))
+                {
+                    var selection=new ElbowTrunnionSelection {MainDn=ElbowTrunnionCatalog.MainDn(dn),
+                        OutsideDiameterMm=outside[i],Frame=elbow==ElbowOrientation.Vertical?verticalFrame:horizontalFrame};
+                    var parameters=new ElbowTrunnionParameters {Elbow=elbow,Trunnion=trunnion,ExtentMm=1000,Plate='A'};
+                    var plan=ElbowTrunnionCalculator.Calculate(selection,parameters);
+                    Equal(plan.TrunnionDn,trunnionDns[i],"四种组合共用选型");
+                    Equal(plan.TrunnionOdMm,trunnionOutside[i],"四种组合耳轴外径");
+                    if(plan.TubeLengthMm<=0 || !plan.AssemblyTag.Contains("-DN"+dn+"-DN"+trunnionDns[i]+"-"))
+                        throw new Exception("新增规格的管长或公制编号错误："+plan.AssemblyTag);
+                    parameters.NamingUnit=PipeNamingUnit.Imperial;
+                    plan=ElbowTrunnionCalculator.Calculate(selection,parameters);
+                    if(!plan.AssemblyTag.Contains("-"+nps[i]+"-"))
+                        throw new Exception("新增规格的英制编号错误："+plan.AssemblyTag);
+                }
+            }
+            // 覆盖完整标准目录，确保所有入口接受的主管均能选出耳轴。
+            foreach(int dn in new[]{15,20,25,32,40,50,65,80,100,125,150,200,250,300,350,400,
+                450,500,550,600,650,700,750,800,850,900,950,1000,1050,1100,1200})
+            {
+                Equal(ElbowTrunnionCatalog.MainDn(dn),dn,"完整主管目录");
+                if(ElbowTrunnionCatalog.ForMainDn(dn).OutsideMm<=0)throw new Exception("主管规格缺少耳轴数据");
+            }
         }
 
         /// <summary>

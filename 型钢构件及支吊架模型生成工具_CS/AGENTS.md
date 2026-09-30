@@ -1,4 +1,4 @@
-# 型钢构件及支吊架模型生成工具：AI 与开发者协作规范
+﻿# 型钢构件及支吊架模型生成工具：AI 与开发者协作规范
 
 本文件适用于 `型钢构件及支吊架模型生成工具_CS/` 目录及其全部子目录。
 
@@ -603,7 +603,7 @@ bin/Release/net48_full/SteelSectionProbe.dll
 
 **点取 → 方向工具的交接**：同一次调用里"先 `End()` 再 `InstallTool()` 装另一个工具"是禁用的 —— `ExitTool()` 挂起的"退出当前工具"会在下一个原生事件结算，那时当前工具已经是新装的实例，会被误杀并触发一次伪 `Ended`（页面据此提示"已取消方向调整"）。交接一律用 `PipeClampLocateTool.RetireForHandoff()`（只清静态 active + 恢复 AccuSnap，不调 ExitTool、不发 Ended），旧实例由新工具 `InstallTool` 的工具切换收尾；`Begin()` 里也不要再写 `End()` 再装。
 
-**精确绘图（AccuDraw）**：`DgnPrimitiveTool` 不会自动接管罗盘，不显式激活时罗盘灰色、键盘焦点不在罗盘上，回车会被 MicroStation 当成打开 Key-in 对话框。`A1ClampOrientationTool.OnPostInstall` 在 `BeginDynamics()` 之后调用 `ActivateCompass()`：`AccuDraw.Active=true` → 旋转模式改 `AccuDraw.RotationMode.Context`（**顺序：先改模式再写矩阵**，反了新矩阵会被模式切换冲掉）→ `SetContext(SetOrigin|FixedOrigin|SetRMatrix, 管心, 径向基矩阵)` → `AccuDraw.Rotation` 兜底再写一次 → `SetContext(SetFocus)` 把焦点交给罗盘。罗盘三轴由 **`A1ClampCalculator.CompassFrame`** 给出（**X=管轴、Y=开口角 0° 方向、Z=平面法向**），即罗盘**顺着管轴**、罗盘平面同时包含管轴与开口方向（与 Python 端「本地 X 沿管轴」一致）；它与 `RadialFrame`（Z=管轴、X=0°、Y=角度增大，供 `AngleFromCursor` 用）是同一套基的循环换序，改一个必须同步另一个。⚠️ **不要用 `RadialFrame` 去定向罗盘**——那样罗盘平面垂直于管轴，在正对管道的视图里罗盘会侧立成一条线。矩阵三轴按**列**存（`FromColumns` 的 `ColumnX` 即传入的 X 轴，已实测），退出时还原激活状态与旋转模式。
+**精确绘图（AccuDraw）**：`DgnPrimitiveTool` 不会自动接管罗盘，不显式激活时罗盘灰色、键盘焦点不在罗盘上，回车会被 MicroStation 当成打开 Key-in 对话框。`A1ClampOrientationTool.OnPostInstall` 在 `BeginDynamics()` 之后调用 `ActivateCompass()`：`AccuDraw.Active=true` → 旋转模式改 `AccuDraw.RotationMode.Context`（**顺序：先改模式再写矩阵**，反了新矩阵会被模式切换冲掉）→ `SetContext(SetOrigin|FixedOrigin|SetRMatrix, 管心, 径向基矩阵)` → `AccuDraw.Rotation` 兜底再写一次 → `SetContext(SetFocus)` 把焦点交给罗盘。罗盘三轴由 `A1ClampCalculator.CompassFrame` 调用 `RadialFrame` 得到：X=开口角 0°、Y=角度增大方向、Z=管轴。罗盘平面垂直于管轴，法线沿管轴；这是用户指定的当前表现。开口角定义保持不变，勿改公共 AccuDraw 设置。矩阵三轴按**列**存（`FromColumns` 的 `ColumnX` 即传入的 X 轴，已实测），退出时还原激活状态与旋转模式。
 
 - **A1**（`A1ClampCatalog` / `A1ClampCalculator` / `A1ClampBuilder`）：弯弧圆心在管轴，真实半圆与两条 D 长度直腿相切。每腿两颗螺母，顶板既不建模也不计入清单。开口基准为水平管 +Z，近竖直管 +X；光标在径向平面内投影并按右手角度旋转。ItemType 名固定为 `PipeSupportAssembly_A1`、`PipeSupportComponent_A1_U_BOLT`、`PipeSupportComponent_A1_NUT`，尺寸和角度只能写入属性值。
 - **A2**（`A2ClampCatalog` / `A2ClampCalculator` / `A2ClampBuilder`）：表 1 只按**公称直径数值**匹配（与脚本 `_match_table_dn` 一致，不拿外径比）；保温时内孔 A′ = A + 2B，且孔心距 B 必须同步外移 B，否则孔会落进放大后的孔洞区域被剪掉、螺栓随之错位。绕轴角度由 `PipeClampFrame.Axes` 自动给出（局部 Z 竖直向上），不给用户旋转角入口。
@@ -695,7 +695,7 @@ bin/Release/net48_full/SteelSectionProbe.dll
 
 `Statistics.AttachTriangleBracket` 一次性批量写入 `PipeSupportComponents`。四个架型保留 Python 中文 `SupportType`；ItemType 名使用固定组合代号加角色后缀（`A`、`B`、`C`、`PLATE_A`、`PLATE_B`、`BOLT_A`、`BOLT_B`），不含尺寸或哈希。不得改变 `PipeSupportAssembly_` / `PipeSupportComponent_` 前缀，统计页依赖它们分类。纯计算检查在 `Development/TriangleBracketCheck/`。
 
-## 31. D8 / D13 / G5 / G6 门型架
+## 31. D8 / D13 / G5 / G6 / D16 门型架
 
 首页只有 `portal-frame` 一个入口，进入后选 D8、D13、G5、G6 及各自子项。点取整组中心竖直辅助线，线长为 H；平面方向角由页面输入。D8 输入立柱净距 B，D13/G5 输入横担全长 L，G6 输入两柱外缘间距 L。D8 类型 1～4 覆盖正门、倒门及端焊、侧焊；D13 类型 1～2 覆盖正门、倒门；G5/G6 地面生根每柱一套锚板、四根膨胀锚栓、螺母和灌浆梯台。
 
@@ -720,3 +720,33 @@ T 型架参数页的 H/L 或 L1/L2 上限与 `TFrameCalculator.Calculate` 的校
 ## 34. D7 L 型架
 
 首页 `l-bracket` 对应 Python `D7-[L形_倒L形架].py`。点取开放的两段 L 形辅助折线，竖直段为立杆轴线、水平段为横担顶面；类型 1/2 立杆在下，3/4 立杆在上。子项 A～D 可选四类，E/F 的 H 型钢仅允许类型 1/3。截面使用 `profiles.bin` 与 `SteelMemberFactory`，清单仅确认时由 `Statistics.AttachLBracket` 批量写入。ItemType 名固定为 `PipeSupportAssembly_L_PIPE_RACK`、`PipeSupportComponent_L_PIPE_RACK_Post` 和 `PipeSupportComponent_L_PIPE_RACK_Arm`，不得附加编号、尺寸或哈希。H 和 B 的标准上限及当前值在参数区展示，详细失败原因放预览文字，底部状态栏保持简短。纯计算检查在 `Development/LBracketCheck/`；折线点取与 Bentley 扫掠仍需 OPM 实测。
+
+
+## 35. L7 / L8 保冷立管导向架
+
+`cold-riser-guide` 先选 L7/L8，再选类型。保留原 L7 类名及重载以兼容已有实现；`L7GuidePlan.Series` 区分系列，`HasMember` 区分 L7 类型 2（A24，无构件 A）与其余类型（A22，有构件 A）。L8 类型 1 按用户要求复用 L7 类型 1 几何与截面；L8 类型 2 按附图表 1 用角钢/[12.6/[14a 和 N8 类型 1/2，复用 N8Builder，不复制板件或螺栓几何。连接板面在 L1 处，厚度从构件实长中扣除。G2AnchorFrame 新增显式三轴构造，调用方传入正交单位轴。
+
+L8 表数据与材料代码位于 L7GuideCatalog，L8 编号次序为类型、管径、保冷厚度、沿轴夹板长 L、材料代码、管心至端部 L1。固定 ItemType 名为 L8_TYPE1/L8_TYPE2 及对应角色，不带实例尺寸。沿用可取消预览与确认后统计流程。新增检查纳入 Development/PipeClampCheck，覆盖复用一致性、选型分段、N8 厚度扣除、编号与荷载/位移数据。
+
+
+## 36. 普通钢结构围栏
+
+首页 `steel-handrail` 位于 **建模类**，图标键 `handrail`，注册在 WorkspaceView。对应各层 `SteelHandrail/`。HandrailCalculator 不引用 Bentley；单位毫米，原脚本横向偏移 -34.2 mm、水平转角 R140、柱距上限 2000 mm 和 50 mm 模数排柱规则均保留。坡段保持竖柱，纯变坡节点强制设柱；同点转向且有坡度明确拒绝。连接类型 1 椭圆压扁端采用真椭圆放样与内腔扣除，类型 2 下弯 R76，类型 3 底板保持水平，类型 4 为原版预留无节点。
+
+HandrailBuilder 复用 SolidPrimitiveFactory；踢脚板为完整偏移路径一次扫掠，不能改为短板拼接。新预览成功后才能删除旧预览；参数修改禁用确认，150 ms 延迟重建，失败保留旧几何；Reset、页面退出和关闭清理会话拥有的预览。确认后由 Statistics.AttachHandrail 一次写入公共库固定 STEEL_HANDRAIL 及构件角色，不把长度写入类型名。导出 JSON 复用公共统计服务并筛选普通钢结构围栏；旧 Python 库不自动导入。顶/中横杆按每道围栏累计长保存，踢脚板用实际偏移长，压扁端/下弯段用原版水平代表值。
+
+纯计算检查在 Development/SteelHandrailCheck：28 组从原 Python 提取的路径、排柱、偏移及节点基准，每组校验四种连接形式，并验证所有闭合方式、非法路径和清单；参考数据生成器仅用于开发期。主工程排除检查工程源码。更新首页时同步 HomeCheck 的条目数量、顺序与建模类断言。
+
+### D16 水平门型架补充
+
+D16 合并于 portal-frame，点取水平辅助线，其起点为生根端、线长为 L1。类型 1 仅输入 L2；类型 2 另输入 L3/L4，外侧 B 在 L1+L3，内侧 B 在 L1−L4；L4=0 无内侧 B，L4=L3 编号省略 L4。L2 按图为 A 内侧净距，A 轴距为 L2 加 A 截面宽 B；角钢/槽钢 A 对应的 B 实长为 L2；H 型钢 A 对应的 B 两端延伸到腹板内侧面。A/B 使用 geometric_center，同一水平面，A 比外侧 B 的站位延长 50 mm。接点焊接型式 ABCD 现阶段仅参数与编号，无焊缝/筋板几何。固定 ItemType 使用 D16_HORIZONTAL_PORTAL_FRAME 及 MemberA/MemberB 角色。尺寸、完整荷载表、编号与边界回归纳入 PortalFrameCheck，原竖直四种架型保持回归。
+
+D16 截面方向：两侧 A 镜像，角钢水平肢在上、竖直肢在内侧且背靠背；槽钢腹板背靠背、开口向外。角钢 B 水平肢在上、竖肢朝框架外侧（内侧 B 朝根部）。H 型钢 A 的 B 实长为 L2 + A 翼缘宽 − A 腹板厚，两端延伸至腹板内侧面，清单使用实际长度。
+
+D16 尺寸定位修正：类型 1 的 L1 到 B 竖肢/腹板外侧平面，B 中心站位 L1−B宽/2，A 总长 L1+50。类型 2 两根 B 背靠背，外侧中心为 L1+L3+B宽/2，内侧中心为 L1−L4−B宽/2，A 总长 L1+L3+B宽+50；两类 A 均比 B 最外边缘伸出 50 mm。B 宽度读取截面目录 B 参数。此处替代此前以 B 中心定位的说明。
+
+## D20 门型架
+
+D20 合并于 portal-frame。子项 A～D 的 H 型钢立杆、双槽钢横担及腹板间净距 S 复用 G6 规格与背靠背几何，不生成地脚。竖直辅助线 H 为立杆底面到横担顶面，立杆实长 H+50。按附图 L 为两立杆中心间距，横担实长 L−立杆截面高度。H 上限分别 1000/2000/3000/3000 mm；允许垂直荷载按 L≤500/1000/1500/2000 表查，空栏不推算。编号 D20-子项-H-L；ItemType 固定 D20_PORTAL_FRAME 及 Post/Arm 角色，实例尺寸不进入类型名。PortalFrameCheck 覆盖尺寸、编号、荷载表和上限。
+
+D16 可勾选起始端附加 G2 混凝土锚板，每根 A 一套，共两块板、八根膨胀锚栓。子项 A～D 与外移量沿用 D5 端焊三角架；孔距取 G2 最小孔距与大于 A 截面最大尺寸的下一档 25 mm 模数中的较大值。A 起点为外移量+板厚，实长扣除该值，B 定位与 A 外端保持不变。锚板方向随辅助线方位转动；预览统一管理，确认时固定 G2Plate/G2Bolt 角色写入清单。参数随页面持久化；拒绝锚板重叠及过大外移。

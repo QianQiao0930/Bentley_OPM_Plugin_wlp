@@ -1,4 +1,4 @@
-<UserControl x:Class="SteelSectionProbe.PortalFramePage"
+﻿<UserControl x:Class="SteelSectionProbe.PortalFramePage"
  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
  x:ClassModifier="internal" Background="{DynamicResource BackgroundBrush}">
@@ -9,7 +9,7 @@
   <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel>
    <Border Style="{StaticResource CardStyle}"><StackPanel>
     <TextBlock Text="01  门型架种类与子项" Style="{StaticResource SectionTitleStyle}"/>
-    <TextBlock Text="选择种类与子项后，点取整组中心竖直辅助线；线长为门架高度 H。" TextWrapping="Wrap" Margin="0,0,0,8"/>
+    <TextBlock x:Name="LineInstruction" Text="选择种类与子项后，点取整组中心竖直辅助线；线长为门架高度 H。" TextWrapping="Wrap" Margin="0,0,0,8"/>
     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
      <StackPanel Grid.Column="0"><TextBlock Text="种类"/><ComboBox x:Name="KindCombo" SelectionChanged="Kind_Changed"/></StackPanel>
      <StackPanel Grid.Column="2"><TextBlock Text="子项"/><ComboBox x:Name="VariantCombo" SelectionChanged="Parameter_Changed"/></StackPanel>
@@ -19,16 +19,32 @@
      <StackPanel Grid.Column="2"><TextBlock x:Name="SpanLabel" Text="净距 B（mm）"/><TextBox x:Name="SpanText" Text="500" TextChanged="Parameter_Changed"/></StackPanel>
     </Grid>
     <Grid Margin="0,8,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-     <StackPanel Grid.Column="0"><TextBlock Text="平面方向角（度）"/><TextBox x:Name="HeadingText" Text="0" TextChanged="Parameter_Changed"/></StackPanel>
+     <StackPanel Grid.Column="0"><TextBlock x:Name="HeadingLabel" Text="平面方向角（度）"/><TextBox x:Name="HeadingText" Text="0" TextChanged="Parameter_Changed"/></StackPanel>
      <StackPanel Grid.Column="2"><TextBlock Text="管架编号名称"/><TextBox x:Name="NameText" Text="D8" TextChanged="Parameter_Changed"/></StackPanel>
     </Grid>
+    <StackPanel x:Name="HorizontalPanel" Visibility="Collapsed" Margin="0,8,0,0">
+     <TextBlock Text="接点焊接型式（仅选择，不改变几何）"/>
+     <ComboBox x:Name="WeldCombo" SelectionChanged="Parameter_Changed"/>
+     <Grid Margin="0,8,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+      <StackPanel><TextBlock Text="L3（mm，类型 2）"/><TextBox x:Name="L3Text" Text="200" TextChanged="Parameter_Changed"/></StackPanel>
+      <StackPanel Grid.Column="2"><TextBlock Text="L4（mm，0 表示无内侧 B）" TextWrapping="Wrap"/><TextBox x:Name="L4Text" Text="200" TextChanged="Parameter_Changed"/></StackPanel>
+     </Grid>
+     <TextBlock Text="辅助线长为 L1。类型 1：L1 到 B 的竖肢/腹板外边缘，A 总长 L1+50。类型 2：两根 B 背靠背，A 总长 L1+L3+B 宽度+50；L4=0 不生成内侧 B。A/B 截面中心保持同一标高。" TextWrapping="Wrap" Margin="0,8,0,0"/>
+    </StackPanel>
+    <StackPanel x:Name="PlatePanel" Visibility="Collapsed" Margin="0,8,0,0">
+     <CheckBox x:Name="PlateCheck" Content="起始端附加 G2 混凝土锚板及锚栓（两套）" Checked="Parameter_Changed" Unchecked="Parameter_Changed"/>
+     <Grid Margin="0,8,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+      <StackPanel><TextBlock Text="G2 锚板子项"/><ComboBox x:Name="PlateSubtypeCombo" SelectionChanged="Parameter_Changed"/></StackPanel>
+      <StackPanel Grid.Column="2"><TextBlock Text="端板外移量（mm）"/><TextBox x:Name="PlateOffsetText" Text="0" TextChanged="Parameter_Changed"/></StackPanel>
+     </Grid>
+    </StackPanel>
     <CheckBox x:Name="KeepLineCheck" Content="确认后保留辅助线" IsChecked="True" Margin="0,8,0,0" Checked="Parameter_Changed" Unchecked="Parameter_Changed"/>
     <TextBlock x:Name="SectionText" TextWrapping="Wrap" Margin="0,10,0,0"/>
    </StackPanel></Border>
   </StackPanel></ScrollViewer>
   <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,8,4,0"><StackPanel>
    <TextBlock Text="02  点取与预览" Style="{StaticResource SectionTitleStyle}"/>
-   <TextBlock Text="选择竖直辅助线，调整参数后更新预览；确定时才写入支吊架清单。" TextWrapping="Wrap" Margin="0,0,0,8"/>
+   <TextBlock x:Name="PickInstruction" Text="选择竖直辅助线，调整参数后更新预览；确定时才写入支吊架清单。" TextWrapping="Wrap" Margin="0,0,0,8"/>
    <WrapPanel>
     <Button Content="开始点取" Style="{StaticResource PrimaryButtonStyle}" Click="Pick_Click" Margin="0,0,8,8"/>
     <Button Content="结束点取" Style="{StaticResource SecondaryButtonStyle}" Click="End_Click" Margin="0,0,8,8"/>

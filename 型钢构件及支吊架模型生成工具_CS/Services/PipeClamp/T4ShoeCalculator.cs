@@ -127,6 +127,14 @@ namespace SteelSectionProbe
 
         /// <summary>由 layout 推导布尔建模所需的全部尺寸（对应 Python build_boolean_layout）。</summary>
         internal static T4ShoeBooleanLayout BuildBooleanLayout(T4ShoeLayout layout)
+        {return BuildBooleanLayout(layout,true);}
+
+        /// <summary>只推导对开承重板、耳板与孔位，供没有 T4 底座的 L7 使用。</summary>
+        internal static T4ShoeBooleanLayout BuildBearingBooleanLayout(T4ShoeLayout layout)
+        {return BuildBooleanLayout(layout,false);}
+
+        private static T4ShoeBooleanLayout BuildBooleanLayout(T4ShoeLayout layout,
+            bool includeSupport)
         {
             if(layout==null) throw new ArgumentNullException("layout");
             double length=layout.ShoeLengthMm;
@@ -153,7 +161,7 @@ namespace SteelSectionProbe
             for(int i=0;i<count;i++) earCenterX[i]=-span/2.0+i*span/(count-1);
 
             var supportCenterX=new List<double>();
-            if(!simpleBase)
+            if(includeSupport&&!simpleBase)
             {
                 double supportEndOffset=layout.SupportEndOffsetMm;
                 if(!(layout.T2Mm/2.0<supportEndOffset && supportEndOffset<length/2.0-layout.T2Mm))
@@ -165,19 +173,20 @@ namespace SteelSectionProbe
 
             double baseBottomZ=layout.ShoeBottomZMm;
             double baseTopZ=layout.BaseTopZMm;
-            if(baseTopZ>=-outerRadius)
+            if(includeSupport&&baseTopZ>=-outerRadius)
                 throw new InvalidOperationException("H 不足，底板与管夹相交或没有支撑净高。");
             double overlap=T4ShoeCatalog.SupportOverlapMm;
-            if(overlap>=Math.Min(layout.T3Mm,layout.T1Mm))
+            if(includeSupport&&overlap>=Math.Min(layout.T3Mm,layout.T1Mm))
                 throw new InvalidOperationException("搭接量必须小于承重板及底板厚度。");
 
             double halfSpan=simpleBase?layout.T2Mm/2.0:
                 layout.BaseWidthMm/2.0-T4ShoeCatalog.SupportSideInsetMm;
             double trimRadius=outerRadius-overlap;
-            if(!(halfSpan>0.0 && halfSpan<trimRadius) ||
-                (!simpleBase && halfSpan<=layout.T2Mm/2.0))
+            if(includeSupport && (!(halfSpan>0.0 && halfSpan<trimRadius) ||
+                (!simpleBase && halfSpan<=layout.T2Mm/2.0)))
                 throw new InvalidOperationException("横向支撑宽度不适合当前管夹直径。");
-            double supportTopZ=-Math.Sqrt(trimRadius*trimRadius-halfSpan*halfSpan);
+            double supportTopZ=includeSupport?
+                -Math.Sqrt(trimRadius*trimRadius-halfSpan*halfSpan):0;
 
             double bNear=gapJ/2.0+T4ShoeCatalog.EarSetbackMm;
             double bFar=bNear+earThickness;
@@ -224,7 +233,7 @@ namespace SteelSectionProbe
             CutFrame(layout.SplitAngleDeg,out c,out s);
             if(c<=0.0) throw new InvalidOperationException("切口角度不合理。");
             double maxB=Math.Abs(s)*halfSpan+c*supportTopZ;
-            if(!simpleBase && maxB>=gapJ/2.0)
+            if(includeSupport&&!simpleBase && maxB>=gapJ/2.0)
                 throw new InvalidOperationException("当前切口角度或支撑宽度会使支撑接触上半承重板。");
 
             return new T4ShoeBooleanLayout {

@@ -1,0 +1,49 @@
+<UserControl x:Class="SteelSectionProbe.HandrailPage"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:ClassModifier="internal"
+ Background="{DynamicResource BackgroundBrush}">
+ <UserControl.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries>
+  <ResourceDictionary Source="../Themes/Theme.xaml"/>
+ </ResourceDictionary.MergedDictionaries></ResourceDictionary></UserControl.Resources>
+ <Grid><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel>
+   <Border Style="{StaticResource CardStyle}"><StackPanel>
+    <TextBlock Text="01  围栏形式" Style="{StaticResource SectionTitleStyle}"/>
+    <TextBlock Text="沿水平或带坡度的开放辅助线生成围栏，立柱保持竖直。" TextWrapping="Wrap" Margin="0,0,0,8"/>
+    <TextBlock Text="立柱连接形式"/><ComboBox x:Name="ConnectionCombo" SelectionChanged="Parameter_Changed"/>
+    <StackPanel x:Name="OffsetPanel" Margin="0,8,0,0">
+     <TextBlock Text="立柱中心至连接板距离（mm，类型 2；须大于 83）"/>
+     <TextBox x:Name="OffsetText" Text="120" TextChanged="Parameter_Changed"/>
+    </StackPanel>
+    <TextBlock x:Name="ConnectionText" TextWrapping="Wrap" Margin="0,8,0,0"/>
+   </StackPanel></Border>
+   <Border Style="{StaticResource CardStyle}"><StackPanel>
+    <TextBlock Text="02  路径与端部" Style="{StaticResource SectionTitleStyle}"/>
+    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+     <StackPanel Margin="0,0,8,0"><TextBlock Text="踢脚板内侧"/><ComboBox x:Name="SideCombo" SelectionChanged="Parameter_Changed"/></StackPanel>
+     <StackPanel Grid.Column="1"><TextBlock Text="端部闭合回弯"/><ComboBox x:Name="ClosureCombo" SelectionChanged="Parameter_Changed"/></StackPanel>
+    </Grid>
+    <CheckBox x:Name="ReverseCheck" Content="反转路径方向（始端、末端及左右侧随之反转）" Margin="0,10,0,0" Checked="Parameter_Changed" Unchecked="Parameter_Changed"/>
+    <TextBlock Text="立柱间距 ≤2000 mm，优先按 50 mm 模数排布；水平转角 R140，转角两侧优先距理论折点 300 mm 设柱。纯变坡点设置立柱；同一节点转向且带坡度时需拆分路径。" TextWrapping="Wrap" Margin="0,10,0,0"/>
+   </StackPanel></Border>
+   <Border Style="{StaticResource CardStyle}"><StackPanel>
+    <TextBlock Text="03  固定构件尺寸" Style="{StaticResource SectionTitleStyle}"/>
+    <TextBlock Text="立柱 φ48.3×3.2；顶部扶手 φ42.4×3.2（中心高 1017）；中间横杆 φ33.7×3.2（中心高 560）；连接球 φ76。连续踢脚板 130×6，底部净高 10 mm；构件颜色 RGB(255,204,0)。" TextWrapping="Wrap"/>
+   </StackPanel></Border>
+  </StackPanel></ScrollViewer>
+  <Border Grid.Row="1" Style="{StaticResource CardStyle}"><StackPanel>
+   <TextBlock Text="04  点取与确认" Style="{StaticResource SectionTitleStyle}"/>
+   <WrapPanel>
+    <Button Content="开始点取" Style="{StaticResource PrimaryButtonStyle}" Click="Pick_Click" Margin="0,0,8,8"/>
+    <Button Content="结束操作" Style="{StaticResource SecondaryButtonStyle}" Click="End_Click" Margin="0,0,8,8"/>
+    <Button Content="更新预览" Style="{StaticResource SecondaryButtonStyle}" Click="Update_Click" Margin="0,0,8,8"/>
+    <Button Content="导出 JSON 清单" Style="{StaticResource SecondaryButtonStyle}" Click="Export_Click" Margin="0,0,0,8"/>
+   </WrapPanel>
+   <TextBlock x:Name="PreviewText" Text="请选择活动模型中的开放直线、折线或纯直线复杂链。" TextWrapping="Wrap" MaxHeight="110" Margin="0,0,0,10"/>
+   <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+    <Button Content="取消预览" Style="{StaticResource SecondaryButtonStyle}" Click="Cancel_Click" Margin="0,0,8,0"/>
+    <Button x:Name="ConfirmButton" Content="确定生成" Style="{StaticResource PrimaryButtonStyle}" Click="Confirm_Click" IsEnabled="False"/>
+   </StackPanel>
+  </StackPanel></Border>
+ </Grid>
+</UserControl>

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Bentley.DgnPlatformNET;
 using Bentley.DgnPlatformNET.Elements;
@@ -24,6 +24,7 @@ namespace SteelSectionProbe
             if(plan==null||line==null)throw new InvalidOperationException("请先选择竖直辅助线。");
             var model=Session.Instance.GetActiveDgnModel();
             if(model==null||!model.Is3d)throw new InvalidOperationException("门型架需要三维活动模型。");
+            if(plan.Parameters.Kind=="D16")return BuildHorizontal(plan,line,model.GetModelInfo().UorPerMeter/1000.0);
             double a=plan.Parameters.HeadingDegrees*Math.PI/180;
             var f=new Frame{X=line.StartZ<=line.EndZ?line.StartX:line.EndX,
                 Y=line.StartZ<=line.EndZ?line.StartY:line.EndY,
@@ -48,9 +49,9 @@ namespace SteelSectionProbe
             }
             double top=(kind=="D8"&&plan.Parameters.Type>=3||kind=="D13"&&plan.Parameters.Type==2)
                 ?0:plan.HeightMm;
-            double armStart=kind=="G6"?-plan.SpanMm/2:-plan.ArmLengthMm/2;
-            double armLength=kind=="G6"?plan.SpanMm:plan.ArmLengthMm;
-            if(kind=="G6")
+            double armStart=(kind=="G6"||kind=="D20")?-plan.SpanMm/2:-plan.ArmLengthMm/2;
+            double armLength=(kind=="G6"||kind=="D20")?plan.SpanMm:plan.ArmLengthMm;
+            if(kind=="G6"||kind=="D20")
             {
                 double v=plan.Variant.ChannelGap/2+plan.Variant.ArmWidth/2;
                 AddArm(result,f,plan,armStart,armLength,v,top,false);
@@ -66,6 +67,35 @@ namespace SteelSectionProbe
                         Z=f.Z,Ux=1,Uy=0,Vx=0,Vy=1,Scale=f.Scale};
                     AddGround(result,ground,plan.Variant.Ground,0,0);
                 }
+            return result;
+        }
+        private static IList<Element> BuildHorizontal(PortalFramePlan plan,PipeClampSelection line,double scale)
+        {
+            double dx=line.EndX-line.StartX,dy=line.EndY-line.StartY;
+            double length=Math.Sqrt(dx*dx+dy*dy);
+            if(length<1e-9)throw new InvalidOperationException("请选择有效水平辅助线。");
+            var f=new Frame{X=line.StartX,Y=line.StartY,Z=line.StartZ,Ux=dx/length,Uy=dy/length,
+                Vx=-dy/length,Vy=dx/length,Scale=scale};
+            var result=new List<Element>();
+            // 两侧 A 腹板/竖肢背靠背，开口向外；角钢水平肢在上。
+            bool angleA=plan.Variant.PostFamily=="equal_angle";
+            foreach(int side in new[]{-1,1})result.Add(SteelMemberFactory.AlongAxis(
+                Mode(plan.Variant.PostFamily,plan.Variant.PostProfile),f.P(plan.MemberAStartMm,side*plan.PostPitchMm/2,0),
+                scale,f.Axis(0,side,0),f.Axis(0,0,angleA?-1:1),f.Axis(1,0,0),plan.PostLengthMm,7));
+            if(plan.Plate!=null){
+                plan.Plate.Parameters.HeadingDegrees=Math.Atan2(f.Uy,f.Ux)*180/Math.PI;
+                foreach(int side in new[]{-1,1})result.AddRange(G2AnchorBuilder.Build(plan.Plate,
+                    f.P(plan.Parameters.PlateOffsetMm,side*plan.PostPitchMm/2,0)));
+            }
+            bool angleB=plan.Variant.ArmFamily=="equal_angle";
+            foreach(double station in plan.MemberBStationsMm)
+            {
+                // 类型 1 竖肢/腹板朝外端；类型 2 两根 B 腹板背靠背、开口向外。
+                double sectionX=plan.Parameters.Type==2&&station>plan.L1Mm?1:-1;
+                result.Add(SteelMemberFactory.AlongAxis(
+                    Mode(plan.Variant.ArmFamily,plan.Variant.ArmProfile),f.P(station,-plan.ArmLengthMm/2,0),
+                    scale,f.Axis(sectionX,0,0),f.Axis(0,0,angleB?-1:1),f.Axis(0,1,0),plan.ArmLengthMm,7));
+            }
             return result;
         }
         private static void AddArm(List<Element> result,Frame f,PortalFramePlan plan,

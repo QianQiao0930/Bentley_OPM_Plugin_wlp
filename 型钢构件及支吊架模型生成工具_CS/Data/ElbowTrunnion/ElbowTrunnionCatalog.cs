@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace SteelSectionProbe
 {
@@ -43,8 +44,8 @@ namespace SteelSectionProbe
             {1000,new[]{1016.0,19.05}}, {1050,new[]{1067.0,19.05}},
             {1100,new[]{1118.0,19.05}}, {1200,new[]{1219.2,19.05}}
         };
-        private static readonly int[] MainDns = { 15,20,25,32,40,50,100,150,200,250,300,350,400,
-            450,500,550,600,650,700,750,800,850,900,950,1000,1050,1100,1200 };
+        // 主管识别和耳轴选型共用已有管径目录，避免独立白名单遗漏 DN65/80/125。
+        private static readonly int[] MainDns = Pipe.Keys.OrderBy(dn=>dn).ToArray();
         private static readonly double[,] Table = {
             {50,0,200,10}, {100,50,200,10}, {150,80,200,10}, {200,100,200,12},
             {300,150,250,12}, {400,200,300,12}, {500,250,350,16},
@@ -55,7 +56,7 @@ namespace SteelSectionProbe
         {
             foreach (int dn in MainDns)
                 if (Math.Abs(nominalMm - dn) <= Math.Max(0.6, dn * 0.005)) return dn;
-            throw new InvalidOperationException("弯头公称直径不在四个原脚本支持的规格内：" + nominalMm + " mm。");
+            throw new InvalidOperationException("弯头公称直径不在支持的 DN15～DN1200 标准规格内：" + nominalMm + " mm。");
         }
         /// <summary>风管按实际外径选表 1 档位；鞍口仍使用实际外径。</summary>
         internal static int DuctMainDn(double outsideMm,out string note)

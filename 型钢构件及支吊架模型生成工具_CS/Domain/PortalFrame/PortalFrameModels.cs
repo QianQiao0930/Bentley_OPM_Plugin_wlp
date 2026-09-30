@@ -1,4 +1,4 @@
-namespace SteelSectionProbe
+﻿namespace SteelSectionProbe
 {
     internal sealed class PortalFrameParameters
     {
@@ -6,6 +6,11 @@ namespace SteelSectionProbe
         internal char Variant='A';
         internal int Type=1;
         internal double SpanMm=500;
+        internal double L3Mm=200,L4Mm=200;
+        internal bool AddPlate;
+        internal string PlateSubtype="A";
+        internal double PlateOffsetMm;
+        internal char Weld='A';
         internal string Name="D8";
         internal double HeadingDegrees;
         internal bool KeepAuxiliaryLine=true;
@@ -31,5 +36,9 @@ namespace SteelSectionProbe
         internal double PostPitchMm,PostVOffsetMm,GroundLiftMm;
         internal double? AllowableLoadKn;
         internal int ArmQuantity;
+        internal double L1Mm,L3Mm,L4Mm;
+        internal double[] MemberBStationsMm;
+        internal G2AnchorPlan Plate;
+        internal double MemberAStartMm;
     }
 }
