@@ -45,7 +45,7 @@ namespace SteelSectionProbe
                 else{xx=f.Axis(0,-1,0);yy=f.Axis(1,0,0);}
                 var mode=Mode(plan.Variant.PostFamily,plan.Variant.PostProfile);
                 result.Add(SteelMemberFactory.AlongAxis(mode,f.P(u,plan.PostVOffsetMm,bottom),
-                    f.Scale,xx,yy,f.Axis(0,0,1),plan.PostLengthMm,7));
+                    f.Scale,xx,yy,f.Axis(0,0,1),plan.PostLengthMm,SupportSteelAppearance.Color));
             }
             double top=(kind=="D8"&&plan.Parameters.Type>=3||kind=="D13"&&plan.Parameters.Type==2)
                 ?0:plan.HeightMm;
@@ -81,7 +81,7 @@ namespace SteelSectionProbe
             bool angleA=plan.Variant.PostFamily=="equal_angle";
             foreach(int side in new[]{-1,1})result.Add(SteelMemberFactory.AlongAxis(
                 Mode(plan.Variant.PostFamily,plan.Variant.PostProfile),f.P(plan.MemberAStartMm,side*plan.PostPitchMm/2,0),
-                scale,f.Axis(0,side,0),f.Axis(0,0,angleA?-1:1),f.Axis(1,0,0),plan.PostLengthMm,7));
+                scale,f.Axis(0,side,0),f.Axis(0,0,angleA?-1:1),f.Axis(1,0,0),plan.PostLengthMm,SupportSteelAppearance.Color));
             if(plan.Plate!=null){
                 plan.Plate.Parameters.HeadingDegrees=Math.Atan2(f.Uy,f.Ux)*180/Math.PI;
                 foreach(int side in new[]{-1,1})result.AddRange(G2AnchorBuilder.Build(plan.Plate,
@@ -94,7 +94,7 @@ namespace SteelSectionProbe
                 double sectionX=plan.Parameters.Type==2&&station>plan.L1Mm?1:-1;
                 result.Add(SteelMemberFactory.AlongAxis(
                     Mode(plan.Variant.ArmFamily,plan.Variant.ArmProfile),f.P(station,-plan.ArmLengthMm/2,0),
-                    scale,f.Axis(sectionX,0,0),f.Axis(0,0,angleB?-1:1),f.Axis(0,1,0),plan.ArmLengthMm,7));
+                    scale,f.Axis(sectionX,0,0),f.Axis(0,0,angleB?-1:1),f.Axis(0,1,0),plan.ArmLengthMm,SupportSteelAppearance.Color));
             }
             return result;
         }
@@ -107,7 +107,7 @@ namespace SteelSectionProbe
             result.Add(SteelMemberFactory.AlongAxis(
                 Mode(plan.Variant.ArmFamily,plan.Variant.ArmProfile),
                 f.P(start,v,top-plan.Variant.ArmDepth/2),f.Scale,xx,yy,f.Axis(1,0,0),
-                length,7));
+                length,SupportSteelAppearance.Color));
         }
         private static ModeData Mode(string family,string name)
         {return ProfileLookup.Mode(RuntimeData.Families,family,name,"geometric_center");}
@@ -130,7 +130,7 @@ namespace SteelSectionProbe
                     f.P(u+sx*spacing,v+sy*spacing,27+g.PlateThickness),
                     g.HoleDiameter/2*f.Scale));
             SolidPrimitiveFactory.Subtract(ref plate,cutters,"门型架锚板孔");
-            result.Add(SolidPrimitiveFactory.Element(plate,7));
+            result.Add(SolidPrimitiveFactory.Element(plate,SupportSteelAppearance.Color));
             double nutHeight=g.BoltDiameter==8?6.5:g.BoltDiameter==12?10:
                 g.BoltDiameter==16?13:16;
             double nutFlat=g.BoltDiameter==8?13:g.BoltDiameter==12?19:

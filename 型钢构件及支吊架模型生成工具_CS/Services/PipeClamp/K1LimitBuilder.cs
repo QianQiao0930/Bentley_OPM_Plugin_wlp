@@ -39,7 +39,7 @@ namespace SteelSectionProbe
                     new DVector3d(axisX[0],axisX[1],axisX[2]),
                     new DVector3d(axisY[0],axisY[1],axisY[2]),
                     new DVector3d(axisZ[0],axisZ[1],axisZ[2]),
-                    length,K1LimitCatalog.BlockColor));
+                    length,SupportSteelAppearance.Color));
 
                 var box=K1LimitCalculator.PlateBox(item,side,centerMm,plan.ExistingWidthMm,
                     plan.OutsideMm,pipeDir);
@@ -55,7 +55,7 @@ namespace SteelSectionProbe
             var points=new[]{ frame.Point(box[0],box[2],box[4]),frame.Point(box[1],box[2],box[4]),
                 frame.Point(box[1],box[3],box[4]),frame.Point(box[0],box[3],box[4]) };
             return SolidPrimitiveFactory.Element(SolidPrimitiveFactory.PolygonPrism(points,
-                frame.Direction(0.0,0.0,box[5]-box[4])),K1LimitCatalog.PlateColor);
+                frame.Direction(0.0,0.0,box[5]-box[4])),SupportSteelAppearance.Color);
         }
 
         /// <summary>子项 A 的半片 T 形截面：取自 H100×100×6×8 沿腹板高度中点剖开的一半，

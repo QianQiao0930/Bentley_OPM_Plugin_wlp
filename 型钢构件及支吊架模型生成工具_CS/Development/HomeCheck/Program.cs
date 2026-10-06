@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 
@@ -102,10 +102,10 @@ namespace SteelSectionProbe
                 ready.Add(feature);
             }
 
-            Equal(ready.Count, 19, "可用功能数");
+            Equal(ready.Count, 22, "可用功能数");
             Equal(placeholders, 1, "规划中占位卡数");
             Equal(Order(HomeFeatureRanker.Rank(all, new Dictionary<string, HomePreferenceRecord>(), Now)),
-                "steel-sections,steel-handrail,component-properties,elbow-trunnion,support-statistics,tank-manhole,solid-nozzle," +
+                "steel-sections,steel-handrail,tank-spiral-stair,component-properties,pipe-alignment,elbow-trunnion,support-statistics,tank-manhole,square-manhole,solid-nozzle," +
                 "pipe-clamp,vertical-pipe-support,cold-riser-guide,g2-anchor-plate,n3-single-bracket,n4-double-bracket,triangle-bracket,l-bracket,portal-frame,t-frame,pad-plate,n8-connection-plate,",
                 "清单出厂顺序");
         }
@@ -193,7 +193,7 @@ namespace SteelSectionProbe
         {
             List<HomeEntry> entries = HomeFeatureRanker.Rank(HomeFeatureCatalog.All(),
                 new Dictionary<string, HomePreferenceRecord>(), Now);
-            Equal(entries.Count, 20, "冷启动条目数");
+            Equal(entries.Count, 23, "冷启动条目数");
             Equal(PinnedOrder(entries), "", "冷启动不应有置顶项");
             for (int i = 1; i < entries.Count; i++)
             {

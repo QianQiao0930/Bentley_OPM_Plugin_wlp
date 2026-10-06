@@ -19,8 +19,8 @@ namespace SteelSectionProbe
             var frame=new PipeClampFrame(center,model.GetModelInfo().UorPerMeter/1000.0,
                 axis.X,axis.Y,axis.Z);
             var result=new List<Element>();
-            result.Add(SolidPrimitiveFactory.Element(Half(frame,plan,true),A22ClampCatalog.BodyColor));
-            result.Add(SolidPrimitiveFactory.Element(Half(frame,plan,false),A22ClampCatalog.BodyColor));
+            result.Add(SolidPrimitiveFactory.Element(Half(frame,plan,true),SupportSteelAppearance.Color));
+            result.Add(SolidPrimitiveFactory.Element(Half(frame,plan,false),SupportSteelAppearance.Color));
             foreach(double y in plan.BoltCentersYmm)
                 Fastener(result,frame,plan,y);
             return result;

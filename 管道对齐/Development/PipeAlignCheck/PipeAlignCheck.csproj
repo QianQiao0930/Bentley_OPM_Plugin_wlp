@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    管道标高对齐插件 · 纯计算层离线自检工程（开发指南 §38 的 T01～T20 验收用例）。
+
+    本工程**只链接** PipeAlign_CS 的纯计算层源码，不引用任何 Bentley 程序集，
+    因此可以脱离 OpenPlant Modeler 直接 `dotnet run`。链接方式用 <Compile Include>
+    （不复制文件），保证自检跑的就是插件本体那一份源码。
+
+    - 不链接：Services\PipeMoveService.cs、Services\IPipeGeometryVerifier.cs，
+      以及 Data\ / OpenPlant\ / Tools\ / UI\ / App\ / Infrastructure\ / Registration\ 下的任何文件
+      （它们都需要 Bentley 程序集）。
+    - ImplicitUsings=disable / LangVersion=7.3：链接进来的源码是 C# 7.3 语法。
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>PipeAlignCheck</AssemblyName>
+    <RootNamespace>PipeAlignCheck</RootNamespace>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>7.3</LangVersion>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- 链接进来的源码里有中文 XML 注释，缺 using 等不会淹没有效信息 -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- ===== 纯计算层：Domain 全部 ===== -->
+    <Compile Include="..\..\PipeAlign_CS\Domain\*.cs" Link="Domain\%(Filename)%(Extension)" />
+
+    <!-- ===== 纯计算层：Services 中不依赖 Bentley 的 7 个文件 ===== -->
+    <Compile Include="..\..\PipeAlign_CS\Services\ElevationCalculator.cs" Link="Services\ElevationCalculator.cs" />
+    <Compile Include="..\..\PipeAlign_CS\Services\PipeValidationService.cs" Link="Services\PipeValidationService.cs" />
+    <Compile Include="..\..\PipeAlign_CS\Services\PipeAlignPlanner.cs" Link="Services\PipeAlignPlanner.cs" />
+    <Compile Include="..\..\PipeAlign_CS\Services\LengthUnitCalibrator.cs" Link="Services\LengthUnitCalibrator.cs" />
+    <Compile Include="..\..\PipeAlign_CS\Services\UnitService.cs" Link="Services\UnitService.cs" />
+    <Compile Include="..\..\PipeAlign_CS\Services\IUnitService.cs" Link="Services\IUnitService.cs" />
+    <Compile Include="..\..\PipeAlign_CS\Services\PipeAlignValidationException.cs" Link="Services\PipeAlignValidationException.cs" />
+
+    <!-- Move Group 展开（纯计算：读取成员由调用方注入委托，所以不依赖 Bentley） -->
+    <Compile Include="..\..\PipeAlign_CS\Services\PipeGroupExpander.cs" Link="Services\PipeGroupExpander.cs" />
+    <Compile Include="..\..\PipeAlign_CS\Services\PipeMoveVerification.cs" Link="Services\PipeMoveVerification.cs" />
+    <Compile Include="..\..\PipeAlign_CS\Services\ZAxisRoutePlanner.cs" Link="Services\ZAxisRoutePlanner.cs" />
+  </ItemGroup>
+
+</Project>

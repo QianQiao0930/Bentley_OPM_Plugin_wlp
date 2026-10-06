@@ -56,9 +56,9 @@ namespace SteelSectionProbe
             }
             return new[]{
                 SteelMemberFactory.AlongAxis(post,postOrigin,scale,px,py,pz,
-                    plan.PostCutLengthMm,7),
+                    plan.PostCutLengthMm,SupportSteelAppearance.Color),
                 SteelMemberFactory.AlongAxis(arm,armOrigin,scale,ax,ay,az,
-                    plan.ArmCutLengthMm,7)};
+                    plan.ArmCutLengthMm,SupportSteelAppearance.Color)};
         }
     }
 }

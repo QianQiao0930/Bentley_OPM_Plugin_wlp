@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <OutputType>Library</OutputType>
+    <PlatformTarget>x64</PlatformTarget>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <LangVersion>7.3</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>PipeAlign</AssemblyName>
+    <RootNamespace>PipeAlign</RootNamespace>
+    <UseWindowsForms>true</UseWindowsForms>
+    <BentleyRoot Condition="'$(BentleyRoot)' == ''">D:\Program Files\Bentley\OpenPlant 2024\OpenPlantModeler</BentleyRoot>
+    <BentleyAssemblies>$(BentleyRoot)\Assemblies</BentleyAssemblies>
+    <BentleyEcf>$(BentleyRoot)\Assemblies\ECFramework</BentleyEcf>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- MicroStation / DGN 平台 -->
+    <Reference Include="ustation"><HintPath>$(BentleyRoot)\ustation.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.DgnPlatformNET"><HintPath>$(BentleyRoot)\Bentley.DgnPlatformNET.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.DgnDisplayNet"><HintPath>$(BentleyRoot)\Bentley.DgnDisplayNet.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.GeometryNET"><HintPath>$(BentleyRoot)\Bentley.GeometryNET.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.GeometryNET.Structs"><HintPath>$(BentleyRoot)\Bentley.GeometryNET.Structs.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.GeometryNET.Common"><HintPath>$(BentleyRoot)\Bentley.GeometryNET.Common.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.Interop.MicroStationDGN"><HintPath>$(BentleyAssemblies)\Bentley.Interop.MicroStationDGN.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="bentley.microstation.interfaces.1.0"><HintPath>$(BentleyAssemblies)\bentley.microstation.interfaces.1.0.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="bentley.microstation"><HintPath>$(BentleyAssemblies)\bentley.microstation.dll</HintPath><Private>false</Private></Reference>
+
+    <!-- EC / 持久化 -->
+    <Reference Include="Bentley.ECObjects3"><HintPath>$(BentleyEcf)\Bentley.ECObjects3.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.EC.Persistence3"><HintPath>$(BentleyEcf)\Bentley.EC.Persistence3.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.General.1.0"><HintPath>$(BentleyEcf)\Bentley.General.1.0.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.Platform"><HintPath>$(BentleyEcf)\Bentley.Platform.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.Windowing"><HintPath>$(BentleyEcf)\Bentley.Windowing.dll</HintPath><Private>false</Private></Reference>
+
+    <!-- OpenPlant Modeler 业务对象 API -->
+    <Reference Include="Bentley.OpenPlant.Modeler.Api"><HintPath>$(BentleyAssemblies)\Bentley.OpenPlant.Modeler.Api.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.OpenPlant.Modeler.Interfaces"><HintPath>$(BentleyAssemblies)\Bentley.OpenPlant.Modeler.Interfaces.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.OpenPlantModeler.SDK"><HintPath>$(BentleyAssemblies)\Bentley.OpenPlantModeler.SDK.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.Building.Mechanical.Components"><HintPath>$(BentleyAssemblies)\Bentley.Building.Mechanical.Components.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.ApplicationFramework.Interfaces"><HintPath>$(BentleyAssemblies)\Bentley.ApplicationFramework.Interfaces.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.ApplicationFramework.PropertyContainerManager"><HintPath>$(BentleyAssemblies)\Bentley.ApplicationFramework.PropertyContainerManager.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.Plant.OpenPlantFramework.Differencing.Transformations"><HintPath>$(BentleyAssemblies)\Bentley.Plant.OpenPlantFramework.Differencing.Transformations.dll</HintPath><Private>false</Private></Reference>
+
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Registration\commands.xml" LogicalName="CommandTable.xml" />
+  </ItemGroup>
+</Project>

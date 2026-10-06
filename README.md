@@ -1,6 +1,6 @@
 # Bentley_OPM_Plugin_wlp
 
-为 **Bentley OpenPlant Modeler（OPM）** 开发的插件集合。多数目录是运行在 Bentley Power Platform Python 环境中的脚本；另有独立的 C# AddIn“型钢构件及支吊架模型生成工具”。
+为 **Bentley OpenPlant Modeler（OPM）** 开发的插件集合。多数目录是运行在 Bentley Power Platform Python 环境中的脚本；另有**两个独立的 C# AddIn**：`型钢构件及支吊架模型生成工具`（建模）与 `管道对齐`（改已有管道标高）。
 
 > 这些插件绝大多数是**几何建模**工具，生成的是活动 OPM 模型中的 SmartSolid 图元（`管道信息查询` 是例外，它是只读查询工具，不生成几何）。若需注册为带 Class / Tag / 规格属性的 OpenPlant 智能组件，还需结合项目使用的 OPM 类库、EC Schema 和目录规范。
 
@@ -13,7 +13,7 @@
 | `普通钢结构围栏` | 沿智能线创建普通钢结构围栏：立柱 + 顶/中横杆 + 连接球 + 踢脚板，四种立柱底部连接形式、三种端部闭合方式，含 ItemType 钢材清单与 JSON 导出 |
 | `可拆卸栏杆` | 可拆卸钢结构栏杆：固定 DN50 套管 + 可插拔 DN40 立杆 + 定位环 + 横杆 + 130 高挡板，分离永久套管与可拆面板两个单元，含 ItemType 钢材清单与 JSON 导出 |
 | `型钢截面生成器` | 统一型钢截面 / 扫掠插件：七类型钢（平行腿槽钢、普通工字钢、热轧 H 型钢、斜腿槽钢、等边/不等边角钢、HK 系列）共 1100+ 规格，先选型式再选规格，支持放置二维截面或沿路径扫掠为 SmartSolid |
-| `型钢构件及支吊架模型生成工具_CS` | **独立 C# AddIn**（.NET Framework 4.8，运行时不启动 Python）：8 个功能入口——型钢截面放置 / 路径扫掠、构件特性查询、弯头耳轴四组合、支吊架统计、罐壁人孔、实体管口、E1 不保温管导向架；**各类支吊架本体建模尚未从 Python 版移植**。见下方「C# AddIn」一节及目录内 README 与 AGENTS.md。 |
+| `型钢构件及支吊架模型生成工具_CS` | **独立 C# AddIn**（.NET Framework 4.8，运行时不启动 Python）：已实现 **22 个可用功能模块 + 1 个占位卡**——型钢截面放置 / 路径扫掠、普通钢结构围栏（直线/折线/水平圆弧/竖轴螺旋/混合路径）、罐体盘梯、管道标高对齐、构件特性查询、弯头耳轴四组合、立管耳轴、放置管夹（A1/A2/A22/A24/E1/K1/T4/L2）、保冷立管导向架 L7/L8、混凝土锚板 G2、N3/N4/N8、三角架、L 型架、门型架、T 型架、垫板、罐壁人孔、方形人孔、实体管口、支吊架统计。见下方「C# AddIn」一节及目录内 README 与 AGENTS.md。 |
 | `管道支吊架` | 管道支吊架插件集 + 共享清单：集中放置**三角架综合版**（D5 端焊 / D6 侧焊 / G12 混凝土锚固 / D19 双槽钢，含选线预览、反向、类型 1/2、表 1 允许荷载、可选 G2 端板）、L 型管架、门型架（角钢和槽钢）（图 C.4-8 类型 1/2 正门 + 3/4 倒门）、门型架（H型钢）（图 C.4-8 类型 1 正门 + 类型 2 倒门）、地面上生根的门型架（G5，表 1/表 2，底部锚板 + 4 膨胀锚栓 + 现场灌浆，编号 `G5-子项-H-L`）、地面上生根的门型架（槽钢和 H 型钢组合 · G6，构件A ＝ 两 H 型钢立柱（外缘间距 L、柱顶高出横担顶面 50）、构件B ＝ 两片背靠背槽钢横担（腹板净距 S、夹在两柱之间、上翼缘顶面为管位面），编号 `G6-子项-H-L`）、T 形架（单立柱 + 顶部居中横担 · 类型 1）、保温管夹（高温隔热限位管托 · 图集 T4 · DN80~600）、G2 混凝土锚板 + 膨胀锚栓，共用统一 ItemType 契约（库 `PipeSupportComponents`）；另有只读统计插件，按类型统计套数、导出 Excel（支吊架表 + 材料汇总表）与 JSON |
 | `旧版本脚本` | **冻结归档**：已废弃的入口脚本，连同它们**归档时刻的依赖副本**（`bentley_ui/`、`模块/公共/…`、`模块/端焊三角架/…`），因此脱离 `管道支吊架/` 也能独立运行与测试。当前含端焊三角架旧入口 `D5_D6-[三角架].py`（只实现 D5）。见目录内 README（含"不要和现行插件同会话混用"等注意事项） |
 | `管道信息查询` | **只读查询插件**（不生成几何）：点取一个管道 / 管道元件，读出管线号、公称直径、外径、壁厚、保温厚度、管道等级、材质等 OpenPlant EC 属性，以及由曲线算出的中心线标高、管段长度、起终点与走向，并推算保温后外径、由外径反查公称直径；属性长度单位按「属性长度 ↔ 几何长度」自动标定并支持面板手动覆盖；可导出全部 EC 属性、含纯逻辑单测 |
@@ -26,6 +26,7 @@
 | `轻便消防水龙柜` | 按图集 15S202 第 53 页创建轻便消防水龙柜（1200×550×160）：直角柜体、隔板、卷盘、DN25 给水管（接出柜体）、阀门、喷枪与柜门，灭火器型号/数量由用户输入；通过 ItemType 记录《主要器材表》8 项器材与灭火器并导出 JSON / Excel 清单 |
 | `竖直弯头耳轴` | 参数化竖直弯头耳轴：A/B/C 型底板、空心/实心耳轴、鞍口布尔运算、通气孔 |
 | `罐壁人孔` | 罐壁（筒体）人孔：筒节 + 法兰 + 盖板 + 螺栓 + 把手，可选铰链或 R220 吊杆（图 BN-DS-A 4） |
+| `管道对齐` | **独立 C# AddIn**（`PipeAlign`，.NET Framework 4.8）：按一根**基准管**的标高把一批**目标管**的管底 / 管中心 / 管顶对齐，支持管道外表面 / 保温层外表面两种表面模式；`PIPEALIGN` 打开非模态窗口，`PIPEALIGN BOTTOM\|CENTER\|TOP` 指定模式，`PIPEALIGN DEBUG [DUMP]` 只读转储。V1 按 Safe Mode 只动**无连接的水平直管**，连接校验 + 移动后几何复核 + 一次 Undo 撤消整批。见目录内 README 与 AGENTS.md |
 
 ## 环境要求
 
@@ -62,6 +63,7 @@ C# AddIn 的使用方式不同（不经过 Python Editor）：把编译输出目
 - `竖直弯头耳轴`：见 `竖直弯头耳轴/README.md`。
 - `罐壁人孔`：见 `罐壁人孔/README.md`（吊杆直径表、图 BN-DS-A 4 尺寸对应关系、铰链 / 吊杆两种连接形式、几何自检）。
 - `型钢构件及支吊架模型生成工具_CS`：见下方「C# AddIn」一节。
+- `管道对齐`：见 [`管道对齐/PipeAlign_CS/README.md`](管道对齐/PipeAlign_CS/README.md)（`PIPEALIGN` 命令族、基准管 / 目标管两阶段点取、管底 / 管中心 / 管顶、管道外表面 / 保温层外表面、Safe Mode 连接校验、移动能力运行时自证、一次 Undo；需求来源是 [`管道对齐/管道对齐插件开发指南.md`](管道对齐/管道对齐插件开发指南.md)）。接续开发前必读 [`管道对齐/PipeAlign_CS/AGENTS.md`](管道对齐/PipeAlign_CS/AGENTS.md)。
 
 ## C# AddIn：型钢构件及支吊架模型生成工具
 
@@ -72,7 +74,7 @@ C# AddIn 的使用方式不同（不经过 Python Editor）：把编译输出目
 - 加载：`MDL LOAD SteelSectionProbe`，然后 `STEELPROBE SHOW`（或 `STEELPROBE PLACE` 直达截面放置）
 - 说明：[`型钢构件及支吊架模型生成工具_CS/README.md`](型钢构件及支吊架模型生成工具_CS/README.md)；接续开发前必读 [`型钢构件及支吊架模型生成工具_CS/AGENTS.md`](型钢构件及支吊架模型生成工具_CS/AGENTS.md)
 
-功能以「可扩展的功能首页 + 独立功能页」组织，进入 `STEELPROBE SHOW` 后从首页选择，**除下列两个命令外没有额外的 Key-in**。
+功能以「可扩展的功能首页 + 独立功能页」组织，进入 `STEELPROBE SHOW` 后从首页选择，**除下列两个命令外没有额外的 Key-in**。首页当前为 **22 个可用模块 + 1 个占位卡**，唯一来源是 [`Data/Home/HomeFeatureCatalog.cs`](型钢构件及支吊架模型生成工具_CS/Data/Home/HomeFeatureCatalog.cs)，由 `Development/HomeCheck` 断言。其中**「管道标高对齐」也集成在本工程内**（后台按原逻辑复制进各层 `PipeAlignment/`）；它和独立的 [`管道对齐/PipeAlign_CS`](管道对齐/PipeAlign_CS/README.md) 工程共用配置与日志，**不要同时启动两个版本点取**。
 
 ### 已实现 / 未实现 / 待实测
 
@@ -85,9 +87,19 @@ C# AddIn 的使用方式不同（不经过 Python Editor）：把编译输出目
 | 罐壁人孔 | 已实现 | ❌（属罐体设备附件） |
 | 实体管口（CL150） | 已实现 | ❌（可视化管口） |
 | E1 不保温管导向架 | 已实现 | ✅ |
-| 各类支吊架本体建模：门型架（角钢 / 槽钢 / H 型钢）、T 形架、保温管夹、L 型管架、端焊三角架、N 系列设备上生根管架 | **未实现** | — |
+| 放置管夹（A1 / A2 / A22 / A24 / E1 / K1 / T4 / L2） | 已实现 | ✅ |
+| 立管耳轴（F6 / F7 / F10） | 已实现 | ✅ |
+| 保冷立管导向架（L7 / L8 类型 1、2） | 已实现 | ✅ |
+| 混凝土锚板 G2、N3 单三角架、N4 双三角架、N8 连接板 | 已实现 | ✅ |
+| 三角架（D5 / D6 / G12 / D19）、L 型架（D7） | 已实现 | ✅ |
+| 门型架（D8 / D13 / G5 / G6 / D16 / D20）、T 型架（D12 / G4 / D15） | 已实现 | ✅ |
+| 垫板（Y2 弧形垫板 / 弯头垫板） | 已实现 | ✅ |
+| 普通钢结构围栏（直线 / 折线 / 水平圆弧 / 竖轴螺旋 / 混合路径） | 已实现 | ✅ |
+| 罐体盘梯生成（梯梁、踏步、平台、内外栏杆） | 已实现 | ❌（结构件；栏杆部分复用围栏清单） |
+| 方形人孔、罐壁人孔、实体管口 | 已实现 | ❌（设备附件 / 可视化管口） |
+| 管道标高对齐（管底 / 中心 / 管顶、连通随动、锁 Z） | 已实现 | ❌（修改既有管道） |
 
-「未实现」的这些目前只有 Python 版（见 `管道支吊架` 目录）；C# 版目录名中的“支吊架”部分即指这块待移植的工作。
+首页当前为 **22 个可用模块 + 1 个占位卡**（唯一来源 `型钢构件及支吊架模型生成工具_CS/Data/Home/HomeFeatureCatalog.cs`，由 `Development/HomeCheck` 断言）。此前表格里「各类支吊架本体建模尚未从 Python 版移植」的说法**已过时**：门型架、T 型架、保温管夹（T4）、L 型管架、端焊三角架、N 系列、L2 管托、垫板与锚板**均已移植到 C#**，并各自有 `Development/*Check` 离线检查工程。
 
 **关于验证状态（重要）**：上表「已实现」仅表示**功能代码完成且 Release 编译通过（0 错误 0 警告）**，**不代表已在 OPM 2024 中实测通过**。本项目已实测的部分是各功能的纯计算自检（`Development/*Check/`，均可用 `dotnet run --project ... -c Release` 运行，且已从 AddIn 编译中排除）；而 Bentley 运行时行为——EC 属性跨模型读取、实体布尔差集、真圆弧扫掠、Cell 写入、预览删除与 ItemType 汇总写入、另存为对话框——**全部仍需在 OPM 2024 中用真实 DGN 实测**。各功能需要实测的具体项见 [`型钢构件及支吊架模型生成工具_CS/README.md`](型钢构件及支吊架模型生成工具_CS/README.md) 各节末尾的说明。
 
@@ -99,9 +111,36 @@ C# 版与原 Python 版共用同一个 `PipeSupportComponents` ItemType 库和**
 
 可编辑的规格源在本 C# 工程内 [`型钢构件及支吊架模型生成工具_CS/Development/profile_catalog/`](型钢构件及支吊架模型生成工具_CS/Development/profile_catalog/)；改动后需运行 `python -B Development/export_profiles.py` 重新生成 [`Resources/profiles.bin`](型钢构件及支吊架模型生成工具_CS/Resources/profiles.bin) 再编译。**只改 `.py` 不会影响已编译的 DLL**，也不要在运行时依赖 Python。
 
+## C# AddIn：管道对齐（PipeAlign）
+
+第二个独立 C# 工程：OpenPlant Modeler 2024 AddIn，用于把已有管道的标高对齐到一根基准管。**不启动 Python，也不依赖另一个 C# 工程**。
+
+- 工程：[`管道对齐/PipeAlign_CS/PipeAlign.csproj`](管道对齐/PipeAlign_CS/PipeAlign.csproj)（程序集名 `PipeAlign`）
+- 编译：`dotnet build PipeAlign.csproj -c Release`（默认 Bentley 根目录 `D:\Program Files\Bentley\OpenPlant 2024\OpenPlantModeler`，可用 `/p:BentleyRoot=` 覆盖）
+- 加载：把 `bin\Release\net48` 加入 `MS_ADDINPATH` → `MDL LOAD PipeAlign` → `PIPEALIGN`
+- 说明：[`管道对齐/PipeAlign_CS/README.md`](管道对齐/PipeAlign_CS/README.md)；接续开发前必读 [`管道对齐/PipeAlign_CS/AGENTS.md`](管道对齐/PipeAlign_CS/AGENTS.md)
+
+命令族：`PIPEALIGN`（打开窗口）/ `PIPEALIGN BOTTOM|CENTER|TOP` / `PIPEALIGN DEBUG [DUMP]`（只读检查）/ `PIPEALIGN OPTIONS`（把运行参数写回配置）。
+
+### 设计要点（为什么它和一般的"改标高"脚本不一样）
+
+- **以 OpenPlant 对象为主**：识别 `PIPE` 类走 `OpenPlant*` schema，不用 DGN 图元类型；中心线取自元素几何，**不用包围盒当工程标高**（包围盒只在曲线与显示几何都拿不到时兜底，且必定带警告）。
+- **不用没被证实的单位改模型**：OpenPlant 几何接口的坐标单位没有官方保证，猜错会把管道挪到几百米之外。插件在**读取阶段**用该元素自己的几何探测单位（长度比值 + 端点标高两处吻合才算证实），探测不通过就**拒绝移动并说明原因**。
+- **移动后可复核、失败即停**：每次调用修改接口之后都用独立几何通道复核标高；复核不过就回退并降级到下一级；三级都不过记为失败并立即停止后续修改。DGN 图形变换（会让数据与图形不一致）默认关闭。
+- **Safe Mode**：只处理水平直管；目标管只要连到"本批不会一起移动的对象"（含基准管、设备管口、弯头）就被跳过并给出中文原因；斜管、参考文件元素、只读与锁定对象一律拒绝。
+- **一次 Apply = 一次 Undo**；Apply 前会重新读取全部管道以防选择与应用之间模型被改动。
+
+### 验证状态（重要）
+
+已离线验证：`dotnet build -c Release` **0 错误 0 警告**；纯计算层（标高算法、单位标定、校验与计划、Safe Mode 拓扑过滤）由 [`管道对齐/Development/PipeAlignCheck`](管道对齐/Development/PipeAlignCheck/) 断言，覆盖开发指南 §34 算例与 T01～T20；用到的 Bentley API 签名均以只读元数据（[`管道对齐/Development/ApiDump`](管道对齐/Development/ApiDump/)）确认，C# 可消费性用 [`管道对齐/Development/ApiProbe`](管道对齐/Development/ApiProbe/) 编译验证。
+
+**仍待在 OPM 2024 中用真实 DGN 实测**：命令加载与窗口、`PIPEALIGN DEBUG` 的识别结果、**移动能力探测是否通过**、**移动是否真的生效并被复核通过**（以及哪一级生效）、一次 Undo 是否撤消整批、连接关系读取、参考文件只读提示、预览线与轴测图 / Connectivity Check 的一致性。逐项判据见 [`管道对齐/PipeAlign_CS/README.md`](管道对齐/PipeAlign_CS/README.md) 第 9 节。
+
 ## 排错
 
 部分脚本在 Bentley 几何内核返回错误时会向各自目录写入 `*_debug_log.txt`，排查时请查看对应日志。
+
+C# AddIn 的排错日志在 `%LOCALAPPDATA%\<程序集名>\`：型钢 / 支吊架工程是 `statistics_trace.log`，管道对齐工程是 `PipeAlign_debug_log.txt`（含逐根管的几何、EC、单位标定、移动能力探测与逐级尝试记录）。
 
 ## License
 

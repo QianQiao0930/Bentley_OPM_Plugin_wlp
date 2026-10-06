@@ -64,7 +64,7 @@ namespace SteelSectionProbe
         private static void BuildF10Side(VerticalPipeSupportPlan p,Frame f,IList<Element> parts)
         {
             double inner=p.PipeOd/2,outer=inner+p.EarWidthMm;
-            parts.Add(SolidPrimitiveFactory.Element(Box(f,inner,outer,-5,5,0,p.EarHeightMm),3));
+            parts.Add(SolidPrimitiveFactory.Element(Box(f,inner,outer,-5,5,0,p.EarHeightMm),SupportSteelAppearance.Color));
             double baseInner=outer-70,baseOuter=outer;
             var baseBody=Box(f,baseInner,baseOuter,-60,60,-10,0);
             if(p.Fixed)
@@ -86,7 +86,7 @@ namespace SteelSectionProbe
                         f.V(0,0,8.4)),5));
                 }
             }
-            parts.Add(SolidPrimitiveFactory.Element(baseBody,3));
+            parts.Add(SolidPrimitiveFactory.Element(baseBody,SupportSteelAppearance.Color));
         }
         private static void BuildTrunnionSide(VerticalPipeSupportPlan p,Frame f,IList<Element> parts)
         {
@@ -102,7 +102,7 @@ namespace SteelSectionProbe
             double pipeRadius=p.PipeOd/2+(p.TrunnionOd>=p.PipeOd-1?0.1:0);
             var saddle=Cylinder(f,0,0,-p.LengthMm-p.PipeOd,0,0,p.LengthMm+p.PipeOd,pipeRadius);
             SolidPrimitiveFactory.Subtract(ref outer,new[]{saddle},"耳轴鞍口");
-            parts.Add(SolidPrimitiveFactory.Element(outer,3));
+            parts.Add(SolidPrimitiveFactory.Element(outer,SupportSteelAppearance.Color));
             if(p.PadThicknessMm>0)
             {
                 double half=p.TrunnionOd/2+p.PadWidthMm+10;
@@ -117,7 +117,7 @@ namespace SteelSectionProbe
                 SolidPrimitiveFactory.Subtract(ref disc,new[]{outside},"补强板求交");
                 SolidPrimitiveFactory.Subtract(ref disc,new[]{Box(f,-half,0,-half,half,-half,half)},
                     "补强板中心线齐平");
-                parts.Add(SolidPrimitiveFactory.Element(disc,3));
+                parts.Add(SolidPrimitiveFactory.Element(disc,SupportSteelAppearance.Color));
             }
         }
     }

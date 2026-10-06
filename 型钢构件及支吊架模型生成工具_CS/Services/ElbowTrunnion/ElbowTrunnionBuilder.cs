@@ -126,7 +126,7 @@ namespace SteelSectionProbe
                 Session.Instance.GetActiveDgnModelRef());
             if (status!=BentleyStatus.Success || element==null)
                 throw new InvalidOperationException("三维实体转换为 DGN 元素失败：" + status);
-            return element;
+            return SupportSteelAppearance.Apply(element);
         }
         private static DPoint3d Point(VectorMm p,double scale)
         {

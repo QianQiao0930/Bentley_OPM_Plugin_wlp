@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 namespace SteelSectionProbe
 {
@@ -19,6 +19,14 @@ namespace SteelSectionProbe
         internal static double Dot(HandrailPoint a,HandrailPoint b){return a.X*b.X+a.Y*b.Y+a.Z*b.Z;}
     }
     internal enum HandrailConnection {Type1=1,Type2=2,Type3=3,Type4=4}
+    internal sealed class HandrailArcInput
+    {
+        internal HandrailPoint Center,Vector0,Vector90;
+        internal double StartAngle,SweepAngle;
+        internal double RiseMm;
+        internal bool IsHelix;
+        internal List<HandrailPoint> MixedPoints;
+    }
     internal enum HandrailClosure {None,Start,End,Both}
     internal sealed class HandrailParameters
     {
@@ -27,20 +35,23 @@ namespace SteelSectionProbe
         internal int Side=1;
         internal bool Reverse;
         internal double StructureOffsetMm=120;
+        internal double MaxPostSpacingMm=2000;
     }
     internal sealed class HandrailPiece
     {
         internal bool IsArc;
+        internal bool IsHelix;
+        internal double RiseMm;
         internal HandrailPoint Start,End,Center,Radial,Tangent;
         internal double Radius=140,Angle,StartStation,Length,TurnSign;
         internal double EndStation {get{return StartStation+Length;}}
         internal HandrailPoint At(double fraction)
         {
             if(!IsArc)return Start+(End-Start)*fraction;
-            double a=Angle*fraction;return Center+(Radial*Math.Cos(a)+Tangent*Math.Sin(a))*Radius;
+            double a=Angle*fraction;return Center+(Radial*Math.Cos(a)+Tangent*Math.Sin(a))*Radius+HandrailPoint.Up*(RiseMm*fraction);
         }
         internal HandrailPoint Direction(double fraction)
-        {return IsArc?Radial*(-Math.Sin(Angle*fraction))+Tangent*Math.Cos(Angle*fraction):Tangent;}
+        {return IsArc?(Radial*(-Math.Sin(Angle*fraction))+Tangent*Math.Cos(Angle*fraction)+HandrailPoint.Up*(RiseMm/(Radius*Angle))).Unit():Tangent;}
     }
     internal sealed class HandrailCorner
     {
@@ -66,6 +77,7 @@ namespace SteelSectionProbe
     }
     internal sealed class HandrailPlan
     {
+        internal bool IsSpatialMixed;
         internal HandrailParameters Parameters;
         internal readonly List<HandrailPiece> Pieces=new List<HandrailPiece>();
         internal readonly List<HandrailCorner> Corners=new List<HandrailCorner>();

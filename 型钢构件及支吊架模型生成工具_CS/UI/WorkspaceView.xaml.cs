@@ -27,10 +27,13 @@ namespace SteelSectionProbe
             SteelSections = new SteelSectionPage();
             RegisterPage(SteelSections);
             RegisterPage(new HandrailPage());
+            RegisterPage(new SpiralStairPage());
+            RegisterPage(new PipeAlignmentPage());
             RegisterPage(new ComponentPropertiesPage());
             RegisterPage(new ElbowTrunnionPage());
             RegisterPage(new SupportStatisticsPage());
             RegisterPage(new TankManholePage());
+            RegisterPage(new SquareManholePage());
             RegisterPage(new NozzlePage());
             RegisterPage(new PipeClampPage());
             RegisterPage(new G2AnchorPage());
@@ -158,9 +161,19 @@ namespace SteelSectionProbe
                 Dispatcher.BeginInvoke(new Action(delegate { SetStatus(message, isError); }));
                 return;
             }
-            StatusText.Text = message;
+            BuildStatusPanel.Visibility=Visibility.Collapsed;StatusText.Visibility=Visibility.Visible;
+            if(StatusText.Text!=message)StatusText.Text = message;
             StatusText.Foreground = (Brush)FindResource(isError ? "ErrorBrush" : "StatusBrush");
             StatusDot.Fill = (Brush)FindResource(isError ? "ErrorBrush" : "AccentBrush");
+        }
+        internal void SetBuildProgress(int percent,string stage,int seconds)
+        {
+            if(BuildStatusPanel.Visibility!=Visibility.Visible)StatusDot.Fill=(Brush)FindResource("AccentBrush");
+            StatusText.Visibility=Visibility.Collapsed;BuildStatusPanel.Visibility=Visibility.Visible;
+            string progress="盘梯 "+percent+"%",elapsed="用时 "+seconds+"s";
+            if(BuildPercentText.Text!=progress)BuildPercentText.Text=progress;
+            if(BuildStageText.Text!=stage){BuildStageText.Text=stage;BuildStageText.ToolTip=stage;}
+            if(BuildElapsedText.Text!=elapsed)BuildElapsedText.Text=elapsed;
         }
 
         internal void OnWorkspaceClosing()

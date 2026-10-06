@@ -59,13 +59,13 @@ namespace SteelSectionProbe
             result.Add(SteelMemberFactory.AlongAxis(postMode,
                 f.P(0,plan.PostVOffsetMm,bottom),f.Scale,
                 angle?f.V(0,1,0):f.V(0,-1,0),
-                angle?f.V(-1,0,0):f.V(1,0,0),f.V(0,0,1),plan.PostLengthMm,7));
+                angle?f.V(-1,0,0):f.V(1,0,0),f.V(0,0,1),plan.PostLengthMm,SupportSteelAppearance.Color));
             double top=plan.Parameters.Type==2?0:plan.HeightMm;
             var armMode=ProfileLookup.Mode(RuntimeData.Families,v.FamilyB,v.ProfileB,"geometric_center");
             result.Add(SteelMemberFactory.AlongAxis(armMode,
                 f.P(-plan.L2Mm/2,0,top-v.DepthA/2),f.Scale,
                 angle?f.V(0,-1,0):f.V(0,1,0),
-                angle?f.V(0,0,-1):f.V(0,0,1),f.V(1,0,0),plan.L2Mm,7));
+                angle?f.V(0,0,-1):f.V(0,0,1),f.V(1,0,0),plan.L2Mm,SupportSteelAppearance.Color));
             if(v.Ground!=null)
                 result.AddRange(PortalFrameBuilder.BuildGround(v.Ground,f.X,f.Y,f.Z,f.Scale));
         }
@@ -76,13 +76,13 @@ namespace SteelSectionProbe
             var axesA=TFrameSectionAxes.Post(v.FamilyA);
             result.Add(SteelMemberFactory.AlongAxis(modeA,f.P(0,0,0),f.Scale,
                 f.V(axesA.Xu,axesA.Xv,axesA.Xw),
-                f.V(axesA.Yu,axesA.Yv,axesA.Yw),f.V(1,0,0),plan.L1Mm,7));
+                f.V(axesA.Yu,axesA.Yv,axesA.Yw),f.V(1,0,0),plan.L1Mm,SupportSteelAppearance.Color));
             var modeB=ProfileLookup.Mode(RuntimeData.Families,v.FamilyB,v.ProfileB,"geometric_center");
             var axesB=TFrameSectionAxes.Arm(v.FamilyB);
             result.Add(SteelMemberFactory.AlongAxis(modeB,
                 f.P(plan.L1Mm+v.FitU,plan.ArmStartVMm,plan.ArmStartWMm),f.Scale,
                 f.V(axesB.Xu,axesB.Xv,axesB.Xw),
-                f.V(axesB.Yu,axesB.Yv,axesB.Yw),f.V(0,1,0),plan.L2Mm,7));
+                f.V(axesB.Yu,axesB.Yv,axesB.Yw),f.V(0,1,0),plan.L2Mm,SupportSteelAppearance.Color));
         }
     }
 }

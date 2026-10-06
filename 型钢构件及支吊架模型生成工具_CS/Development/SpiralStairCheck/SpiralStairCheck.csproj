@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+ <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><LangVersion>7.3</LangVersion><NoWarn>0649</NoWarn></PropertyGroup>
+ <ItemGroup>
+  <Compile Include="../../Domain/SpiralStair/SpiralStairModels.cs"/>
+  <Compile Include="../../Domain/SteelHandrail/HandrailModels.cs"/>
+  <Compile Include="../../Data/SteelHandrail/HandrailCatalog.cs"/>
+  <Compile Include="../../Services/SpiralStair/SpiralStairCalculator.cs"/>
+  <Compile Include="../../Infrastructure/SpiralStair/SpiralStairLog.cs"/>
+  <Compile Include="../../Services/SpiralStair/SpiralStairBuildResult.cs"/>
+  <Compile Include="../../Tools/SpiralStair/SpiralStairPreviewSession.cs"/>
+  <Compile Include="../../Services/SteelHandrail/HandrailCalculator.cs"/>
+  <Compile Include="../../Services/SteelHandrail/HandrailSmoothPath.cs"/>
+  <Compile Include="../../Services/SteelHandrail/HandrailHelixCalculator.cs"/>
+  <Content Include="python_reference.json" CopyToOutputDirectory="PreserveNewest"/>
+ </ItemGroup>
+</Project>

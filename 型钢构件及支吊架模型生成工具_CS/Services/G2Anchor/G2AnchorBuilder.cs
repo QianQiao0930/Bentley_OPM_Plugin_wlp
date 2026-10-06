@@ -48,7 +48,7 @@ namespace SteelSectionProbe
                         frame.Point(plan.PlateThicknessMm+G2AnchorCatalog.CutterExtensionMm,y,z),
                         holeRadius));
             SolidPrimitiveFactory.Subtract(ref body,cutters,"锚板螺栓孔");
-            result.Add(SolidPrimitiveFactory.Element(body,G2AnchorCatalog.PlateColor));
+            result.Add(SolidPrimitiveFactory.Element(body,SupportSteelAppearance.Color));
         }
 
         private static void AddBolts(List<Element> result,G2AnchorFrame frame,G2AnchorPlan plan)

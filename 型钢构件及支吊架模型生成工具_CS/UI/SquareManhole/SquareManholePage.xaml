@@ -1,0 +1,37 @@
+<UserControl x:Class="SteelSectionProbe.SquareManholePage"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:ClassModifier="internal"
+ Background="{DynamicResource BackgroundBrush}">
+ <UserControl.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries>
+  <ResourceDictionary Source="../Themes/Theme.xaml" />
+ </ResourceDictionary.MergedDictionaries></ResourceDictionary></UserControl.Resources>
+ <Grid><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,4,0">
+   <StackPanel>
+    <Border Style="{StaticResource CardStyle}"><StackPanel>
+     <TextBlock Text="01  筒体净空尺寸" Style="{StaticResource SectionTitleStyle}"/>
+     <TextBlock Text="净长（mm）"/><TextBox x:Name="BarrelWidthText" Text="600" TextChanged="Parameter_Changed"/>
+     <TextBlock Text="净宽（mm）"/><TextBox x:Name="BarrelDepthText" Text="600" TextChanged="Parameter_Changed"/>
+     <TextBlock Text="高度（mm）"/><TextBox x:Name="BarrelHeightText" Text="100" TextChanged="Parameter_Changed"/>
+    </StackPanel></Border>
+    <Border Style="{StaticResource CardStyle}"><StackPanel>
+     <TextBlock Text="02  盖板外形尺寸" Style="{StaticResource SectionTitleStyle}"/>
+     <TextBlock Text="外形长（mm）"/><TextBox x:Name="CoverWidthText" Text="620" TextChanged="Parameter_Changed"/>
+     <TextBlock Text="外形宽（mm）"/><TextBox x:Name="CoverDepthText" Text="620" TextChanged="Parameter_Changed"/>
+     <TextBlock Text="外形高（mm）"/><TextBox x:Name="CoverHeightText" Text="40" TextChanged="Parameter_Changed"/>
+     <TextBlock Text="壁厚（mm）"/><TextBox x:Name="WallText" Text="4" TextChanged="Parameter_Changed"/>
+     <TextBlock Text="朝向角（°）"/><TextBox x:Name="RotationText" Text="0" TextChanged="Parameter_Changed"/>
+     <TextBlock x:Name="SpecificationText" TextWrapping="Wrap" Margin="0,12,0,0"/>
+    </StackPanel></Border>
+    <TextBlock x:Name="PreviewText" Text="尚未点取筒体下口中心。" TextWrapping="Wrap" Margin="12"/>
+   </StackPanel>
+  </ScrollViewer>
+  <WrapPanel Grid.Row="1" Margin="0,8,0,0">
+   <Button Content="开始点取" Style="{StaticResource PrimaryButtonStyle}" Click="Pick_Click" Margin="0,0,8,8"/>
+   <Button Content="结束点取" Style="{StaticResource SecondaryButtonStyle}" Click="End_Click" Margin="0,0,8,8"/>
+   <Button Content="更新预览" Style="{StaticResource SecondaryButtonStyle}" Click="Update_Click" Margin="0,0,8,8"/>
+   <Button Content="取消预览" Style="{StaticResource SecondaryButtonStyle}" Click="Cancel_Click" Margin="0,0,8,8"/>
+   <Button x:Name="ConfirmButton" Content="确认生成" Style="{StaticResource PrimaryButtonStyle}" Click="Confirm_Click" IsEnabled="False" Margin="0,0,0,8"/>
+  </WrapPanel>
+ </Grid>
+</UserControl>

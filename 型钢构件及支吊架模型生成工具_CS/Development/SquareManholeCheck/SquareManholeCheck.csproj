@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+ <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net48</TargetFramework><LangVersion>7.3</LangVersion></PropertyGroup>
+ <ItemGroup>
+  <Compile Include="../../Domain/SquareManhole/SquareManholeModels.cs" Link="SquareManholeModels.cs"/>
+  <Compile Include="../../Services/SquareManhole/SquareManholeCalculator.cs" Link="SquareManholeCalculator.cs"/>
+ </ItemGroup>
+</Project>

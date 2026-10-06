@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>PipeAlign 管道标高对齐面板 · 480×960</title>
+<style>
+/* ============================================================
+   PipeAlign 面板 — 设计令牌
+   ============================================================ */
+:root{
+  --bgPage:#f5f6f8;
+  --bgCard:#ffffff;
+  --bgInput:#ffffff;
+  --bgSubtle:#f7f9fc;
+  --border:#e2e7ee;
+  --borderStrong:#c9d3e0;
+  --inkPrimary:#1f2a3d;
+  --inkNum:#2e3d52;
+  --inkSecondary:#5b6472;
+  --inkMuted:#909baa;
+  --inkFaint:#a8acb5;
+  --btnPrimary:#2a3644;
+  --btnPrimaryHover:#354251;
+  --accentAmber:#e0a800;
+  --accentBlue:#457aab;
+  --okText:#3d7a37; --okBg:#e8f0e6;
+  --warnText:#9a6f14; --warnBg:#fdf3e0;
+  --r:4px;
+
+  --font:"Sarasa Gothic SC","Microsoft YaHei",-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono","Cascadia Mono",Consolas,monospace;
+
+  /* —— 以下为补充令牌：全部色值必须来自这里，不要在规则里写死 hex —— */
+  --hoverBg:#f4f7fa;          /* 按钮 hover 底 */
+  --chipBg:#eef2f7;           /* 小标签底 */
+  --chipInk:#5b6472;          /* 小标签字 */
+  --seqBg:#ecf0f6;            /* 区块序号底 */
+  --seqInk:#5c6c85;           /* 区块序号字 */
+  --radioRing:#aab4c4;        /* 单选圈未选描边 */
+  --selBg:#e3e9f2;            /* 选中行底 */
+  --moreBg:#f0f3f7;           /* “展开更多” 底 */
+  --dimInk:#7d8798;           /* 弱化说明文字 */
+  --stageBg:#dfe3e9;          /* 画布底（仅预览用） */
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--stageBg);
+  font-family:var(--font);
+  color:var(--inkPrimary);
+  display:flex;align-items:flex-start;justify-content:center;
+  padding:24px;gap:24px;flex-wrap:wrap;
+}
+.hint{width:480px;font-size:12px;color:var(--inkSecondary);line-height:1.6;order:2}
+.hint code{font-family:var(--mono);background:var(--hoverBg);padding:1px 4px;border-radius:3px}
+
+/* ============================================================
+   面板骨架  480 × 960
+   ============================================================ */
+.panel{
+  width:480px;height:960px;
+  background:var(--bgPage);
+  display:flex;flex-direction:column;
+  overflow:hidden;
+  border-radius:6px;
+  order:1;
+}
+
+/* ── 标题栏 ── */
+.titlebar{
+  height:52px;flex:0 0 52px;
+  background:var(--bgCard);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 8px 0 14px;
+}
+.brand{display:flex;align-items:center;gap:9px}
+.logo{
+  width:28px;height:28px;border-radius:5px;
+  background:var(--btnPrimary);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:700 13px/1 "Space Grotesk",var(--mono);
+}
+.brand-txt{display:flex;flex-direction:column;gap:1px}
+.brand-txt b{font-size:13px;font-weight:600;color:var(--inkPrimary);letter-spacing:.2px}
+.brand-txt i{font-size:9px;font-style:normal;color:var(--inkMuted)}
+.win-ctrl{display:flex;gap:4px}
+.icon-btn{
+  width:22px;height:22px;border-radius:var(--r);
+  background:var(--bgPage);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--inkMuted);font-size:12px;cursor:pointer;
+}
+.icon-btn:hover{background:var(--hoverBg)}
+
+/* ── 内容区 ── */
+.body{
+  flex:1 1 auto;min-height:0;
+  padding:10px;
+  display:flex;flex-direction:column;gap:7px;
+  overflow:hidden;
+}
+
+.card{
+  background:var(--bgCard);
+  border:1px solid var(--border);
+  border-radius:6px;
+  padding:9px 10px;
+  display:flex;flex-direction:column;gap:6px;
+}
+.card.fill{flex:1 1 auto;min-height:0}
+
+.card-head{display:flex;align-items:center;gap:7px}
+.seq{
+  width:18px;height:18px;flex:0 0 18px;
+  border-radius:3px;background:var(--seqBg);color:var(--seqInk);
+  display:flex;align-items:center;justify-content:center;
+  font:700 9px/1 var(--mono);
+}
+.card-head h3{font-size:11px;font-weight:600;flex:1;color:var(--inkPrimary)}
+.card-head .tail{font-size:9px;color:var(--inkFaint);white-space:nowrap}
+
+.tag{
+  font-size:9px;font-weight:600;padding:2px 6px;border-radius:3px;
+  background:var(--chipBg);color:var(--inkSecondary);white-space:nowrap;
+}
+.tag.ok{background:var(--okBg);color:var(--okText)}
+.tag.warn{background:var(--warnBg);color:var(--warnText)}
+.tag.info{background:var(--chipBg);color:var(--inkSecondary)}
+
+/* 管道号行 */
+.pipe-row{display:flex;align-items:center;gap:6px}
+.pipe-id{font:500 12px/1.4 var(--mono);color:var(--inkNum)}
+.pipe-meta{font-size:9px;color:var(--dimInk)}
+
+/* 内联小按钮 */
+.btn-inline{
+  height:22px;padding:0 7px;border-radius:var(--r);
+  background:var(--bgCard);border:1px solid var(--borderStrong);
+  color:var(--accentBlue);font-family:var(--font);
+  font-size:9px;font-weight:600;cursor:pointer;white-space:nowrap;
+}
+.btn-inline:hover{background:var(--hoverBg)}
+
+/* ── 表单行：左标签 + 右控件 ── */
+.field{display:flex;align-items:center;gap:8px;height:30px}
+.field > label{
+  width:52px;flex:0 0 52px;
+  font-size:10px;color:var(--inkSecondary);
+}
+
+/* 分段控件 */
+.seg{
+  flex:1 1 auto;height:30px;
+  display:flex;gap:2px;padding:2px;
+  background:var(--bgPage);border-radius:var(--r);
+}
+.seg button{
+  flex:1 1 0;min-width:0;
+  border:0;background:transparent;border-radius:3px;
+  font-family:var(--font);font-size:10px;color:var(--inkSecondary);
+  cursor:pointer;padding:0 2px;white-space:nowrap;
+}
+.seg button[aria-pressed="true"]{
+  background:var(--btnPrimary);color:#fff;font-weight:600;
+}
+
+/* 数字输入 */
+.num-input{
+  flex:1 1 auto;height:30px;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 10px;
+  background:var(--bgInput);border:1px solid var(--borderStrong);
+  border-radius:var(--r);
+}
+.num-input input{
+  border:0;outline:0;background:transparent;width:100%;
+  font:500 11px/1 var(--mono);color:var(--inkNum);
+}
+.num-input .unit{font-size:10px;color:var(--inkMuted);font-family:var(--mono)}
+
+/* ── 移动范围（嵌套组） ── */
+.group{
+  background:var(--bgSubtle);
+  border:1px solid var(--border);
+  border-radius:5px;padding:9px;
+  display:flex;flex-direction:column;gap:4px;
+}
+.group > .glabel{font-size:10px;font-weight:600;color:var(--inkSecondary)}
+
+.radio{
+  height:26px;display:flex;align-items:center;gap:8px;
+  padding:0 8px;border-radius:var(--r);
+  background:var(--bgCard);border:1px solid var(--border);
+  font-size:10px;color:var(--inkSecondary);cursor:pointer;
+}
+.radio .dot{
+  width:13px;height:13px;flex:0 0 13px;border-radius:50%;
+  background:#fff;border:1.5px solid var(--radioRing);
+}
+.radio[aria-checked="true"]{
+  background:var(--selBg);border:1.5px solid var(--btnPrimary);
+  color:var(--inkPrimary);font-weight:700;
+}
+.radio[aria-checked="true"] .dot{background:var(--btnPrimary);border-color:var(--btnPrimary)}
+
+/* ── 按钮网格 ── */
+.btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.btn-grid button{
+  height:32px;border-radius:var(--r);
+  background:var(--bgCard);border:1px solid var(--borderStrong);
+  color:var(--inkNum);font-family:var(--font);
+  font-size:10px;font-weight:600;cursor:pointer;
+}
+.btn-grid button:hover{background:var(--hoverBg);border-color:var(--borderStrong)}
+
+/* ── 勾选行 ── */
+.check-row{display:flex;align-items:center;gap:14px;height:26px}
+.check{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--inkNum);cursor:pointer}
+.check .box{
+  width:14px;height:14px;border-radius:3px;
+  background:var(--btnPrimary);
+  display:flex;align-items:center;justify-content:center;
+}
+.check .box svg{width:9px;height:9px}
+.swatch{width:7px;height:7px;border-radius:50%}
+.swatch.blue{background:var(--accentBlue)}
+.swatch.amber{background:var(--accentAmber)}
+
+/* ── 明细列表 ── */
+.list{
+  flex:1 1 auto;min-height:0;
+  background:var(--bgPage);border-radius:var(--r);padding:4px;
+  display:flex;flex-direction:column;gap:4px;
+  overflow-y:auto;
+}
+.pcard{
+  background:var(--bgCard);border:1px solid var(--border);border-radius:var(--r);
+  padding:7px;display:flex;flex-direction:column;gap:4px;
+}
+.pcard .r1{display:flex;align-items:center;gap:6px}
+.pcard .r1 .id{font:500 10px/1.4 var(--mono);color:var(--inkNum);flex:1;min-width:0}
+.pcard .r2{display:flex;align-items:center;gap:6px}
+.pcard .r2 .conn{font-size:9px;color:var(--inkMuted)}
+.pcard .r3{display:flex;align-items:baseline;gap:6px}
+.pcard .r3 .od,.pccard .r3 .el{font-size:9px;color:var(--inkMuted)}
+.pcard .r3 .el{font-size:9px;color:var(--inkNum)}
+.pcard .r3 .dz{margin-left:auto;font:600 9px/1.4 var(--mono)}
+.dz.ok{color:var(--okText)}
+.dz.warn{color:var(--warnText)}
+.list-more{
+  height:22px;border-radius:var(--r);
+  background:var(--moreBg);border:1px solid var(--border);
+  font-size:9px;font-weight:600;color:var(--inkMuted);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+}
+
+/* ── 读数摘要 ── */
+.readout{
+  flex:0 0 auto;
+  background:var(--bgCard);border:1px solid var(--border);border-radius:var(--r);
+  padding:8px;display:flex;flex-direction:column;gap:5px;
+}
+.readout .rh{display:flex;align-items:center;gap:6px}
+.readout .rh b{font-size:10px;font-weight:600;flex:1}
+.readout .rh .ok{font-size:9px;font-weight:600;color:var(--okText)}
+.rd-row{display:flex;align-items:center;gap:6px;height:14px}
+.rd-row .k{width:58px;flex:0 0 58px;font-size:9px;color:var(--inkMuted)}
+.rd-row .v{font:500 10px/1 var(--mono);color:var(--inkNum)}
+.rd-row .v.ok{color:var(--okText);font-weight:600}
+
+/* ── 底部操作栏 ── */
+.footer{
+  flex:0 0 auto;
+  background:var(--bgCard);border-top:1px solid var(--border);
+}
+.foot-btns{display:flex;gap:7px;height:44px;padding:0 12px;align-items:center}
+.foot-btns .primary{
+  flex:1 1 auto;height:100%;border:0;border-radius:var(--r);
+  background:var(--btnPrimary);color:#fff;
+  font-family:var(--font);font-size:11px;font-weight:700;cursor:pointer;
+}
+.foot-btns .primary:hover{background:var(--btnPrimaryHover)}
+.foot-btns .sec{
+  height:100%;border-radius:var(--r);
+  background:var(--bgCard);border:1px solid var(--borderStrong);
+  color:var(--inkNum);font-family:var(--font);
+  font-size:11px;font-weight:600;cursor:pointer;padding:0 14px;
+}
+.foot-btns .sec:hover{background:var(--hoverBg)}
+.foot-hint{
+  display:flex;align-items:flex-start;gap:6px;
+  padding:0 12px 10px;
+}
+.foot-hint .d{width:5px;height:5px;border-radius:50%;background:var(--accentAmber);margin-top:3px;flex:0 0 5px}
+.foot-hint span{font-size:9px;line-height:1.45;color:var(--dimInk)}
+</style>
+</head>
+<body>
+
+<div class="panel">
+
+  <!-- 标题栏 -->
+  <div class="titlebar">
+    <div class="brand">
+      <div class="logo">P</div>
+      <div class="brand-txt">
+        <b>管道标高对齐</b>
+        <i>PipeAlign · OpenPlant</i>
+      </div>
+    </div>
+    <div class="win-ctrl">
+      <div class="icon-btn" title="拖拽">
+        <!-- 注意：SVG 的 fill/stroke 是表现属性，不支持 var()，此处必须写字面色值 -->
+      <svg width="10" height="14" viewBox="0 0 10 14"><g fill="#909baa"><circle cx="2" cy="2" r="1.4"/><circle cx="8" cy="2" r="1.4"/><circle cx="2" cy="7" r="1.4"/><circle cx="8" cy="7" r="1.4"/><circle cx="2" cy="12" r="1.4"/><circle cx="8" cy="12" r="1.4"/></g></svg>
+      </div>
+      <div class="icon-btn" title="关闭">
+        <svg width="10" height="10" viewBox="0 0 10 10"><path d="M1.5 1.5L8.5 8.5M8.5 1.5L1.5 8.5" stroke="#909baa" stroke-width="1.3" stroke-linecap="round"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- 内容区 -->
+  <div class="body">
+
+    <!-- 01 基准管 -->
+    <section class="card">
+      <div class="card-head">
+        <div class="seq">01</div>
+        <h3>基准管 · 插件从它取得目标标高</h3>
+        <span class="tag ok">读取正常</span>
+        <button class="btn-inline">选择基准管</button>
+      </div>
+      <div class="pipe-row">
+        <span class="pipe-id">4002-MP-FLW-0020-A1B-150-MI</span>
+        <span class="tag info">PIPE</span>
+      </div>
+      <div class="pipe-meta">外径 168.3 · 保温 0.0 · 中心标高 1068.78 mm</div>
+    </section>
+
+    <!-- 02 对齐方式 -->
+    <section class="card">
+      <div class="card-head">
+        <div class="seq">02</div>
+        <h3>对齐方式与表面模式</h3>
+        <span class="tail">不替你猜表面</span>
+      </div>
+
+      <div class="field">
+        <label>对齐基准</label>
+        <div class="seg">
+          <button aria-pressed="true">管底</button>
+          <button aria-pressed="false">管中心</button>
+          <button aria-pressed="false">管顶</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>表面模式</label>
+        <div class="seg">
+          <button aria-pressed="true">管道外表面</button>
+          <button aria-pressed="false">保温层外表面</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>水平容差</label>
+        <div class="num-input">
+          <input value="1.000" aria-label="水平容差">
+          <span class="unit">mm</span>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="glabel">移动范围</div>
+        <div class="radio" role="radio" aria-checked="false"><span class="dot"></span>只移动选中的管道</div>
+        <div class="radio" role="radio" aria-checked="false"><span class="dot"></span>连同连通对象一起移动 (Move Group)</div>
+        <div class="radio" role="radio" aria-checked="true"><span class="dot"></span>锁 Z 轴（立管伸缩）</div>
+      </div>
+    </section>
+
+    <!-- 04 目标管 -->
+    <section class="card">
+      <div class="card-head">
+        <div class="seq">04</div>
+        <h3>目标管</h3>
+        <span class="tag info">已选 5 根</span>
+      </div>
+      <div class="btn-grid">
+        <button>选择起点水平管</button>
+        <button>从选择集添加</button>
+        <button>移除选中行</button>
+        <button>清空目标管</button>
+      </div>
+    </section>
+
+    <!-- 05 预览 -->
+    <section class="card">
+      <div class="card-head">
+        <div class="seq">05</div>
+        <h3>预览</h3>
+        <span class="tail">只画临时线</span>
+        <button class="btn-inline" title="预览 / 刷新">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M10 6A4 4 0 1 1 8.5 2.9" stroke="#5b6472" stroke-width="1.3" stroke-linecap="round"/><path d="M9.4.6L8.4 3.1L5.9 2.1" stroke="#5b6472" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="btn-inline" title="清除预览">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 3.4C2 2.6 2.6 2 3.4 2h5.2c.8 0 1.4.6 1.4 1.4V10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.4Z" stroke="#5b6472" stroke-width="1.2"/><path d="M1.4 3.4h9.2" stroke="#5b6472" stroke-width="1.2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="check-row">
+        <div class="check">
+          <span class="box"><svg viewBox="0 0 9 9" fill="none"><path d="M1.4 4.6L3.4 6.6L7.6 2.2" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          当前中心线<i class="swatch blue"></i>
+        </div>
+        <div class="check">
+          <span class="box"><svg viewBox="0 0 9 9" fill="none"><path d="M1.4 4.6L3.4 6.6L7.6 2.2" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          对齐后中心线<i class="swatch amber"></i>
+        </div>
+      </div>
+    </section>
+
+    <!-- 明细 + 读数 -->
+    <section class="card fill">
+      <div class="card-head">
+        <div class="seq">05</div>
+        <h3>管道明细</h3>
+        <span class="tail" class="tail" style="color:var(--accentBlue);font-weight:600">3 / 5 根</span>
+      </div>
+
+      <div class="list">
+        <div class="pcard">
+          <div class="r1">
+            <span class="id">4002-MP-FLW-0020-A1B-150-MI</span>
+            <span class="tag ok">已对齐</span>
+          </div>
+          <div class="r2">
+            <span class="tag info">PIPE</span>
+            <span class="conn">两端连接 LONG_R. / PIPE</span>
+          </div>
+          <div class="r3">
+            <span class="od">外径 114.3</span>
+            <span class="el">标高 984.63 → 984.63</span>
+            <span class="dz ok">ΔZ 0.00</span>
+          </div>
+        </div>
+
+        <div class="pcard">
+          <div class="r1">
+            <span class="id">4002-MP-FLW-0020-A1B-150-MI</span>
+            <span class="tag ok">已对齐</span>
+          </div>
+          <div class="r2">
+            <span class="tag info">LONG_R.9</span>
+            <span class="conn">两端连接 PIPE / PIPE</span>
+          </div>
+          <div class="r3">
+            <span class="od">外径 114.3</span>
+            <span class="el">标高 908.63 → 908.63</span>
+            <span class="dz ok">ΔZ 0.00</span>
+          </div>
+        </div>
+
+        <div class="pcard">
+          <div class="r1">
+            <span class="id">4002-MP-FLW-0020-A1B-150-MI</span>
+            <span class="tag warn">需移动</span>
+          </div>
+          <div class="r2">
+            <span class="tag info">PIPE</span>
+            <span class="conn">两端连接 LONG_R. / PIPE</span>
+          </div>
+          <div class="r3">
+            <span class="od">外径 114.3</span>
+            <span class="el">标高 470.09 → 472.09</span>
+            <span class="dz warn">ΔZ +2.00</span>
+          </div>
+        </div>
+
+        <div class="list-more">展开其余 2 根</div>
+      </div>
+
+      <div class="readout">
+        <div class="rh"><b>读数摘要</b><span class="ok">校验通过</span></div>
+        <div class="rd-row"><span class="k">基准标高</span><span class="v">984.63</span><span class="k" style="width:auto;flex:1;text-align:right">基准中心标高</span><span class="v">1068.78</span></div>
+        <div class="rd-row"><span class="k">对齐模式</span><span class="v" style="font-family:var(--font)">管底 / 管道外表面</span></div>
+        <div class="rd-row"><span class="k">最大偏差</span><span class="v ok">0.001 mm ≤ 容差 1 mm</span></div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- 底部操作栏 -->
+  <div class="footer">
+    <div class="foot-btns">
+      <button class="primary">应用</button>
+      <button class="sec">重置</button>
+      <button class="sec">保存参数</button>
+    </div>
+    <div class="foot-hint">
+      <i class="d"></i>
+      <span>选好基准管与起点水平管 → 选管底 / 中心 / 管顶 → 点【应用】自动算 Z 位移</span>
+    </div>
+  </div>
+
+</div>
+
+<div class="hint">
+  <b>给接手的 AI：</b>这是 480×960 的竖版停靠面板，HTML 可直接跑。<br>
+  改配色只动 <code>:root</code> 里的 CSS 变量，不要改硬编码色值。<br>
+  保持 480×960 不变——里面的高度是算好的，改一处就要复核底部是否溢出。
+</div>
+
+</body>
+</html>

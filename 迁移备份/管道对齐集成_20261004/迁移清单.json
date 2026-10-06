@@ -1,0 +1,232 @@
+[
+  {
+    "source": "管道对齐/PipeAlign_CS/Domain/AlignmentMode.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Domain/PipeAlignment/AlignmentMode.cs",
+    "sha256": "6ec007e2e7cf894c9f4f5f9614c171baeb054fc3615fe064807e232c8c515696"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Domain/AlignmentPlan.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Domain/PipeAlignment/AlignmentPlan.cs",
+    "sha256": "7fe78536e5a45ae527fd9182d2f9f8eede537dd73caadb84e49101dbe2d6aeb9"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Domain/AlignmentRequest.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Domain/PipeAlignment/AlignmentRequest.cs",
+    "sha256": "c33de7216f2c7274c460404a29714b6dbf3326d05315f7e966a6a5e371bfd152"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Domain/AlignmentResult.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Domain/PipeAlignment/AlignmentResult.cs",
+    "sha256": "041f34eca578d1e9a5cb1a8220a0a827b5cf742a8d794e5058c3cb81e4eea2fb"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Domain/MoveGroupPolicy.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Domain/PipeAlignment/MoveGroupPolicy.cs",
+    "sha256": "ae3a278c3ad041bbe9766326c71186b42e149c5c08f4bb2686232890cde53d43"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Domain/MoveScope.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Domain/PipeAlignment/MoveScope.cs",
+    "sha256": "7b46a14bffda2581060259b02e62e2fed08e67ed24abc2956bfd38026b353a49"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Domain/PipeAlignOptions.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Domain/PipeAlignment/PipeAlignOptions.cs",
+    "sha256": "511851972c89258e257cb1d2f7e4a92a24879c9d57595371afddc54548563af9"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Domain/PipeAxis.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Domain/PipeAlignment/PipeAxis.cs",
+    "sha256": "236d13bb7db566ef35db19e34fe65ae796998acace276dbadf0d4176eecdfa0a"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Domain/PipeIdentity.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Domain/PipeAlignment/PipeIdentity.cs",
+    "sha256": "215f4f7d1d3dfdf58b4575a4fa335596488da9bdc22ffd562525f6ecfeea366d"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Domain/PipeInfo.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Domain/PipeAlignment/PipeInfo.cs",
+    "sha256": "0d62c6a2e5453c9b201041e7b44711e3feb44e0496714de7ae12a42ca655cd41"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Domain/PipeMoveAttempt.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Domain/PipeAlignment/PipeMoveAttempt.cs",
+    "sha256": "cd88da0cf7e9b1a0772de2b0f58e84d3462818fd74889c627ad092691ec84309"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Domain/PipeMoveProbe.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Domain/PipeAlignment/PipeMoveProbe.cs",
+    "sha256": "dadc58e0ca08e3caac2b839e82d1d2c39bbb3860cac1b683bf51cb6a41564de7"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Domain/PipeTopology.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Domain/PipeAlignment/PipeTopology.cs",
+    "sha256": "5ca818a6f7f4653a168cefe72c92b5b7b97d9e82aa9398a6b7842a8717248574"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Domain/PipeTopologyCheckMode.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Domain/PipeAlignment/PipeTopologyCheckMode.cs",
+    "sha256": "117a3807dd8e9a805376baa8f19122f34e9a31738629cae7482850f9f1149627"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Domain/SurfaceMode.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Domain/PipeAlignment/SurfaceMode.cs",
+    "sha256": "3e6e4fdf6c87470849dd2a7954abe85e7a2e6d81ab95f5e4fee3271b4e710909"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Data/DgnUnitServiceFactory.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Data/PipeAlignment/DgnUnitServiceFactory.cs",
+    "sha256": "73860fde4d4a061f20015145dfebc5ae650a0a9f8e7889472f0dbfcbb3fc625d"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Data/LocatedElement.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Data/PipeAlignment/LocatedElement.cs",
+    "sha256": "977ab6794832019a0d466ddc5f8a7cbbd35e0ed67eea3b61c8747af09ea6ba15"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Data/PipeAlignOptionsStore.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Data/PipeAlignment/PipeAlignOptionsStore.cs",
+    "sha256": "a66081ea3a15af6d66e768f72270f26b81ed47ae51a35d81fa413ca3155a7e8c"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Data/PipeEcPropertyNames.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Data/PipeAlignment/PipeEcPropertyNames.cs",
+    "sha256": "49f06b25bd90ad1eef9a988b175d2f8babe625cb4bf43de5512fb5351a2a3d97"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Data/PipeElementReader.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Data/PipeAlignment/PipeElementReader.cs",
+    "sha256": "5ded44896067762cfac27d324092f4459300eeac9cc20730c4254b016785f137"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Data/PipeGeometryReader.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Data/PipeAlignment/PipeGeometryReader.cs",
+    "sha256": "c5e626355882f06c426641a18f90f0e6fead8da7449429a464551308b9fda3f5"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Data/PipeGeometryVerifier.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Data/PipeAlignment/PipeGeometryVerifier.cs",
+    "sha256": "1da8e72f8ff6ce55d6c87fb27d3888fccf3603017481bcb27b5b2b1c621adedd"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Data/PipeReadOptions.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Data/PipeAlignment/PipeReadOptions.cs",
+    "sha256": "ea014bc959539dd062c1b6f759815645393e803f1d9546823fed1e7d5ac2e814"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Services/ElevationCalculator.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Services/PipeAlignment/ElevationCalculator.cs",
+    "sha256": "3e058093f38beb8ef54a23967286fa4f0d2ebd6aeb015e91978b1c9c988be2a1"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Services/IPipeGeometryVerifier.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Services/PipeAlignment/IPipeGeometryVerifier.cs",
+    "sha256": "3b20975545f862ac20fcddff444cf0077be393dc551632881e0c22abb316192e"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Services/IUnitService.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Services/PipeAlignment/IUnitService.cs",
+    "sha256": "b31c471395cde9139870c83ae05202e845c81dacd2aa2ce5e023b03cc44f29ce"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Services/LengthUnitCalibrator.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Services/PipeAlignment/LengthUnitCalibrator.cs",
+    "sha256": "0f9eb159a83e270d4f5bc7af8e277e9ae482008a61fee560d5b6a10bba96e857"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Services/PipeAlignPlanner.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Services/PipeAlignment/PipeAlignPlanner.cs",
+    "sha256": "4e863b3f8a505da336a4f6e4b0a44bbd31e7f658adcf511c3011e45f95a2e573"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Services/PipeAlignValidationException.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Services/PipeAlignment/PipeAlignValidationException.cs",
+    "sha256": "8776e5f238cf42538e9e9cc36338ac144bdec747d1e04a4c35d471276f429ea2"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Services/PipeGroupExpander.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Services/PipeAlignment/PipeGroupExpander.cs",
+    "sha256": "55921d501cd32a0f01a64d84aac9588926536015e923b77e0f618e7859862683"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Services/PipeMoveService.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Services/PipeAlignment/PipeMoveService.cs",
+    "sha256": "cc9dc1b9879dadff4efdc9b8c71fc90e3b0f4092581df90231b614da3018127f"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Services/PipeMoveVerification.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Services/PipeAlignment/PipeMoveVerification.cs",
+    "sha256": "0cd4f7eed4404cc00d7a489d4a1f80956f3ccc75c98a20ec856d3c893caee2d7"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Services/PipeValidationService.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Services/PipeAlignment/PipeValidationService.cs",
+    "sha256": "decf0f4675b1558e81f147dd2a2ea9fd30b7bd5a2c34469900a27f1918406228"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Services/UnitService.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Services/PipeAlignment/UnitService.cs",
+    "sha256": "88fbaf9c8641fc1b5f6cd268c3a2127f93b0ea8321c29a813e38145ec998281d"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Services/ZAxisRoutePlanner.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Services/PipeAlignment/ZAxisRoutePlanner.cs",
+    "sha256": "3a248a40122b68105aa075a3bce9ef4622c4720b110bb098148a0155b518fa94"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/OpenPlant/IOpenPlantObjectProbe.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/OpenPlant/PipeAlignment/IOpenPlantObjectProbe.cs",
+    "sha256": "ea586470ac7dc0e17b7cdc86dbd484a367e8c69d6bf6e199ea268f6a436a0019"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/OpenPlant/IOpenPlantPipeAdapter.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/OpenPlant/PipeAlignment/IOpenPlantPipeAdapter.cs",
+    "sha256": "d1e733dcb17b1dc4385d8d6613c3d44787004f2b328ab8e5f61c70a5f12b5382"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/OpenPlant/OpenPlant2024ObjectProbe.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/OpenPlant/PipeAlignment/OpenPlant2024ObjectProbe.cs",
+    "sha256": "5aa02c4384028a4e7d0da34f0c3f52c2b7cbcccc28471c292353273645003245"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/OpenPlant/OpenPlant2024PipeAdapter.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/OpenPlant/PipeAlignment/OpenPlant2024PipeAdapter.cs",
+    "sha256": "767fee2a05a81c77f81c4f08dea237e5de6003bc01c2035a9bb0225a3f567cc4"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/OpenPlant/OpenPlantObjectFactory.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/OpenPlant/PipeAlignment/OpenPlantObjectFactory.cs",
+    "sha256": "ce582319cb529a051d4d16ed9f2e6a2a440989723bdafb87cc809bbd749e8687"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/OpenPlant/PipeUndoScope.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/OpenPlant/PipeAlignment/PipeUndoScope.cs",
+    "sha256": "e55b7296f3a3d2f5cc5d8f8f63fa3d3ee39c7856f59c91f17538c0acf4fe002b"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Tools/PipeAlignPreviewSession.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Tools/PipeAlignment/PipeAlignPreviewSession.cs",
+    "sha256": "1fc6ea33a7df87ce8770a1f8c8f8cf5ff8f23bfff9f34611e13929be30734284"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Tools/PipePickTool.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Tools/PipeAlignment/PipePickTool.cs",
+    "sha256": "c5857e871b07144e31ea64f64550197f6a5b3527fccbcaea9b3a7bb3e3464dc9"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Infrastructure/PipeAlignLog.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Infrastructure/PipeAlignment/PipeAlignLog.cs",
+    "sha256": "66501bbe7f10db5c16d5c1363adbc8d7472682f8bc8b32bd611821eb9e98b16a"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/Infrastructure/PipeDebugReport.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/Infrastructure/PipeAlignment/PipeDebugReport.cs",
+    "sha256": "6550cc971c8120c95df7185c9bf0a96eaecc75b4783423156e8d44f0f76b86bf"
+  },
+  {
+    "source": "管道对齐/PipeAlign_CS/App/PipeAlignSession.cs",
+    "target": "型钢构件及支吊架模型生成工具_CS/App/PipeAlignment/PipeAlignSession.cs",
+    "sha256": "3b1894d81ed1ad1668687aae830d2833a2f86c26af4eb054f40643ee5e215125"
+  }
+]

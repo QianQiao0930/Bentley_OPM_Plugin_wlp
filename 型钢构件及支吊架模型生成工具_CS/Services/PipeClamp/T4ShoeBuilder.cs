@@ -58,7 +58,7 @@ namespace SteelSectionProbe
 
             var ring=BuildRing(frame,bl,layout);
             BuildSupport(frame,bl,layout,ref ring);
-            result.Add(SolidPrimitiveFactory.Element(ring,T4ShoeCatalog.ClampColor));
+            result.Add(SolidPrimitiveFactory.Element(ring,SupportSteelAppearance.Color));
 
             for(int i=0;i<bl.EarCenterXmm.Length;i++)
             {
@@ -81,8 +81,7 @@ namespace SteelSectionProbe
             var frame=new PipeClampFrame(center,model.GetModelInfo().UorPerMeter/1000.0,
                 axis.X,axis.Y,axis.Z);
             var result=new List<Element>();
-            result.Add(SolidPrimitiveFactory.Element(BuildRing(frame,bl,layout),
-                T4ShoeCatalog.ClampColor));
+            result.Add(SolidPrimitiveFactory.Element(BuildRing(frame,bl,layout),SupportSteelAppearance.Color));
             for(int i=0;i<bl.EarCenterXmm.Length;i++)
             {
                 AddFasteners(result,frame,bl,layout,bl.EarCenterXmm[i],bl.EarHoleA[2]);

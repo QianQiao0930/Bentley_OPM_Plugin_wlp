@@ -38,7 +38,7 @@ namespace SteelSectionProbe
         protected override void OnPostInstall()
         {
             base.OnPostInstall();
-            NotificationManager.OutputPrompt("请选择水平或带坡度的围栏辅助线；左键生成预览，右键取消并退出。");
+            NotificationManager.OutputPrompt("请选择直线、折线、水平圆弧、固定半径螺旋或螺旋与直线混合路径；左键生成预览，右键取消退出。");
         }
         protected override bool OnDataButton(DgnButtonEvent ev)
         {

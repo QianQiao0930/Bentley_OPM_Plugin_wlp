@@ -58,7 +58,7 @@ namespace SteelSectionProbe
                 frame.Point(-2,holes[i,0],holes[i,1]),
                 frame.Point(plan.T+2,holes[i,0],holes[i,1]),plan.G/2*frame.Scale));
             SolidPrimitiveFactory.Subtract(ref body,cutters,"N8 连接板开孔");
-            return SolidPrimitiveFactory.Element(body,3);
+            return SolidPrimitiveFactory.Element(body,SupportSteelAppearance.Color);
         }
         private static SolidKernelEntity Hex(G2AnchorFrame f,double x,double length,
             double y,double z,double across)

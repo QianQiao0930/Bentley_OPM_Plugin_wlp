@@ -4,6 +4,7 @@
   <Compile Include="../../Domain/SteelHandrail/HandrailModels.cs" Link="HandrailModels.cs"/>
   <Compile Include="../../Data/SteelHandrail/HandrailCatalog.cs" Link="HandrailCatalog.cs"/>
   <Compile Include="../../Services/SteelHandrail/HandrailCalculator.cs" Link="HandrailCalculator.cs"/>
+  <Compile Include="../../Services/SteelHandrail/HandrailHelixCalculator.cs" Link="HandrailHelixCalculator.cs"/>
   <Content Include="reference.json" CopyToOutputDirectory="PreserveNewest"/>
  </ItemGroup>
 </Project>

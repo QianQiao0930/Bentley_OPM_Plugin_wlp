@@ -58,7 +58,7 @@ namespace SteelSectionProbe
                 }
                 catch(InvalidOperationException){/* 与 Python 一致：通气孔失败仍保留垫板实体。 */}
             }
-            return new[]{SolidPrimitiveFactory.Element(body,7)};
+            return new[]{SolidPrimitiveFactory.Element(body,SupportSteelAppearance.Color)};
         }
         private static CurveVector Profile(PadPlatePlan plan,VectorMm origin,VectorMm ey,VectorMm ez,double scale)
         {

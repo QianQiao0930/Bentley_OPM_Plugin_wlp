@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -12,17 +12,18 @@ namespace SteelSectionProbe
         private readonly HandrailPreviewSession preview=new HandrailPreviewSession();
         private readonly DispatcherTimer regenerate=new DispatcherTimer{Interval=TimeSpan.FromMilliseconds(150)};
         private List<HandrailPoint> vertices;
+        private HandrailArcInput arc;
         private bool ready,active,locating,dirty;
         public string PageId {get{return HandrailCatalog.PageId;}}
         public string PageTitle {get{return HandrailCatalog.SupportType;}}
-        public string PageSubtitle {get{return "沿路径建模 · 水平 / 坡段围栏";}}
+        public string PageSubtitle {get{return "沿路径建模 · 水平 / 坡段 / 螺旋围栏";}}
         public FrameworkElement View {get{return this;}}
         internal HandrailPage()
         {
             InitializeComponent();ConnectionCombo.ItemsSource=HandrailCatalog.ConnectionLabels;ConnectionCombo.SelectedIndex=1;
             SideCombo.ItemsSource=new[]{"路径左侧","路径右侧"};SideCombo.SelectedIndex=0;
             ClosureCombo.ItemsSource=HandrailCatalog.ClosureLabels;ClosureCombo.SelectedIndex=0;
-            PageLastInput.Restore(this,PageId,"ConnectionCombo","SideCombo","ClosureCombo","OffsetText","ReverseCheck");
+            PageLastInput.Restore(this,PageId,"ConnectionCombo","SideCombo","ClosureCombo","OffsetText","SpacingText","ReverseCheck");
             regenerate.Tick+=delegate{regenerate.Stop();if(active&&vertices!=null)Regenerate(vertices);};
             ready=true;UpdateConnection();
         }
@@ -31,7 +32,7 @@ namespace SteelSectionProbe
         public void OnWorkspaceClosing(){Close();}
         private void Close()
         {
-            PageLastInput.Save(this,PageId,"ConnectionCombo","SideCombo","ClosureCombo","OffsetText","ReverseCheck");
+            PageLastInput.Save(this,PageId,"ConnectionCombo","SideCombo","ClosureCombo","OffsetText","SpacingText","ReverseCheck");
             active=false;regenerate.Stop();HandrailLocateTool.Picked-=OnPicked;HandrailLocateTool.Ended-=OnEnded;
             if(locating)HandrailLocateTool.End();locating=false;
             ClearPreview();
@@ -48,13 +49,17 @@ namespace SteelSectionProbe
         }
         private HandrailParameters Parameters()
         {
+            double spacing;
+            if(!double.TryParse(SpacingText.Text,NumberStyles.Float,CultureInfo.CurrentCulture,out spacing)&&
+                !double.TryParse(SpacingText.Text,NumberStyles.Float,CultureInfo.InvariantCulture,out spacing))
+                throw new InvalidOperationException("立柱最大间距必须是数字。");
             double offset=120;
             if(Connection==HandrailConnection.Type2&&
                 !double.TryParse(OffsetText.Text,NumberStyles.Float,CultureInfo.CurrentCulture,out offset)&&
                 !double.TryParse(OffsetText.Text,NumberStyles.Float,CultureInfo.InvariantCulture,out offset))
                 throw new InvalidOperationException("立柱中心至连接板距离必须是数字。");
             return new HandrailParameters{Connection=Connection,Side=SideCombo.SelectedIndex==1?-1:1,
-                Closure=(HandrailClosure)Math.Max(0,ClosureCombo.SelectedIndex),Reverse=ReverseCheck.IsChecked==true,StructureOffsetMm=offset};
+                Closure=(HandrailClosure)Math.Max(0,ClosureCombo.SelectedIndex),Reverse=ReverseCheck.IsChecked==true,StructureOffsetMm=offset,MaxPostSpacingMm=spacing};
         }
         private void Parameter_Changed(object sender,RoutedEventArgs e)
         {
@@ -66,7 +71,7 @@ namespace SteelSectionProbe
         {
             regenerate.Stop();vertices=next;
             try{
-                var plan=HandrailCalculator.Calculate(Parameters(),next);preview.Show(plan);
+                var plan=arc==null?HandrailCalculator.Calculate(Parameters(),next):HandrailCalculator.CalculateArc(Parameters(),arc);preview.Show(plan);
                 vertices=next;dirty=false;ConfirmButton.IsEnabled=true;
                 PreviewText.Text="路径长 "+plan.LengthMm.ToString("0.#")+" mm；"+plan.Stations.Count+" 根立柱、"+
                     plan.Stations.Count*2+" 个连接球；"+plan.Corners.Count(x=>!x.GradeBreak)+" 个圆角、"+
@@ -79,7 +84,7 @@ namespace SteelSectionProbe
             if(!active||!locating||located==null)return;
             Dispatcher.BeginInvoke(new Action(delegate{
                 if(!active||!locating)return;
-                try{var next=HandrailPathReader.Read(located.ElementId);Regenerate(next);}
+                try{HandrailArcInput nextArc;var next=HandrailPathReader.Read(located.ElementId,out nextArc);arc=nextArc;Regenerate(next);}
                 catch(Exception ex){PreviewText.Text="点取失败："+ex.Message;Status("围栏点取失败，请查看面板。",true);}
             }),DispatcherPriority.Background);
         }

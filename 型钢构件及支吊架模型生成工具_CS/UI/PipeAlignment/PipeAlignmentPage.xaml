@@ -1,0 +1,76 @@
+<UserControl x:Class="SteelSectionProbe.PipeAlignmentPage" x:ClassModifier="internal"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ Background="{DynamicResource BackgroundBrush}">
+ <UserControl.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries>
+  <ResourceDictionary Source="../Themes/Theme.xaml"/>
+ </ResourceDictionary.MergedDictionaries></ResourceDictionary></UserControl.Resources>
+ <Grid HorizontalAlignment="Stretch"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+   <Border Style="{StaticResource CardStyle}"><StackPanel>
+    <DockPanel><Button DockPanel.Dock="Right" Content="选择基准管" Click="Reference_Click" Style="{StaticResource SecondaryButtonStyle}"/>
+     <TextBlock Text="01  基准管 · 目标标高来源" Style="{StaticResource SectionTitleStyle}"/></DockPanel>
+    <TextBlock x:Name="ReferenceText" FontFamily="Consolas" TextWrapping="Wrap" Text="尚未选择基准管"/>
+   </StackPanel></Border>
+  <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel>
+   <Border Style="{StaticResource CardStyle}"><StackPanel>
+    <TextBlock Text="02  对齐方式与表面模式" Style="{StaticResource SectionTitleStyle}"/>
+    <TextBlock Text="对齐基准" Style="{StaticResource FieldLabelStyle}"/>
+    <UniformGrid Columns="3" Margin="0,5,0,10">
+     <RadioButton x:Name="BottomRadio" GroupName="Align" Content="管底" Checked="Parameters_Changed"/>
+     <RadioButton x:Name="CenterRadio" GroupName="Align" Content="管中心" Checked="Parameters_Changed"/>
+     <RadioButton x:Name="TopRadio" GroupName="Align" Content="管顶" Checked="Parameters_Changed"/>
+    </UniformGrid>
+    <TextBlock Text="表面模式 · 程序不会替你猜表面" Style="{StaticResource FieldLabelStyle}"/>
+    <UniformGrid Columns="2" Margin="0,5,0,10"><RadioButton x:Name="PipeSurface" GroupName="Surface" Content="管道外表面" Checked="Parameters_Changed"/>
+     <RadioButton x:Name="InsulationSurface" GroupName="Surface" Content="保温层外表面" Checked="Parameters_Changed"/></UniformGrid>
+    <DockPanel Margin="0,0,0,10"><TextBlock Text="水平容差（mm）" Style="{StaticResource FieldLabelStyle}"/>
+     <TextBox x:Name="ToleranceText" Text="1.000" FontFamily="Consolas" TextAlignment="Right" TextChanged="Parameters_Changed"/></DockPanel>
+    <Border Background="{DynamicResource CardSoftBrush}" Padding="10" CornerRadius="4"><StackPanel>
+     <TextBlock Text="移动范围" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,6"/>
+     <RadioButton x:Name="SingleScope" GroupName="Scope" Content="只移动选中的管道" Visibility="Collapsed" Checked="Parameters_Changed" Margin="0,4"/>
+     <RadioButton x:Name="GroupScope" GroupName="Scope" Content="连同连通对象一起移动" Checked="Parameters_Changed" Margin="0,4"/>
+     <RadioButton x:Name="ZScope" GroupName="Scope" Content="锁 Z 轴 · 立管伸缩，远端固定" Checked="Parameters_Changed" Margin="0,4"/>
+    </StackPanel></Border>
+   </StackPanel></Border>
+   <Border Style="{StaticResource CardStyle}"><StackPanel>
+    <DockPanel><TextBlock x:Name="CountText" DockPanel.Dock="Right"/><TextBlock Text="03  目标管" Style="{StaticResource SectionTitleStyle}"/></DockPanel>
+    <UniformGrid Columns="2"><Button x:Name="PickTargetButton" Content="选择目标管" Click="Target_Click" ToolTip="右键：从模型选择集添加" Style="{StaticResource SecondaryButtonStyle}"><Button.ContextMenu><ContextMenu>
+     <MenuItem Header="从选择集添加" Click="Selection_Click"/>
+    </ContextMenu></Button.ContextMenu></Button>
+     <Button Content="清空目标管" Click="ClearTargets_Click" Style="{StaticResource SecondaryButtonStyle}"/></UniformGrid>
+   </StackPanel></Border>
+   <Border Style="{StaticResource CardStyle}"><StackPanel>
+    <TextBlock Text="04  预览 · 临时线，不改管道" Style="{StaticResource SectionTitleStyle}"/>
+    <WrapPanel><CheckBox x:Name="ShowCurrent" Content="当前（蓝）" IsChecked="True" Checked="Preview_Changed" Unchecked="Preview_Changed" Margin="0,0,12,0"/>
+     <CheckBox x:Name="ShowTarget" Content="对齐后（红）" IsChecked="True" Checked="Preview_Changed" Unchecked="Preview_Changed"/>
+     <Button Content="刷新" Click="Preview_Click" Style="{StaticResource SecondaryButtonStyle}"><Button.ContextMenu><ContextMenu>
+      <MenuItem Header="只读调试数据" Click="Debug_Click"/><MenuItem Header="全部 EC 属性" Tag="all" Click="Debug_Click"/>
+     </ContextMenu></Button.ContextMenu></Button>
+     <Button Content="清除" Click="ClearPreview_Click" Style="{StaticResource SecondaryButtonStyle}"/></WrapPanel>
+   </StackPanel></Border>
+   <Border Style="{StaticResource CardStyle}"><StackPanel>
+    <TextBlock Text="05  管道明细 · × 移除起点管" Style="{StaticResource SectionTitleStyle}"/>
+    <ListBox x:Name="PipeList" SelectionMode="Extended" MaxHeight="320" MinHeight="100" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+      ScrollViewer.VerticalScrollBarVisibility="Auto" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
+     <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></ListBox.ItemContainerStyle>
+     <ListBox.ItemTemplate><DataTemplate><Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,2" ToolTip="{Binding Details}"><StackPanel>
+      <DockPanel><Button DockPanel.Dock="Right" Content="×" Width="28" Height="28" Padding="0" Margin="8,0,0,0"
+        Visibility="{Binding RemoveVisibility}" Click="RemoveRow_Click" ToolTip="移出目标列表，不删除模型管道" Style="{StaticResource SecondaryButtonStyle}"/>
+       <TextBlock Text="{Binding Name}" FontFamily="Consolas" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/></DockPanel>
+      <TextBlock Text="{Binding Connection}" Foreground="{DynamicResource MutedBrush}" TextTrimming="CharacterEllipsis" Margin="0,4"/>
+      <UniformGrid Columns="3"><TextBlock Text="{Binding Current}" FontFamily="Consolas" TextAlignment="Right"/>
+       <TextBlock Text="{Binding Target}" FontFamily="Consolas" TextAlignment="Right"/>
+       <TextBlock Text="{Binding Delta}" FontFamily="Consolas" TextAlignment="Right"/></UniformGrid>
+      <TextBlock Text="{Binding Status}" Foreground="{Binding StatusBrush}" TextWrapping="Wrap" Margin="0,5,0,0"/>
+     </StackPanel></Border></DataTemplate></ListBox.ItemTemplate>
+    </ListBox>
+    <TextBlock x:Name="SummaryText" TextWrapping="Wrap" Margin="0,8,0,4"/>
+    <TextBlock x:Name="ReadoutText" FontFamily="Consolas" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}"/>
+   </StackPanel></Border>
+  </StackPanel></ScrollViewer>
+  <StackPanel Grid.Row="2"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
+   <Button x:Name="ApplyButton" Content="应用" Click="Apply_Click" Style="{StaticResource PrimaryButtonStyle}"/>
+   <Button Grid.Column="1" Content="重置" Click="Reset_Click" Style="{StaticResource SecondaryButtonStyle}"/>
+  </Grid><TextBlock x:Name="StatusText" TextWrapping="Wrap" Foreground="{DynamicResource StatusBrush}" Margin="0,6"/>
+  </StackPanel>
+ </Grid>
+</UserControl>

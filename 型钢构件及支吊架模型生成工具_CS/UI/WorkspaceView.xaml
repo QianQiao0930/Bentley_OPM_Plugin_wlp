@@ -73,6 +73,12 @@
                         Style="{StaticResource SecondaryButtonStyle}"
                         Height="28" MinWidth="78" Margin="8,0,0,0"
                         Click="CloseButton_Click" />
+                <Grid x:Name="BuildStatusPanel" Grid.Column="1" Visibility="Collapsed" VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/><ColumnDefinition Width="95"/></Grid.ColumnDefinitions>
+                    <TextBlock x:Name="BuildPercentText" FontSize="10.5" Foreground="{StaticResource StatusBrush}"/>
+                    <TextBlock x:Name="BuildStageText" Grid.Column="1" FontSize="10.5" Foreground="{StaticResource StatusBrush}" TextTrimming="CharacterEllipsis" TextAlignment="Center" Margin="6,0"/>
+                    <TextBlock x:Name="BuildElapsedText" Grid.Column="2" FontSize="10.5" Foreground="{StaticResource StatusBrush}" TextAlignment="Right"/>
+                </Grid>
             </Grid>
         </Border>
     </Grid>

@@ -86,7 +86,7 @@ namespace SteelSectionProbe
                     SolidPrimitiveFactory.Subtract(ref braceBody,new[]{BoxBody(f,
                         -big,big,-big,big,-big,0)},
                         "斜撑横担端剪切");
-                parts.Add(SolidPrimitiveFactory.Element(braceBody,7));
+                parts.Add(SolidPrimitiveFactory.Element(braceBody,SupportSteelAppearance.Color));
                 double plateOrigin=plan.Double?0:plan.PlateThickness;
                 parts.AddRange(N8Builder.Build(n8,f.P(plateOrigin,offset,beamZ)));
                 parts.AddRange(N8Builder.Build(n8,f.P(plateOrigin,offset,braceZ0)));
@@ -130,7 +130,7 @@ namespace SteelSectionProbe
                                 baseFrame.Point(2*plan.PlateThickness-2,0,0),
                                 baseFrame.Point(plan.Preweld+2,0,0),46*f.Scale);
                             SolidPrimitiveFactory.Subtract(ref tubeOuter,new[]{tubeInner},"预焊件空心管");
-                            parts.Add(Transparent(SolidPrimitiveFactory.Element(tubeOuter,3)));
+                            parts.Add(Transparent(SolidPrimitiveFactory.Element(tubeOuter,SupportSteelAppearance.Color)));
                         }
                     }
                 }
@@ -138,7 +138,7 @@ namespace SteelSectionProbe
             if(plan.Double)Merge(ref frameBody,beamBodies[1],"第二根横担融合");
             foreach(var stiffener in stiffenerBodies)
                 Merge(ref frameBody,stiffener,"筋板与横担融合");
-            if(frameBody!=null)parts.Add(SolidPrimitiveFactory.Element(frameBody,7));
+            if(frameBody!=null)parts.Add(SolidPrimitiveFactory.Element(frameBody,SupportSteelAppearance.Color));
             return parts;
         }
         private static void Merge(ref SolidKernelEntity frame,SolidKernelEntity body,string name)
@@ -162,7 +162,7 @@ namespace SteelSectionProbe
         {
             var mode=Profile(spec);
             return SteelMemberFactory.AlongAxis(mode,f.P(r,t,z),f.Scale,
-                axisX,axisY,axisZ,length,color);
+                axisX,axisY,axisZ,length,SupportSteelAppearance.Color);
         }
         private static ModeData Profile(string spec)
         {
@@ -177,7 +177,7 @@ namespace SteelSectionProbe
             return ProfileLookup.Mode(RuntimeData.Families,family,profile.Name,"geometric_center");
         }
         private static Element Box(Frame f,double r0,double r1,double t0,double t1,double z0,double z1)
-        {return SolidPrimitiveFactory.Element(BoxBody(f,r0,r1,t0,t1,z0,z1),7);}
+        {return SolidPrimitiveFactory.Element(BoxBody(f,r0,r1,t0,t1,z0,z1),SupportSteelAppearance.Color);}
         private static SolidKernelEntity BoxBody(Frame f,double r0,double r1,double t0,double t1,double z0,double z1)
         {
             return SolidPrimitiveFactory.PolygonPrism(new[]{f.P(r0,t0,z0),f.P(r1,t0,z0),

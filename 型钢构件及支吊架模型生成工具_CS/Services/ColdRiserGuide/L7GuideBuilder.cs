@@ -42,7 +42,7 @@ namespace SteelSectionProbe
             var mode=ProfileLookup.Mode(RuntimeData.Families,plan.MemberFamily,
                 plan.MemberProfile,"geometric_center");
             parts.Add(SteelMemberFactory.AlongAxis(mode,memberStart,scale,tangent,axial,
-                radial,plan.MemberLengthMm,4));
+                radial,plan.MemberLengthMm,SupportSteelAppearance.Color));
             if(plan.Connection!=null) {
                 // 板背贴合构件末端，N8 +X 朝设备；预焊件位于板正面，由设备模型提供。
                 double plateBack=plan.LengthMm-plan.Connection.T;

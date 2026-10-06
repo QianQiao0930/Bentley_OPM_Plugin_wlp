@@ -1163,8 +1163,45 @@ def _add_posts_balls_and_brackets(
             )
 
 
-def _offset_kickplate_pieces(pieces, side_sign, center_offset):
+def _offset_spatial_polyline_pieces(pieces, side_sign, offset):
+    """空间折线共享偏移顶点，Z保留原安装标高。"""
+    if not pieces or any(piece['type'] != 'line' for piece in pieces):
+        raise ValueError('空间折线偏移仅接受非空直线段路径。')
+    for incoming,outgoing in zip(pieces,pieces[1:]):
+        gap = sum((incoming['end'][i]-outgoing['start'][i])**2 for i in range(3))**0.5
+        if gap > PATH_TOLERANCE_MM:
+            raise ValueError('原始空间路径不连续：%.6f mm。' % gap)
+    normals = [_horizontal_normal(piece['tangent'],side_sign) for piece in pieces]
+    points = [pieces[0]['start']]+[piece['end'] for piece in pieces]
+    shifted = []
+    for index,point in enumerate(points):
+        if index == 0 or index == len(points)-1:
+            normal = normals[0] if index == 0 else normals[-1]
+            dx,dy = normal[0]*offset,normal[1]*offset
+        else:
+            n0,n1 = normals[index-1],normals[index]
+            denominator = 1+n0[0]*n1[0]+n0[1]*n1[1]
+            if denominator <= 1.e-8:
+                raise ValueError('空间路径包含折返，不能生成踢脚板偏移。')
+            dx = offset*(n0[0]+n1[0])/denominator
+            dy = offset*(n0[1]+n1[1])/denominator
+            if hypot(dx,dy) > 4*abs(offset)+PATH_TOLERANCE_MM:
+                raise ValueError('空间路径转角过尖，踢脚板斜接长度过大。')
+        shifted.append((point[0]+dx,point[1]+dy,point[2]))
+    result = []
+    for start,end in zip(shifted,shifted[1:]):
+        length = sum((end[i]-start[i])**2 for i in range(3))**0.5
+        if length <= PATH_TOLERANCE_MM:
+            raise ValueError('空间偏移产生零长度段。')
+        result.append(dict(type='line',start=start,end=end,
+                           tangent=tuple((end[i]-start[i])/length for i in range(3))))
+    return result
+
+
+def _offset_kickplate_pieces(pieces, side_sign, center_offset, spatial_polyline=False):
     """构造与栏杆路径平行且严格连续的踢脚板中心路径。"""
+    if spatial_polyline:
+        return _offset_spatial_polyline_pieces(pieces,side_sign,center_offset)
     offset_pieces = []
     for piece in pieces:
         if piece["type"] == "line":
@@ -1273,7 +1310,7 @@ def _curve_vector_from_kickplate_pieces(
 
 
 def _create_swept_kickplate(
-    dgn_model, origin, uor_per_mm, pieces, side_sign, color
+    dgn_model, origin, uor_per_mm, pieces, side_sign, color, spatial_polyline=False
 ):
     """用单个 130×6 mm 闭合截面沿完整偏移路径连续扫掠。"""
     center_offset = (
@@ -1282,7 +1319,7 @@ def _create_swept_kickplate(
         + KICKPLATE_THICKNESS / 2.0
     )
     offset_pieces = _offset_kickplate_pieces(
-        pieces, side_sign, center_offset
+        pieces, side_sign, center_offset, spatial_polyline=spatial_polyline
     )
     path_z = KICKPLATE_BOTTOM_Z + KICKPLATE_HEIGHT / 2.0
     path = _curve_vector_from_kickplate_pieces(
@@ -1347,6 +1384,8 @@ def _create_swept_kickplate(
         None,
     )
     if not _succeeded(sweep_result[0]):
+        if spatial_polyline:
+            raise RuntimeError('空间踢脚板BodyFromSweep失败：状态%s，路径%d段。' % (sweep_result[0],len(offset_pieces)))
         return None
     result = EditElementHandle()
     if not _succeeded(
@@ -1358,10 +1397,57 @@ def _create_swept_kickplate(
     return _apply_color(result, color)
 
 
-def _add_kickplate(builder, origin, uor_per_mm, pieces, side_sign, color):
+def _spatial_kickplate_profiles(pieces, side_sign):
+    """偏移两侧边界，截面共享斜接端面；保持竖向高度。"""
+    offset = STANCHION_OD/2.0 + KICKPLATE_CLEARANCE + KICKPLATE_THICKNESS/2.0
+    left = _offset_spatial_polyline_pieces(pieces,side_sign,offset-KICKPLATE_THICKNESS/2.0)
+    right = _offset_spatial_polyline_pieces(pieces,side_sign,offset+KICKPLATE_THICKNESS/2.0)
+    left_points = [left[0]['start']]+[p['end'] for p in left]
+    right_points = [right[0]['start']]+[p['end'] for p in right]
+    profiles = []
+    for a,b in zip(left_points,right_points):
+        bottom = a[2]+KICKPLATE_BOTTOM_Z
+        top = bottom+KICKPLATE_HEIGHT
+        profiles.append([(a[0],a[1],bottom),(b[0],b[1],bottom),
+                         (b[0],b[1],top),(a[0],a[1],top)])
+    return profiles
+
+
+def _add_spatial_kickplate(builder, origin, uor_per_mm, pieces, side_sign, color, progress=None):
+    """逐段实体放样：不调用长空间折线BodyFromSweep。"""
+    report = progress or (lambda message: None)
+    profiles = _spatial_kickplate_profiles(pieces,side_sign)
+    model_ref = ISessionMgr.ActiveDgnModelRef
+    curves = []
+    for index,profile in enumerate(profiles):
+        points = DPoint3dArray()
+        for p in profile+[profile[0]]:
+            points.append(_point_uor(origin,p,uor_per_mm))
+        handle = EditElementHandle()
+        if not _succeeded(ShapeHandler.CreateShapeElement(handle,None,points,model_ref.Is3d(),model_ref)):
+            raise RuntimeError('空间踢脚板截面%d创建失败。' % (index+1))
+        curve = ICurvePathQuery.ElementToCurveVector(handle)
+        if curve is None:
+            raise RuntimeError('空间踢脚板截面%d转换失败。' % (index+1))
+        curves.append(curve)
+    for index in range(len(curves)-1):
+        report('栏杆踢脚板：实体放样 %d/%d' % (index+1,len(curves)-1))
+        pair = CurveVectorPtrArray()
+        pair.append(curves[index])
+        pair.append(curves[index+1])
+        primitive = ISolidPrimitive.CreateDgnRuledSweep(DgnRuledSweepDetail(pair,True))
+        element = _primitive_to_element(builder.dgn_model,primitive,color)
+        if element is None:
+            raise RuntimeError('空间踢脚板第%d/%d段实体放样失败。' % (index+1,len(curves)-1))
+        builder.add(element)
+
+
+def _add_kickplate(builder, origin, uor_per_mm, pieces, side_sign, color, spatial_polyline=False, progress=None):
+    if spatial_polyline:
+        return _add_spatial_kickplate(builder,origin,uor_per_mm,pieces,side_sign,color,progress)
     builder.add(_create_swept_kickplate(
         builder.dgn_model, origin, uor_per_mm,
-        pieces, side_sign, color
+        pieces, side_sign, color, spatial_polyline=spatial_polyline
     ))
 
 
@@ -1613,6 +1699,67 @@ def draw_steel_handrail_along_path(
     cell = builder.commit()
     _attach_steel_items(cell, result["steel_items"])
     return result
+
+
+def build_continuous_handrail(vertices, height=1050.0, side="left",
+                             end_posts=True, corner_posts=True,
+                             connect_adjacent=True, progress=None):
+    """供盘梯调用：连续采样空间路径，返回未写入模型的单元。
+
+    所有梯段/平台必须一次传入以共享连接立柱。高度按连接球最高点。
+    路径为折线近似；不对空间折点套用水平 R140 圆角。
+    """
+    global TOP_RAIL_Z
+    report = progress or (lambda message: None)
+    report('栏杆：解析%d个路径点' % len(vertices))
+    model = ISessionMgr.ActiveDgnModelRef.GetDgnModel()
+    scale = model.GetModelInfo().GetUorPerMeter() / 1000.0
+    origin, points = _to_local_path(vertices, scale)
+    points = _clean_and_validate_points(points)
+    if height <= KNEE_RAIL_Z + BALL_DIAMETER:
+        raise ValueError("栏杆高度过低。")
+    pieces, station = [], 0.0
+    breaks = []
+    previous_grade = None
+    for start, end in zip(points, points[1:]):
+        # _to_local_path 返回 tuple；_distance3 专用于 Bentley DPoint3d。
+        length = hypot(hypot(end[0]-start[0], end[1]-start[1]), end[2]-start[2])
+        horizontal = hypot(end[0]-start[0], end[1]-start[1])
+        if horizontal < PATH_TOLERANCE_MM:
+            raise ValueError("栏杆路径不能包含竖直段。")
+        tangent = tuple((end[i]-start[i])/length for i in range(3))
+        grade = (end[2]-start[2])/horizontal
+        if previous_grade is not None and abs(grade-previous_grade) > 1.e-5:
+            breaks.append(station)
+        pieces.append(dict(type="line", start=start, end=end, tangent=tangent,
+                           length=length, start_station=station,
+                           end_station=station+length))
+        station += length
+        previous_grade = grade
+    stations = _build_post_stations(station, [])
+    if corner_posts:
+        stations = _merge_stations(stations + breaks, station)
+    if not end_posts:
+        stations = [s for s in stations if PATH_TOLERANCE_MM < s < station-PATH_TOLERANCE_MM]
+    builder = _HandrailCellBuilder(model)
+    old_height = TOP_RAIL_Z
+    try:
+        TOP_RAIL_Z = height - BALL_DIAMETER/2.0
+        color = _element_color()
+        report('栏杆：生成顶/中横杆，%d段' % len(pieces))
+        _add_rails(builder, origin, scale, pieces, color)
+        report('栏杆：生成%d根立柱、连接球及底板' % len(stations))
+        _add_posts_balls_and_brackets(builder, origin, scale, pieces, stations,
+                                    1.0 if side == "left" else -1.0,
+                                    "type3", TYPE2_STRUCTURE_OFFSET_DEFAULT, color)
+        report('栏杆：逐段放样空间踢脚板')
+        _add_kickplate(builder, origin, scale, pieces, 1.0 if side == "left" else -1.0, color, spatial_polyline=True, progress=report)
+        report('栏杆：完成单元组装')
+        builder.build()
+    finally:
+        TOP_RAIL_Z = old_height
+    return builder.cell, dict(posts=len(stations), height_mm=height,
+                              connected=connect_adjacent, length_mm=station)
 
 
 def replace_steel_handrail(

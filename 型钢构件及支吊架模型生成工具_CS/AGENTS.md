@@ -1,10 +1,42 @@
-﻿# 型钢构件及支吊架模型生成工具：AI 与开发者协作规范
+# 型钢构件及支吊架模型生成工具：AI 与开发者协作规范
+
+2026-10-04：锁 Z 支持 1～15 起点批量，独立路由计算位移，重叠同目标去重，冲突及其重叠组跳过；所有模式一次实际修改最多 15 根直管（含随动水平管及伸缩立管，管件另计），超出整批拒绝。参考文件只读水平管允许作基准，附件逐层 GetTransformToParent 将本地 UOR 转至活动模型 UOR，再转毫米；外径/保温按等比缩放，非等比及剪切拒绝，目标仍只许活动模型。参考对象禁止构造修改/拓扑探测对象。56 项纯计算检查通过，参考附件变换、批量几何写回及 Undo 须宿主实测。
 
 本文件适用于 `型钢构件及支吊架模型生成工具_CS/` 目录及其全部子目录。
+
+管道对齐UI按用户要求隐藏SingleScope（Collapsed），只展示GROUP/ZSTRETCH。页面构造时将旧SelectedOnly迁移至ConnectedGroup并排队保存；ReadParameters缺省为ConnectedGroup，禁止隐藏选项仍被后台选中。底层SelectedOnly业务及兼容配置枚举保留。
+
+用户授权梯梁光滑化：SpiralStairBuilder使用HandrailSmoothPath.Runs划分梁段，曲线段全部竖直U截面BodyFromLoft(false,false)，直线平台/顶部折回保留CreateDgnRuledSweep。禁止跨变坡/急转进行平滑，保持原截面方向。梁/踏步/平台专用颜色127,163,124，仅在盘梯Builder设置，不修改公共实体工厂或围栏颜色。旧“梯梁不改光滑”的记录由本条替代；宿主表现需实测。
+
+混合栏杆光滑试验：HandrailSmoothPath按变坡/真实圆弧/急转分Runs，Spline生成穿点C1三次Hermite样条；HandrailBuilder.SmoothMixedPath仅替换密集曲线采样段，保留直线和真圆弧。SpatialKickplate在各曲线run用BodyFromLoft(periodic=false,segment=false)，直线扫掠，并整体相并；原竖直截面与共用端面保留。SpiralStairCheck增加288组组合的穿点、C1和小于1mm偏差检查。梯梁此轮不改为光滑放样；不能声称全部梁已无分面。宿主放样相并失败须保留明确阶段日志，不静默短段回退。
+
+盘梯最新：梯梁CreateDgnRuledSweep一次接收全路径截面，禁止再逐对创建短实体；钢围栏混合路径扶手和中间管使用MixedTube沿完整Path扫掠。采样分面边线仍可能可见，不能将编译通过声明为宿主无缝验证。状态栏SetBuildProgress三独立文字区域，0.5s限频、整秒耗时、相同文字不重写；文件日志固定spiral_latest.log每次覆盖，约2MB后截断早期内容，已加入覆盖/限大小测试。
+
+盘梯宿主反馈：第一段U梁的BodyFromLoft返回Error；梯梁必须改用CreateDgnRuledSweep(new DgnRuledSweepDetail(curves,true))再DraftingElementSchema.ToElement，与Python原生直纹扫掠一致。Infrastructure/SpiralStair/SpiralStairLog记录UTF8参数/阶段/异常，自动刷新至LocalAppData/SteelSectionProbe/logs/SpiralStair；UI只提供主动“查看日志”，不得恢复自动控制台。日志和纯计算检查不代表宿主放样已实测。
+
+2026-10-06：新增罐体盘梯 tank-spiral-stair，注册于WorkspaceView和HomeFeatureCatalog建模类，首页22个可用模块及1占位。分层Domain/Services/Tools/UI下SpiralStair；纯几何迁移当前Python布局，包括采样螺旋截面逐段放样，这是本模块迁移几何的明确约定。200×100×6是用户指定焊接U板而非轧制槽钢，不查型钢目录。内梁半径=罐半径+100+间隙，梁高向上200，平台顶面梁顶平齐无折边，踏步前下折/后上折各40，顶外梁折回开口朝出口。栏杆基准为实际顶部腿尖，复用HandrailCalculator及HandrailBuilder.BuildSteps；Build仍同步执行同一工作单元，禁止复制栏杆算法。内栏杆可选，WallGapMm>100强制。所有辅助路径只在内存中，结构按设备不写支吊架清单，栏杆确认后复用Statistics.AttachHandrail。WPF分步调度保持原生几何在宿主线程，状态栏显示阶段/百分比/用时，无Python、控制台或进度窗口；页面离开/右键/取消使revision失效并清理预览，失败保留删除失败元素的所有权。最大2000踏步/100梯段/每段4096截面。SpiralStairCheck的12组Python参考及288组栏杆组合通过，宿主几何及生命周期仍需实测。
+
+围栏 MaxPostSpacingMm 默认2000，面板 SpacingText 允许300～2000 mm，通过 PageLastInput 保存。直线、圆弧、螺旋及混合路径均须将该参数传入 PostStations，参数快照须包含它；2000根立柱数量上限与间距参数无关。50mm模数排布保留，非模数上限使用保守分跨。
+
+管道对齐集成：PageId=pipe-alignment，建模类，WPF UI/PipeAlignment页面复用Theme；后台46文件按原逻辑复制到各层PipeAlignment，独立命名空间SteelSectionProbe.PipeAlignment。不能引用原PipeAlign.dll或嵌入WinForms窗口。点取回调只排队ID，Dispatcher/Timer之后读EC；generation阻止旧页面回调，退出页面清理预览并解绑Undo事件，重新进入重读快照。自动预览350ms，应用不二次确认。检查链接汇总源码Development/PipeAlignmentCheck与PipeAlignmentUndoCheck；备份/清单在../迁移备份/管道对齐集成_20261004。首页新增1项后为21个可用模块及1个占位；**当前总数为 22 个可用模块 + 1 个占位卡**（此后又新增罐体盘梯 `tank-spiral-stair`），一律以 `Data/Home/HomeFeatureCatalog.cs` 清单和 `Development/HomeCheck` 的数量断言为准。
+
+支吊架钢构件颜色统一使用 Services/SupportSteelAppearance 的 RGB 常量（当前127,163,124），仅在专用Builder的结构钢件调用。禁止修改SolidPrimitiveFactory/SteelMemberFactory默认颜色而影响人孔、围栏等模块；螺栓、螺母、垫圈、膨胀套管保持原色，管道/保温/灌浆参考体同样保留。新生成件生效，不自动重着色已有模型。
+
+2026-10-04：围栏新增竖轴固定半径/螺距螺旋。原生 BSpline FractionToPoint 读取4097个求值点，HandrailHelixCalculator 在毫米局部坐标拟合并校验1mm误差；不可把控制点当曲线点。HandrailPiece 保留解析螺旋位置、切向与三维长度，Builder 使用三次Hermite样条扫掠和竖直截面踢脚板放样；限制圈数、半径和圈间净距。64组螺旋纯计算及用户样条归一化形状检查通过，宿主几何未实测。
+
+2026-10-06：围栏新增混合盘梯路径支持，MixedPoints 路由空间折线计算，复杂链按原生 FractionToPoint 求值，采样盘梯折线自动识别。统一三维里程及自交检查，踢脚板竖直截面整体放样，不按采样点重复生成立柱。带坡度急转角超过 15° 拒绝；最多 2000 立柱、8192 放样截面。64 组混合路径及原有检查通过，D 盘 SDK 完整 Release 编译通过，OPM 实体需实测。
+
+2026-10-04：普通钢结构围栏支持单根非闭合水平圆弧。HandrailArcInput 保存圆心、基向量与角度，CalculateArc 保留真实圆弧，校验水平圆形、偏移后最小 R140 及保守节点间距。离线验证在 SteelHandrailCheck，OPM 实体需实测。
 
 它既是人类开发文档，也是后续编码 Agent 的执行规范。任何新增功能、重构或修复都应先阅读本文，再检查真实代码；不要只根据文件名或旧对话猜测当前实现。
 
 ## 1. 项目目标
+
+### 方形人孔迁移补充（2026-10-03）
+
+`square-manhole` 已注册到 `WorkspaceView` 和 `HomeFeatureCatalog`，位于建模类；实现分层在 `Domain/Services/Tools/UI` 的 `SquareManhole/`。尺寸及装配对应 `方形人孔/SquareManhole.py`。通过 `SolidPrimitiveFactory` 创建离线筒体、盖板、四只真圆弧把手，封装为一个普通 `SQUARE_MANHOLE` Cell；禁止将子部件单独 `AddToModel`，不要消除盖板套装间隙，此设备附件不写支吊架统计。
+
+点取工具 Begin 幂等，保存并恢复 AccuSnap；参数编辑立即使确认失效，手动更新成功才能确认。预览会话管理一个块，重建成功后替换旧预览；取消/离开/关闭清理，确认释放所有权。使用 `PageLastInput` 保存八项输入。`Development/SquareManholeCheck` 从主工程排除，覆盖默认/矩形尺寸、间隙、套盖定位、边界与非有限输入；首页检查为 20 个可用功能加 1 个占位卡（该数字是当时的断言；**当前为 22 个可用功能 + 1 个占位卡**，以 `Development/HomeCheck` 的断言为准）。迁移前完整备份及回退脚本在仓库根目录 `迁移备份/方形人孔_20261003/`；OPM 实体及交互仍需实测。
 
 本项目是 OpenPlant Modeler 2024 的 C# AddIn，目标是提供统一的：
 
@@ -557,7 +589,9 @@ bin/Release/net48_full/SteelSectionProbe.dll
 
 `solid-nozzle` 首页入口位于 `UI/HomePage.xaml`，详情页在 `UI/Nozzle/`，纯参数和结果在 `Domain/Nozzle/`，嵌入尺寸表读取在 `Data/Nozzle/`，计算与 Bentley 建模在 `Services/Nozzle/`，点取和预览所有权在 `Tools/Nozzle/`。原始数据 `实体管口/flange_data.json` 原样复制为 `Resources/nozzle_flange_data.json` 并嵌入 DLL。新增法兰尺寸时修改原始数据并重新复制或建立数据生成脚本，不在页面硬编码尺寸。与罐壁人孔共用 `Services/SolidPrimitiveFactory.cs` 的圆柱、扫掠和布尔操作。
 
-管口总长度包含法兰厚度，业务输入均为 mm，Bentley 构件边界统一换算 UOR。仅允许当前等级和钢管系列同时存在且外径一致的 DN。螺栓孔默认不绘制；密封面凸台只有数据表提供外径和高度时才绘制。模型是一个 SmartSolid；确认前为工具拥有的预览元素，重新点取或修改参数先创建替代预览，Reset、页面离开和关闭时删除未确认元素。原 Python 工具为可视化管口，不创建 OPM 管道组件或支吊架材料条目，因此本功能不写入 `PipeSupportComponents`。纯数据检查位于 `Development/NozzleCheck/`，OPM 运行时需验证布尔相并/差集和预览删除。## 21. E1 不保温管导向架
+管口总长度包含法兰厚度，业务输入均为 mm，Bentley 构件边界统一换算 UOR。仅允许当前等级和钢管系列同时存在且外径一致的 DN。螺栓孔默认不绘制；密封面凸台只有数据表提供外径和高度时才绘制。模型是一个 SmartSolid；确认前为工具拥有的预览元素，重新点取或修改参数先创建替代预览，Reset、页面离开和关闭时删除未确认元素。原 Python 工具为可视化管口，不创建 OPM 管道组件或支吊架材料条目，因此本功能不写入 `PipeSupportComponents`。纯数据检查位于 `Development/NozzleCheck/`，OPM 运行时需验证布尔相并/差集和预览删除。
+
+## 21. E1 不保温管导向架
 
 `e1-guide` 首页入口在 `UI/HomePage.xaml`，详情页在 `UI/E1Guide/`。表 1 的 DN/外径与 A～E 选型数据在 `Data/E1Guide/E1GuideCatalog.cs`，纯布局计算在 `Services/E1Guide/E1GuideCalculator.cs`，Bentley 型钢和板件建模在 `Services/E1Guide/E1GuideBuilder.cs`，点取及预览所有权在 `Tools/E1Guide/`。与普通型钢路径扫掠共用 `Services/SteelMemberFactory.cs`；B～E 的轮廓从本工程的 `RuntimeData.Families` 读取，不依赖同级 Python 插件。该功能仅接受三维模型和坡度不超过 30° 的直线轴段。普通直线和多段线使用页面 DN，OpenPlant 管道优先读取 EC 管径。LineString 和仅含直线的 ComplexString 按三维点取位置选最近有效线段；其余线段不参与计算。放置点在选中线段三维投影并截断至端点。管轴取值顺序为：中心线曲线 → 元素范围（包围盒）**最长边**，与 Python `axis_from_bbox` 一致；**兜底不得限定水平** —— 竖直管道同样要靠它定位，加"必须水平"会把竖直管一律拒掉（与 Python 行为不符）。包围盒近似只给提示（`E1GuideSelection.AxisNote` → 页面预览行）不报错。各类型自己的走向限制放在各自 Calculator 里（K1 ≤ 5°、E1 ≤ 30°）。OPM 中需对斜向管道和多段线实测。
 
@@ -731,7 +765,9 @@ L8 表数据与材料代码位于 L7GuideCatalog，L8 编号次序为类型、�
 
 ## 36. 普通钢结构围栏
 
-首页 `steel-handrail` 位于 **建模类**，图标键 `handrail`，注册在 WorkspaceView。对应各层 `SteelHandrail/`。HandrailCalculator 不引用 Bentley；单位毫米，原脚本横向偏移 -34.2 mm、水平转角 R140、柱距上限 2000 mm 和 50 mm 模数排柱规则均保留。坡段保持竖柱，纯变坡节点强制设柱；同点转向且有坡度明确拒绝。连接类型 1 椭圆压扁端采用真椭圆放样与内腔扣除，类型 2 下弯 R76，类型 3 底板保持水平，类型 4 为原版预留无节点。
+首页 `steel-handrail` 位于 **建模类**，图标键 `handrail`，注册在 WorkspaceView。对应各层 `SteelHandrail/`。HandrailCalculator 不引用 Bentley；单位毫米，原脚本横向偏移 -34.2 mm、水平转角 R140、柱距上限 2000 mm 和 50 mm 模数排柱规则均保留。坡段保持竖柱，纯变坡节点强制设柱；同点转向且有坡度明确拒绝。连接类型 1 椭圆压扁端采用真椭圆放样与内腔扣除，类型 2 下弯 R76，类型 3 底板保持水平，类型 4 为原版预留无节点。立柱最大间距 `MaxPostSpacingMm` 默认 2000、面板可调 300～2000 mm，直线 / 圆弧 / 螺旋 / 混合路径都必须把该参数传入 `PostStations`，参数快照必须包含它（2000 根立柱的上限与间距参数无关）。
+
+路径形式分四条独立分支：直线与折线（`BuildPath`，转角真圆弧 R140、纯变坡点强制设柱）、单根非闭合水平圆弧（`CalculateArc`，保留真圆弧，偏移后半径不得小于 R140）、固定半径/固定螺距的竖轴螺旋（`HandrailHelixCalculator`，原生曲线求值 4097 点、1 mm 拟合容差、扫角 30°～20 圈、整圈升高 ≥1200 mm），以及由直线、水平圆弧与螺旋混合组成的非闭合复杂链（`HandrailArcInput.MixedPoints` → `Calculate(..., spatial:true)`，原生 `FractionToPoint` 采样、统一三维里程与自交检查、`HandrailSmoothPath` 按变坡/真圆弧/急转分 run 后 C1 光滑，带坡度急转角 >15° 拒绝，立柱 ≤2000、放样截面 ≤8192）。单弧分支之外的“混合链”不再是拒绝项，旧记录里的“混合复杂链仍拒绝”已作废。
 
 HandrailBuilder 复用 SolidPrimitiveFactory；踢脚板为完整偏移路径一次扫掠，不能改为短板拼接。新预览成功后才能删除旧预览；参数修改禁用确认，150 ms 延迟重建，失败保留旧几何；Reset、页面退出和关闭清理会话拥有的预览。确认后由 Statistics.AttachHandrail 一次写入公共库固定 STEEL_HANDRAIL 及构件角色，不把长度写入类型名。导出 JSON 复用公共统计服务并筛选普通钢结构围栏；旧 Python 库不自动导入。顶/中横杆按每道围栏累计长保存，踢脚板用实际偏移长，压扁端/下弯段用原版水平代表值。
 

@@ -1,0 +1,52 @@
+﻿<UserControl x:Class="SteelSectionProbe.SpiralStairPage" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:ClassModifier="internal" Background="{DynamicResource BackgroundBrush}">
+ <UserControl.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="../Themes/Theme.xaml"/></ResourceDictionary.MergedDictionaries></ResourceDictionary></UserControl.Resources>
+ <Grid><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+ <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel x:Name="ParametersPanel">
+ <Border Style="{StaticResource CardStyle}"><StackPanel>
+ <TextBlock Text="01  罐体与盘梯尺寸" Style="{StaticResource SectionTitleStyle}"/>
+ <TextBlock Text="长度单位 mm；标高相对于点取的罐体中心基点。" TextWrapping="Wrap" Margin="0,0,0,8"/>
+<Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+<StackPanel Grid.Column="0" Margin="0,0,8,8"><TextBlock Text="罐体外径"/><TextBox x:Name="DiameterText" Text="20000" TextChanged="Parameter_Changed"/></StackPanel>
+<StackPanel Grid.Column="1" Margin="0,0,0,8"><TextBlock Text="盘梯宽度"/><TextBox x:Name="WidthText" Text="700" TextChanged="Parameter_Changed"/></StackPanel>
+</Grid>
+<Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+<StackPanel Grid.Column="0" Margin="0,0,8,8"><TextBlock Text="起点标高"/><TextBox x:Name="StartText" Text="0" TextChanged="Parameter_Changed"/></StackPanel>
+<StackPanel Grid.Column="1" Margin="0,0,0,8"><TextBlock Text="终点标高"/><TextBox x:Name="EndText" Text="20000" TextChanged="Parameter_Changed"/></StackPanel>
+</Grid>
+<Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+<StackPanel Grid.Column="0" Margin="0,0,8,8"><TextBlock Text="休息平台高度间隔"/><TextBox x:Name="IntervalText" Text="10000" TextChanged="Parameter_Changed"/></StackPanel>
+<StackPanel Grid.Column="1" Margin="0,0,0,8"><TextBlock Text="罐壁间隙"/><TextBox x:Name="GapText" Text="0" TextChanged="Parameter_Changed"/></StackPanel>
+</Grid>
+<Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+<StackPanel Grid.Column="0" Margin="0,0,8,8"><TextBlock Text="踏步高度"/><TextBox x:Name="RiserText" Text="200" TextChanged="Parameter_Changed"/></StackPanel>
+<StackPanel Grid.Column="1" Margin="0,0,0,8"><TextBlock Text="内缘踏面深度"/><TextBox x:Name="DepthText" Text="250" TextChanged="Parameter_Changed"/></StackPanel>
+</Grid>
+<Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+<StackPanel Grid.Column="0" Margin="0,0,8,8"><TextBlock Text="休息平台内缘长度"/><TextBox x:Name="LandingText" Text="1000" TextChanged="Parameter_Changed"/></StackPanel>
+<StackPanel Grid.Column="1" Margin="0,0,0,8"><TextBlock Text="顶部平台内缘长度"/><TextBox x:Name="TopText" Text="1000" TextChanged="Parameter_Changed"/></StackPanel>
+</Grid>
+<Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+<StackPanel Grid.Column="0" Margin="0,0,8,8"><TextBlock Text="起始角（°）"/><TextBox x:Name="AngleText" Text="0" TextChanged="Parameter_Changed"/></StackPanel>
+</Grid>
+<TextBlock Text="盘梯旋转方向"/><ComboBox x:Name="DirectionCombo" SelectionChanged="Parameter_Changed"/>
+ <TextBlock Text="梯梁为 200×100×6 焊接U形板，背靠背布置；平台为与梁顶平齐的4mm平板，踏步前长边下折40mm、后长边上折40mm。" TextWrapping="Wrap" Margin="0,10,0,0"/>
+ </StackPanel></Border>
+ <Border Style="{StaticResource CardStyle}"><StackPanel>
+ <TextBlock Text="02  栏杆" Style="{StaticResource SectionTitleStyle}"/>
+ <TextBlock Text="外侧栏杆随盘梯生成，包含顶部折回段。" TextWrapping="Wrap"/>
+ <CheckBox x:Name="InnerCheck" Content="生成内侧栏杆" Checked="Parameter_Changed" Unchecked="Parameter_Changed" Margin="0,8,0,0"/>
+ <TextBlock x:Name="InnerHint" Text="罐壁间隙大于100mm时强制生成内侧栏杆。" TextWrapping="Wrap" Margin="0,6,0,8"/>
+ <TextBlock Text="立柱最大间距（沿三维路径长度，300～2000mm）"/><TextBox x:Name="SpacingText" Text="2000" TextChanged="Parameter_Changed"/>
+ <TextBlock Text="立柱连接形式" Margin="0,8,0,0"/><ComboBox x:Name="ConnectionCombo" SelectionChanged="Parameter_Changed"/>
+ <StackPanel x:Name="OffsetPanel" Margin="0,8,0,0"><TextBlock Text="立柱中心至连接板距离（类型2，须大于83mm）"/><TextBox x:Name="OffsetText" Text="120" TextChanged="Parameter_Changed"/></StackPanel>
+ </StackPanel></Border>
+ <Border Style="{StaticResource CardStyle}"><StackPanel><TextBlock Text="03  布局检查" Style="{StaticResource SectionTitleStyle}"/><TextBlock x:Name="LayoutText" TextWrapping="Wrap"/></StackPanel></Border>
+ </StackPanel></ScrollViewer>
+ <Border Grid.Row="1" Style="{StaticResource CardStyle}"><StackPanel>
+ <TextBlock Text="04  放置与确认" Style="{StaticResource SectionTitleStyle}"/>
+ <WrapPanel><Button x:Name="PickButton" Content="点取罐体中心" Style="{StaticResource PrimaryButtonStyle}" Click="Pick_Click" Margin="0,0,8,8"/><Button x:Name="UpdateButton" Content="更新预览" Style="{StaticResource SecondaryButtonStyle}" Click="Update_Click" Margin="0,0,8,8"/><Button x:Name="LogButton" Content="查看日志" Style="{StaticResource SecondaryButtonStyle}" Click="Log_Click" IsEnabled="False" Margin="0,0,0,8"/></WrapPanel>
+ <TextBlock Text="进度及用时显示在底部状态栏。辅助路径只在内存中使用。" TextWrapping="Wrap" Margin="0,0,0,8"/>
+ <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"><Button Content="取消" Style="{StaticResource SecondaryButtonStyle}" Click="Cancel_Click" Margin="0,0,8,0"/><Button x:Name="ConfirmButton" Content="确定生成" Style="{StaticResource PrimaryButtonStyle}" Click="Confirm_Click" IsEnabled="False"/></StackPanel>
+ </StackPanel></Border>
+ </Grid>
+</UserControl>

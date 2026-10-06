@@ -41,8 +41,8 @@ namespace SteelSectionProbe
             {
                 double sign=sides==1?1:(side==0?-1:1);
                 double outer=sides==1?0:sign*plan.Variant.WebGap/2;
-                parts.Add(SolidPrimitiveFactory.Element(Brace(f,plan,outer,sign),7));
-                parts.Add(SolidPrimitiveFactory.Element(Beam(f,plan,outer,sign),7));
+                parts.Add(SolidPrimitiveFactory.Element(Brace(f,plan,outer,sign),SupportSteelAppearance.Color));
+                parts.Add(SolidPrimitiveFactory.Element(Beam(f,plan,outer,sign),SupportSteelAppearance.Color));
             }
             if(plan.Parameters.Kind=="D19")
             {
@@ -50,7 +50,7 @@ namespace SteelSectionProbe
                 double z=-v.HeightA/2;
                 parts.Add(SolidPrimitiveFactory.Element(Box(f,plan.L2Mm,plan.L2Mm+v.ConnectorThickness,
                     -v.ConnectorLength/2,v.ConnectorLength/2,
-                    z-v.ConnectorHeight/2,z+v.ConnectorHeight/2),7));
+                    z-v.ConnectorHeight/2,z+v.ConnectorHeight/2),SupportSteelAppearance.Color));
             }
             if(plan.Parameters.Kind=="G12")AddG12Bolts(parts,f,plan);
             if(plan.Plate!=null)

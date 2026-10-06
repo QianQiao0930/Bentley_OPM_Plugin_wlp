@@ -147,6 +147,7 @@ namespace SteelSectionProbe
         {
             workspace.SetStatus(message, isError);
         }
+        internal void SetBuildProgress(int percent,string stage,int seconds){workspace.SetBuildProgress(percent,stage,seconds);}
 
         private void OnFormClosed(object sender, FormClosedEventArgs e)
         {

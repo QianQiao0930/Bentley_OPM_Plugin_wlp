@@ -55,7 +55,7 @@ namespace SteelSectionProbe
                     frame.Point(0.0,y,holeHalf),plan.HoleRadiusMm*scale));
             }
             SolidPrimitiveFactory.Subtract(ref body,holes,"耳板开螺栓孔");
-            result.Add(SolidPrimitiveFactory.Element(body,A2ClampCatalog.BodyColor));
+            result.Add(SolidPrimitiveFactory.Element(body,SupportSteelAppearance.Color));
 
             // 5) 每个螺栓孔穿一套简化紧固件（独立实体，与本体分开）。
             foreach(double sign in new[]{1.0,-1.0})

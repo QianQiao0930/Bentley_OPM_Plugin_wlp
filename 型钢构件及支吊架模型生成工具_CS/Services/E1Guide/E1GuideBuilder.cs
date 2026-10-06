@@ -69,7 +69,7 @@ namespace SteelSectionProbe
             points.Add(new DPoint3d((x+width*ux+depth*vx)*scale,(y+width*uy+depth*vy)*scale,z*scale));
             points.Add(new DPoint3d((x+depth*vx)*scale,(y+depth*vy)*scale,z*scale));
             return SolidPrimitiveFactory.Element(SolidPrimitiveFactory.PolygonPrism(points,
-                new DVector3d(0,0,height*scale)),7);
+                new DVector3d(0,0,height*scale)),SupportSteelAppearance.Color);
         }
     }
 }
