@@ -2,6 +2,8 @@
 
 ## 最近变更（摘要）
 
+2026-10-06：版本号升到 **0.0.2**。程序集版本在 [`App/AssemblyInfo.cs`](App/AssemblyInfo.cs)（`AssemblyVersion` / `AssemblyFileVersion` = 0.0.2.0，`AssemblyInformationalVersion` = 0.0.2）；此前工程 `GenerateAssemblyInfo=false` 又没有 AssemblyInfo，DLL 的文件版本一直是 0.0.0.0。首页标题栏角标同步改为 `V0.0.2 · 开发：魏`（`UI/HomePage.xaml`）。**改版本号要同时改这两处**，csproj 里的 `<Version>` 在本工程不生效。编译默认使用 D 盘 SDK（`D:\Program Files\Bentley\OpenPlant 2024\OpenPlantModeler`），C 盘路径只作兜底。
+
 2026-10-04：锁 Z 支持 1～15 起点批量，独立路由计算位移，重叠同目标去重，冲突及其重叠组跳过；所有模式一次实际修改最多 15 根直管（含随动水平管及伸缩立管，管件另计），超出整批拒绝。参考文件只读水平管允许作基准，附件逐层 GetTransformToParent 将本地 UOR 转至活动模型 UOR，再转毫米；外径/保温按等比缩放，非等比及剪切拒绝，目标仍只许活动模型。参考对象禁止构造修改/拓扑探测对象。56 项纯计算检查通过，参考附件变换、批量几何写回及 Undo 须宿主实测。
 
 ## 管道标高对齐（集成子模块）
