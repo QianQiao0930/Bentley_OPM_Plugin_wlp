@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
@@ -44,7 +44,7 @@ namespace SteelSectionProbe.PipeAlignment
             {
                 try
                 {
-                    PipeInfo pipe = session.ReadPipe(located, dumpAllProperties, true);
+                    PipeInfo pipe = ReferenceLineReader.ReadIfLine(located) ?? session.ReadPipe(located, dumpAllProperties, true);
                     AppendPipe(builder, pipe, dumpAllProperties);
                 }
                 catch (Exception ex)

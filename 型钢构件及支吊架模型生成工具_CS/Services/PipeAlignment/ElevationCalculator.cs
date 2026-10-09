@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace SteelSectionProbe.PipeAlignment
 {
@@ -27,6 +27,7 @@ namespace SteelSectionProbe.PipeAlignment
                 throw new InvalidOperationException("该管道没有可用的中心线，无法计算标高。");
 
             double zc = pipe.Axis.CenterElevationMm;
+            if (pipe.IsReferenceLine) return zc;
             double diameter = pipe.EffectiveDiameterMm(surfaceMode);
 
             switch (mode)

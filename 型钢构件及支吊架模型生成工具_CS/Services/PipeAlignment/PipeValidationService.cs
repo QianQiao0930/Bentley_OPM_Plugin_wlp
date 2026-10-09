@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 
@@ -44,7 +44,14 @@ namespace SteelSectionProbe.PipeAlignment
         internal static ValidationOutcome ValidateReferencePipe(PipeInfo pipe, SurfaceMode surfaceMode,
             PipeAlignOptions options)
         {
-            if (pipe == null) return ValidationOutcome.Invalid("尚未选择基准管。");
+            if (pipe == null) return ValidationOutcome.Invalid("尚未选择基准。");
+            if (pipe.IsReferenceLine)
+            {
+                if (pipe.Axis == null || pipe.Axis.IsDegenerate) return ValidationOutcome.Invalid("基准直线无有效端点或长度为零。");
+                if (!pipe.Axis.IsHorizontal(options == null ? 1.0 : options.HorizontalToleranceMm))
+                    return ValidationOutcome.Invalid("基准直线不是水平线。");
+                return ValidationOutcome.Valid();
+            }
             ValidationOutcome basic = ValidateCommon(pipe, options, false);
             if (!basic.IsValid) return basic;
 
@@ -68,6 +75,7 @@ namespace SteelSectionProbe.PipeAlignment
             SurfaceMode surfaceMode, PipeAlignOptions options)
         {
             if (pipe == null) return ValidationOutcome.Invalid("对象为空。");
+            if (pipe.IsReferenceLine) return ValidationOutcome.Invalid("基准直线不能作为移动目标。");
             ValidationOutcome basic = ValidateCommon(pipe, options);
             if (!basic.IsValid) return basic;
 
@@ -146,6 +154,7 @@ namespace SteelSectionProbe.PipeAlignment
             PipeTopologyCheckMode checkMode)
         {
             if (pipe == null) return ValidationOutcome.Invalid("对象为空。");
+            if (pipe.IsReferenceLine) return ValidationOutcome.Invalid("基准直线不能作为移动目标。");
             if (checkMode == PipeTopologyCheckMode.Off) return ValidationOutcome.Valid();
 
             PipeTopology topology = pipe.Topology;

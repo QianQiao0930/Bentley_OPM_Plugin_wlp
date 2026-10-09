@@ -96,6 +96,11 @@ namespace SteelSectionProbe.PipeAlignment
             return PipeElementReader.Read(located.ModelRef, located.ElementId, readOptions, ObjectProbe, Log);
         }
 
+        internal PipeInfo ReadReference(LocatedElement located)
+        {
+            return ReferenceLineReader.ReadIfLine(located) ?? ReadPipe(located, false, false);
+        }
+
         internal void SetReferencePipe(PipeInfo pipe)
         {
             ReferencePipe = pipe;
@@ -259,6 +264,8 @@ namespace SteelSectionProbe.PipeAlignment
                 // 丢掉模型引用会把参考元素读成活动模型里的同号元素（读到别的构件）。
                 LocatedElement located = pipe.Source as LocatedElement;
                 DgnModelRef modelRef = located == null ? null : located.ModelRef;
+                if (pipe.IsReferenceLine)
+                    return ReferenceLineReader.ReadIfLine(located) ?? throw new InvalidOperationException("原基准已不是直线，请重新选择。");
                 return PipeElementReader.Read(modelRef, pipe.ElementId, readOptions, ObjectProbe, Log);
             }
             catch (Exception ex)

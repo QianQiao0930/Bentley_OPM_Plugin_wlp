@@ -40,7 +40,7 @@ namespace SteelSectionProbe
         public void OnActivated()
         {
             if(active)return;active=true;generation++;timer.Start();TransactionManager.OnUndoRedoFinished+=UndoFinished;
-            Status("选择基准管和目标管 → 自动预览 → 应用",false);
+            Status("选择基准和目标管 → 自动预览 → 应用",false);
             int token=generation;Dispatcher.BeginInvoke(new Action(delegate{
                 if(!active||token!=generation)return;session.ReloadPipes(new List<string>());BuildAndPreview();}),DispatcherPriority.Background);
         }
@@ -80,13 +80,13 @@ namespace SteelSectionProbe
         }
         private void Reference_Click(object sender,RoutedEventArgs e){BeginPick(PA.PipePickTool.PickPurpose.Reference);}
         private void Target_Click(object sender,RoutedEventArgs e)
-        {if(session.ReferencePipe==null){Status("请先选择基准管。",true);return;}BeginPick(PA.PipePickTool.PickPurpose.Target);}
+        {if(session.ReferencePipe==null){Status("请先选择基准。",true);return;}BeginPick(PA.PipePickTool.PickPurpose.Target);}
         private void BeginPick(PA.PipePickTool.PickPurpose purpose)
         {
             try{
                 if(PA.PipePickTool.IsActive&&PA.PipePickTool.ActivePurpose!=purpose)PA.PipePickTool.End();
                 PA.PipePickTool.Begin(purpose,delegate(PA.LocatedElement element){QueuePick(element,purpose);},delegate{if(active)Status("点取已结束。",false);});
-                Status(purpose==PA.PipePickTool.PickPurpose.Reference?"请选择基准水平直管。":"请选择目标水平直管，右键结束。",false);
+                Status(purpose==PA.PipePickTool.PickPurpose.Reference?"请选择基准水平直管或水平直线（基准不移动）。":"请选择目标水平直管，右键结束。",false);
             }catch(Exception ex){Status(ex.Message,true);}
         }
         private void QueuePick(PA.LocatedElement element,PA.PipePickTool.PickPurpose purpose)
@@ -100,7 +100,7 @@ namespace SteelSectionProbe
             if(!active||applying)return;
             while(true){PendingPick pick;lock(pending){if(pending.Count==0)break;pick=pending.Dequeue();}
                 if(pick.Generation!=generation)continue;
-                try{var pipe=session.ReadPipe(pick.Element,false,true);
+                try{var pipe=pick.Purpose==PA.PipePickTool.PickPurpose.Reference?session.ReadReference(pick.Element):session.ReadPipe(pick.Element,false,true);
                     if(pick.Purpose==PA.PipePickTool.PickPurpose.Reference){
                         session.SetReferencePipe(pipe);
                     }else{if(!session.AddTargetPipe(pipe))continue;
@@ -191,11 +191,11 @@ namespace SteelSectionProbe
         private void RefreshView()
         {
             CountText.Text="已选 "+session.TargetPipes.Count+" / 15 根";
-            var pipe=session.ReferencePipe;ReferenceText.Text=pipe==null?"尚未选择基准管":pipe.DisplayName+" · "+pipe.ClassName+"\n外径 "+pipe.OutsideDiameterMm+" mm · 保温 "+pipe.InsulationThicknessMm+" mm\n"+(pipe.ReadWarning??"读取正常");
+            var pipe=session.ReferencePipe;ReferenceText.Text=pipe==null?"尚未选择基准":pipe.IsReferenceLine?pipe.DisplayName+" · 只读基准\n直线标高 "+pipe.Axis.CenterElevationMm.ToString("F2",CultureInfo.InvariantCulture)+" mm":pipe.DisplayName+" · "+pipe.ClassName+"\n外径 "+pipe.OutsideDiameterMm+" mm · 保温 "+pipe.InsulationThicknessMm+" mm\n"+(pipe.ReadWarning??"读取正常");
             var plan=session.Plan;var rows=new List<PipeRow>();
             if(plan!=null){foreach(var item in plan.Items)rows.Add(new PipeRow(item));
                 SummaryText.Text=string.Format(CultureInfo.InvariantCulture,"基准标高 {0:F2} mm · 将移动 {1}，已对齐 {2}，跳过 {3}",plan.ReferenceElevationMm,plan.ReadyCount,plan.AlreadyAlignedCount,plan.SkippedCount);
-                ReadoutText.Text="基准中心标高 "+plan.ReferencePipe.Axis.CenterElevationMm.ToString("F2",CultureInfo.InvariantCulture)+" mm\n"
+                ReadoutText.Text="基准轴线标高 "+plan.ReferencePipe.Axis.CenterElevationMm.ToString("F2",CultureInfo.InvariantCulture)+" mm\n"
                     +PA.AlignmentModes.Chinese(plan.Mode)+" / "+PA.SurfaceModes.Chinese(plan.SurfaceMode)+"\n"+session.DescribeTolerance()+"\n"+session.LastGroupNote;
             }else{foreach(var target in session.TargetPipes)rows.Add(new PipeRow(target));SummaryText.Text="选择完成后自动计算。";ReadoutText.Text="";}
             foreach(var row in rows)row.RemoveVisibility=session.TargetPipes.Any(target=>PA.PipeIdentity.Key(target)==row.Key)?Visibility.Visible:Visibility.Collapsed;

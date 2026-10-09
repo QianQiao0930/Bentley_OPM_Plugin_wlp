@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 
@@ -17,6 +17,7 @@ namespace SteelSectionProbe.PipeAlignment
     internal sealed class PipeInfo
     {
         /// <summary>元素 ID（活动模型 ID 空间）。只用于 Debug 显示与重新取元素。</summary>
+        internal bool IsReferenceLine { get; set; }
         internal ulong ElementId { get; set; }
 
         /// <summary>Element ID 的十六进制文本（日志用，避免 ulong 精度观感问题）。</summary>

@@ -6,9 +6,9 @@
  </ResourceDictionary.MergedDictionaries></ResourceDictionary></UserControl.Resources>
  <Grid HorizontalAlignment="Stretch"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
    <Border Style="{StaticResource CardStyle}"><StackPanel>
-    <DockPanel><Button DockPanel.Dock="Right" Content="选择基准管" Click="Reference_Click" Style="{StaticResource SecondaryButtonStyle}"/>
-     <TextBlock Text="01  基准管 · 目标标高来源" Style="{StaticResource SectionTitleStyle}"/></DockPanel>
-    <TextBlock x:Name="ReferenceText" FontFamily="Consolas" TextWrapping="Wrap" Text="尚未选择基准管"/>
+    <DockPanel><Button DockPanel.Dock="Right" Content="选择基准" Click="Reference_Click" Style="{StaticResource SecondaryButtonStyle}"/>
+     <TextBlock Text="01  基准 · 水平直管或直线" Style="{StaticResource SectionTitleStyle}"/></DockPanel>
+    <TextBlock x:Name="ReferenceText" FontFamily="Consolas" TextWrapping="Wrap" Text="尚未选择基准"/>
    </StackPanel></Border>
   <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel>
    <Border Style="{StaticResource CardStyle}"><StackPanel>

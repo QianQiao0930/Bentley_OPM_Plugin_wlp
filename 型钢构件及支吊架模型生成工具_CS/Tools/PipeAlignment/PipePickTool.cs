@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Bentley.DgnPlatformNET;
 using Bentley.MstnPlatformNET;
 
@@ -192,7 +192,7 @@ namespace SteelSectionProbe.PipeAlignment
         private static void Prompt(PickPurpose purpose)
         {
             NotificationManager.OutputPrompt(purpose == PickPurpose.Reference
-                ? "请点取一根水平直管作为基准管（左键点取，右键结束）。"
+                ? "请点取一根水平直管或水平直线作为只读基准（左键点取，右键结束）。"
                 : "请点取要移动的目标管，可连续左键多选；右键结束点取。");
         }
 

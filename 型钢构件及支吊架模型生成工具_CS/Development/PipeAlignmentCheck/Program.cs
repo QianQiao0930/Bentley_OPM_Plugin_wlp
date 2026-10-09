@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
@@ -45,7 +45,7 @@ namespace SteelSectionProbe.PipeAlignmentCheck
             }
 
             List<TestCase> cases = BuildCases();
-            AddBatchCases(cases);
+            AddBatchCases(cases); AddReferenceLineCases(cases);
 
             int passed = 0;
             foreach (TestCase testCase in cases)
