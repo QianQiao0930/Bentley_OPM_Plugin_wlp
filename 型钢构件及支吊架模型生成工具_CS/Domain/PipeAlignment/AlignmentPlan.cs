@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Globalization;
 
 namespace SteelSectionProbe.PipeAlignment
@@ -59,7 +59,8 @@ namespace SteelSectionProbe.PipeAlignment
         internal bool AddedByGroup { get; set; }
 
         internal PipeAxis AdjustedAxis { get; set; }
-        internal bool IsStretch { get { return AdjustedAxis != null; } }
+        internal bool IsRigidAdjustment { get; set; }
+        internal bool IsStretch { get { return AdjustedAxis != null && !IsRigidAdjustment; } }
 
         /// <summary>该管使用的有效外径 Deff（mm）。</summary>
         internal double EffectiveDiameterMm { get; set; }

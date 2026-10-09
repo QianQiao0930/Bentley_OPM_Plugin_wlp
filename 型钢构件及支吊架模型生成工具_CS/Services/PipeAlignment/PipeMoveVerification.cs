@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System;
 
 namespace SteelSectionProbe.PipeAlignment
@@ -39,6 +39,8 @@ namespace SteelSectionProbe.PipeAlignment
 
         internal bool MatchesTarget(AlignmentPlanItem item, double toleranceMm)
         {
+            if (item.IsRigidAdjustment) return MatchesPosition(item.Pipe, item.DeltaZmm, toleranceMm)
+                && SameAxis(GeometryAxis, item.TargetAxis, toleranceMm);
             if (!item.IsStretch) return MatchesPosition(item.Pipe, item.DeltaZmm, toleranceMm)
                 && SameAxis(GeometryAxis, item.TargetAxis, toleranceMm);
             PipeInfo pipe = item.Pipe;

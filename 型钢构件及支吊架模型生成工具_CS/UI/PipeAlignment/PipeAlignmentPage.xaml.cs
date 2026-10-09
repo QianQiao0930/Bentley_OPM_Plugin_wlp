@@ -215,7 +215,9 @@ namespace SteelSectionProbe
                 Target="目标 "+item.ReferenceElevationMm.ToString("F2",CultureInfo.InvariantCulture);
                 Delta="ΔZ "+(item.Status==PA.PlanItemStatus.Skipped?"—":item.DeltaZmm.ToString("+0.00;-0.00;0.00",CultureInfo.InvariantCulture));
                 Status=item.Status==PA.PlanItemStatus.Skipped?"跳过："+item.SkipReason:item.Status==PA.PlanItemStatus.AlreadyAligned?"已对齐，无需移动":item.IsStretch?
-                    string.Format(CultureInfo.InvariantCulture,"立管伸缩 {0:F2} → {1:F2} mm，另一端固定",item.Pipe.Axis.LengthMm,item.TargetAxis.LengthMm):"将移动";
+                    string.Format(CultureInfo.InvariantCulture,"直管调整 {0:F2} → {1:F2} mm，端点按预览调整",item.Pipe.Axis.LengthMm,item.TargetAxis.LengthMm):"将移动";
+                if(item.IsRigidAdjustment)Status=string.Format(CultureInfo.InvariantCulture,"弯头保持角度平移 · ΔX {0:+0.00;-0.00;0.00} · ΔY {1:+0.00;-0.00;0.00} mm",
+                    item.TargetAxis.StartXmm-item.Pipe.Axis.StartXmm,item.TargetAxis.StartYmm-item.Pipe.Axis.StartYmm);
                 Status="外径 "+item.OutsideDiameterMm.ToString("F1",CultureInfo.InvariantCulture)+" mm · "+Status;
                 StatusBrush=new SolidColorBrush(item.Status==PA.PlanItemStatus.AlreadyAligned?Color.FromRgb(61,122,55):Color.FromRgb(154,111,20));
                 Details=Name+"\n"+Connection+"\n"+Current+" → "+Target+" · "+Delta+" mm\n"+Status;

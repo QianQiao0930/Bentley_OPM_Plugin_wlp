@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Globalization;
 using System.Collections.Generic;
 using Bentley.DgnPlatformNET;
@@ -56,17 +56,17 @@ namespace SteelSectionProbe.PipeAlignment
                 if (!CanMove(pipe, units, out reason)) return false;
                 if (target == null || pipe.Axis == null || pipe.MoveProbe == null || !pipe.MoveProbe.LinearPointsUsable
                     || PipeConnectionClassifier.Classify(pipe.ClassName) != PipeConnectionKind.Pipe)
-                    throw new InvalidOperationException("立管没有可用的端点接口。");
+                    throw new InvalidOperationException("直管没有可用的端点接口。");
                 if (!pipe.EcLengthRaw.HasValue || pipe.PropertyLengthScale <= 0.0
                     || Math.Abs(pipe.EcLengthRaw.Value * pipe.PropertyLengthScale - pipe.Axis.LengthMm) > 1.0)
-                    throw new InvalidOperationException("立管 LENGTH 单位未标定。");
+                    throw new InvalidOperationException("直管 LENGTH 单位未标定。");
                 using (var acquired = OpenPlantObjectFactory.Acquire(pipe.InstanceId, ResolveInstance(pipe.InstanceId)))
                 {
                     if (acquired.Object == null || !acquired.Object.IsValid || acquired.OwnsObject)
-                        throw new InvalidOperationException("没有可写的 OpenPlant 立管对象。");
+                        throw new InvalidOperationException("没有可写的 OpenPlant 直管对象。");
                     double minimum = BMECApi.GetMinimumPipeLengthInMM(acquired.Object);
                     if (double.IsNaN(minimum) || double.IsInfinity(minimum) || minimum < 0.0 || target.LengthMm < minimum)
-                        throw new InvalidOperationException("立管新长度不满足 OpenPlant 最小安装管长。");
+                        throw new InvalidOperationException("直管新长度不满足 OpenPlant 最小安装管长。");
                 }
                 return true;
             }
@@ -75,7 +75,7 @@ namespace SteelSectionProbe.PipeAlignment
 
         public PipeMoveAttempt SetPipeAxis(PipeInfo pipe, PipeAxis target, IUnitService units)
         {
-            var attempt = new PipeMoveAttempt { Level = "OpenPlant 立管单端伸缩" };
+            var attempt = new PipeMoveAttempt { Level = "OpenPlant 直管端点调整" };
             try
             {
                 string reason;
@@ -85,12 +85,12 @@ namespace SteelSectionProbe.PipeAlignment
                     throw new InvalidOperationException("未证实该直管的端点接口，不能伸缩。");
                 if (!pipe.EcLengthRaw.HasValue || pipe.PropertyLengthScale <= 0.0
                     || Math.Abs(pipe.EcLengthRaw.Value * pipe.PropertyLengthScale - pipe.Axis.LengthMm) > 1.0)
-                    throw new InvalidOperationException("立管 LENGTH 单位未标定，不能验证伸缩后的数据长度。");
+                    throw new InvalidOperationException("直管 LENGTH 单位未标定，不能验证伸缩后的数据长度。");
                 using (var acquired = OpenPlantObjectFactory.Acquire(pipe.InstanceId, ResolveInstance(pipe.InstanceId)))
                 {
                     BMECObject component = acquired.Object;
                     if (component == null || !component.IsValid || acquired.OwnsObject)
-                        throw new InvalidOperationException("立管未取得挂到文档的业务对象。");
+                        throw new InvalidOperationException("直管未取得挂到文档的业务对象。");
                     component.Refresh();
                     component.Resync();
                     double scale = pipe.MoveProbe.ApiUnitsPerMillimeter;
@@ -98,18 +98,58 @@ namespace SteelSectionProbe.PipeAlignment
                     DPoint3d end = component.GetNthPoint(1);
                     bool forward = PointMatches(start, pipe.Axis, true, scale) && PointMatches(end, pipe.Axis, false, scale);
                     bool backward = PointMatches(start, pipe.Axis, false, scale) && PointMatches(end, pipe.Axis, true, scale);
-                    if (!forward && !backward) throw new InvalidOperationException("立管端点已改变，请重新预览。");
+                    if (!forward && !backward) throw new InvalidOperationException("直管端点已改变，请重新预览。");
                     double minimum = BMECApi.GetMinimumPipeLengthInMM(component);
                     if (double.IsNaN(minimum) || double.IsInfinity(minimum) || minimum < 0.0)
                         throw new InvalidOperationException("OpenPlant 未返回可信的最小管长。");
-                    if (target.LengthMm < minimum) throw new InvalidOperationException("立管新长度小于 OpenPlant 最小安装管长。");
+                    if (target.LengthMm < minimum) throw new InvalidOperationException("直管新长度小于 OpenPlant 最小安装管长。");
                     component.AllowGraphicsUpdate = true;
                     component.SetLinearPoints(ApiPoint(target, forward, scale), ApiPoint(target, !forward, scale));
                     bool written = PersistImmediately(component, attempt);
                     attempt.Trace("SetLinearPoints + Serialize=" + written);
-                    if (!written) throw new InvalidOperationException("OpenPlant 立管写回失败。");
+                    if (!written) throw new InvalidOperationException("OpenPlant 直管写回失败。");
                     component.Refresh();
                     component.Resync();
+                    attempt.Succeeded = true;
+                }
+            }
+            catch (Exception ex) { attempt.FailureReason = ex.Message; }
+            return attempt;
+        }
+
+        public PipeMoveAttempt SetRigidAxis(PipeInfo pipe, PipeAxis target, IUnitService units)
+        {
+            var attempt = new PipeMoveAttempt { Level = "OpenPlant 乙字弯弯头平移" };
+            try
+            {
+                string reason;
+                if (!CanMove(pipe, units, out reason)) throw new InvalidOperationException(reason);
+                if (target == null || pipe.Axis == null || pipe.MoveProbe == null || !pipe.MoveProbe.TransformUsable)
+                    throw new InvalidOperationException("弯头平移接口不可用。");
+                double scale = pipe.MoveProbe.ApiUnitsPerMillimeter;
+                double dx = target.StartXmm - pipe.Axis.StartXmm;
+                double dy = target.StartYmm - pipe.Axis.StartYmm;
+                double dz = target.StartZmm - pipe.Axis.StartZmm;
+                if (double.IsNaN(dx) || double.IsInfinity(dx) || double.IsNaN(dy) || double.IsInfinity(dy) || double.IsNaN(dz) || double.IsInfinity(dz)
+                    || scale <= 0 || double.IsNaN(scale) || double.IsInfinity(scale)
+                    || Math.Abs(target.EndXmm - pipe.Axis.EndXmm - dx) > 0.001
+                    || Math.Abs(target.EndYmm - pipe.Axis.EndYmm - dy) > 0.001
+                    || Math.Abs(target.EndZmm - pipe.Axis.EndZmm - dz) > 0.001)
+                    throw new InvalidOperationException("弯头目标必须是等量平移。");
+                using (var acquired = OpenPlantObjectFactory.Acquire(pipe.InstanceId, ResolveInstance(pipe.InstanceId)))
+                {
+                    var component = acquired.Object;
+                    if (component == null || !component.IsValid || acquired.OwnsObject)
+                        throw new InvalidOperationException("未取得可写弯头对象。");
+                    component.Refresh(); component.Resync();
+                    component.AllowGraphicsUpdate = true;
+                    var transform = component.Transform3d;
+                    var translation = transform.Translation;
+                    transform.Translation = new DPoint3d(translation.X + dx * scale, translation.Y + dy * scale, translation.Z + dz * scale);
+                    component.Transform3d = transform;
+                    attempt.Trace(string.Format(CultureInfo.InvariantCulture,"弯头平移 ΔX={0:F3}, ΔY={1:F3}, ΔZ={2:F3} mm", dx, dy, dz));
+                    if (!PersistImmediately(component, attempt)) throw new InvalidOperationException("弯头平移写回失败。");
+                    component.Refresh(); component.Resync();
                     attempt.Succeeded = true;
                 }
             }

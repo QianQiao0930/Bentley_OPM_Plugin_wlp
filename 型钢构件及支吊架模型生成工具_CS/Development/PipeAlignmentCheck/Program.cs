@@ -45,7 +45,7 @@ namespace SteelSectionProbe.PipeAlignmentCheck
             }
 
             List<TestCase> cases = BuildCases();
-            AddBatchCases(cases); AddReferenceLineCases(cases);
+            AddBatchCases(cases); AddReferenceLineCases(cases); AddOffsetCases(cases);
 
             int passed = 0;
             foreach (TestCase testCase in cases)

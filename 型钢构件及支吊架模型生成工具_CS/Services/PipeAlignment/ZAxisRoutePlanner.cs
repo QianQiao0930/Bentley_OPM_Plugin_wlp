@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace SteelSectionProbe.PipeAlignment
 {
     /// <summary>锁 Z 的受限路由：水平管/管件随动，遇竖直直管截止并固定另一端。</summary>
-    internal static class ZAxisRoutePlanner
+    internal static partial class ZAxisRoutePlanner
     {
         internal static AlignmentPlan BuildBatch(PipeInfo reference, IList<PipeInfo> seeds,
             AlignmentMode mode, SurfaceMode surface, Func<string, PipeInfo> read, PipeAlignOptions options)
@@ -107,7 +107,7 @@ namespace SteelSectionProbe.PipeAlignment
                 plan.Add(new AlignmentPlanItem(item.Pipe, mode, surface)
                 {
                     Status = item.Status, SkipReason = item.SkipReason, DeltaZmm = item.DeltaZmm,
-                    AdjustedAxis = item.AdjustedAxis, AddedByGroup = item.AddedByGroup,
+                    AdjustedAxis = item.AdjustedAxis, IsRigidAdjustment = item.IsRigidAdjustment, AddedByGroup = item.AddedByGroup,
                     OutsideDiameterMm = item.OutsideDiameterMm,
                     EffectiveDiameterMm = item.Pipe.EffectiveDiameterMm(surface),
                     CurrentElevationMm = current,
@@ -127,6 +127,8 @@ namespace SteelSectionProbe.PipeAlignment
             ValidationOutcome valid = PipeValidationService.ValidateTargetPipe(seed,
                 AlignmentMode.Center, SurfaceMode.Pipe, options);
             if (!valid.IsValid) throw new PipeAlignValidationException(valid.Reason);
+            var offset = TryBuildOffset(seed, deltaZmm, read, options);
+            if (offset != null) return offset;
             var all = new Dictionary<string, PipeInfo>(StringComparer.OrdinalIgnoreCase);
             var moving = new Dictionary<string, PipeInfo>(StringComparer.OrdinalIgnoreCase);
             var vertical = new Dictionary<string, PipeInfo>(StringComparer.OrdinalIgnoreCase);

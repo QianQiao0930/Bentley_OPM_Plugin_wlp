@@ -28,7 +28,7 @@
      <TextBlock Text="移动范围" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,6"/>
      <RadioButton x:Name="SingleScope" GroupName="Scope" Content="只移动选中的管道" Visibility="Collapsed" Checked="Parameters_Changed" Margin="0,4"/>
      <RadioButton x:Name="GroupScope" GroupName="Scope" Content="连同连通对象一起移动" Checked="Parameters_Changed" Margin="0,4"/>
-     <RadioButton x:Name="ZScope" GroupName="Scope" Content="锁 Z 轴 · 立管伸缩，远端固定" Checked="Parameters_Changed" Margin="0,4"/>
+     <RadioButton x:Name="ZScope" GroupName="Scope" Content="锁 Z 轴 · 立管 / 乙字弯伸缩，固定另一侧" Checked="Parameters_Changed" Margin="0,4"/>
     </StackPanel></Border>
    </StackPanel></Border>
    <Border Style="{StaticResource CardStyle}"><StackPanel>

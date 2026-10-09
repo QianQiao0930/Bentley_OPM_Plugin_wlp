@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using Bentley.DgnPlatformNET;
@@ -56,7 +56,7 @@ namespace SteelSectionProbe.PipeAlignment
 
             try
             {
-                // 所有拒绝条件先检查，尤其立管最小安装长度，不能等水平组已改完才发现。
+                // 所有拒绝条件先检查，尤其直管最小安装长度，不能等水平组已改完才发现。
                 foreach (AlignmentPlanItem pending in plan.Items)
                 {
                     if (pending.Status != PlanItemStatus.Ready) continue;
@@ -64,6 +64,9 @@ namespace SteelSectionProbe.PipeAlignment
                     bool movable = pending.IsStretch
                         ? _adapter.CanSetPipeAxis(pending.Pipe, pending.TargetAxis, _units, out refusal)
                         : _adapter.CanMove(pending.Pipe, _units, out refusal);
+                    if (pending.IsRigidAdjustment && (pending.Pipe.MoveProbe == null || !pending.Pipe.MoveProbe.TransformUsable
+                        || pending.Pipe.MoveProbe.ApiUnitsPerMillimeter <= 0))
+                        throw new InvalidOperationException("乙字弯弯头没有可用的平移接口。");
                     if (!movable) throw new InvalidOperationException("批量预检查失败：" + pending.Pipe.DisplayName + "：" + refusal);
                 }
                 try
@@ -242,9 +245,20 @@ namespace SteelSectionProbe.PipeAlignment
                     ? MoveOutcome.Moved : MoveOutcome.Failed;
                 itemResult.AppliedLevel = stretch.Level;
                 itemResult.Message = itemResult.Outcome == MoveOutcome.Failed
-                    ? "立管伸缩未通过端点/固定端/EC 长度复核：" + (stretch.FailureReason ?? stretch.DescribeTraces())
-                    : string.Format(CultureInfo.InvariantCulture, "立管长度 {0:F2} → {1:F2} mm，另一端固定。",
+                    ? "直管伸缩未通过端点/固定端/EC 长度复核：" + (stretch.FailureReason ?? stretch.DescribeTraces())
+                    : string.Format(CultureInfo.InvariantCulture, "直管长度 {0:F2} → {1:F2} mm，另一端固定。",
                         item.Pipe.Axis.LengthMm, item.TargetAxis.LengthMm);
+                return itemResult;
+            }
+            if (item.IsRigidAdjustment)
+            {
+                var attempt = _adapter.SetRigidAxis(item.Pipe, item.TargetAxis, _units);
+                var verification = attempt.Succeeded ? _verifier.Verify(item.Pipe) : null;
+                itemResult.Outcome = verification != null && verification.MatchesTarget(item, tolerance)
+                    ? MoveOutcome.Moved : MoveOutcome.Failed;
+                itemResult.AppliedLevel = attempt.Level;
+                itemResult.Message = itemResult.Outcome == MoveOutcome.Failed
+                    ? "乙字弯弯头平移复核失败：" + attempt.FailureReason : "乙字弯弯头保持角度平移。";
                 return itemResult;
             }
             List<string> traces = new List<string>();

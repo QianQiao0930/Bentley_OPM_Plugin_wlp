@@ -1,4 +1,4 @@
-﻿using Bentley.ECObjects.Instance;
+using Bentley.ECObjects.Instance;
 using System.Collections.Generic;
 
 namespace SteelSectionProbe.PipeAlignment
@@ -37,6 +37,7 @@ namespace SteelSectionProbe.PipeAlignment
         bool DeferConnectionUpdates { get; set; }
         PipeMoveAttempt SetPipeAxis(PipeInfo pipe, PipeAxis target, IUnitService units);
         bool CanSetPipeAxis(PipeInfo pipe, PipeAxis target, IUnitService units, out string reason);
+        PipeMoveAttempt SetRigidAxis(PipeInfo pipe, PipeAxis target, IUnitService units);
         void UpdateBatchConnections(IList<PipeInfo> pipes);
     }
 }

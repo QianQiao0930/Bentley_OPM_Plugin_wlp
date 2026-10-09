@@ -41,7 +41,7 @@
     <!-- Move Group 展开（纯计算：读取成员由调用方注入委托，所以不依赖 Bentley） -->
     <Compile Include="..\..\Services\PipeAlignment\PipeGroupExpander.cs" Link="Services\PipeGroupExpander.cs" />
     <Compile Include="..\..\Services\PipeAlignment\PipeMoveVerification.cs" Link="Services\PipeMoveVerification.cs" />
-    <Compile Include="..\..\Services\PipeAlignment\ZAxisRoutePlanner.cs" Link="Services\ZAxisRoutePlanner.cs" />
+    <Compile Include="..\..\Services\PipeAlignment\ZAxisRoutePlanner*.cs" Link="Services\%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>

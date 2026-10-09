@@ -149,7 +149,7 @@ namespace SteelSectionProbe.PipeAlignment
                 int stretches = 0;
                 foreach (AlignmentPlanItem item in Plan.Items) if (item.IsStretch) stretches++;
                 LastGroupNote = string.Format(CultureInfo.InvariantCulture,
-                    "多起点批量（各起点独立计算位移），随动 {1} 个，立管伸缩 {2} 根，固定侧 {3} 个",
+                    "多起点批量（各起点独立计算位移），随动 {1} 个，直管伸缩 {2} 根，固定侧 {3} 个",
                     ZMoveDeltaMm, Plan.Items.Count - stretches, stretches, Plan.FixedPipes.Count);
                 return Plan;
             }
