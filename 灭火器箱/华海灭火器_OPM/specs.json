@@ -1,0 +1,14 @@
+{
+  "manufacturer": "海门市华海水上安全设备有限责任公司",
+  "source_url": "https://www.hmhuahai.com/shoutishiganfenmiehuoqi/shou-ti-shi-gan-fen-mie-huo-qi.html",
+  "checked_date": "2026-10-09",
+  "units": "mm",
+  "notes": "Chinese product page nominal total heights. Page height tolerances are transcribed ambiguously; use nominal dimensions only. Detail shapes are simplified assumptions. The 18 mm hose dimension is interpreted as exterior diameter for this visual model.",
+  "variants": {
+    "2": {"model": "MF/ABCE2", "body_diameter": 110, "total_height": 360, "filled_weight_kg": 3.43, "hose_diameter": 0, "hose_length": 0},
+    "4": {"model": "MF/ABCE4", "body_diameter": 130, "total_height": 485, "filled_weight_kg": 6.26, "hose_diameter": 18, "hose_length": 400},
+    "5": {"model": "MF/ABCE5", "body_diameter": 140, "total_height": 535, "filled_weight_kg": 7.6, "hose_diameter": 18, "hose_length": 400},
+    "6": {"model": "MF/ABCE6", "body_diameter": 150, "total_height": 575, "filled_weight_kg": 9.1, "hose_diameter": 18, "hose_length": 400},
+    "8": {"model": "MF/ABCE8", "body_diameter": 160, "total_height": 605, "filled_weight_kg": 11.68, "hose_diameter": 18, "hose_length": 400}
+  }
+}
