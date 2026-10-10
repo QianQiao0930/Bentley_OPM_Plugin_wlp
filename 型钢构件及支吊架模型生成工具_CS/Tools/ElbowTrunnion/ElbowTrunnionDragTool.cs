@@ -21,6 +21,9 @@ namespace SteelSectionProbe
         private bool pickReleased,acceptArmed,hasFrame;
         private DateTime lastUpdate=DateTime.MinValue;
         private string lastError;
+        private bool compassActivated;
+        private AccuDraw.RotationMode compassRotationMode;
+        private bool compassWasActive;
 
         [DllImport("user32.dll")]
         private static extern short GetAsyncKeyState(int key);
@@ -52,6 +55,9 @@ namespace SteelSectionProbe
                 tool.BeginDynamics();
                 if (!tool.DynamicsStarted)
                     throw new InvalidOperationException("Bentley 拉伸动态绘制未启动。");
+                // 与 A1 方向工具同序：动态起来之后再接管罗盘（原点固定在测量基准点，
+                // X 轴=拉伸方向），罗盘键盘输入才接收焦点。
+                tool.ActivateCompass();
             }
             catch
             {
@@ -79,7 +85,9 @@ namespace SteelSectionProbe
         protected override void OnPostInstall()
         {
             base.OnPostInstall();
-            NotificationManager.OutputPrompt("松开左键，沿耳轴方向移动鼠标预览长度；再左键固定，右键取消。");
+            NotificationManager.OutputPrompt(
+                "松开左键，沿耳轴方向移动鼠标预览长度；再左键固定，右键取消。"
+                +"罗盘已对齐拉伸方向：键盘输入距离回车后左键，即按该距离精确落位。");
         }
         protected override void OnDynamicFrame(DgnButtonEvent ev)
         {
@@ -150,6 +158,7 @@ namespace SteelSectionProbe
         protected override void OnRestartTool() { End(); }
         protected override void OnCleanup()
         {
+            RestoreCompass();
             if (ReferenceEquals(active,this))
             {
                 active=null;
@@ -190,10 +199,7 @@ namespace SteelSectionProbe
             if (scale<=0) throw new InvalidOperationException("模型单位无效。");
             VectorMm origin,direction;
             Axis(out origin,out direction);
-            var source=ev.Source.ToString();
-            if (source.IndexOf("Precision",StringComparison.OrdinalIgnoreCase)>=0 ||
-                source.IndexOf("ElemSnap",StringComparison.OrdinalIgnoreCase)>=0 ||
-                source.IndexOf("Tentative",StringComparison.OrdinalIgnoreCase)>=0)
+            if (IsPrecisePoint(ev.Source.ToString()))
             {
                 var point=ev.Point;
                 return (new VectorMm(point.X/scale,point.Y/scale,point.Z/scale)-origin).Dot(direction);
@@ -210,6 +216,20 @@ namespace SteelSectionProbe
                 throw new InvalidOperationException("当前视图看不到拉伸方向，请切换侧视图或轴测视图。");
             return 1000*((projected[2].X-projected[0].X)*dx+
                 (projected[2].Y-projected[0].Y)*dy)/denominator;
+        }
+        private static bool IsPrecisePoint(string source)
+        {
+            // 精确捕捉/捕捉点/预选点/via 罗盘键盘输入的坐标点是精确的，ev.Point 可信；
+            // 其余按鼠标来信的 RawPoint 走视图投影折算。
+            if (string.IsNullOrEmpty(source)) return false;
+            source=source.ToUpperInvariant();
+            return source.IndexOf("PRECISION",StringComparison.Ordinal)>=0 ||
+                source.IndexOf("ELEMSNAP",StringComparison.Ordinal)>=0 ||
+                source.IndexOf("TENTATIVE",StringComparison.Ordinal)>=0 ||
+                source.IndexOf("KEYBOARD",StringComparison.Ordinal)>=0 ||
+                source.IndexOf("KEYIN",StringComparison.Ordinal)>=0 ||
+                source.IndexOf("ACCDRAW",StringComparison.Ordinal)>=0 ||
+                source.IndexOf("ENTER",StringComparison.Ordinal)>=0;
         }
         private void Axis(out VectorMm origin,out VectorMm direction)
         {
@@ -229,6 +249,61 @@ namespace SteelSectionProbe
                 origin=f.RunPort+f.AxisX*f.RunLengthMm;
                 direction=parameters.OutletSide ? f.AxisZ*(-1) : f.AxisX;
             }
+        }
+        /// <summary>
+        /// 激活精确绘图罗盘：原点固定在测量基准点，X 轴=拉伸方向（输入正距离即沿拉伸
+        /// 方向），Y 取与拉伸方向夹角最小可控的水平横向参考，Z 补全右手系。标志序列
+        /// 复制 A1ClampOrientationTool 的实测可用组合；定向失败只提示，鼠标仍可拉伸。
+        /// </summary>
+        private void ActivateCompass()
+        {
+            try
+            {
+                var model=Session.Instance.GetActiveDgnModel();
+                if (model==null) throw new InvalidOperationException("没有活动模型。");
+                double scale=model.GetModelInfo().UorPerMeter/1000.0;
+                VectorMm originMm,directionMm;
+                Axis(out originMm,out directionMm);
+                var x=directionMm.Unit();
+                double tx=0,ty=1,tz=0;
+                if (Math.Abs(x.X*tx+x.Y*ty+x.Z*tz)>0.9){tx=1;ty=0;tz=0;}
+                double proj=x.X*tx+x.Y*ty+x.Z*tz;
+                double vx=tx-proj*x.X,vy=ty-proj*x.Y,vz=tz-proj*x.Z;
+                double vLen=Math.Sqrt(vx*vx+vy*vy+vz*vz);
+                if (vLen<=1e-12) return;
+                var yAxis=vLen==1?new DVector3d(vx,vy,vz):new DVector3d(vx/vLen,vy/vLen,vz/vLen);
+                var xAxis=new DVector3d(x.X,x.Y,x.Z);
+                var zAxis=new DVector3d(xAxis.Y*yAxis.Z-xAxis.Z*yAxis.Y,
+                    xAxis.Z*yAxis.X-xAxis.X*yAxis.Z,
+                    xAxis.X*yAxis.Y-xAxis.Y*yAxis.X);
+                var rotation=DMatrix3d.FromColumns(xAxis,yAxis,zAxis);
+                var anchor=Point(originMm,scale);
+                compassWasActive=AccuDraw.Active;
+                compassRotationMode=AccuDraw.ActiveRotationMode;
+                compassActivated=true;
+                AccuDraw.Active=true;
+                AccuDraw.ActiveRotationMode=AccuDraw.RotationMode.Context;
+                AccuDraw.SetContext(AccuDrawFlags.SetOrigin|AccuDrawFlags.FixedOrigin|
+                    AccuDrawFlags.SetRMatrix,anchor,rotation);
+                AccuDraw.Rotation=rotation;
+                AccuDraw.SetContext(AccuDrawFlags.SetFocus);
+            }
+            catch(Exception ex)
+            {
+                compassActivated=false;
+                NotificationManager.OutputPrompt("精确绘图罗盘定向失败，仍可移动鼠标拉伸："+ex.Message);
+            }
+        }
+        private void RestoreCompass()
+        {
+            if (!compassActivated) return;
+            compassActivated=false;
+            try
+            {
+                AccuDraw.ActiveRotationMode=compassRotationMode;
+                AccuDraw.Active=compassWasActive;
+            }
+            catch { }
         }
         private ElbowTrunnionPlan Plan(double extent)
         {
