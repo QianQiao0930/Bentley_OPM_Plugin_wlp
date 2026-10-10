@@ -103,6 +103,7 @@ namespace SteelSectionProbe
                 try{var pipe=pick.Purpose==PA.PipePickTool.PickPurpose.Reference?session.ReadReference(pick.Element):session.ReadPipe(pick.Element,false,true);
                     if(pick.Purpose==PA.PipePickTool.PickPurpose.Reference){
                         session.SetReferencePipe(pipe);
+                        generation++; // 新基准使旧点取队列失效，避免旧目标重新加入。
                     }else{if(!session.AddTargetPipe(pipe))continue;
                         }
                     Invalidate();Status("选择已更新，正在自动计算。",false);

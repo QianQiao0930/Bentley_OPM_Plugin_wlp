@@ -6,7 +6,15 @@
  </ResourceDictionary.MergedDictionaries></ResourceDictionary></UserControl.Resources>
  <Grid HorizontalAlignment="Stretch"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
    <Border Style="{StaticResource CardStyle}"><StackPanel>
-    <DockPanel><Button DockPanel.Dock="Right" Content="选择基准" Click="Reference_Click" Style="{StaticResource SecondaryButtonStyle}"/>
+    <DockPanel Margin="0,0,0,10"><Button DockPanel.Dock="Right" Click="Reference_Click" Style="{StaticResource PrimaryButtonStyle}"
+      Height="36" Padding="14,0" ToolTip="选择水平直管或直线作为基准；成功选择后清空原目标管。">
+      <StackPanel Orientation="Horizontal">
+       <Grid Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center">
+        <Ellipse Width="10" Height="10" Stroke="White" StrokeThickness="1.3"/>
+        <Path Data="M 8,0 L 8,4 M 8,12 L 8,16 M 0,8 L 4,8 M 12,8 L 16,8" Stroke="White" StrokeThickness="1.3"/>
+       </Grid><TextBlock Text="选择基准" VerticalAlignment="Center"/>
+      </StackPanel>
+     </Button>
      <TextBlock Text="01  基准 · 水平直管或直线" Style="{StaticResource SectionTitleStyle}"/></DockPanel>
     <TextBlock x:Name="ReferenceText" FontFamily="Consolas" TextWrapping="Wrap" Text="尚未选择基准"/>
    </StackPanel></Border>
@@ -32,8 +40,20 @@
     </StackPanel></Border>
    </StackPanel></Border>
    <Border Style="{StaticResource CardStyle}"><StackPanel>
-    <DockPanel><TextBlock x:Name="CountText" DockPanel.Dock="Right"/><TextBlock Text="03  目标管" Style="{StaticResource SectionTitleStyle}"/></DockPanel>
-    <UniformGrid Columns="2"><Button x:Name="PickTargetButton" Content="选择目标管" Click="Target_Click" ToolTip="右键：从模型选择集添加" Style="{StaticResource SecondaryButtonStyle}"><Button.ContextMenu><ContextMenu>
+    <DockPanel Margin="0,0,0,10">
+     <Border DockPanel.Dock="Right" Background="#EAF2FA" BorderBrush="#C9DDEE" BorderThickness="1" CornerRadius="6" Padding="12,5">
+      <TextBlock x:Name="CountText" Foreground="{DynamicResource StatusBrush}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+     </Border>
+     <TextBlock Text="03  目标管" Style="{StaticResource SectionTitleStyle}" VerticalAlignment="Center" Margin="0"/>
+    </DockPanel>
+    <UniformGrid Columns="2"><Button x:Name="PickTargetButton" Content="选择目标管" Click="Target_Click" ToolTip="右键：从模型选择集添加" Style="{StaticResource SecondaryButtonStyle}" Height="36" Margin="0,0,8,0"
+       Background="#EAF2FA" BorderBrush="#B9D2E8" Foreground="{DynamicResource StatusBrush}" FontWeight="SemiBold">
+     <Button.ContentTemplate><DataTemplate><StackPanel Orientation="Horizontal">
+      <Path Data="M 1,5 L 1,1 L 5,1 M 11,1 L 15,1 L 15,5 M 15,11 L 15,15 L 11,15 M 5,15 L 1,15 L 1,11 M 4,8 L 12,8"
+       Stroke="{DynamicResource StatusBrush}" StrokeThickness="1.4" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
+      <TextBlock Text="{Binding}" VerticalAlignment="Center"/>
+     </StackPanel></DataTemplate></Button.ContentTemplate>
+     <Button.ContextMenu><ContextMenu>
      <MenuItem Header="从选择集添加" Click="Selection_Click"/>
     </ContextMenu></Button.ContextMenu></Button>
      <Button Content="清空目标管" Click="ClearTargets_Click" Style="{StaticResource SecondaryButtonStyle}"/></UniformGrid>
@@ -67,9 +87,9 @@
     <TextBlock x:Name="ReadoutText" FontFamily="Consolas" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}"/>
    </StackPanel></Border>
   </StackPanel></ScrollViewer>
-  <StackPanel Grid.Row="2"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
-   <Button x:Name="ApplyButton" Content="应用" Click="Apply_Click" Style="{StaticResource PrimaryButtonStyle}"/>
-   <Button Grid.Column="1" Content="重置" Click="Reset_Click" Style="{StaticResource SecondaryButtonStyle}"/>
+  <StackPanel Grid.Row="2" Margin="0,14,0,0"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="2*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+   <Button Grid.Column="1" x:Name="ApplyButton" Content="应用" Click="Apply_Click" Style="{StaticResource PrimaryButtonStyle}"/>
+   <Button Grid.Column="3" Content="重置" Click="Reset_Click" Style="{StaticResource SecondaryButtonStyle}"/>
   </Grid><TextBlock x:Name="StatusText" TextWrapping="Wrap" Foreground="{DynamicResource StatusBrush}" Margin="0,6"/>
   </StackPanel>
  </Grid>

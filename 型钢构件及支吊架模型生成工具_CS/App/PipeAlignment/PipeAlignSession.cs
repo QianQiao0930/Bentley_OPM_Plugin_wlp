@@ -103,7 +103,10 @@ namespace SteelSectionProbe.PipeAlignment
 
         internal void SetReferencePipe(PipeInfo pipe)
         {
+            var validation = PipeValidationService.ValidateReferencePipe(pipe, SurfaceMode, Options);
+            if (!validation.IsValid) throw new PipeAlignValidationException(validation.Reason);
             ReferencePipe = pipe;
+            _targetPipes.Clear();
             Plan = null;
         }
 
