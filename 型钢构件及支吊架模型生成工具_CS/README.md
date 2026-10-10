@@ -94,6 +94,8 @@ N3/N4 点取辅助线后自动生成首次预览；此后参数一经输入或�
 
 首页“立管耳轴”进入统一页面，顶部先选 F6 单耳轴、F7 双耳轴或 F10 小管径立管耳板，再设置该类型参数并点取管道或竖直辅助线。点取位置投影到轴线后确定放置标高；轴线与竖直方向夹角须在 5° 内。管道使用 EC 公称直径自动匹配，辅助线使用面板 DN。F6/F7 适用 DN50～DN1200，F10 适用 DN15～DN50。F6/F7 的端板 A/B/C、STD 壁厚及可选补强板按原 Python 表推导；F10 的长度 1/2/3、高度 A/B/C/D、固定 Y/N 分别控制两块耳板、底板及可选 M12 螺栓。
 
+> 2026-10-10 修正：点取立管自动匹配主管 DN 时，**已选耳轴 DN 若仍在候选表内则保留**，不再被回置为候选表的最后一项（此前选 DN100 一放置就被顶回 DN150 的问题）。编号、规格与支吊架清单全部改用公制 DN 命名（如 `F7-DN200-DN100-…`、`F7 DN200×DN100 耳轴 L500`），不再使用英寸 NPS。
+
 点取后先生成可撤销 Cell 预览，确认时才写入 `PipeSupportComponents`。切换类型、右键结束点取、取消预览、返回首页和关闭工作区均清理未确认元素。清单 `SupportType` 与 Python 保持一致：F6/F7 共用 `F6_F7-[立管的耳轴]`，F10 为 `F10-[小管径立管耳板]`。实现位于 `Domain/VerticalPipeSupport/`、`Data/VerticalPipeSupport/`、`Services/VerticalPipeSupport/`、`Tools/VerticalPipeSupport/` 和 `UI/VerticalPipeSupport/`。纯计算检查为 `Development/VerticalPipeSupportCheck/`；OPM 2024 中仍需对三个类型的布尔运算、参考管道点取、预览删除及 ItemType 写入进行实测。
 
 独立的 .NET Framework 4.8 / x64 AddIn。运行时只加载 C# DLL，不启动 Python。当前首页为 **22 个可用模块 + 1 个占位卡**（清单唯一来源 [`Data/Home/HomeFeatureCatalog.cs`](Data/Home/HomeFeatureCatalog.cs)，由 `Development/HomeCheck` 断言）：

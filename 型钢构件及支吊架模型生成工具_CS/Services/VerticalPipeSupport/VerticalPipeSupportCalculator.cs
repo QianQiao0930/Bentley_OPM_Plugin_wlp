@@ -49,8 +49,7 @@ namespace SteelSectionProbe
                 plan.LengthMm=length;
                 plan.Number="F10-"+p.F10Length+"-"+p.F10Height+"-"+p.Material+"-"+
                     Angle(angle%180)+"-"+(p.F10Fixed?"Y":"N");
-                plan.Specification="DN"+dn+" "+VerticalPipeSupportCatalog.Nps(dn)+
-                    " 耳板 L"+Round(length)+" H"+Round(height);
+                plan.Specification="DN"+dn+" 耳板 L"+Round(length)+" H"+Round(height);
                 return plan;
             }
             int trunnion=p.TrunnionDn==0?VerticalPipeSupportCatalog.TrunnionCandidates(dn).Last():p.TrunnionDn;
@@ -77,12 +76,10 @@ namespace SteelSectionProbe
             plan.LengthMm=p.LengthMm;plan.EndType=p.EndType;plan.EndPlateThicknessMm=endThickness;
             plan.PadThicknessMm=pad;plan.PadWidthMm=padWidth;
             string wallSuffix=Math.Abs(wall-stdWall)<1e-9?"":"("+N(wall)+")";
-            plan.Number=p.Kind+"-"+VerticalPipeSupportCatalog.Nps(dn)+"-"+
-                VerticalPipeSupportCatalog.Nps(trunnion)+wallSuffix+"-"+p.Material+"-"+
+            plan.Number=p.Kind+"-DN"+dn+"-DN"+trunnion+wallSuffix+"-"+p.Material+"-"+
                 Round(p.LengthMm)+"-"+p.EndType+"-"+Angle(p.Kind==VerticalPipeSupportKind.F7?angle%180:angle)+
                 (pad>0?"-"+N(pad):"");
-            plan.Specification=p.Kind+" DN"+dn+"×"+VerticalPipeSupportCatalog.Nps(trunnion)+
-                " 耳轴 L"+Round(p.LengthMm);
+            plan.Specification=p.Kind+" DN"+dn+"×DN"+trunnion+" 耳轴 L"+Round(p.LengthMm);
             return plan;
         }
         internal static void ValidateVertical(PipeClampSelection selection)

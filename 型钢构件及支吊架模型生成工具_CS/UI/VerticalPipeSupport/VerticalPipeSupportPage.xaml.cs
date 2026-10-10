@@ -89,8 +89,17 @@ namespace SteelSectionProbe
             if(index<0)return;
             var candidates=VerticalPipeSupportCatalog.TrunnionCandidates(
                 VerticalPipeSupportCatalog.TrunnionDns[index]);
+            int kept=DnValue(TrunnionDn.SelectedValue as string);
+            int restore=kept>0?Array.IndexOf(candidates,kept):-1;
             TrunnionDn.ItemsSource=candidates.Select(n=>"DN"+n).ToArray();
-            TrunnionDn.SelectedIndex=candidates.Length-1;
+            TrunnionDn.SelectedIndex=restore<0?candidates.Length-1:restore;
+        }
+        private static int DnValue(string text)
+        {
+            int value;
+            return text!=null&&text.Length>2&&text.StartsWith("DN")&&
+                int.TryParse(text.Substring(2),NumberStyles.Integer,
+                CultureInfo.InvariantCulture,out value)?value:0;
         }
         private void PipeDn_Changed(object sender,SelectionChangedEventArgs e)
         {

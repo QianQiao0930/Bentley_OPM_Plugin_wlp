@@ -454,7 +454,7 @@ namespace SteelSectionProbe
                 else
                 {
                     AddVertical(entries,feature,supportType,plan,pipe,"TRUNNION","耳轴",
-                        "耳轴 "+VerticalPipeSupportCatalog.Nps(plan.TrunnionDn)+" Φ"+
+                        "耳轴 DN"+plan.TrunnionDn+" Φ"+
                         plan.TrunnionOd+"×"+plan.WallMm+" "+plan.Material,
                         plan.LengthMm,plan.Count,"件");
                     if(plan.EndPlateThicknessMm>0) AddVertical(entries,feature,supportType,plan,
