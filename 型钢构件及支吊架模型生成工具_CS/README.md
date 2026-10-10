@@ -96,6 +96,8 @@ N3/N4 点取辅助线后自动生成首次预览；此后参数一经输入或�
 
 > 2026-10-10 修正：点取立管自动匹配主管 DN 时，**已选耳轴 DN 若仍在候选表内则保留**，不再被回置为候选表的最后一项（此前选 DN100 一放置就被顶回 DN150 的问题）。编号、规格与支吊架清单全部改用公制 DN 命名（如 `F7-DN200-DN100-…`、`F7 DN200×DN100 耳轴 L500`），不再使用英寸 NPS。
 
+> 沿轴滑动定位修正：偏移正方向朝上，线段投影始终使用原始端点方向，避免从上往下的轴线在锁定后跳回起点。定位计算提取至 `Services/VerticalPipeSupport/VerticalPipeSupportPositionCalculator.cs`；纯计算检查覆盖正反端点、正负偏移、端点截断和斜立管。OPM 动态滑动与锁定交互仍需宿主实测。
+
 > 2026-10-10 新增「沿轴滑动」：预览生成后点该按钮进入滑动模式（`Tools/VerticalPipeSupport/TrunnionSlideTool.cs`，交互复制 A1 管夹方向工具的两段式——`RetireForHandoff` 静默交接 + AccuDraw 罗盘 + 动态原型只做平移不重建几何）。移动光标把耳轴沿管轴滑动，左键锁定位置并重建正式预览，右键取消并恢复原位置；预览行显示「沿轴偏移 X mm」（正=沿管轴向上，偏移后仍截断在管线段内）。确认生成、切换类型、取消预览、结束点取或重新点取都会清零偏移；修改参数会按新参数在锚点重建滑动原型。
 
 点取后先生成可撤销 Cell 预览，确认时才写入 `PipeSupportComponents`。切换类型、右键结束点取、取消预览、返回首页和关闭工作区均清理未确认元素。清单 `SupportType` 与 Python 保持一致：F6/F7 共用 `F6_F7-[立管的耳轴]`，F10 为 `F10-[小管径立管耳板]`。实现位于 `Domain/VerticalPipeSupport/`、`Data/VerticalPipeSupport/`、`Services/VerticalPipeSupport/`、`Tools/VerticalPipeSupport/` 和 `UI/VerticalPipeSupport/`。纯计算检查为 `Development/VerticalPipeSupportCheck/`；OPM 2024 中仍需对三个类型的布尔运算、参考管道点取、预览删除及 ItemType 写入进行实测。

@@ -41,6 +41,38 @@ internal static class Program
             AxisX=1000,AxisZ=1000}); }
         catch(InvalidOperationException) { rejected=true; }
         Assert(rejected,"reject nonvertical axis");
+        CheckSliding();
         Console.WriteLine("VerticalPipeSupport checks passed.");
+    }
+    private static void CheckSliding()
+    {
+        var bottom=new[]{10.0,20.0,100.0};
+        var top=new[]{10.0,20.0,1100.0};
+        var center=new[]{10.0,20.0,500.0};
+        foreach(bool reverse in new[]{false,true})
+        {
+            var start=reverse?top:bottom;
+            var end=reverse?bottom:top;
+            foreach(double offset in new[]{0.0,150.0,-150.0,2000.0,-2000.0})
+            {
+                var actual=VerticalPipeSupportPositionCalculator.ShiftAlongAxis(center,start,end,offset);
+                Assert(Math.Abs(actual[0]-10)<1e-9 && Math.Abs(actual[1]-20)<1e-9 &&
+                    Math.Abs(actual[2]-Math.Max(100,Math.Min(1100,500+offset)))<1e-9,
+                    "vertical slide direction and endpoint clamp, reverse="+reverse+", offset="+offset);
+            }
+        }
+        // 允许范围内的斜立管：偏移为三维轴向距离，交换端点结果相同。
+        bottom=new[]{10.0,20.0,100.0};top=new[]{40.0,60.0,1100.0};
+        center=new[]{25.0,40.0,600.0};
+        foreach(double offset in new[]{100.0,-100.0,2000.0,-2000.0})
+        {
+            var forward=VerticalPipeSupportPositionCalculator.ShiftAlongAxis(center,bottom,top,offset);
+            var reverse=VerticalPipeSupportPositionCalculator.ShiftAlongAxis(center,top,bottom,offset);
+            double t=Math.Max(0,Math.Min(1,0.5+offset/Math.Sqrt(1002500)));
+            for(int i=0;i<3;i++)
+                Assert(Math.Abs(forward[i]-reverse[i])<1e-9 &&
+                    Math.Abs(forward[i]-(bottom[i]+t*(top[i]-bottom[i])))<1e-9,
+                    "inclined slide distance and reversed endpoint equivalence");
+        }
     }
 }

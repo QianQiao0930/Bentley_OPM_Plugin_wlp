@@ -209,17 +209,8 @@ namespace SteelSectionProbe
         /// </summary>
         private static double[] ShiftAlongAxis(PipeClampSelection s,double offsetMm)
         {
-            var point=s.ProjectedCenter();
-            double dx=s.AxisX,dy=s.AxisY,dz=s.AxisZ;
-            double len=Math.Sqrt(dx*dx+dy*dy+dz*dz);
-            if(len<=1.0e-9||offsetMm==0)return point;
-            if(dz<0){dx=-dx;dy=-dy;dz=-dz;}
-            double k=offsetMm/len;
-            point[0]+=dx*k;point[1]+=dy*k;point[2]+=dz*k;
-            double t=((point[0]-s.StartX)*dx+(point[1]-s.StartY)*dy+(point[2]-s.StartZ)*dz)/(len*len);
-            if(t<0.0)t=0.0;else if(t>1.0)t=1.0;
-            point[0]=s.StartX+t*dx;point[1]=s.StartY+t*dy;point[2]=s.StartZ+t*dz;
-            return point;
+            return VerticalPipeSupportPositionCalculator.ShiftAlongAxis(s.ProjectedCenter(),
+                new[]{s.StartX,s.StartY,s.StartZ},new[]{s.EndX,s.EndY,s.EndZ},offsetMm);
         }
         private void OnPicked(LocatedElement located)
         {
