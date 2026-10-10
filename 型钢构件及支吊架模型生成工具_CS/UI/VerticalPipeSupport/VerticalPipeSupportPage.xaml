@@ -47,11 +47,12 @@
             </StackPanel></Border>
             <Border Style="{StaticResource CardStyle}"><StackPanel>
                 <TextBlock Text="03  点取与预览" Style="{StaticResource SectionTitleStyle}" />
-                <TextBlock Text="在模型中点取立管或竖直辅助线，点击位置确定耳轴标高。仅确认后写入支吊架清单。" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                <TextBlock Text="在模型中点取立管或竖直辅助线，点击位置确定耳轴标高；预览后可点「沿轴滑动」微调标高，左键锁定，右键取消。仅确认后写入支吊架清单。" TextWrapping="Wrap" Margin="0,0,0,8"/>
                 <WrapPanel>
                     <Button Content="开始点取" Style="{StaticResource PrimaryButtonStyle}" Click="Pick_Click" Margin="0,0,8,8"/>
                     <Button Content="结束点取" Style="{StaticResource SecondaryButtonStyle}" Click="End_Click" Margin="0,0,8,8"/>
                     <Button Content="更新预览" Style="{StaticResource SecondaryButtonStyle}" Click="Update_Click" Margin="0,0,8,8"/>
+                    <Button Content="沿轴滑动" Style="{StaticResource SecondaryButtonStyle}" Click="Slide_Click" Margin="0,0,8,8"/>
                 </WrapPanel>
                 <TextBlock x:Name="PreviewText" Text="尚未点取立管。" TextWrapping="Wrap" Margin="0,4,0,12"/>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">

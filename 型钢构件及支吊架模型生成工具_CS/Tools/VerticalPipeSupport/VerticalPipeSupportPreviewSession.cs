@@ -11,12 +11,19 @@ namespace SteelSectionProbe
         private Element preview;
         private VerticalPipeSupportPlan plan;
         internal bool HasPreview { get { return preview!=null; } }
-        internal void Show(VerticalPipeSupportPlan next,DPoint3d center,DVector3d axis)
+        /// <summary>
+        /// 按给定中心构造整套耳轴 Cell（不写模型）。正式预览与沿轴滑动的动态原型都用它，
+        /// 保证两者几何完全一致。
+        /// </summary>
+        internal static Element CreateCell(VerticalPipeSupportPlan next,DPoint3d center,DVector3d axis)
         {
             var parts=VerticalPipeSupportBuilder.Build(next,center,axis);
-            var model=Session.Instance.GetActiveDgnModel();
-            var replacement=new CellHeaderElement(model,"VERTICAL_PIPE_SUPPORT",DPoint3d.Zero,
-                DMatrix3d.Identity,parts);
+            return new CellHeaderElement(Session.Instance.GetActiveDgnModel(),"VERTICAL_PIPE_SUPPORT",
+                DPoint3d.Zero,DMatrix3d.Identity,parts);
+        }
+        internal void Show(VerticalPipeSupportPlan next,DPoint3d center,DVector3d axis)
+        {
+            var replacement=CreateCell(next,center,axis);
             var status=replacement.AddToModel();
             if(status!=StatusInt.Success) throw new InvalidOperationException("立管耳轴预览写入失败："+status);
             try { Delete(preview); }

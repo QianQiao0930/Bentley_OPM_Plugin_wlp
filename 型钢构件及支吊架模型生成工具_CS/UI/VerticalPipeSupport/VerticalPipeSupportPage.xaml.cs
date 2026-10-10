@@ -14,6 +14,11 @@ namespace SteelSectionProbe
         private readonly VerticalPipeSupportPreviewSession preview=new VerticalPipeSupportPreviewSession();
         private PipeClampSelection selection;
         private bool active,locating,initializing;
+        // 沿轴滑动状态：axisOffsetMm=相对点取位置的沿轴偏移（正=朝 +Z 一侧，竖管即向上）；
+        // slideAnchorOffsetMm=进入滑动时刻的偏移快照（锁定时在此基础上叠加光标位移）；
+        // slideFinishing 用于吞掉锁定后 End() 引发的那次 Ended（同 A1 页面的 finishing 做法）。
+        private bool sliding,slideFinishing;
+        private double axisOffsetMm,slideAnchorOffsetMm;
         public string PageId { get { return "vertical-pipe-support"; } }
         public string PageTitle { get { return "立管耳轴"; } }
         public string PageSubtitle { get { return "F6 单耳轴 · F7 双耳轴 · F10 小管径立管耳板"; } }
@@ -22,6 +27,8 @@ namespace SteelSectionProbe
         {
             initializing=true;
             InitializeComponent();
+            TrunnionSlideTool.Locked+=OnSlideLocked;
+            TrunnionSlideTool.Ended+=OnSlideEnded;
             KindCombo.ItemsSource=new[]{"F6 单耳轴","F7 双耳轴","F10 小管径立管耳板"};
             KindCombo.SelectedIndex=0;
             TrunnionPipeDn.ItemsSource=VerticalPipeSupportCatalog.TrunnionDns.Select(n=>"DN"+n).ToArray();
@@ -50,7 +57,12 @@ namespace SteelSectionProbe
             PipeClampLocateTool.Ended+=OnEnded;
         }
         public void OnDeactivated() { Close(); }
-        public void OnWorkspaceClosing() { Close(); }
+        public void OnWorkspaceClosing()
+        {
+            TrunnionSlideTool.Locked-=OnSlideLocked;
+            TrunnionSlideTool.Ended-=OnSlideEnded;
+            Close();
+        }
         private void Close()
         {
             PageLastInput.Save(this,PageId,"KindCombo","TrunnionPipeDn","TrunnionDn",
@@ -58,10 +70,13 @@ namespace SteelSectionProbe
                 "PadCheck","PadThickness","EarPipeDn","EarLength","EarHeight",
                 "EarMaterial","EarAngle","FixedCheck");
             active=false;
+            sliding=false;
+            TrunnionSlideTool.End();
             PipeClampLocateTool.Picked-=OnPicked;
             PipeClampLocateTool.Ended-=OnEnded;
             if(locating) PipeClampLocateTool.End();
             locating=false;
+            axisOffsetMm=0;
             try { preview.Cancel(); } catch(Exception ex) { Status(ex.Message,true); }
             selection=null;ConfirmButton.IsEnabled=false;
         }
@@ -79,6 +94,9 @@ namespace SteelSectionProbe
         private void Kind_Changed(object sender,SelectionChangedEventArgs e)
         {
             if(initializing||TrunnionPanel==null)return;
+            sliding=false;
+            if(TrunnionSlideTool.IsActive)TrunnionSlideTool.End();
+            axisOffsetMm=0;
             try { preview.Cancel(); } catch(Exception ex) { Status(ex.Message,true);return; }
             selection=null;ConfirmButton.IsEnabled=false;
             UpdatePanels();PreviewText.Text="类型已切换，请点取立管或竖直辅助线。";
@@ -110,6 +128,13 @@ namespace SteelSectionProbe
         private void Parameter_Changed(object sender,RoutedEventArgs e)
         {
             if(initializing||!active||selection==null)return;
+            // 滑动中参数变化：动态原型回锚点按新参数重建，进行中的拖动作废（同 A1 的
+            // InvalidatePrototype 语义）；正式预览要等左键锁定后才写。
+            if(sliding)
+            {
+                if(TrunnionSlideTool.IsActive)TrunnionSlideTool.InvalidatePrototype();
+                return;
+            }
             Regenerate();
         }
         private static double Number(string raw,string label,bool blankZero=false)
@@ -161,11 +186,13 @@ namespace SteelSectionProbe
                 var model=Session.Instance.GetActiveDgnModel();
                 if(model==null) throw new InvalidOperationException("没有活动模型。");
                 double scale=model.GetModelInfo().UorPerMeter/1000.0;
-                var center=selection.ProjectedCenter();
+                var center=ShiftAlongAxis(selection,axisOffsetMm);
                 preview.Show(plan,new DPoint3d(center[0]*scale,center[1]*scale,center[2]*scale),
                     new DVector3d(selection.AxisX,selection.AxisY,selection.AxisZ));
                 ConfirmButton.IsEnabled=true;
                 PreviewText.Text="预览："+plan.Number+"；"+plan.Specification+
+                    (axisOffsetMm!=0?"；沿轴偏移 "+
+                        axisOffsetMm.ToString("0.#",CultureInfo.InvariantCulture)+" mm":"")+
                     (string.IsNullOrEmpty(selection.AxisNote)?"":"；"+selection.AxisNote);
                 Status("立管耳轴预览已生成。",false);
             }
@@ -175,6 +202,24 @@ namespace SteelSectionProbe
                 PreviewText.Text="预览未更新："+ex.Message;
                 Status(ex.Message,true);
             }
+        }
+        /// <summary>
+        /// 点取投影中心沿管轴偏移 offsetMm（正=朝 +Z 一侧，竖管即向上；毫米坐标），
+        /// 偏移后再截断回线段两端，与 <see cref="PipeClampSelection.ProjectedCenter"/> 语义一致。
+        /// </summary>
+        private static double[] ShiftAlongAxis(PipeClampSelection s,double offsetMm)
+        {
+            var point=s.ProjectedCenter();
+            double dx=s.AxisX,dy=s.AxisY,dz=s.AxisZ;
+            double len=Math.Sqrt(dx*dx+dy*dy+dz*dz);
+            if(len<=1.0e-9||offsetMm==0)return point;
+            if(dz<0){dx=-dx;dy=-dy;dz=-dz;}
+            double k=offsetMm/len;
+            point[0]+=dx*k;point[1]+=dy*k;point[2]+=dz*k;
+            double t=((point[0]-s.StartX)*dx+(point[1]-s.StartY)*dy+(point[2]-s.StartZ)*dz)/(len*len);
+            if(t<0.0)t=0.0;else if(t>1.0)t=1.0;
+            point[0]=s.StartX+t*dx;point[1]=s.StartY+t*dy;point[2]=s.StartZ+t*dz;
+            return point;
         }
         private void OnPicked(LocatedElement located)
         {
@@ -186,6 +231,7 @@ namespace SteelSectionProbe
                 {
                     preview.Cancel();
                     ConfirmButton.IsEnabled=false;
+                    axisOffsetMm=0;   // 新点取 = 新基准，沿用上一次的滑动偏移没有意义
                     selection=PipeClampReader.Read(located.ModelRef,located.ElementId,
                         located.ClickX,located.ClickY,located.ClickZ);
                     if(selection.IsPipe && selection.NominalMm.HasValue)
@@ -212,20 +258,131 @@ namespace SteelSectionProbe
         private void OnEnded()
         {
             locating=false;
+            axisOffsetMm=0;
             try { preview.Cancel(); } catch(Exception ex) { Status(ex.Message,true); }
             selection=null;ConfirmButton.IsEnabled=false;
             PreviewText.Text="已结束点取。";
         }
         private void Pick_Click(object sender,RoutedEventArgs e)
         {
-            try {PipeClampLocateTool.Begin();locating=true;Status("请选择立管或竖直辅助线。",false);}
+            try
+            {
+                // 滑动工具还装着时先结束（Ended 会按当前偏移恢复正式预览）
+                if(TrunnionSlideTool.IsActive)TrunnionSlideTool.End();
+                PipeClampLocateTool.Begin();locating=true;
+                Status("请选择立管或竖直辅助线。",false);
+            }
             catch(Exception ex) {Status(ex.Message,true);}
         }
-        private void End_Click(object sender,RoutedEventArgs e) { PipeClampLocateTool.End(); }
-        private void Update_Click(object sender,RoutedEventArgs e) { Regenerate(); }
+        private void End_Click(object sender,RoutedEventArgs e)
+        {
+            TrunnionSlideTool.End();
+            PipeClampLocateTool.End();
+        }
+        private void Update_Click(object sender,RoutedEventArgs e)
+        {
+            if(sliding&&TrunnionSlideTool.IsActive)
+            {Status("请先左键锁定滑动位置（或右键取消滑动）。",false);return;}
+            Regenerate();
+        }
+        /// <summary>回传给滑动工具的原型构造：在给定中心按当前参数建模（不写模型）。</summary>
+        private Bentley.DgnPlatformNET.Elements.Element SlidePrototype(DPoint3d center)
+        {
+            var plan=VerticalPipeSupportCalculator.Calculate(Parameters(),selection.IsPipe,
+                selection.NominalMm,selection.PipeNumber);
+            return VerticalPipeSupportPreviewSession.CreateCell(plan,center,
+                new DVector3d(selection.AxisX,selection.AxisY,selection.AxisZ));
+        }
+        /// <summary>滑动锚点（UOR）：点取投影中心按当前沿轴偏移落位后的点。</summary>
+        private DPoint3d SlideAnchorUor(double scale)
+        {
+            var center=ShiftAlongAxis(selection,axisOffsetMm);
+            return new DPoint3d(center[0]*scale,center[1]*scale,center[2]*scale);
+        }
+        /// <summary>
+        /// 开始沿轴滑动：正式预览撤为动态原型（锚点=当前预览位置，起点不跳变）；
+        /// 点取工具用 RetireForHandoff 静默交接，避开 Ended 双发的竞态（同 A1 做法）。
+        /// </summary>
+        private void Slide_Click(object sender,RoutedEventArgs e)
+        {
+            if(!active)return;
+            if(selection==null){Status("请先点取立管或辅助线生成预览，再沿轴滑动。",true);return;}
+            if(sliding&&TrunnionSlideTool.IsActive)
+            {Status("已在沿轴滑动中：移动光标滑动，左键锁定，右键取消。",false);return;}
+            try
+            {
+                var model=Session.Instance.GetActiveDgnModel();
+                if(model==null)throw new InvalidOperationException("没有活动模型。");
+                double scale=model.GetModelInfo().UorPerMeter/1000.0;
+                preview.Cancel();ConfirmButton.IsEnabled=false;
+                slideAnchorOffsetMm=axisOffsetMm;
+                var anchor=SlideAnchorUor(scale);
+                var lineStart=new DPoint3d(selection.StartX*scale,selection.StartY*scale,
+                    selection.StartZ*scale);
+                var lineEnd=new DPoint3d(selection.EndX*scale,selection.EndY*scale,
+                    selection.EndZ*scale);
+                if(PipeClampLocateTool.IsActive)
+                {
+                    PipeClampLocateTool.RetireForHandoff();
+                    locating=false;
+                }
+                sliding=true;
+                TrunnionSlideTool.Begin(anchor,lineStart,lineEnd,SlidePrototype);
+                PreviewText.Text="沿轴滑动中：移动光标调整耳轴位置，左键锁定，右键取消。";
+                Status("沿轴滑动已开始。",false);
+            }
+            catch(Exception ex){sliding=false;Status("无法开始沿轴滑动："+ex.Message,true);}
+        }
+        private void OnSlideLocked(DPoint3d locked)
+        {
+            if(!active||!sliding||selection==null)return;
+            slideFinishing=true;
+            Dispatcher.BeginInvoke(new Action(delegate
+            {
+                sliding=false;
+                if(!active||selection==null)return;
+                try
+                {
+                    var model=Session.Instance.GetActiveDgnModel();
+                    double scale=model.GetModelInfo().UorPerMeter/1000.0;
+                    var anchor=SlideAnchorUor(scale);
+                    double dx=selection.AxisX,dy=selection.AxisY,dz=selection.AxisZ;
+                    double len=Math.Sqrt(dx*dx+dy*dy+dz*dz);
+                    if(len<=1.0e-9)throw new InvalidOperationException("管轴无效。");
+                    if(dz<0){dx=-dx;dy=-dy;dz=-dz;}
+                    // (锁定点-锚点)在轴向的分量（UOR），除以 scale 得毫米
+                    axisOffsetMm=slideAnchorOffsetMm+
+                        (((locked.X-anchor.X)*dx+(locked.Y-anchor.Y)*dy+
+                          (locked.Z-anchor.Z)*dz)/len)/scale;
+                    Regenerate();
+                    Status("沿轴位置已锁定。",false);
+                }
+                catch(Exception ex)
+                {
+                    axisOffsetMm=slideAnchorOffsetMm;
+                    Status("沿轴位置锁定失败："+ex.Message,true);
+                }
+            }),DispatcherPriority.Background);
+        }
+        private void OnSlideEnded()
+        {
+            if(!active)return;
+            if(slideFinishing){slideFinishing=false;return;}
+            // 右键/外部结束取消滑动：偏移保持进入时的值，恢复正式预览
+            sliding=false;
+            if(selection!=null)Regenerate();
+            Status("已取消沿轴滑动，恢复原位置预览。",false);
+        }
         private void Cancel_Click(object sender,RoutedEventArgs e)
         {
-            try {preview.Cancel();selection=null;ConfirmButton.IsEnabled=false;PreviewText.Text="预览已取消。";}
+            try
+            {
+                sliding=false;
+                if(TrunnionSlideTool.IsActive)TrunnionSlideTool.End();
+                axisOffsetMm=0;
+                preview.Cancel();selection=null;ConfirmButton.IsEnabled=false;
+                PreviewText.Text="预览已取消。";
+            }
             catch(Exception ex) {Status(ex.Message,true);}
         }
         private void Confirm_Click(object sender,RoutedEventArgs e)
@@ -233,6 +390,7 @@ namespace SteelSectionProbe
             try
             {
                 preview.Confirm();selection=null;ConfirmButton.IsEnabled=false;
+                sliding=false;axisOffsetMm=0;
                 PreviewText.Text="已确认生成并写入清单；可继续点取下一处。";
                 Status("立管耳轴已生成。",false);
             }
