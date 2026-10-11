@@ -39,7 +39,7 @@ namespace SteelSectionProbe
                 "WallText","LengthText","BoltHolesCheck","AxisCombo");
             active=false;NozzlePlacementTool.End();
             try { preview.Cancel(); } catch(Exception ex) { SetStatus(ex.Message,true); }
-            origin=null;ConfirmButton.IsEnabled=false;PreviewText.Text="尚未点取基点。";
+            origin=null;PreviewUpdateHint.Set(UpdateButton,false);ConfirmButton.IsEnabled=false;PreviewText.Text="尚未点取基点。";
         }
         public void OnWorkspaceClosing()
         {
@@ -151,11 +151,12 @@ namespace SteelSectionProbe
         private void Regenerate()
         {
             if(!origin.HasValue)return;
+            PreviewUpdateHint.Set(UpdateButton,true);
             try
             {
                 var plan=NozzleCalculator.Calculate(Parameters());
                 preview.Regenerate(plan,origin.Value);
-                ConfirmButton.IsEnabled=true;
+                ConfirmButton.IsEnabled=true;PreviewUpdateHint.Set(UpdateButton,false);
                 PreviewText.Text="预览已生成：DN"+plan.Size.NominalDn+"，"+plan.Parameters.Axis+" 轴，"+
                     plan.Parameters.TotalLengthMm.ToString("G")+" mm。";
                 SetStatus("实体管口预览已更新；确认后保留在模型中。",false);
@@ -172,7 +173,7 @@ namespace SteelSectionProbe
             if(!active)return;
             try { preview.Cancel(); }
             catch(Exception ex) { SetStatus(ex.Message,true);return; }
-            origin=null;ConfirmButton.IsEnabled=false;PreviewText.Text="已结束点取。";
+            origin=null;PreviewUpdateHint.Set(UpdateButton,false);ConfirmButton.IsEnabled=false;PreviewText.Text="已结束点取。";
             SetStatus("已结束点取并取消未确认预览。",false);
         }
         private void End_Click(object sender,RoutedEventArgs e)
@@ -186,15 +187,16 @@ namespace SteelSectionProbe
         private void Update_Click(object sender,RoutedEventArgs e) { Regenerate(); }
         private void Cancel_Click(object sender,RoutedEventArgs e)
         {
-            try { preview.Cancel();origin=null;ConfirmButton.IsEnabled=false;
+            try { preview.Cancel();origin=null;PreviewUpdateHint.Set(UpdateButton,false);ConfirmButton.IsEnabled=false;
                 PreviewText.Text="预览已取消。";SetStatus("已取消管口预览。",false); }
             catch(Exception ex) { SetStatus(ex.Message,true); }
         }
         private void Confirm_Click(object sender,RoutedEventArgs e)
         {
-            try { preview.Confirm();origin=null;ConfirmButton.IsEnabled=false;
+            try { string writeElapsed=preview.WriteElapsed;preview.Confirm();origin=null;PreviewUpdateHint.Set(UpdateButton,false);ConfirmButton.IsEnabled=false;
                 PreviewText.Text="已确认生成管口。点取仍在进行中，可直接点取下一处（无需再点「开始点取」）；要停止请点「结束点取」。";
-                SetStatus("实体管口已确认生成。",false); }
+                PreviewText.Text += " 写入耗时 "+writeElapsed+"。";
+                SetStatus("实体管口已确认生成；写入耗时 "+writeElapsed+"。",false); }
             catch(Exception ex) { SetStatus(ex.Message,true); }
         }
         private static void SetStatus(string text,bool error)

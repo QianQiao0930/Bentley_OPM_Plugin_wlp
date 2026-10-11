@@ -64,20 +64,21 @@ namespace SteelSectionProbe
         private void Parameter_Changed(object sender,RoutedEventArgs e)
         {
             if(!ready)return;UpdateConnection();if(vertices==null)return;
-            dirty=true;ConfirmButton.IsEnabled=false;PreviewText.Text="参数已变更，正在更新预览。";
+            dirty=true;PreviewUpdateHint.Set(UpdateButton,true);ConfirmButton.IsEnabled=false;PreviewText.Text="参数已变更，正在更新预览。";
             regenerate.Stop();regenerate.Start();
         }
         private void Regenerate(List<HandrailPoint> next)
         {
+            PreviewUpdateHint.Set(UpdateButton,true);
             regenerate.Stop();vertices=next;
             try{
                 var plan=arc==null?HandrailCalculator.Calculate(Parameters(),next):HandrailCalculator.CalculateArc(Parameters(),arc);preview.Show(plan);
-                vertices=next;dirty=false;ConfirmButton.IsEnabled=true;
+                vertices=next;dirty=false;ConfirmButton.IsEnabled=true;PreviewUpdateHint.Set(UpdateButton,false);
                 PreviewText.Text="路径长 "+plan.LengthMm.ToString("0.#")+" mm；"+plan.Stations.Count+" 根立柱、"+
                     plan.Stations.Count*2+" 个连接球；"+plan.Corners.Count(x=>!x.GradeBreak)+" 个圆角、"+
                     plan.Corners.Count(x=>x.GradeBreak)+" 个变坡点。\n预览可取消；确定后写入钢材清单，辅助线保留。";
                 Status("围栏预览已更新。",false);
-            }catch(Exception ex){dirty=true;ConfirmButton.IsEnabled=false;PreviewText.Text="预览未更新："+ex.Message;Status("围栏预览失败，请查看面板。",true);}
+            }catch(Exception ex){dirty=true;PreviewUpdateHint.Set(UpdateButton,true);ConfirmButton.IsEnabled=false;PreviewText.Text="预览未更新："+ex.Message;Status("围栏预览失败，请查看面板。",true);}
         }
         private void OnPicked(LocatedElement located)
         {
@@ -91,7 +92,7 @@ namespace SteelSectionProbe
         private void OnEnded(){locating=false;regenerate.Stop();ClearPreview();}
         private void ClearPreview()
         {
-            try{preview.Cancel();vertices=null;dirty=false;ConfirmButton.IsEnabled=false;PreviewText.Text="已取消未确认预览。";}
+            try{preview.Cancel();vertices=null;PreviewUpdateHint.Set(UpdateButton,false);dirty=false;ConfirmButton.IsEnabled=false;PreviewText.Text="已取消未确认预览。";}
             catch(Exception ex){ConfirmButton.IsEnabled=false;PreviewText.Text=ex.Message;Status("围栏预览清理失败。",true);}
         }
         private void Pick_Click(object sender,RoutedEventArgs e)
@@ -106,8 +107,9 @@ namespace SteelSectionProbe
         private void Confirm_Click(object sender,RoutedEventArgs e)
         {
             if(dirty){Status("请先成功更新预览。",true);return;}
-            try{regenerate.Stop();preview.Confirm();vertices=null;ConfirmButton.IsEnabled=false;
-                PreviewText.Text="围栏已确认，并写入钢材清单；可继续点取下一条辅助线。";Status("普通钢结构围栏已生成。",false);}
+            try{regenerate.Stop();string writeElapsed=WriteDuration.Measure(preview.Confirm);vertices=null;PreviewUpdateHint.Set(UpdateButton,false);ConfirmButton.IsEnabled=false;
+                PreviewText.Text="围栏已确认，并写入钢材清单；可继续点取下一条辅助线。";PreviewText.Text += " 写入耗时 "+writeElapsed+"。";
+                Status("普通钢结构围栏已生成；写入耗时 "+writeElapsed+"。",false);}
             catch(Exception ex){Status("确认失败："+ex.Message,true);}
         }
         private void Export_Click(object sender,RoutedEventArgs e)

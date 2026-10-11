@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
@@ -35,12 +35,17 @@ namespace SteelSectionProbe
             RegisterPage(new TankManholePage());
             RegisterPage(new SquareManholePage());
             RegisterPage(new NozzlePage());
+            RegisterPage(new FireCabinetPage());
+            RegisterPage(new HoseCabinetPage());
             RegisterPage(new PipeClampPage());
             RegisterPage(new G2AnchorPage());
             RegisterPage(new VerticalPipeSupportPage());
             RegisterPage(new ColdRiserGuidePage());
+            RegisterPage(new N1CantileverPage());
+            RegisterPage(new N2CantileverPage());
             RegisterPage(new N3Page());
             RegisterPage(new N4Page());
+            RegisterPage(new D2CantileverPage());
             RegisterPage(new TriangleBracketPage());
             RegisterPage(new LBracketPage());
             RegisterPage(new PortalFramePage());

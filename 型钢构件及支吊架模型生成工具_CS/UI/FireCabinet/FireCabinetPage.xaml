@@ -1,0 +1,79 @@
+﻿<UserControl x:Class="SteelSectionProbe.FireCabinetPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    x:ClassModifier="internal" Background="{DynamicResource BackgroundBrush}">
+    <UserControl.Resources>
+        <ResourceDictionary><ResourceDictionary.MergedDictionaries>
+            <ResourceDictionary Source="../Themes/Theme.xaml"/>
+        </ResourceDictionary.MergedDictionaries></ResourceDictionary>
+    </UserControl.Resources>
+    <TabControl x:Name="PageTabs" SelectionChanged="Tab_Changed">
+        <TabItem Header="生成箱体">
+            <Grid Margin="0,8,0,0">
+                <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <Border Style="{StaticResource CardStyle}">
+                        <StackPanel>
+                            <TextBlock Text="01  选型与方向" Style="{StaticResource SectionTitleStyle}"/>
+                            <TextBlock Text="先选灭火器类型及容量，再点取箱体底部前侧中心。" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="灭火器类型"/>
+                                    <ComboBox x:Name="TypeCombo" SelectionChanged="Type_Changed"/>
+                                    <TextBlock Text="箱型" Margin="0,12,0,0"/>
+                                    <ComboBox x:Name="BoxCombo" SelectionChanged="Parameter_Changed"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock x:Name="CapacityLabel" Text="容量（kg）"/>
+                                    <ComboBox x:Name="CapacityCombo" SelectionChanged="Capacity_Changed"/>
+                                    <TextBlock Text="旋转角度（°）" Margin="0,12,0,0"/>
+                                    <TextBox x:Name="HeadingText" Text="0" TextChanged="Parameter_Changed" ToolTip="绕世界竖轴旋转；0° 时箱体正面朝 −Y。"/>
+                                </StackPanel>
+                            </Grid>
+                            <TextBlock x:Name="SpecificationText" TextWrapping="Wrap" Margin="0,16,0,0"/>
+                            <TextBlock x:Name="InteriorText" TextWrapping="Wrap" Margin="0,6,0,0" Foreground="{StaticResource MutedBrush}"/>
+                        </StackPanel>
+                    </Border>
+                </ScrollViewer>
+                <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,8,4,0">
+                    <StackPanel>
+                        <TextBlock Text="02  点取与预览" Style="{StaticResource SectionTitleStyle}"/>
+                        <WrapPanel>
+                            <Button Content="开始点取" Style="{StaticResource PrimaryButtonStyle}" Click="Pick_Click" Margin="0,0,8,8"/>
+                            <Button Content="结束点取" Style="{StaticResource SecondaryButtonStyle}" Click="End_Click" Margin="0,0,8,8"/>
+                            <Button x:Name="UpdateButton" Content="更新预览" Style="{StaticResource SecondaryButtonStyle}" Click="Update_Click" Margin="0,0,8,8"/>
+                        </WrapPanel>
+                        <TextBlock x:Name="PreviewText" Text="尚未点取放置点。" TextWrapping="Wrap" Margin="0,4,0,12"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Content="取消预览" Style="{StaticResource SecondaryButtonStyle}" Click="Cancel_Click" Margin="0,0,8,0"/>
+                            <Button x:Name="ConfirmButton" Content="确定生成" Style="{StaticResource PrimaryButtonStyle}" Click="Confirm_Click" IsEnabled="False"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </TabItem>
+        <TabItem Header="统计与导出">
+            <Grid Margin="8">
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                <StackPanel>
+                    <WrapPanel>
+                        <Button Content="统计当前 DGN" Style="{StaticResource PrimaryButtonStyle}" Click="Statistics_Click" Margin="0,0,8,8"/>
+                        <Button x:Name="ExcelButton" Content="导出 Excel" Style="{StaticResource SecondaryButtonStyle}" Click="Excel_Click" IsEnabled="False" Margin="0,0,8,8"/>
+                        <Button x:Name="JsonButton" Content="导出 JSON" Style="{StaticResource SecondaryButtonStyle}" Click="Json_Click" IsEnabled="False" Margin="0,0,8,8"/>
+                    </WrapPanel>
+                    <TextBlock x:Name="TotalsText" Text="尚未统计。" TextWrapping="Wrap" Margin="0,4,0,12"/>
+                </StackPanel>
+                <DataGrid x:Name="SummaryGrid" Grid.Row="1" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="箱型" Binding="{Binding BoxModel}" Width="*"/>
+                        <DataGridTextColumn Header="灭火器选型" Binding="{Binding ExtinguisherModel}" Width="*"/>
+                        <DataGridTextColumn Header="箱数" Binding="{Binding BoxCount}" Width="60"/>
+                        <DataGridTextColumn Header="配置具数" Binding="{Binding ExtinguisherCount}" Width="75"/>
+                        <DataGridTextColumn Header="模型具数" Binding="{Binding InteriorModelCount}" Width="75"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </TabItem>
+    </TabControl>
+</UserControl>

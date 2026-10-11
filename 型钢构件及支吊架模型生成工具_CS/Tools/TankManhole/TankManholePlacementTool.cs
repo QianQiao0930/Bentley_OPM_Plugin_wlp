@@ -16,7 +16,7 @@ namespace SteelSectionProbe
         private static TankManholePlacementTool active;
         private TankManholePlacementTool() : base(0,0) { }
 
-        internal static event Action<DPoint3d,double> Placed;   // (原点, 朝向角度°)
+        internal static event Action<DPoint3d,double,string> Placed;   // (原点, 朝向角度°)
         internal static event Action Ended;
 
         private Func<DPoint3d,double,Element> buildPrototype;
@@ -105,17 +105,18 @@ namespace SteelSectionProbe
                 return true;
             }
             // 第二次左键：按当前预览原样写入模型，完成放置并结束。
+            string elapsed;
             try
             {
-                var status=prototype.AddToModel();
+                var status=WriteDuration.Measure(prototype.AddToModel,out elapsed);
                 if(status!=StatusInt.Success)
                 { NotificationManager.OutputPrompt("写入人孔失败："+status); return true; }
             }
             catch(Exception ex)
             { NotificationManager.OutputPrompt("写入人孔失败："+ex.Message); return true; }
             var placed=Placed;
-            if(placed!=null) placed(origin,heading*180.0/Math.PI);
             End();
+            if(placed!=null) placed(origin,heading*180.0/Math.PI,elapsed);
             return true;
         }
         protected override bool OnResetButton(DgnButtonEvent ev) { End(); return true; }

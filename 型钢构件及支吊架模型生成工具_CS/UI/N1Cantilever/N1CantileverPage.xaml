@@ -1,0 +1,53 @@
+<UserControl x:Class="SteelSectionProbe.N1CantileverPage"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:ClassModifier="internal"
+ Background="{DynamicResource BackgroundBrush}">
+ <UserControl.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries>
+  <ResourceDictionary Source="../Themes/Theme.xaml"/>
+ </ResourceDictionary.MergedDictionaries></ResourceDictionary></UserControl.Resources>
+ <Grid><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+ <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,4,0">
+ <StackPanel>
+  <Border Style="{StaticResource CardStyle}"><StackPanel>
+   <TextBlock Text="01  设备上生根的单悬臂架" Style="{StaticResource SectionTitleStyle}"/>
+   <TextBlock x:Name="InstructionText" TextWrapping="Wrap" Margin="0,0,0,8"/>
+   <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+    <StackPanel><TextBlock Text="类型"/><ComboBox x:Name="TypeCombo" SelectionChanged="Type_Changed">
+     <ComboBoxItem Content="类型 1：单横担"/><ComboBoxItem Content="类型 2：横担 + 端部构件 B"/>
+    </ComboBox></StackPanel>
+    <StackPanel Grid.Column="2"><TextBlock Text="子项"/><ComboBox x:Name="SubtypeCombo" SelectionChanged="Parameter_Changed">
+     <ComboBoxItem Content="A"/><ComboBoxItem Content="B"/><ComboBoxItem Content="C"/><ComboBoxItem Content="D"/><ComboBoxItem Content="E"/>
+    </ComboBox></StackPanel>
+   </Grid>
+   <TextBlock x:Name="SectionText" TextWrapping="Wrap" Margin="0,8,0,0"/>
+  </StackPanel></Border>
+  <Border Style="{StaticResource CardStyle}"><StackPanel>
+   <TextBlock Text="02  设备与构件尺寸（mm）" Style="{StaticResource SectionTitleStyle}"/>
+   <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+    <StackPanel><StackPanel x:Name="EquipmentPanel"><TextBlock Text="设备外径 2R"/><TextBox x:Name="EquipmentOdText" Text="2000" TextChanged="Parameter_Changed"/></StackPanel>
+
+    </StackPanel>
+    <StackPanel Grid.Column="2"><StackPanel x:Name="PreweldPanel"><TextBlock Text="设备预焊件长度 D"/><TextBox x:Name="PreweldText" Text="200" TextChanged="Parameter_Changed"/></StackPanel>
+     <StackPanel x:Name="L2Panel" Margin="0,8,0,0"><TextBlock Text="构件 B 长度 L2（≤600）"/><TextBox x:Name="L2Text" Text="300" TextChanged="Parameter_Changed"/></StackPanel>
+    </StackPanel>
+   </Grid>
+   <CheckBox x:Name="ShowPreweldCheck" Content="生成预焊件占位（75% 透明，不计入清单）" Margin="0,8,0,0" Checked="Parameter_Changed" Unchecked="Parameter_Changed"/>
+   <CheckBox x:Name="ReverseCheck" Content="反转辅助线方向" Margin="0,8,0,0" Checked="Parameter_Changed" Unchecked="Parameter_Changed"/>
+   <TextBlock x:Name="DimensionsText" Text="请选择悬臂辅助线（L1）。" TextWrapping="Wrap" Margin="0,8,0,0"/>
+   <TextBlock x:Name="LoadNoteText" TextWrapping="Wrap" Margin="0,8,0,0"/>
+  </StackPanel></Border>
+  <Border Style="{StaticResource CardStyle}"><StackPanel>
+   <TextBlock Text="03  点取与预览" Style="{StaticResource SectionTitleStyle}"/>
+   <TextBlock Text="点选辅助线自动生成预览；修改参数后更新预览。右键、取消或离开页面会清理未确认预览；辅助线保留。" TextWrapping="Wrap" Margin="0,0,0,8"/>
+   <WrapPanel><Button Content="点取辅助线" Style="{StaticResource PrimaryButtonStyle}" Click="Pick_Click" Margin="0,0,8,8"/>
+    <Button Content="结束点取" Style="{StaticResource SecondaryButtonStyle}" Click="End_Click" Margin="0,0,8,8"/>
+    <Button x:Name="UpdateButton" Content="更新预览" Style="{StaticResource SecondaryButtonStyle}" Click="Update_Click" Margin="0,0,8,8"/>
+   </WrapPanel><TextBlock x:Name="PreviewText" Text="尚未点取辅助线。" TextWrapping="Wrap"/>
+  </StackPanel></Border>
+ </StackPanel></ScrollViewer>
+ <Border Grid.Row="1" Background="{DynamicResource BackgroundBrush}" Padding="0,8,0,0"><WrapPanel HorizontalAlignment="Right">
+  <Button Content="取消预览" Style="{StaticResource SecondaryButtonStyle}" Click="Cancel_Click" Margin="0,0,8,0"/>
+  <Button x:Name="ConfirmButton" Content="确定生成" IsEnabled="False" Style="{StaticResource PrimaryButtonStyle}" Click="Confirm_Click"/>
+ </WrapPanel></Border>
+ </Grid>
+</UserControl>

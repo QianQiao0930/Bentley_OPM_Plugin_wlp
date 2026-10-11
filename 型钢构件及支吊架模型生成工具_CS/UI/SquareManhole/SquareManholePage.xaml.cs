@@ -48,6 +48,7 @@ namespace SteelSectionProbe
         private void Parameter_Changed(object sender,TextChangedEventArgs e)
         {
             if(!ready)return;ConfirmButton.IsEnabled=false;UpdateSpecification();
+            if(origin.HasValue)PreviewUpdateHint.Set(UpdateButton,true);
             if(preview.HasPreview)PreviewText.Text="参数已变化，待更新预览。";
         }
         private void UpdateSpecification()
@@ -66,8 +67,9 @@ namespace SteelSectionProbe
         private void Regenerate()
         {
             if(!origin.HasValue){Status("请先点取筒体下口中心。",true);return;}
+            PreviewUpdateHint.Set(UpdateButton,true);
             ConfirmButton.IsEnabled=false;
-            try{preview.Regenerate(Plan(),origin.Value);ConfirmButton.IsEnabled=true;
+            try{preview.Regenerate(Plan(),origin.Value);ConfirmButton.IsEnabled=true;PreviewUpdateHint.Set(UpdateButton,false);
                 PreviewText.Text="方形人孔预览已生成。";Status("方形人孔预览已更新。",false);}
             catch(Exception ex){PreviewText.Text=ex.Message;Status("方形人孔预览失败："+ex.Message,true);}
         }
@@ -75,7 +77,7 @@ namespace SteelSectionProbe
         private void CancelPreview()
         {
             ConfirmButton.IsEnabled=false;
-            try{preview.Cancel();origin=null;PreviewText.Text="尚未点取筒体下口中心。";}
+            try{preview.Cancel();origin=null;PreviewUpdateHint.Set(UpdateButton,false);PreviewText.Text="尚未点取筒体下口中心。";}
             catch(Exception ex){Status(ex.Message,true);}
         }
         private void End_Click(object sender,RoutedEventArgs e){SquareManholePlacementTool.End();CancelPreview();}
@@ -84,8 +86,9 @@ namespace SteelSectionProbe
         private void Confirm_Click(object sender,RoutedEventArgs e)
         {
             if(!ConfirmButton.IsEnabled)return;
-            try{preview.Confirm();origin=null;ConfirmButton.IsEnabled=false;PreviewText.Text="方形人孔已生成。";
-                PageLastInput.Save(this,PageId,fields);Status("已生成一个方形人孔块。",false);}
+            try{string writeElapsed=preview.WriteElapsed;preview.Confirm();origin=null;PreviewUpdateHint.Set(UpdateButton,false);ConfirmButton.IsEnabled=false;PreviewText.Text="方形人孔已生成。";
+                PageLastInput.Save(this,PageId,fields);PreviewText.Text += " 写入耗时 "+writeElapsed+"。";
+                Status("已生成一个方形人孔块；写入耗时 "+writeElapsed+"。",false);}
             catch(Exception ex){Status(ex.Message,true);}
         }
         private static void Status(string message,bool error){if(MainWindow.Current!=null)MainWindow.Current.SetStatus(message,error);}

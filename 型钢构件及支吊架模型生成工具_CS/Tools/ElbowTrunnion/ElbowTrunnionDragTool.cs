@@ -8,7 +8,7 @@ using Bentley.MstnPlatformNET;
 
 namespace SteelSectionProbe
 {
-    /// <summary>Measures H or L by view projection; dynamic frames draw only temporary lines.</summary>
+    /// <summary>Measures H or L from the AccuDraw constrained model point; dynamic frames draw only temporary lines.</summary>
     internal sealed class ElbowTrunnionDragTool : DgnPrimitiveTool
     {
         private static ElbowTrunnionDragTool active;
@@ -24,6 +24,9 @@ namespace SteelSectionProbe
         private bool compassActivated;
         private AccuDraw.RotationMode compassRotationMode;
         private bool compassWasActive;
+        private AccuDraw.CompassMode oldCompassMode;
+        private DPoint3d oldCompassOrigin;
+        private DMatrix3d oldCompassRotation;
 
         [DllImport("user32.dll")]
         private static extern short GetAsyncKeyState(int key);
@@ -67,7 +70,11 @@ namespace SteelSectionProbe
         }
         internal static void UpdateParameters(ElbowTrunnionParameters options)
         {
-            if (active!=null) active.parameters=options;
+            if (active!=null)
+            {
+                active.parameters=options;
+                active.ConfigureCompass();
+            }
         }
         internal static void End()
         {
@@ -100,7 +107,7 @@ namespace SteelSectionProbe
                 bool moved=Moved(view,vp.X,vp.Y);
                 bool released=(GetAsyncKeyState(0x01)&0x8000)==0;
                 if (released) pickReleased=true;
-                if (pickReleased && moved) acceptArmed=true;
+                if (pickReleased && (moved || HasDistanceInput())) acceptArmed=true;
                 Draw(plan,ev.Viewport);
                 hasFrame=true;
                 if ((DateTime.UtcNow-lastUpdate).TotalMilliseconds>=60)
@@ -127,7 +134,7 @@ namespace SteelSectionProbe
         {
             var vp=ev.ViewPoint;
             if (!hasFrame || !pickReleased || !acceptArmed ||
-                !Moved(ev.ViewNumber,vp.X,vp.Y))
+                (!Moved(ev.ViewNumber,vp.X,vp.Y) && !HasDistanceInput()))
             {
                 var failed=Failed;
                 if (failed!=null) failed("请先松开点选弯头的左键，移动鼠标预览长度，再左键固定。");
@@ -171,6 +178,11 @@ namespace SteelSectionProbe
             base.OnCleanup();
         }
 
+        private static bool HasDistanceInput()
+        {
+            return (AccuDraw.Locked & (AccuDraw.LockedStates.X_BM|
+                AccuDraw.LockedStates.DIST_BM))!=AccuDraw.LockedStates.None;
+        }
         private bool Moved(int view,double x,double y)
         {
             if (view!=pickView) return true;
@@ -199,37 +211,11 @@ namespace SteelSectionProbe
             if (scale<=0) throw new InvalidOperationException("模型单位无效。");
             VectorMm origin,direction;
             Axis(out origin,out direction);
-            if (IsPrecisePoint(ev.Source.ToString()))
-            {
-                var point=ev.Point;
-                return (new VectorMm(point.X/scale,point.Y/scale,point.Z/scale)-origin).Dot(direction);
-            }
-            var a=Point(origin,scale);
-            var b=Point(origin+direction*1000,scale);
-            DPoint3d[] projected=ev.Viewport.ActiveToView(new[] { a,b,ev.RawPoint });
-            if (projected==null || projected.Length<3)
-                throw new InvalidOperationException("无法将鼠标坐标投影到活动视图。");
-            double dx=projected[1].X-projected[0].X;
-            double dy=projected[1].Y-projected[0].Y;
-            double denominator=dx*dx+dy*dy;
-            if (denominator<=1e-6)
-                throw new InvalidOperationException("当前视图看不到拉伸方向，请切换侧视图或轴测视图。");
-            return 1000*((projected[2].X-projected[0].X)*dx+
-                (projected[2].Y-projected[0].Y)*dy)/denominator;
-        }
-        private static bool IsPrecisePoint(string source)
-        {
-            // 精确捕捉/捕捉点/预选点/via 罗盘键盘输入的坐标点是精确的，ev.Point 可信；
-            // 其余按鼠标来信的 RawPoint 走视图投影折算。
-            if (string.IsNullOrEmpty(source)) return false;
-            source=source.ToUpperInvariant();
-            return source.IndexOf("PRECISION",StringComparison.Ordinal)>=0 ||
-                source.IndexOf("ELEMSNAP",StringComparison.Ordinal)>=0 ||
-                source.IndexOf("TENTATIVE",StringComparison.Ordinal)>=0 ||
-                source.IndexOf("KEYBOARD",StringComparison.Ordinal)>=0 ||
-                source.IndexOf("KEYIN",StringComparison.Ordinal)>=0 ||
-                source.IndexOf("ACCDRAW",StringComparison.Ordinal)>=0 ||
-                source.IndexOf("ENTER",StringComparison.Ordinal)>=0;
+            // ev.Point is the model point adjusted by Bentley snapping/AccuDraw.
+            // Never infer a real height from a screen-space projection or RawPoint.
+            var point=ev.Point;
+            return ElbowTrunnionCalculator.ExtentFromModelPoint(origin,direction,
+                new VectorMm(point.X/scale,point.Y/scale,point.Z/scale));
         }
         private void Axis(out VectorMm origin,out VectorMm direction)
         {
@@ -249,50 +235,60 @@ namespace SteelSectionProbe
                 origin=f.RunPort+f.AxisX*f.RunLengthMm;
                 direction=parameters.OutletSide ? f.AxisZ*(-1) : f.AxisX;
             }
+            if (parameters.Trunnion==TrunnionOrientation.Horizontal && parameters.BottomFlat)
+            {
+                var size=ElbowTrunnionCatalog.ForMainDn(selection.MainDn);
+                origin=new VectorMm(origin.X,origin.Y,
+                    origin.Z-(selection.OutsideDiameterMm-size.OutsideMm)/2);
+            }
         }
         /// <summary>
         /// 激活精确绘图罗盘：原点固定在测量基准点，X 轴=拉伸方向（输入正距离即沿拉伸
         /// 方向），Y 取与拉伸方向夹角最小可控的水平横向参考，Z 补全右手系。标志序列
-        /// 复制 A1ClampOrientationTool 的实测可用组合；定向失败只提示，鼠标仍可拉伸。
+        /// 锁定横向 Y/Z，X 沿耳轴方向；定向失败中止拉伸。
         /// </summary>
         private void ActivateCompass()
         {
             try
             {
-                var model=Session.Instance.GetActiveDgnModel();
-                if (model==null) throw new InvalidOperationException("没有活动模型。");
-                double scale=model.GetModelInfo().UorPerMeter/1000.0;
-                VectorMm originMm,directionMm;
-                Axis(out originMm,out directionMm);
-                var x=directionMm.Unit();
-                double tx=0,ty=1,tz=0;
-                if (Math.Abs(x.X*tx+x.Y*ty+x.Z*tz)>0.9){tx=1;ty=0;tz=0;}
-                double proj=x.X*tx+x.Y*ty+x.Z*tz;
-                double vx=tx-proj*x.X,vy=ty-proj*x.Y,vz=tz-proj*x.Z;
-                double vLen=Math.Sqrt(vx*vx+vy*vy+vz*vz);
-                if (vLen<=1e-12) return;
-                var yAxis=vLen==1?new DVector3d(vx,vy,vz):new DVector3d(vx/vLen,vy/vLen,vz/vLen);
-                var xAxis=new DVector3d(x.X,x.Y,x.Z);
-                var zAxis=new DVector3d(xAxis.Y*yAxis.Z-xAxis.Z*yAxis.Y,
-                    xAxis.Z*yAxis.X-xAxis.X*yAxis.Z,
-                    xAxis.X*yAxis.Y-xAxis.Y*yAxis.X);
-                var rotation=DMatrix3d.FromColumns(xAxis,yAxis,zAxis);
-                var anchor=Point(originMm,scale);
                 compassWasActive=AccuDraw.Active;
+                oldCompassMode=AccuDraw.ActiveCompassMode;
+                oldCompassOrigin=AccuDraw.Origin;
+                oldCompassRotation=AccuDraw.Rotation;
                 compassRotationMode=AccuDraw.ActiveRotationMode;
                 compassActivated=true;
-                AccuDraw.Active=true;
-                AccuDraw.ActiveRotationMode=AccuDraw.RotationMode.Context;
-                AccuDraw.SetContext(AccuDrawFlags.SetOrigin|AccuDrawFlags.FixedOrigin|
-                    AccuDrawFlags.SetRMatrix,anchor,rotation);
-                AccuDraw.Rotation=rotation;
-                AccuDraw.SetContext(AccuDrawFlags.SetFocus);
+                ConfigureCompass();
             }
             catch(Exception ex)
             {
-                compassActivated=false;
-                NotificationManager.OutputPrompt("精确绘图罗盘定向失败，仍可移动鼠标拉伸："+ex.Message);
+                RestoreCompass();
+                throw new InvalidOperationException("无法锁定 AccuDraw 耳轴方向："+ex.Message,ex);
             }
+        }
+        private void ConfigureCompass()
+        {
+            var model=Session.Instance.GetActiveDgnModel();
+            double scale=model.GetModelInfo().UorPerMeter/1000.0;
+            VectorMm origin,direction;
+            Axis(out origin,out direction);
+            var x=direction.Unit();
+            var reference=Math.Abs(x.Y)>0.9 ? new VectorMm(1,0,0) : new VectorMm(0,1,0);
+            var y=(reference-x*reference.Dot(x)).Unit();
+            var z=new DVector3d(x.Y*y.Z-x.Z*y.Y,x.Z*y.X-x.X*y.Z,x.X*y.Y-x.Y*y.X);
+            var rotation=DMatrix3d.FromColumns(new DVector3d(x.X,x.Y,x.Z),new DVector3d(y.X,y.Y,y.Z),z);
+            var anchor=Point(origin,scale);
+            AccuDraw.Active=true;
+            AccuDraw.ActiveRotationMode=AccuDraw.RotationMode.Context;
+            AccuDraw.ActiveCompassMode=AccuDraw.CompassMode.Rectangular;
+            if (AccuDraw.SetContext(AccuDrawFlags.SetOrigin|AccuDrawFlags.FixedOrigin|
+                AccuDrawFlags.SetRMatrix|AccuDrawFlags.Set3dMatrix,anchor,rotation)!=BentleyStatus.Success)
+                throw new InvalidOperationException("AccuDraw 原点或方向设置失败。");
+            AccuDraw.Rotation=rotation;
+            // X is the ear axis. Lock the two transverse coordinates at zero.
+            if (AccuDraw.SetContext(AccuDrawFlags.SetModeRect|AccuDrawFlags.Lock_Y|
+                AccuDrawFlags.Lock_Z|AccuDrawFlags.SetFocus|AccuDrawFlags.RedrawCompass,
+                anchor,new DVector3d(x.X,x.Y,x.Z),new DVector3d(0,0,0),0,0)!=BentleyStatus.Success)
+                throw new InvalidOperationException("AccuDraw 轴向锁定失败。");
         }
         private void RestoreCompass()
         {
@@ -300,6 +296,9 @@ namespace SteelSectionProbe
             compassActivated=false;
             try
             {
+                AccuDraw.Origin=oldCompassOrigin;
+                AccuDraw.Rotation=oldCompassRotation;
+                AccuDraw.ActiveCompassMode=oldCompassMode;
                 AccuDraw.ActiveRotationMode=compassRotationMode;
                 AccuDraw.Active=compassWasActive;
             }

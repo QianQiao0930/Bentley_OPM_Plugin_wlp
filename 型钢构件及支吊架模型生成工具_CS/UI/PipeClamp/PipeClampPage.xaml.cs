@@ -21,6 +21,11 @@ namespace SteelSectionProbe
         private ulong tempAxisLineId;
         private bool active,ready,locating,settingDn,orientationFinishing;
         private double a1AngleDeg;
+        private double axisOffsetMm, slideAnchorOffsetMm;
+        private bool sliding;
+        private int slideRevision;
+        private bool syncingOffset, offsetPending;
+
 
         public string PageId { get { return "pipe-clamp"; } }
         public string PageTitle { get { return "放置管夹"; } }
@@ -34,6 +39,9 @@ namespace SteelSectionProbe
             PipeClampLocateTool.Ended+=OnEnded;
             A1ClampOrientationTool.Oriented+=OnA1Oriented;
             A1ClampOrientationTool.Ended+=OnA1Ended;
+            AxisSlideTool.Locked+=OnSlideLocked;
+            AxisSlideTool.Ended+=OnSlideEnded;
+            AxisSlideTool.Moved+=OnSlideMoved;
 
             KindCombo.ItemsSource=PipeClampCatalog.All.Select(x=>x.Label).ToArray();
             A1DnCombo.ItemsSource=A1ClampCatalog.All
@@ -80,8 +88,9 @@ namespace SteelSectionProbe
             T4InsulationText.Text=Space(last.T4Insulation);
             T4LengthText.Text=Space(last.T4Length);
             T4NameText.Text=Space(last.T4Name);
-            T4TempText.Text=last.T4Temp; T4MaterialText.Text=last.T4Material;
-            T4FText.Text=last.T4F;
+            SelectCode(T4TempCombo,last.T4Temp,"A");
+            SelectCode(T4MaterialCombo,last.T4Material,"C1");
+            SelectCode(T4FCombo,last.T4F,"");
             T4PipeCheck.IsChecked=last.T4Pipe;
             T4InsulationCheck.IsChecked=last.T4InsulationBuild;
             L2ColdText.Text=Space(last.L2Cold);
@@ -94,6 +103,13 @@ namespace SteelSectionProbe
             RefreshSpecification();
         }
 
+        private static void SelectCode(ComboBox combo,string saved,string defaultCode)
+        {
+            string code=(saved??"").Trim().ToUpperInvariant();
+            bool valid=combo.Items.Cast<ComboBoxItem>().Any(item=>(string)item.Tag==code);
+            combo.SelectedValue=valid?code:defaultCode;
+        }
+
         private static int Clamp(int value,int min,int max)
         { return value<min?min:(value>max?max:value); }
         private static string Space(string value)
@@ -102,10 +118,11 @@ namespace SteelSectionProbe
         public void OnActivated() { active=true; }
         public void OnDeactivated()
         {
+            StopSlide();
             active=false; locating=false; PipeClampLocateTool.End();A1ClampOrientationTool.End();
             try { preview.Cancel(); } catch(Exception ex) { Status(ex.Message,true); }
             TryDeleteTempAxisLine();
-            selection=null; ConfirmButton.IsEnabled=false;
+            selection=null;axisOffsetMm=0;UpdatePositionReadout();PreviewUpdateHint.Set(UpdateButton,false); ConfirmButton.IsEnabled=false;
             PreviewText.Text="尚未选取源元素。";
         }
         public void OnWorkspaceClosing()
@@ -115,6 +132,9 @@ namespace SteelSectionProbe
             PipeClampLocateTool.Ended-=OnEnded;
             A1ClampOrientationTool.Oriented-=OnA1Oriented;
             A1ClampOrientationTool.Ended-=OnA1Ended;
+            AxisSlideTool.Locked-=OnSlideLocked;
+            AxisSlideTool.Ended-=OnSlideEnded;
+            AxisSlideTool.Moved-=OnSlideMoved;
         }
 
         // -- 类型与参数 -------------------------------------------------------
@@ -167,56 +187,51 @@ namespace SteelSectionProbe
                 switch(CurrentKind())
                 {
                     case PipeClampKind.A1UBolt:
+                        A1SpecText.Text="当前规格：DN"+A1Parameters(0).Row.Dn;
+                        break;
+                    case PipeClampKind.A2StandardTwoBolt:
                     {
-                        var plan=A1Parameters(0);
-                        A1SpecText.Text="DN"+plan.Row.Dn+" / "+plan.Row.Nps+"，M"+plan.Row.Bolt+
-                            "；B="+plan.Row.B+"，C="+plan.Row.C+"，D="+plan.Row.D+
-                            "，E="+plan.Row.E+" mm（仅参考）；螺母 4 颗。"+
-                            SourceNote(isPipe,nominal,null);
+                        var plan=A2ClampCalculator.Calculate(A2Parameters(),isPipe,nominal,insulation);
+                        A2SpecText.Text=CompactSpecification(plan.Dn,"保温",plan.InsulationMm);
                         break;
                     }
-                    case PipeClampKind.A2StandardTwoBolt:
-                        A2SpecText.Text=A2ClampCalculator.Describe(
-                            A2ClampCalculator.Calculate(A2Parameters(),isPipe,nominal,insulation))+
-                            SourceNote(isPipe,nominal,insulation);
-                        break;
                     case PipeClampKind.A22ColdTwoBolt:
-                        A22SpecText.Text=A22ClampCalculator.Describe(
-                            A22ClampCalculator.Calculate(A22Parameters(),isPipe,nominal,
-                                selection==null?null:selection.OutsideMm,insulation))+
-                            SourceNote(isPipe,nominal,insulation);
-                        break;
                     case PipeClampKind.A24ColdFourBolt:
-                        A24SpecText.Text=A22ClampCalculator.Describe(
-                            A22ClampCalculator.Calculate(A24Parameters(),isPipe,nominal,
-                                selection==null?null:selection.OutsideMm,insulation,true))+
-                            SourceNote(isPipe,nominal,insulation);
+                    {
+                        bool four=CurrentKind()==PipeClampKind.A24ColdFourBolt;
+                        var plan=A22ClampCalculator.Calculate(four?A24Parameters():A22Parameters(),
+                            isPipe,nominal,selection==null?null:selection.OutsideMm,insulation,four);
+                        (four?A24SpecText:A22SpecText).Text=CompactSpecification(plan.Dn,"保冷",plan.ColdThicknessMm);
                         break;
+                    }
                     case PipeClampKind.E1Guide:
-                        E1SpecText.Text="E1 导向架：DN"+E1Dn(selection)+" · 子项 "+
-                            (E1ItemKey()??"自动")+" · 材料 "+(E1MaterialText.Text??"")+
-                            " · 编号 E1-…"+SourceNote(isPipe,nominal,null);
+                        E1SpecText.Text="当前规格：DN"+E1Dn(selection)+" · 子项 "+(E1ItemKey()??"自动");
                         break;
                     case PipeClampKind.K1Limit:
-                        K1SpecText.Text=K1LimitCalculator.Describe(K1LimitCalculator.Calculate(
-                            K1Parameters(),isPipe,nominal))+SourceNote(isPipe,nominal,null);
+                    {
+                        var plan=K1LimitCalculator.Calculate(K1Parameters(),isPipe,nominal);
+                        K1SpecText.Text="当前规格：DN"+plan.Dn+" · 编号 "+plan.Number;
                         break;
+                    }
                     case PipeClampKind.T4Insulated:
                     {
-                        var layout=T4ShoeCalculator.BuildLayout(T4Parameters(),isPipe,nominal,
-                            insulation);
-                        T4SpecText.Text=T4ShoeCalculator.Describe(layout,
-                            T4ShoeCalculator.BuildBooleanLayout(layout))+
-                            SourceNote(isPipe,nominal,insulation);
+                        var layout=T4ShoeCalculator.BuildLayout(T4Parameters(),isPipe,nominal,insulation);
+                        T4ShoeCalculator.BuildBooleanLayout(layout);
+                        T4SpecText.Text=CompactSpecification(layout.Dn,"隔热",layout.InsulationMm)+
+                            " · 长度 "+layout.ShoeLengthMm.ToString("0.###",CultureInfo.InvariantCulture)+" mm";
+                        bool pipeDn=isPipe && T4ShoeCatalog.MatchDn(nominal).HasValue;
+                        bool pipeThickness=isPipe && insulation.HasValue;
+                        T4SourceText.Text=pipeDn && pipeThickness?"已读取管道管径和隔热厚度。":
+                            pipeDn?"管径来自管道；隔热厚度使用输入值。":
+                            pipeThickness?"隔热厚度来自管道；管径使用所选值。":
+                            "使用输入参数；点取管道后自动匹配。";
                         break;
                     }
                     case PipeClampKind.L2ColdShoe:
                     {
-                        var layout=L2ShoeCalculator.BuildLayout(L2Parameters(),isPipe,nominal,
-                            insulation);
-                        L2SpecText.Text=L2ShoeCalculator.Describe(layout,
-                            T4ShoeCalculator.BuildBooleanLayout(layout))+
-                            SourceNote(isPipe,nominal,insulation);
+                        var layout=L2ShoeCalculator.BuildLayout(L2Parameters(),isPipe,nominal,insulation);
+                        T4ShoeCalculator.BuildBooleanLayout(layout);
+                        L2SpecText.Text=CompactSpecification(layout.Dn,"保冷",layout.InsulationMm);
                         break;
                     }
                 }
@@ -225,10 +240,16 @@ namespace SteelSectionProbe
             {
                 string message="参数有误："+ex.Message;
                 A1SpecText.Text=message;A2SpecText.Text=message;A22SpecText.Text=message;
-                A24SpecText.Text=message;
-                E1SpecText.Text=message;
-                K1SpecText.Text=message; T4SpecText.Text=message; L2SpecText.Text=message;
+                A24SpecText.Text=message;E1SpecText.Text=message;
+                K1SpecText.Text=message;T4SpecText.Text=message;L2SpecText.Text=message;
+                T4SourceText.Text="请检查输入参数。";
             }
+        }
+
+        private static string CompactSpecification(int dn,string thicknessLabel,double thickness)
+        {
+            return "当前规格：DN"+dn+" · "+thicknessLabel+" "+
+                thickness.ToString("0.###",CultureInfo.InvariantCulture)+" mm";
         }
 
         private A1ClampPlan A1Parameters(double angle)
@@ -287,8 +308,8 @@ namespace SteelSectionProbe
                     T4ShoeCatalog.DnChoices.Length-1)],
                 InsulationMm=Number(T4InsulationText.Text,"隔热层厚度 B"),
                 LengthMm=Number(T4LengthText.Text,"管托沿管轴总长 L"),
-                Name=T4NameText.Text,TemperatureCode=T4TempText.Text,
-                MaterialCode=T4MaterialText.Text,FCode=T4FText.Text,
+                Name=T4NameText.Text,TemperatureCode=(T4TempCombo.SelectedValue as string),
+                MaterialCode=(T4MaterialCombo.SelectedValue as string),FCode=(T4FCombo.SelectedValue as string),
                 BuildPipe=T4PipeCheck.IsChecked==true,
                 BuildInsulation=T4InsulationCheck.IsChecked==true };
         }
@@ -349,9 +370,9 @@ namespace SteelSectionProbe
                     T4Insulation=T4InsulationText.Text??"50",
                     T4Length=T4LengthText.Text??"300",
                     T4Name=T4NameText.Text??"T4",
-                    T4Temp=T4TempText.Text??"",
-                    T4Material=T4MaterialText.Text??"",
-                    T4F=T4FText.Text??"",
+                    T4Temp=(T4TempCombo.SelectedValue as string)??"",
+                    T4Material=(T4MaterialCombo.SelectedValue as string)??"",
+                    T4F=(T4FCombo.SelectedValue as string)??"",
                     L2Cold=L2ColdText.Text??"50",
                     L2FCode=L2FCodeText.Text??"",
                     E1Stainless=E1StainlessCheck.IsChecked==true,
@@ -366,10 +387,11 @@ namespace SteelSectionProbe
         private void Kind_Changed(object sender,RoutedEventArgs e)
         {
             if(!ready) return;
+            StopSlide();
             A1ClampOrientationTool.End();
             try { preview.Cancel(); } catch(Exception ex) { Status(ex.Message,true); }
             TryDeleteTempAxisLine();
-            selection=null; ConfirmButton.IsEnabled=false;
+            selection=null;axisOffsetMm=0;UpdatePositionReadout();PreviewUpdateHint.Set(UpdateButton,false); ConfirmButton.IsEnabled=false;
             PreviewText.Text="尚未选取源元素。";
             ResetAuxiliaryLineOption();
             UpdatePanelVisibility();
@@ -387,6 +409,7 @@ namespace SteelSectionProbe
         private void Parameter_Changed(object sender,RoutedEventArgs e)
         {
             if(!ready || settingDn) return;
+            if(sliding){StopSlide();Regenerate();}
             RefreshSpecification();
             SaveLastChoice();
             if(A1ClampOrientationTool.IsActive)A1ClampOrientationTool.InvalidatePrototype();
@@ -404,7 +427,7 @@ namespace SteelSectionProbe
         {
             var model=Session.Instance.GetActiveDgnModel();
             double scale=model.GetModelInfo().UorPerMeter/1000.0;
-            double[] projected=current.ProjectedCenter();
+            double[] projected=PlacementPoint(axisOffsetMm);
             center=new DPoint3d(projected[0]*scale,projected[1]*scale,projected[2]*scale);
             axis=new DVector3d(current.AxisX,current.AxisY,current.AxisZ);
         }
@@ -412,11 +435,6 @@ namespace SteelSectionProbe
         private void A1Frame(PipeClampSelection current,out DPoint3d center,out DVector3d axis)
         {
             Frame(current,out center,out axis);
-            if(!current.IsPipe)
-            {
-                double scale=Session.Instance.GetActiveDgnModel().GetModelInfo().UorPerMeter/1000.0;
-                center=new DPoint3d(current.ClickX*scale,current.ClickY*scale,current.ClickZ*scale);
-            }
         }
 
         private Bentley.DgnPlatformNET.Elements.Element A1Prototype(double angle)
@@ -441,7 +459,7 @@ namespace SteelSectionProbe
             if(!active)return;
             if(orientationFinishing){orientationFinishing=false;return;}
             try{preview.Cancel();}catch(Exception ex){Status("A1 预览清理失败："+ex.Message,true);}
-            selection=null;ConfirmButton.IsEnabled=false;TryDeleteTempAxisLine();
+            selection=null;axisOffsetMm=0;UpdatePositionReadout();PreviewUpdateHint.Set(UpdateButton,false);ConfirmButton.IsEnabled=false;TryDeleteTempAxisLine();
             PreviewText.Text="已取消 A1 开口方向调整。";
             Status("A1 方向调整已取消。",false);
         }
@@ -449,17 +467,22 @@ namespace SteelSectionProbe
         private void Regenerate()
         {
             if(selection==null) return;
+            PreviewUpdateHint.Set(UpdateButton,true);
             try
             {
+                if(offsetPending)
+                {
+                    double value=ReadAxisOffset();
+                    PlacementPoint(value);
+                    axisOffsetMm=value;offsetPending=false;
+                }
                 var kind=CurrentKind();
                 if(kind==PipeClampKind.A1UBolt)
                 {
                     DPoint3d center;DVector3d axis;A1Frame(selection,out center,out axis);
                     var plan=A1Parameters(a1AngleDeg);
                     preview.ShowA1(plan,center,axis);
-                    PreviewText.Text="预览已生成："+plan.AssemblyTag+"。开口角度 "+
-                        a1AngleDeg.ToString("0.#",CultureInfo.InvariantCulture)+"°。"+
-                        SourceNote(selection.IsPipe,selection.NominalMm,null);
+                    PreviewText.Text="预览："+plan.AssemblyTag+" · 开口 "+a1AngleDeg.ToString("0.#",CultureInfo.InvariantCulture)+"°";
                 }
                 else if(kind==PipeClampKind.E1Guide)
                 {
@@ -467,15 +490,14 @@ namespace SteelSectionProbe
                         E1StainlessCheck.IsChecked==true,E1MaterialText.Text,
                         selection.StartX,selection.StartY,selection.StartZ,
                         selection.EndX,selection.EndY,selection.EndZ,
-                        selection.ClickX,selection.ClickY,selection.ClickZ,
+                        PlacementPoint(axisOffsetMm)[0],PlacementPoint(axisOffsetMm)[1],PlacementPoint(axisOffsetMm)[2],
                         selection.PipeNumber,selection.ElementId,selection.IsAuxiliaryLine);
                     preview.ShowE1(plan);
                     // 参考文件里的直线不参与"删除辅助线"：它的 ID 属于参考文件的 ID 空间，
                     // 在活动模型里删不掉，只能由用户在源文件里处理。
                     E1DeleteLineCheck.IsEnabled=selection.IsAuxiliaryLine&&!selection.IsPipe&&
                         !selection.IsFromReference;
-                    PreviewText.Text="预览已生成："+plan.Number+"，DN"+plan.Dn+"。"+
-                        (E1DeleteLineCheck.IsEnabled?"勾选「确认后删除辅助线」可删除所选直线。":"");
+                    PreviewText.Text="预览："+plan.Number;
                 }
                 else
                 {
@@ -486,33 +508,28 @@ namespace SteelSectionProbe
                         var plan=A2ClampCalculator.Calculate(A2Parameters(),selection.IsPipe,
                             selection.NominalMm,selection.InsulationMm);
                         preview.ShowA2(plan,center,axis);
-                        PreviewText.Text="预览已生成："+plan.AssemblyTag+"，"+
-                            A2ClampCalculator.Describe(plan);
+                        PreviewText.Text="预览："+plan.AssemblyTag;
                     }
                     else if(kind==PipeClampKind.A22ColdTwoBolt)
                     {
                         var plan=A22ClampCalculator.Calculate(A22Parameters(),selection.IsPipe,
                             selection.NominalMm,selection.OutsideMm,selection.InsulationMm);
                         preview.ShowA22(plan,center,axis);
-                        PreviewText.Text="预览已生成："+plan.Number+"，"+
-                            A22ClampCalculator.Describe(plan)+
-                            SourceNote(selection.IsPipe,selection.NominalMm,selection.InsulationMm);
+                        PreviewText.Text="预览："+plan.Number;
                     }
                     else if(kind==PipeClampKind.A24ColdFourBolt)
                     {
                         var plan=A22ClampCalculator.Calculate(A24Parameters(),selection.IsPipe,
                             selection.NominalMm,selection.OutsideMm,selection.InsulationMm,true);
                         preview.ShowA24(plan,center,axis);
-                        PreviewText.Text="预览已生成："+plan.Number+"，"+
-                            A22ClampCalculator.Describe(plan)+
-                            SourceNote(selection.IsPipe,selection.NominalMm,selection.InsulationMm);
+                        PreviewText.Text="预览："+plan.Number;
                     }
                     else if(kind==PipeClampKind.K1Limit)
                     {
                         var plan=K1LimitCalculator.Calculate(K1Parameters(),selection.IsPipe,
                             selection.NominalMm);
                         preview.ShowK1(plan,center,axis);
-                        PreviewText.Text="预览已生成："+plan.Number+"，"+K1LimitCalculator.Describe(plan);
+                        PreviewText.Text="预览："+plan.Number;
                     }
                     else if(kind==PipeClampKind.L2ColdShoe)
                     {
@@ -522,9 +539,7 @@ namespace SteelSectionProbe
                         var boolean=T4ShoeCalculator.BuildBooleanLayout(layout);
                         preview.ShowL2(layout,boolean,center,axis,parameters.BuildPipe,
                             parameters.BuildInsulation);
-                        PreviewText.Text="预览已生成："+layout.Number+"，"+
-                            L2ShoeCalculator.Describe(layout,boolean)+
-                            SourceNote(selection.IsPipe,selection.NominalMm,selection.InsulationMm);
+                        PreviewText.Text="预览："+(string.IsNullOrEmpty(layout.Number)?"未编号":layout.Number);
                     }
                     else
                     {
@@ -534,15 +549,13 @@ namespace SteelSectionProbe
                         var boolean=T4ShoeCalculator.BuildBooleanLayout(layout);
                         preview.ShowT4(layout,boolean,center,axis,parameters.BuildPipe,
                             parameters.BuildInsulation);
-                        PreviewText.Text="预览已生成："+
-                            (layout.Number.Length>0?layout.Number:"（未编号）")+"，"+
-                            T4ShoeCalculator.Describe(layout,boolean)+
-                            SourceNote(selection.IsPipe,selection.NominalMm,selection.InsulationMm);
+                        PreviewText.Text="预览："+(string.IsNullOrEmpty(layout.Number)?"未编号":layout.Number);
                     }
                 }
                 if(selection!=null && !string.IsNullOrEmpty(selection.AxisNote))
-                    PreviewText.Text+="　"+selection.AxisNote;
-                ConfirmButton.IsEnabled=true;
+                    PreviewText.ToolTip=selection.AxisNote;
+                UpdatePositionReadout();
+                ConfirmButton.IsEnabled=true;PreviewUpdateHint.Set(UpdateButton,false);
                 Status("管夹预览已生成；确定后写入支吊架材料清单。",false);
             }
             catch(Exception ex)
@@ -554,6 +567,7 @@ namespace SteelSectionProbe
 
         private void Pick_Click(object sender,RoutedEventArgs e)
         {
+            if(sliding){StopSlide();Regenerate();}
             try
             {
                 var model=Session.Instance.GetActiveDgnModel();
@@ -644,7 +658,8 @@ namespace SteelSectionProbe
                 try
                 {
                     ResetAuxiliaryLineOption();
-                    selection=ReadSelection(located);
+                    StopSlide();axisOffsetMm=0;
+                    selection=ReadSelection(located);UpdatePositionReadout();
                     RefreshSpecification();   // 规格行与预览用同一套参数来源
                     if(CurrentKind()==PipeClampKind.A1UBolt)
                     {
@@ -664,7 +679,7 @@ namespace SteelSectionProbe
                 }
                 catch(Exception ex)
                 {
-                    selection=null; ConfirmButton.IsEnabled=false;
+                    selection=null;axisOffsetMm=0;UpdatePositionReadout();PreviewUpdateHint.Set(UpdateButton,false); ConfirmButton.IsEnabled=false;
                     TryDeleteTempAxisLine();
                     // 诊断尾巴较长，状态栏一行会截断 —— 同时写进可换行的预览行。
                     PreviewText.Text="点取失败："+ex.Message;
@@ -678,23 +693,25 @@ namespace SteelSectionProbe
             locating=false;
             try { preview.Cancel(); } catch(Exception ex) { Status(ex.Message,true); }
             TryDeleteTempAxisLine();
-            selection=null; ConfirmButton.IsEnabled=false;
+            selection=null;axisOffsetMm=0;UpdatePositionReadout();PreviewUpdateHint.Set(UpdateButton,false); ConfirmButton.IsEnabled=false;
             ResetAuxiliaryLineOption();
             PreviewText.Text="已结束点取。";
             Status("已结束点取并取消未确认预览。",false);
         }
         private void End_Click(object sender,RoutedEventArgs e)
-        {PipeClampLocateTool.End();A1ClampOrientationTool.End();}
+        {StopSlide();PipeClampLocateTool.End();A1ClampOrientationTool.End();Cancel_Click(sender,e);}
         private void Update_Click(object sender,RoutedEventArgs e)
-        {if(A1ClampOrientationTool.IsActive)
+        {if(sliding){Status("请先锁定或取消沿轴滑动。",false);return;}
+            if(A1ClampOrientationTool.IsActive)
             {Status("请先在模型中左键锁定 A1 开口方向。",false);return;}
             Regenerate();}
         private void Cancel_Click(object sender,RoutedEventArgs e)
         {
+            StopSlide();
             A1ClampOrientationTool.End();
             try
             {
-                preview.Cancel(); selection=null; ConfirmButton.IsEnabled=false;
+                preview.Cancel(); selection=null;axisOffsetMm=0;UpdatePositionReadout();PreviewUpdateHint.Set(UpdateButton,false); ConfirmButton.IsEnabled=false;
                 TryDeleteTempAxisLine();
                 ResetAuxiliaryLineOption();
                 PreviewText.Text="预览已取消。"; Status("预览已取消。",false);
@@ -703,28 +720,161 @@ namespace SteelSectionProbe
         }
         private void Confirm_Click(object sender,RoutedEventArgs e)
         {
-            var timer=System.Diagnostics.Stopwatch.StartNew();
+            if(sliding||!ConfirmButton.IsEnabled){Status("请先完成定位并成功更新预览。",true);return;}
+
             try
             {
                 bool deleteAuxiliary=E1DeleteLineCheck.IsChecked==true && selection!=null &&
                     selection.IsAuxiliaryLine && !selection.IsPipe && !selection.IsFromReference;
                 var kind=CurrentKind();
                 var current=selection;
-                preview.Confirm();
+                string writeElapsed=WriteDuration.Measure(preview.Confirm);
                 // 临时辅助线的使命到此结束：管夹已经生成，把它删掉。
                 TryDeleteTempAxisLine();
                 if(kind==PipeClampKind.E1Guide && deleteAuxiliary && current!=null)
                     DeleteElement(current.ElementId);
-                selection=null; ConfirmButton.IsEnabled=false;
+                selection=null;axisOffsetMm=0;UpdatePositionReadout();PreviewUpdateHint.Set(UpdateButton,false); ConfirmButton.IsEnabled=false;
                 ResetAuxiliaryLineOption();
-                timer.Stop();
-                PreviewText.Text="已确认生成并写入支吊架材料清单，耗时 "+
-                    timer.Elapsed.TotalSeconds.ToString("0.0",CultureInfo.InvariantCulture)+
-                    " 秒。"+(kind==PipeClampKind.A1UBolt?"点【开始点取】可放置下一处。":
+
+                PreviewText.Text="已确认生成并写入支吊架材料清单。"+(!locating?"点【开始点取】可放置下一处。":
                     "点取仍在进行中，可直接点取下一处。");
-                Status("管夹已生成（"+timer.Elapsed.TotalSeconds.ToString("0.0",CultureInfo.InvariantCulture)+" 秒）。",false);
+                PreviewText.Text += " 写入耗时 "+writeElapsed+"。";
+                Status("管夹已生成；写入耗时 "+writeElapsed+"。",false);
             }
             catch(Exception ex) { Status("确认失败："+ex.Message,true); }
+        }
+
+        private double[] PlacementOrigin()
+        {
+            if(selection==null)throw new InvalidOperationException("请先点取管道或辅助线。");
+            return CurrentKind()==PipeClampKind.A1UBolt&&!selection.IsPipe?
+                new[]{selection.ClickX,selection.ClickY,selection.ClickZ}:selection.ProjectedCenter();
+        }
+
+        private double[] PlacementPoint(double offset)
+        {
+            return AxisPlacementCalculator.Shift(PlacementOrigin(),
+                new[]{selection.StartX,selection.StartY,selection.StartZ},
+                new[]{selection.EndX,selection.EndY,selection.EndZ},offset,true);
+        }
+
+        private void UpdatePositionReadout()
+        {
+            if(AxisPositionText==null)return;
+            AxisOffsetText.IsEnabled=!sliding;
+            if(selection==null){AxisPositionText.Text="基点：尚未点取。";SetOffsetText("0");return;}
+            var p=PlacementPoint(axisOffsetMm);
+            SetOffsetText(axisOffsetMm.ToString("0.###",CultureInfo.InvariantCulture));
+            AxisPositionText.Text="基点："+(CurrentKind()==PipeClampKind.A1UBolt&&!selection.IsPipe?"A1 辅助线点击点":"管轴上的构件定位截面")+
+                "；X="+p[0].ToString("0.###")+"，Y="+p[1].ToString("0.###")+"，Z="+p[2].ToString("0.###")+
+                " mm";
+        }
+
+        private double ReadAxisOffset()
+        {
+            double value;
+            if(!double.TryParse(AxisOffsetText.Text,NumberStyles.Float,CultureInfo.CurrentCulture,out value)&&
+                !double.TryParse(AxisOffsetText.Text,NumberStyles.Float,CultureInfo.InvariantCulture,out value))
+                throw new InvalidOperationException("沿轴偏移必须为数字。");
+            return value;
+        }
+
+        private void SetOffsetText(string value)
+        {
+            offsetPending=false;syncingOffset=true;
+            try { AxisOffsetText.Text=value; }
+            finally { syncingOffset=false; }
+        }
+
+        private void AxisOffset_Changed(object sender,RoutedEventArgs e)
+        {
+            if(syncingOffset||selection==null||ConfirmButton==null)return;
+            offsetPending=true;ConfirmButton.IsEnabled=false;PreviewUpdateHint.Set(UpdateButton,true);
+            PreviewText.Text="沿轴偏移尚未应用，请点击「应用偏移」后确认。";
+        }
+
+        private void ApplyOffset_Click(object sender,RoutedEventArgs e)
+        {
+            if(sliding||A1ClampOrientationTool.IsActive){Status("请先完成鼠标定位。",true);return;}
+            double previous=axisOffsetMm;
+            try
+            {
+                if(selection==null||!preview.HasPreview)throw new InvalidOperationException("请先生成预览。");
+                double value=ReadAxisOffset();
+                PlacementPoint(value);axisOffsetMm=value;Regenerate();
+            }
+            catch(Exception ex){axisOffsetMm=previous;Status(ex.Message,true);}
+        }
+
+        private void StopSlide()
+        {
+            slideRevision++;
+            bool wasSliding=sliding;sliding=false;AxisOffsetText.IsEnabled=true;
+            if(wasSliding)AxisSlideTool.End();
+        }
+
+        private void Slide_Click(object sender,RoutedEventArgs e)
+        {
+            if(!active)return;
+            if(sliding)return;
+            if(A1ClampOrientationTool.IsActive){Status("请先左键锁定 A1 开口方向。",true);return;}
+            try
+            {
+                if(selection==null||!preview.HasPreview||!ConfirmButton.IsEnabled)
+                    throw new InvalidOperationException("请先成功更新预览，再沿轴滑动。");
+                var prototype=preview.CreatePrototype();
+                double scale=Session.Instance.GetActiveDgnModel().GetModelInfo().UorPerMeter/1000.0;
+                var origin=PlacementOrigin();var projected=selection.ProjectedCenter();var current=PlacementPoint(axisOffsetMm);
+                var anchor=new DPoint3d(current[0]*scale,current[1]*scale,current[2]*scale);
+                var start=new DPoint3d((selection.StartX+origin[0]-projected[0])*scale,
+                    (selection.StartY+origin[1]-projected[1])*scale,(selection.StartZ+origin[2]-projected[2])*scale);
+                var end=new DPoint3d((selection.EndX+origin[0]-projected[0])*scale,
+                    (selection.EndY+origin[1]-projected[1])*scale,(selection.EndZ+origin[2]-projected[2])*scale);
+                preview.Cancel();ConfirmButton.IsEnabled=false;
+                if(PipeClampLocateTool.IsActive){PipeClampLocateTool.RetireForHandoff();locating=false;}
+                slideAnchorOffsetMm=axisOffsetMm;slideRevision++;sliding=true;AxisOffsetText.IsEnabled=false;
+                AxisSlideTool.Begin(anchor,start,end,point=>prototype);
+                PreviewText.Text="沿轴滑动中：黄色十字是当前基点，蓝色十字是本次移动起点。X 输入本次位移；左键锁定、右键恢复。";
+            }
+            catch(Exception ex){StopSlide();if(selection!=null)Regenerate();Status("无法开始滑动："+ex.Message,true);}
+        }
+
+        private void OnSlideMoved(DPoint3d point)
+        {
+            if(!active||!sliding||selection==null)return;
+            double scale=Session.Instance.GetActiveDgnModel().GetModelInfo().UorPerMeter/1000.0;
+            var p=new[]{point.X/scale,point.Y/scale,point.Z/scale};
+            double offset=AxisPlacementCalculator.Offset(PlacementOrigin(),p,
+                new[]{selection.StartX,selection.StartY,selection.StartZ},new[]{selection.EndX,selection.EndY,selection.EndZ});
+            string text="当前基点 X="+p[0].ToString("0.###")+"，Y="+p[1].ToString("0.###")+"，Z="+p[2].ToString("0.###")+
+                " mm；累计偏移 "+offset.ToString("0.###")+" mm；本次位移 "+(offset-slideAnchorOffsetMm).ToString("0.###")+" mm。";
+            if(AxisPositionText.Text!=text)AxisPositionText.Text=text;
+        }
+
+        private void OnSlideLocked(DPoint3d point)
+        {
+            if(!active||!sliding||selection==null)return;
+            int ticket=slideRevision;sliding=false;AxisOffsetText.IsEnabled=true;
+            Dispatcher.BeginInvoke(new Action(delegate
+            {
+                if(!active||ticket!=slideRevision||selection==null)return;
+                try
+                {
+                    double scale=Session.Instance.GetActiveDgnModel().GetModelInfo().UorPerMeter/1000.0;
+                    axisOffsetMm=AxisPlacementCalculator.Offset(PlacementOrigin(),new[]{point.X/scale,point.Y/scale,point.Z/scale},
+                        new[]{selection.StartX,selection.StartY,selection.StartZ},new[]{selection.EndX,selection.EndY,selection.EndZ});
+                    Regenerate();
+                }
+                catch(Exception ex){axisOffsetMm=slideAnchorOffsetMm;Regenerate();Status(ex.Message,true);}
+            }),DispatcherPriority.Background);
+        }
+
+        private void OnSlideEnded()
+        {
+            if(!active||!sliding)return;
+            sliding=false;AxisOffsetText.IsEnabled=true;slideRevision++;axisOffsetMm=slideAnchorOffsetMm;
+            if(selection!=null)Regenerate();
+            Status("已取消沿轴滑动，恢复原位置。",false);
         }
 
         /// <summary>删除所选辅助线；删除前核对它仍是普通直线，避免误删管道或多段线。</summary>

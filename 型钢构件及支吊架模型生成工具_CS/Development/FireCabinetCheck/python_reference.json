@@ -1,0 +1,176 @@
+[
+  {
+    "Type": "干粉灭火器",
+    "Capacity": 2,
+    "Box": "XMDDG12",
+    "VisualCapacity": 2
+  },
+  {
+    "Type": "干粉灭火器",
+    "Capacity": 2,
+    "Box": "XMDDG22",
+    "VisualCapacity": 2
+  },
+  {
+    "Type": "干粉灭火器",
+    "Capacity": 2,
+    "Box": "XMDDG32",
+    "VisualCapacity": 2
+  },
+  {
+    "Type": "干粉灭火器",
+    "Capacity": 3,
+    "Box": "XMDDG22",
+    "VisualCapacity": 4
+  },
+  {
+    "Type": "干粉灭火器",
+    "Capacity": 3,
+    "Box": "XMDDG32",
+    "VisualCapacity": 4
+  },
+  {
+    "Type": "干粉灭火器",
+    "Capacity": 4,
+    "Box": "XMDDG22",
+    "VisualCapacity": 4
+  },
+  {
+    "Type": "干粉灭火器",
+    "Capacity": 4,
+    "Box": "XMDDG32",
+    "VisualCapacity": 4
+  },
+  {
+    "Type": "干粉灭火器",
+    "Capacity": 5,
+    "Box": "XMDDG32",
+    "VisualCapacity": 5
+  },
+  {
+    "Type": "干粉灭火器",
+    "Capacity": 6,
+    "Box": "XMDDG32",
+    "VisualCapacity": 6
+  },
+  {
+    "Type": "二氧化碳灭火器",
+    "Capacity": 2,
+    "Box": "XMDDG22",
+    "VisualCapacity": 2
+  },
+  {
+    "Type": "二氧化碳灭火器",
+    "Capacity": 2,
+    "Box": "XMDDG32",
+    "VisualCapacity": 2
+  },
+  {
+    "Type": "二氧化碳灭火器",
+    "Capacity": 3,
+    "Box": "XMDDG32",
+    "VisualCapacity": 4
+  },
+  {
+    "Type": "水基型灭火器",
+    "Capacity": 2,
+    "Box": "XMDDG12",
+    "VisualCapacity": 2
+  },
+  {
+    "Type": "水基型灭火器",
+    "Capacity": 2,
+    "Box": "XMDDG22",
+    "VisualCapacity": 2
+  },
+  {
+    "Type": "水基型灭火器",
+    "Capacity": 2,
+    "Box": "XMDDG32",
+    "VisualCapacity": 2
+  },
+  {
+    "Type": "水基型灭火器",
+    "Capacity": 3,
+    "Box": "XMDDG22",
+    "VisualCapacity": 4
+  },
+  {
+    "Type": "水基型灭火器",
+    "Capacity": 3,
+    "Box": "XMDDG32",
+    "VisualCapacity": 4
+  },
+  {
+    "Type": "水基型灭火器",
+    "Capacity": 4,
+    "Box": "XMDDG32",
+    "VisualCapacity": 4
+  },
+  {
+    "Type": "水基型灭火器",
+    "Capacity": 5,
+    "Box": "XMDDG32",
+    "VisualCapacity": 5
+  },
+  {
+    "Type": "水基型灭火器",
+    "Capacity": 6,
+    "Box": "XMDDG32",
+    "VisualCapacity": 6
+  },
+  {
+    "Type": "洁净气体灭火器",
+    "Capacity": 2,
+    "Box": "XMDDG12",
+    "VisualCapacity": 2
+  },
+  {
+    "Type": "洁净气体灭火器",
+    "Capacity": 2,
+    "Box": "XMDDG22",
+    "VisualCapacity": 2
+  },
+  {
+    "Type": "洁净气体灭火器",
+    "Capacity": 2,
+    "Box": "XMDDG32",
+    "VisualCapacity": 2
+  },
+  {
+    "Type": "洁净气体灭火器",
+    "Capacity": 3,
+    "Box": "XMDDG22",
+    "VisualCapacity": 4
+  },
+  {
+    "Type": "洁净气体灭火器",
+    "Capacity": 3,
+    "Box": "XMDDG32",
+    "VisualCapacity": 4
+  },
+  {
+    "Type": "洁净气体灭火器",
+    "Capacity": 4,
+    "Box": "XMDDG22",
+    "VisualCapacity": 4
+  },
+  {
+    "Type": "洁净气体灭火器",
+    "Capacity": 4,
+    "Box": "XMDDG32",
+    "VisualCapacity": 4
+  },
+  {
+    "Type": "洁净气体灭火器",
+    "Capacity": 5,
+    "Box": "XMDDG32",
+    "VisualCapacity": 5
+  },
+  {
+    "Type": "洁净气体灭火器",
+    "Capacity": 6,
+    "Box": "XMDDG32",
+    "VisualCapacity": 6
+  }
+]

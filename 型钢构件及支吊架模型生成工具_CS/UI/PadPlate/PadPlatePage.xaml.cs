@@ -40,7 +40,7 @@ namespace SteelSectionProbe
             active=false;PadPlateLocateTool.Picked-=OnPicked;PadPlateLocateTool.Ended-=OnEnded;
             if(locating)PadPlateLocateTool.End();locating=false;
             try{preview.Cancel();}catch(Exception ex){Status(ex.Message,true);}
-            pipe=null;duct=null;elbow=null;dirty=false;ConfirmButton.IsEnabled=false;UpdateButton.Content="更新预览";
+            pipe=null;duct=null;elbow=null;dirty=false;ConfirmButton.IsEnabled=false;PreviewUpdateHint.Set(UpdateButton,false);
         }
         private PadPlateKind Kind { get { return KindCombo.SelectedIndex==1?PadPlateKind.Elbow:PadPlateKind.Y2; } }
         private void Kind_Changed(object sender,SelectionChangedEventArgs e)
@@ -48,7 +48,7 @@ namespace SteelSectionProbe
             if(!ready)return;
             try{preview.Cancel();}catch(Exception ex){Status(ex.Message,true);}
             pipe=null;duct=null;elbow=null;dirty=false;ConfirmButton.IsEnabled=false;
-            PreviewText.Text="型式已切换，请重新点选元素。";UpdateButton.Content="更新预览";UpdateKind();
+            PreviewText.Text="型式已切换，请重新点选元素。";PreviewUpdateHint.Set(UpdateButton,false);UpdateKind();
         }
         private void UpdateKind()
         {
@@ -60,7 +60,7 @@ namespace SteelSectionProbe
         }
         private void Parameter_Changed(object sender,RoutedEventArgs e)
         {if(!ready||pipe==null&&elbow==null)return;dirty=true;ConfirmButton.IsEnabled=false;
-            UpdateButton.Content="更新预览 ●";PreviewText.Text="参数已变更，请更新预览后确定生成。";}
+            PreviewUpdateHint.Set(UpdateButton,true);PreviewText.Text="参数已变更，请更新预览后确定生成。";}
         private static double Number(string raw,string name)
         {double value;if(!double.TryParse(raw,NumberStyles.Float,CultureInfo.CurrentCulture,out value)&&
             !double.TryParse(raw,NumberStyles.Float,CultureInfo.InvariantCulture,out value))
@@ -80,7 +80,7 @@ namespace SteelSectionProbe
             try
             {
                 var p=Parameters();var plan=Kind==PadPlateKind.Y2?PadPlateCatalog.Y2(p,pipe,duct):PadPlateCatalog.Elbow(p,elbow);
-                preview.Show(plan);dirty=false;UpdateButton.Content="更新预览";ConfirmButton.IsEnabled=true;
+                preview.Show(plan);dirty=false;PreviewUpdateHint.Set(UpdateButton,false);ConfirmButton.IsEnabled=true;
                 PreviewText.Text="编号："+plan.Number+"\n"+plan.Specification+
                     (Kind==PadPlateKind.Elbow?"\n沿弯头弧长："+plan.ArcLengthMm.ToString("0.#")+" mm":"");
                 Status("垫板预览已生成。",false);
@@ -106,22 +106,23 @@ namespace SteelSectionProbe
             }),DispatcherPriority.Background);
         }
         private void OnEnded(){locating=false;try{preview.Cancel();}catch(Exception ex){Status(ex.Message,true);}
-            pipe=null;duct=null;elbow=null;dirty=false;ConfirmButton.IsEnabled=false;PreviewText.Text="已结束点选。";UpdateButton.Content="更新预览";}
+            pipe=null;duct=null;elbow=null;dirty=false;ConfirmButton.IsEnabled=false;PreviewText.Text="已结束点选。";PreviewUpdateHint.Set(UpdateButton,false);}
         private void Pick_Click(object sender,RoutedEventArgs e)
         {try{PadPlateLocateTool.Begin();locating=true;}catch(Exception ex){Status(ex.Message,true);}}
         private void End_Click(object sender,RoutedEventArgs e){PadPlateLocateTool.End();}
         private void Update_Click(object sender,RoutedEventArgs e){Regenerate();}
         private void Cancel_Click(object sender,RoutedEventArgs e)
         {try{preview.Cancel();pipe=null;duct=null;elbow=null;dirty=false;ConfirmButton.IsEnabled=false;
-            UpdateButton.Content="更新预览";PreviewText.Text="已取消预览。";}catch(Exception ex){Status(ex.Message,true);}}
+            PreviewUpdateHint.Set(UpdateButton,false);PreviewText.Text="已取消预览。";}catch(Exception ex){Status(ex.Message,true);}}
         private async void Confirm_Click(object sender,RoutedEventArgs e)
         {
             if(dirty){Status("请先更新预览。",true);return;}
             ConfirmButton.IsEnabled=false;Status("正在写入垫板清单…",false);
             await Dispatcher.Yield(DispatcherPriority.Background);
-            var timer=Stopwatch.StartNew();
-            try{preview.Confirm();pipe=null;duct=null;elbow=null;PreviewText.Text="已确认生成并写入清单，可继续点选。";
-                Status("垫板已生成（"+timer.Elapsed.TotalSeconds.ToString("0.0")+" 秒）。",false);}
+
+            try{string writeElapsed=WriteDuration.Measure(preview.Confirm);pipe=null;duct=null;elbow=null;PreviewText.Text="已确认生成并写入清单，可继续点选。";
+                PreviewText.Text += " 写入耗时 "+writeElapsed+"。";
+                Status("垫板已生成；写入耗时 "+writeElapsed+"。",false);}
             catch(Exception ex){ConfirmButton.IsEnabled=preview.HasPreview;Status("确认失败："+ex.Message,true);}
         }
         private static void Status(string message,bool error)

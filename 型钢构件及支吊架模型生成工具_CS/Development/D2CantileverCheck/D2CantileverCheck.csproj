@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><LangVersion>7.3</LangVersion></PropertyGroup><ItemGroup>
+<Compile Include="../../Domain/G11Cantilever/G11CantileverModels.cs" Link="G11CantileverModels.cs"/>
+<Compile Include="../../Data/G11Cantilever/G11CantileverCatalog.cs" Link="G11CantileverCatalog.cs"/>
+<Compile Include="../../Services/G11Cantilever/G11CantileverCalculator.cs" Link="G11CantileverCalculator.cs"/>
+<Compile Include="../../Domain/D2Cantilever/D2CantileverModels.cs" Link="D2CantileverModels.cs"/>
+<Compile Include="../../Data/D2Cantilever/D2CantileverCatalog.cs" Link="D2CantileverCatalog.cs"/>
+<Compile Include="../../Services/D2Cantilever/D2CantileverCalculator.cs" Link="D2CantileverCalculator.cs"/>
+<Compile Include="../../Domain/G2Anchor/G2AnchorModels.cs" Link="G2AnchorModels.cs"/>
+<Compile Include="../../Data/G2Anchor/G2AnchorCatalog.cs" Link="G2AnchorCatalog.cs"/>
+<Compile Include="../../Services/G2Anchor/G2AnchorCalculator.cs" Link="G2AnchorCalculator.cs"/>
+<Compile Include="../../Domain/ProfileModels.cs" Link="ProfileModels.cs"/>
+<Compile Include="../../Data/ProfileLookup.cs" Link="ProfileLookup.cs"/>
+<Compile Include="../../Data/RuntimeData.cs" Link="RuntimeData.cs"/>
+<EmbeddedResource Include="../../Resources/profiles.bin" LogicalName="SteelSectionProbe.profiles.bin"/></ItemGroup></Project>

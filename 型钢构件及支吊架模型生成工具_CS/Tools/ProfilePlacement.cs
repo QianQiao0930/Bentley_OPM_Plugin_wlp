@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Runtime.InteropServices;
 using Bentley.DgnPlatformNET.Elements;
 using Bentley.Interop.MicroStationDGN;
@@ -65,10 +65,10 @@ namespace SteelSectionProbe
                     point.Z * info.UorPerMaster,
                     info.UorPerMeter / 1000.0);
                 if (shape == null) throw new InvalidOperationException("截面元素创建失败");
-                shape.AddToModel();
+                string elapsed=WriteDuration.Measure(()=>{shape.AddToModel();});
                 app.ShowPrompt(profile.Name + " 已放置；继续点取或右键重置结束");
                 if (SteelSectionPage.Current != null)
-                    SteelSectionPage.Current.SetStatus("已放置 " + profile.Name + "。可继续点取，右键重置结束。", false);
+                    SteelSectionPage.Current.SetStatus("已放置 " + profile.Name + "；写入耗时 "+elapsed+"。可继续点取，右键重置结束。", false);
             }
             catch (Exception ex)
             {

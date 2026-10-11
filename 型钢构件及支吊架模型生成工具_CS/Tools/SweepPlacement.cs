@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Runtime.InteropServices;
 using Bentley.DgnPlatformNET;
 using Bentley.MstnPlatformNET;
@@ -53,9 +53,9 @@ namespace SteelSectionProbe
             double x=a.X-b.X,y=a.Y-b.Y,z=a.Z-b.Z;
             return Math.Sqrt(x*x+y*y+z*z);
         }
-        internal static void Confirm(bool removePath)
+        internal static string Confirm(bool removePath)
         {
-            if(preview==null) return;
+            if(preview==null) return WriteDuration.Format(0);
             var dialog=SteelSectionPage.Current;
             ulong id=checked((ulong)preview.ID64);
             var elementId=new ElementId(ref id);
@@ -63,11 +63,12 @@ namespace SteelSectionProbe
             if(native==null) throw new InvalidOperationException("找不到扫掠实体，无法写入统计信息");
             var info=Session.Instance.GetActiveDgnModel().GetModelInfo();
             double lengthMm=path.AsChainableElement().Length*info.UorPerMaster/(info.UorPerMeter/1000.0);
-            Statistics.Attach(native,dialog.Family,dialog.Profile,lengthMm);
+            string elapsed=WriteDuration.Measure(()=>Statistics.Attach(native,dialog.Family,dialog.Profile,lengthMm));
             preview=null;
             if(removePath && path!=null && path.IsValid) app.ActiveModelReference.RemoveElement(path);
             path=null;
             if(dialog!=null) dialog.NotifyPreviewState();
+            return elapsed;
         }
         internal static void Cancel()
         {

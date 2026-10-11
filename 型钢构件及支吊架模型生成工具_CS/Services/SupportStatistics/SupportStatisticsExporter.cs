@@ -40,7 +40,12 @@ namespace SteelSectionProbe
         }
         internal static void WriteExcel(string path,SupportStatisticsSnapshot report)
         {
-            var sheets=Sheets(report);
+            WriteWorkbook(path, Sheets(report));
+        }
+
+        /// <summary>共用 Excel 包写入；各模块提供自己的表名及行数据。</summary>
+        internal static void WriteWorkbook(string path, List<KeyValuePair<string, List<object[]>>> sheets)
+        {
             using(var file=File.Create(path))
             using(var zip=new ZipArchive(file,ZipArchiveMode.Create))
             {

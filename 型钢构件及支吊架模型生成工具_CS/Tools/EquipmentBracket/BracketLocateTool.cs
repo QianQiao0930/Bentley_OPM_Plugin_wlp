@@ -10,7 +10,8 @@ namespace SteelSectionProbe
         private static bool snap,locate;
         internal static event Action<LocatedElement> Picked;
         internal static event Action Ended;
-        private BracketLocateTool():base(0,0){}
+        private readonly string prompt;
+        private BracketLocateTool(string instruction):base(0,0){prompt=instruction;}
         protected override RefLocateOption GetReferenceLocateOptions()
         {return RefLocateOption.TreatAsElement;}
         protected override bool OnPostLocate(HitPath path,out string reason)
@@ -21,9 +22,11 @@ namespace SteelSectionProbe
             return false;
         }
         internal static void Begin()
+        {Begin("请选择一条水平辅助线，左键生成三角架预览；右键退出。");}
+        internal static void Begin(string instruction)
         {
             if(active!=null){AccuSnap.SnapEnabled=true;AccuSnap.LocateEnabled=true;return;}
-            var created=new BracketLocateTool();
+            var created=new BracketLocateTool(instruction);
             snap=AccuSnap.SnapEnabled;locate=AccuSnap.LocateEnabled;active=created;
             try {created.InstallTool();AccuSnap.SnapEnabled=true;AccuSnap.LocateEnabled=true;}
             catch {active=null;AccuSnap.SnapEnabled=snap;AccuSnap.LocateEnabled=locate;throw;}
@@ -38,7 +41,7 @@ namespace SteelSectionProbe
         protected override void OnPostInstall()
         {
             base.OnPostInstall();
-            NotificationManager.OutputPrompt("请选择一条水平辅助线，左键生成三角架预览；右键退出。");
+            NotificationManager.OutputPrompt(prompt);
         }
         protected override bool OnDataButton(DgnButtonEvent ev)
         {

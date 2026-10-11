@@ -230,8 +230,8 @@ namespace SteelSectionProbe
             }
             try
             {
-                SweepPlacement.Confirm(DeletePathCheckBox.IsChecked == true);
-                SetStatus("扫掠实体已保留并写入统计信息。", false);
+                string elapsed=SweepPlacement.Confirm(DeletePathCheckBox.IsChecked == true);
+                SetStatus("扫掠实体已保留并写入统计信息；写入耗时 "+elapsed+"。", false);
                 RefreshActionState();
             }
             catch (Exception ex) { SetStatus(ex.Message, true); }

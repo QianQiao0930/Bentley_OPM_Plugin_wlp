@@ -21,7 +21,7 @@ namespace SteelSectionProbe
             // 新增小管径后列表索引会移动；按实际 DN 保存，兼容旧文件中的 T4DnIndex。
             public int? T4Dn;
             public string A2Insulation="0",E1Material="",K1Width="100",K1Material="Q235B";
-            public string T4Insulation="50",T4Length="300",T4Name="T4",T4Temp="",T4Material="",T4F="";
+            public string T4Insulation="50",T4Length="300",T4Name="T4",T4Temp="A",T4Material="C1",T4F="";
             public bool E1Stainless,T4Pipe,T4InsulationBuild;
         }
         private static string FilePath

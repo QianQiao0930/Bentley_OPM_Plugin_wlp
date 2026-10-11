@@ -8,15 +8,18 @@ namespace SteelSectionProbe
     internal sealed class NozzlePreviewSession
     {
         private Element preview;
+        internal string WriteElapsed { get; private set; }
         internal bool HasPreview { get { return preview!=null; } }
         internal void Regenerate(NozzlePlan plan,DPoint3d origin)
         {
             var replacement=NozzleBuilder.Build(plan,origin);
-            var status=replacement.AddToModel();
+            string elapsed;
+            var status=WriteDuration.Measure(replacement.AddToModel,out elapsed);
             if(status!=StatusInt.Success) throw new InvalidOperationException("写入管口预览失败："+status);
             try { DeleteOwned(preview); }
             catch { DeleteOwned(replacement);throw; }
             preview=replacement;
+            WriteElapsed=elapsed;
         }
         internal void Confirm()
         {

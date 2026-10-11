@@ -111,13 +111,14 @@ namespace SteelSectionProbe
             }
             catch(Exception ex) { SetStatus("无法开始点取："+ex.Message,true); }
         }
-        private void OnPlaced(DPoint3d origin,double headingDegrees)
+        private void OnPlaced(DPoint3d origin,double headingDegrees,string elapsed)
         {
             if(!active) return;
             HeadingText.Text=headingDegrees.ToString("0.#");
             SaveLastChoice();
             PreviewText.Text="已放置人孔（朝向 "+headingDegrees.ToString("0.#")+"°）。可再次点取位置放置下一处。";
-            SetStatus("罐壁人孔已放置。",false);
+            PreviewText.Text+=" 写入耗时 "+elapsed+"。";
+            SetStatus("罐壁人孔已放置；写入耗时 "+elapsed+"。",false);
         }
         private void OnEnded()
         {

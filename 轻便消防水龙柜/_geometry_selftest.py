@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """不依赖 Bentley 运行时的轻便消防水龙柜几何 / 器材清单自检。
 
-覆盖：柜体布局、卷盘与灭火器排布、棱柱截面顶点、15S202 第 53 页
-《主要器材表》8 项、BomJson 解析与跨柜合计。
+覆盖：柜体布局、卷盘与灭火器排布、华海灭火器外观配方（筒径/总高/软管）、
+型号容量解析与就近映射、棱柱截面顶点、15S202 第 53 页《主要器材表》8 项、
+BomJson 解析与跨柜合计。
 """
 
 import ast
@@ -22,9 +23,22 @@ FUNCTIONS = {
     "_cylinder_profile_points",
     "_cabinet_layout",
     "_reel_layout",
-    "_extinguisher_layout",
-    "_max_extinguisher_count",
+    "_ext_capacity_key",
+    "_ext_cell_name",
+    "distance",
+    "_hose_points",
+    "_ext_build_recipe",
+    "_ext_point_and_vector",
+    "_ext_box_frame",
+    "_parse_extinguisher_capacity",
+    "_extinguisher_overhang",
+    "_extinguisher_neighbor_gap",
+    "_extinguisher_span",
+    "_extinguisher_variant_key",
+    "_extinguisher_max_count",
     "_extinguisher_fit_error",
+    "_extinguisher_visual_spec_text",
+    "_extinguisher_layout",
     "_supply_layout",
     "_build_bom_rows",
     "_parse_bom_rows",
@@ -51,9 +65,14 @@ CONSTANTS = {
     "REEL_BACK_CLEARANCE",
     "DEFAULT_EXTINGUISHER_MODEL",
     "DEFAULT_EXTINGUISHER_QUANTITY",
-    "EXTINGUISHER_DIAMETER",
-    "EXTINGUISHER_HEIGHT",
-    "EXTINGUISHER_BOTTOM_GAP",
+    "EXTINGUISHER_SPECS",
+    "RED",
+    "BLACK",
+    "METAL",
+    "WHITE",
+    "LABEL",
+    "EXTINGUISHER_BAY_CLEARANCE",
+    "EXTINGUISHER_MIN_NEIGHBOR_GAP",
     "SUPPLY_PIPE_RADIUS",
     "SUPPLY_PIPE_OUTSIDE",
     "SUPPLY_PIPE_FROM_FRONT",
@@ -136,30 +155,83 @@ def main():
     assert reel_layout["y_back"] <= local["rear"]
     assert reel_layout["y_front"] > local["front"]
 
-    # 灭火器：数量由输入决定，默认 2 具，均布且不越界、不重叠。
-    bottle_list = bottles(local)
-    assert len(bottle_list) == geometry["DEFAULT_EXTINGUISHER_QUANTITY"] == 2
+    # 华海外观配方：五种规格的筒径 / 总高 / 喷射配置与软管长度。
+    specs = geometry["EXTINGUISHER_SPECS"]
+    recipe_fn = geometry["_ext_build_recipe"]
+    for key, (diameter, body_height) in (("2", (110.0, 360.0)), ("4", (130.0, 485.0)),
+                                         ("5", (140.0, 535.0)), ("6", (150.0, 575.0)),
+                                         ("8", (160.0, 605.0))):
+        built = recipe_fn(key)
+        bottle_part = next(p for p in built["parts"] if p["kind"] == "rounded_bottle")
+        _near(bottle_part["radius"] * 2.0, diameter)
+        lever = next(p for p in built["parts"] if p["name"] == "upper_squeeze_lever")
+        base, top, lever_x, lever_y = geometry["_ext_box_frame"](lever)
+        vertices = [tuple(origin[i] + dx * lever_x[i] + dy * lever_y[i] for i in range(3))
+                    for origin in (base, top)
+                    for dx in (0, lever["size"][0]) for dy in (0, lever["size"][1])]
+        _near(max(v[2] for v in vertices), body_height)
+        hoses = [p for p in built["parts"] if p["kind"] == "hose"]
+        if key == "2":
+            assert not hoses
+        else:
+            assert len(hoses) == 1
+            _near(built["hose_length"], 400.0)
+            assert all(geometry["distance"](a, b) > 1.0e-6
+                       for a, b in zip(hoses[0]["points"], hoses[0]["points"][1:]))
+
+    # 型号→容量解析：取最后一串数字，无有效数字用默认 4。
+    parse_capacity = geometry["_parse_extinguisher_capacity"]
+    assert parse_capacity("MFZ/ABC4") == 4
+    assert parse_capacity("MT7") == 7
+    assert parse_capacity("mf/abce5kg") == 5
+    assert parse_capacity(u"无型号") == 4
+
+    # 外观规格选择：就近映射，放不下时回退较小规格，都放不下返回 None。
+    variant = geometry["_extinguisher_variant_key"]
+    assert variant("MFZ/ABC4", 550.0, 160.0, 550.0, 2) == "4"
+    assert variant("MFZ/ABC4", 550.0, 160.0, 550.0, 3) == "4"
+    assert variant("MFZ/ABC5", 550.0, 160.0, 550.0, 3) == "4"    # 5kg×3 放不下 → 4kg
+    assert variant("MFZ/ABC6", 550.0, 160.0, 550.0, 2) == "5"    # 6kg 超净高 → 5kg
+    assert variant("MFZ/ABC8", 550.0, 160.0, 550.0, 1) == "5"    # 8kg 超净高 → 5kg
+    assert variant("MF/ABCE2", 550.0, 160.0, 550.0, 4) == "2"
+    assert variant("MFZ/ABC4", 550.0, 160.0, 550.0, 0) == "4"
+    assert variant("MFZ/ABC4", 300.0, 160.0, 300.0, 1) is None   # 净高连 2kg 都不够
+
+    # 灭火器排布：等距成组居中，落在底板上，瓶顶不越隔板，软管外伸不穿侧壁。
+    bottle_list = bottles(local, 2, "4")
+    assert len(bottle_list) == 2
+    wall = geometry["WALL_THICKNESS"]
+    clearance = geometry["EXTINGUISHER_BAY_CLEARANCE"]
+    spec4 = specs["4"]
+    gap4 = geometry["_extinguisher_neighbor_gap"](spec4)
     for bottle in bottle_list:
-        _near(bottle["radius"], geometry["EXTINGUISHER_DIAMETER"] / 2.0)
-        assert bottle["bottom_z"] >= local["bottom"]
+        _near(bottle["radius"], 65.0)
+        _near(bottle["bottom_z"], wall)
         assert bottle["top_z"] <= local["divider_z"], "瓶体不得穿出隔板"
-        assert bottle["center_x"] - bottle["radius"] >= local["left"]
-        assert bottle["center_x"] + bottle["radius"] <= local["right"]
+        assert bottle["center_x"] - bottle["radius"] >= local["left"] + wall
+        assert bottle["center_y"] == local["front"] + local["depth"] / 2.0
     centers = [bottle["center_x"] for bottle in bottle_list]
     assert centers == sorted(centers)
-    for first, second in zip(centers, centers[1:]):
-        assert second - first >= geometry["EXTINGUISHER_DIAMETER"], "相邻灭火器应留有间隙"
-    assert len(bottles(local, count=1)) == 1
-    assert bottles(local, count=0) == []
+    _near(centers[1] - centers[0], 130.0 + gap4)
+    assert len(bottles(local, 1, "4")) == 1
+    assert bottles(local, 0, "4") == []
+    assert bottles(local, 2, None) == []
 
-    # 灭火器数量校验：默认柜宽最多 3 具，超出报错。
-    max_count = geometry["_max_extinguisher_count"]
+    # 软管外伸不得穿出侧壁。
+    rightmost = centers[-1] + 65.0 + geometry["_extinguisher_overhang"](spec4)
+    assert rightmost <= local["right"] - wall - clearance, "软管外伸不得穿出侧壁"
+
+    # 灭火器数量校验：默认 4kg 最多 3 具，2kg 最多 4 具，5kg 最多 2 具。
+    max_count = geometry["_extinguisher_max_count"]
     fit_error = geometry["_extinguisher_fit_error"]
-    assert max_count(550.0) == 3
-    assert fit_error(550.0, 3) is None
-    assert fit_error(550.0, 4) is not None
-    assert fit_error(550.0, -1) is not None
-    assert fit_error(550.0, "abc") is not None
+    assert max_count("MFZ/ABC4", 550.0, 160.0, 550.0) == 3
+    assert max_count("MF/ABCE2", 550.0, 160.0, 550.0) == 4
+    assert max_count("MFZ/ABC5", 550.0, 160.0, 550.0) == 2
+    assert fit_error(550.0, 160.0, 550.0, "MFZ/ABC4", 3) is None
+    assert fit_error(550.0, 160.0, 550.0, "MFZ/ABC4", 4) is not None
+    assert fit_error(550.0, 160.0, 550.0, "MFZ/ABC4", -1) is not None
+    assert fit_error(550.0, 160.0, 550.0, "MFZ/ABC4", "abc") is not None
+    assert fit_error(550.0, 160.0, 550.0, "MFZ/ABC4", 0) is None
 
     # 卷盘给水管：DN25，位于隔板上方 100（图集 I-I），自柜体左侧伸出。
     supply_layout = supply(local)

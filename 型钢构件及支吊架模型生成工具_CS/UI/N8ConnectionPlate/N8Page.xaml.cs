@@ -63,7 +63,7 @@ namespace SteelSectionProbe
             active=false;G2AnchorLocateTool.Picked-=OnPicked;G2AnchorLocateTool.Ended-=OnEnded;
             if(locating)G2AnchorLocateTool.End();locating=false;
             try {preview.Cancel();}catch(Exception ex){Status(ex.Message,true);}
-            point=null;ConfirmButton.IsEnabled=false;
+            point=null;PreviewUpdateHint.Set(UpdateButton,false);ConfirmButton.IsEnabled=false;
         }
         private N8Plan Plan()
         {
@@ -88,11 +88,12 @@ namespace SteelSectionProbe
         private void Regenerate()
         {
             if(!point.HasValue)return;
+            PreviewUpdateHint.Set(UpdateButton,true);
             try
             {
                 var plan=Plan();preview.Show(plan,point.Value);
                 PreviewText.Text="预览："+plan.Number+"；"+plan.Specification;
-                ConfirmButton.IsEnabled=true;Status("N8 预览已生成。",false);
+                ConfirmButton.IsEnabled=true;PreviewUpdateHint.Set(UpdateButton,false);Status("N8 预览已生成。",false);
             }
             catch(Exception ex){ConfirmButton.IsEnabled=false;Status(ex.Message,true);}
         }
@@ -107,16 +108,17 @@ namespace SteelSectionProbe
         private void OnEnded()
         {
             locating=false;try{preview.Cancel();}catch(Exception ex){Status(ex.Message,true);}
-            point=null;ConfirmButton.IsEnabled=false;PreviewText.Text="已结束点取。";
+            point=null;PreviewUpdateHint.Set(UpdateButton,false);ConfirmButton.IsEnabled=false;PreviewText.Text="已结束点取。";
         }
         private void Pick_Click(object sender,RoutedEventArgs e)
         {try{G2AnchorLocateTool.Begin();locating=true;}catch(Exception ex){Status(ex.Message,true);}}
         private void End_Click(object sender,RoutedEventArgs e){G2AnchorLocateTool.End();}
         private void Update_Click(object sender,RoutedEventArgs e){Regenerate();}
         private void Cancel_Click(object sender,RoutedEventArgs e)
-        {try{preview.Cancel();point=null;ConfirmButton.IsEnabled=false;}catch(Exception ex){Status(ex.Message,true);}}
+        {try{preview.Cancel();point=null;PreviewUpdateHint.Set(UpdateButton,false);ConfirmButton.IsEnabled=false;}catch(Exception ex){Status(ex.Message,true);}}
         private void Confirm_Click(object sender,RoutedEventArgs e)
-        {try{preview.Confirm();point=null;ConfirmButton.IsEnabled=false;Status("N8 已生成。",false);}
+        {try{string writeElapsed=WriteDuration.Measure(preview.Confirm);point=null;PreviewUpdateHint.Set(UpdateButton,false);ConfirmButton.IsEnabled=false;PreviewText.Text += " 写入耗时 "+writeElapsed+"。";
+                Status("N8 已生成；写入耗时 "+writeElapsed+"。",false);}
          catch(Exception ex){Status(ex.Message,true);}}
         private static void Status(string value,bool error)
         {if(MainWindow.Current!=null)MainWindow.Current.SetStatus(value,error);}

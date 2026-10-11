@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Bentley.DgnPlatformNET;
 using Bentley.DgnPlatformNET.Elements;
 using Bentley.GeometryNET;
@@ -7,14 +7,17 @@ namespace SteelSectionProbe
     internal sealed class SquareManholePreviewSession
     {
         private Element preview;
+        internal string WriteElapsed { get; private set; }
         internal bool HasPreview {get{return preview!=null;}}
         internal void Regenerate(SquareManholePlan plan,DPoint3d origin)
         {
             var replacement=SquareManholeBuilder.Build(plan,origin);
-            var status=replacement.AddToModel();
+            string elapsed;
+            var status=WriteDuration.Measure(replacement.AddToModel,out elapsed);
             if(status!=StatusInt.Success)throw new InvalidOperationException("方形人孔预览写入失败："+status);
             try{Delete(preview);}catch{Delete(replacement);throw;}
             preview=replacement;
+            WriteElapsed=elapsed;
         }
         internal void Confirm()
         {

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -149,7 +149,7 @@ namespace SteelSectionProbe
             try{session.ReloadPipes(new List<string>());if(!BuildAndPreview())return;
                 if(session.Plan.ReadyCount==0){Status("没有需要移动的目标管。",false);return;}
                 applying=true;ApplyButton.IsEnabled=false;
-                var result=session.Apply();session.Preview.Clear();session.ReloadPipes(new List<string>());BuildAndPreview();
+                string elapsed;var result=WriteDuration.Measure(session.Apply,out elapsed);session.Preview.Clear();session.ReloadPipes(new List<string>());BuildAndPreview();
                 string summary=string.Format("移动 {0}，已对齐 {1}，跳过 {2}，失败 {3}。",result.MovedCount,result.AlreadyAlignedCount,result.SkippedCount,result.FailedCount);
                 var reasons=result.Items.Where(x=>x.Outcome==PA.MoveOutcome.Skipped||x.Outcome==PA.MoveOutcome.Failed).Select(x=>x.Describe()).ToList();
                 if(!string.IsNullOrEmpty(result.FailureMessage))reasons.Add(result.FailureMessage);
@@ -159,7 +159,7 @@ namespace SteelSectionProbe
                     +"\n详细过程：%LOCALAPPDATA%\\PipeAlign\\PipeAlign_debug_log.txt";
                     MessageBox.Show(summary,"管道对齐执行失败",MessageBoxButton.OK,MessageBoxImage.Error);}
                 else if(reasons.Count>0)summary+="\n"+string.Join("\n",reasons.Take(3));
-                Status(summary,failed);
+                Status(summary+"\n写入耗时 "+elapsed+"。",failed);
             }catch(Exception ex){Status(ex.Message,true);MessageBox.Show(ex.Message,"管道对齐执行失败",MessageBoxButton.OK,MessageBoxImage.Error);}
             finally{applying=false;ApplyButton.IsEnabled=true;}
         }

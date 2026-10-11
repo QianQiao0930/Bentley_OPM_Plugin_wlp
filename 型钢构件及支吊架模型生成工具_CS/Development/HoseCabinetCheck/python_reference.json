@@ -1,0 +1,688 @@
+[
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC2",
+    "Quantity": 0,
+    "Valid": true,
+    "VisualCapacity": 0
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC2",
+    "Quantity": 1,
+    "Valid": true,
+    "VisualCapacity": 2
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC2",
+    "Quantity": 2,
+    "Valid": true,
+    "VisualCapacity": 2
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC2",
+    "Quantity": 3,
+    "Valid": true,
+    "VisualCapacity": 2
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC2",
+    "Quantity": 4,
+    "Valid": true,
+    "VisualCapacity": 2
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC2",
+    "Quantity": 5,
+    "Valid": false,
+    "VisualCapacity": 0
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC2",
+    "Quantity": 6,
+    "Valid": false,
+    "VisualCapacity": 0
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC4",
+    "Quantity": 0,
+    "Valid": true,
+    "VisualCapacity": 0
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC4",
+    "Quantity": 1,
+    "Valid": true,
+    "VisualCapacity": 4
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC4",
+    "Quantity": 2,
+    "Valid": true,
+    "VisualCapacity": 4
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC4",
+    "Quantity": 3,
+    "Valid": true,
+    "VisualCapacity": 4
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC4",
+    "Quantity": 4,
+    "Valid": false,
+    "VisualCapacity": 2
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC4",
+    "Quantity": 5,
+    "Valid": false,
+    "VisualCapacity": 0
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC4",
+    "Quantity": 6,
+    "Valid": false,
+    "VisualCapacity": 0
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC5",
+    "Quantity": 0,
+    "Valid": true,
+    "VisualCapacity": 0
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC5",
+    "Quantity": 1,
+    "Valid": true,
+    "VisualCapacity": 5
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC5",
+    "Quantity": 2,
+    "Valid": true,
+    "VisualCapacity": 5
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC5",
+    "Quantity": 3,
+    "Valid": false,
+    "VisualCapacity": 4
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC5",
+    "Quantity": 4,
+    "Valid": false,
+    "VisualCapacity": 2
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC5",
+    "Quantity": 5,
+    "Valid": false,
+    "VisualCapacity": 0
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC5",
+    "Quantity": 6,
+    "Valid": false,
+    "VisualCapacity": 0
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC6",
+    "Quantity": 0,
+    "Valid": true,
+    "VisualCapacity": 0
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC6",
+    "Quantity": 1,
+    "Valid": true,
+    "VisualCapacity": 5
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC6",
+    "Quantity": 2,
+    "Valid": true,
+    "VisualCapacity": 5
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC6",
+    "Quantity": 3,
+    "Valid": false,
+    "VisualCapacity": 4
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC6",
+    "Quantity": 4,
+    "Valid": false,
+    "VisualCapacity": 2
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC6",
+    "Quantity": 5,
+    "Valid": false,
+    "VisualCapacity": 0
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC6",
+    "Quantity": 6,
+    "Valid": false,
+    "VisualCapacity": 0
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC8",
+    "Quantity": 0,
+    "Valid": true,
+    "VisualCapacity": 0
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC8",
+    "Quantity": 1,
+    "Valid": true,
+    "VisualCapacity": 5
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC8",
+    "Quantity": 2,
+    "Valid": true,
+    "VisualCapacity": 5
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC8",
+    "Quantity": 3,
+    "Valid": false,
+    "VisualCapacity": 4
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC8",
+    "Quantity": 4,
+    "Valid": false,
+    "VisualCapacity": 2
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC8",
+    "Quantity": 5,
+    "Valid": false,
+    "VisualCapacity": 0
+  },
+  {
+    "Width": 550,
+    "Model": "MFZ/ABC8",
+    "Quantity": 6,
+    "Valid": false,
+    "VisualCapacity": 0
+  },
+  {
+    "Width": 550,
+    "Model": "未知型号",
+    "Quantity": 0,
+    "Valid": true,
+    "VisualCapacity": 0
+  },
+  {
+    "Width": 550,
+    "Model": "未知型号",
+    "Quantity": 1,
+    "Valid": true,
+    "VisualCapacity": 4
+  },
+  {
+    "Width": 550,
+    "Model": "未知型号",
+    "Quantity": 2,
+    "Valid": true,
+    "VisualCapacity": 4
+  },
+  {
+    "Width": 550,
+    "Model": "未知型号",
+    "Quantity": 3,
+    "Valid": true,
+    "VisualCapacity": 4
+  },
+  {
+    "Width": 550,
+    "Model": "未知型号",
+    "Quantity": 4,
+    "Valid": false,
+    "VisualCapacity": 2
+  },
+  {
+    "Width": 550,
+    "Model": "未知型号",
+    "Quantity": 5,
+    "Valid": false,
+    "VisualCapacity": 0
+  },
+  {
+    "Width": 550,
+    "Model": "未知型号",
+    "Quantity": 6,
+    "Valid": false,
+    "VisualCapacity": 0
+  },
+  {
+    "Width": 550,
+    "Model": "型号2026-3",
+    "Quantity": 0,
+    "Valid": true,
+    "VisualCapacity": 0
+  },
+  {
+    "Width": 550,
+    "Model": "型号2026-3",
+    "Quantity": 1,
+    "Valid": true,
+    "VisualCapacity": 4
+  },
+  {
+    "Width": 550,
+    "Model": "型号2026-3",
+    "Quantity": 2,
+    "Valid": true,
+    "VisualCapacity": 4
+  },
+  {
+    "Width": 550,
+    "Model": "型号2026-3",
+    "Quantity": 3,
+    "Valid": true,
+    "VisualCapacity": 4
+  },
+  {
+    "Width": 550,
+    "Model": "型号2026-3",
+    "Quantity": 4,
+    "Valid": false,
+    "VisualCapacity": 2
+  },
+  {
+    "Width": 550,
+    "Model": "型号2026-3",
+    "Quantity": 5,
+    "Valid": false,
+    "VisualCapacity": 0
+  },
+  {
+    "Width": 550,
+    "Model": "型号2026-3",
+    "Quantity": 6,
+    "Valid": false,
+    "VisualCapacity": 0
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC2",
+    "Quantity": 0,
+    "Valid": true,
+    "VisualCapacity": 0
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC2",
+    "Quantity": 1,
+    "Valid": true,
+    "VisualCapacity": 2
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC2",
+    "Quantity": 2,
+    "Valid": true,
+    "VisualCapacity": 2
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC2",
+    "Quantity": 3,
+    "Valid": true,
+    "VisualCapacity": 2
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC2",
+    "Quantity": 4,
+    "Valid": true,
+    "VisualCapacity": 2
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC2",
+    "Quantity": 5,
+    "Valid": true,
+    "VisualCapacity": 2
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC2",
+    "Quantity": 6,
+    "Valid": true,
+    "VisualCapacity": 2
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC4",
+    "Quantity": 0,
+    "Valid": true,
+    "VisualCapacity": 0
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC4",
+    "Quantity": 1,
+    "Valid": true,
+    "VisualCapacity": 4
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC4",
+    "Quantity": 2,
+    "Valid": true,
+    "VisualCapacity": 4
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC4",
+    "Quantity": 3,
+    "Valid": true,
+    "VisualCapacity": 4
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC4",
+    "Quantity": 4,
+    "Valid": true,
+    "VisualCapacity": 4
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC4",
+    "Quantity": 5,
+    "Valid": true,
+    "VisualCapacity": 4
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC4",
+    "Quantity": 6,
+    "Valid": false,
+    "VisualCapacity": 2
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC5",
+    "Quantity": 0,
+    "Valid": true,
+    "VisualCapacity": 0
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC5",
+    "Quantity": 1,
+    "Valid": true,
+    "VisualCapacity": 5
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC5",
+    "Quantity": 2,
+    "Valid": true,
+    "VisualCapacity": 5
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC5",
+    "Quantity": 3,
+    "Valid": true,
+    "VisualCapacity": 5
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC5",
+    "Quantity": 4,
+    "Valid": true,
+    "VisualCapacity": 5
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC5",
+    "Quantity": 5,
+    "Valid": false,
+    "VisualCapacity": 4
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC5",
+    "Quantity": 6,
+    "Valid": false,
+    "VisualCapacity": 2
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC6",
+    "Quantity": 0,
+    "Valid": true,
+    "VisualCapacity": 0
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC6",
+    "Quantity": 1,
+    "Valid": true,
+    "VisualCapacity": 5
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC6",
+    "Quantity": 2,
+    "Valid": true,
+    "VisualCapacity": 5
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC6",
+    "Quantity": 3,
+    "Valid": true,
+    "VisualCapacity": 5
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC6",
+    "Quantity": 4,
+    "Valid": true,
+    "VisualCapacity": 5
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC6",
+    "Quantity": 5,
+    "Valid": false,
+    "VisualCapacity": 4
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC6",
+    "Quantity": 6,
+    "Valid": false,
+    "VisualCapacity": 2
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC8",
+    "Quantity": 0,
+    "Valid": true,
+    "VisualCapacity": 0
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC8",
+    "Quantity": 1,
+    "Valid": true,
+    "VisualCapacity": 5
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC8",
+    "Quantity": 2,
+    "Valid": true,
+    "VisualCapacity": 5
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC8",
+    "Quantity": 3,
+    "Valid": true,
+    "VisualCapacity": 5
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC8",
+    "Quantity": 4,
+    "Valid": true,
+    "VisualCapacity": 5
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC8",
+    "Quantity": 5,
+    "Valid": false,
+    "VisualCapacity": 4
+  },
+  {
+    "Width": 900,
+    "Model": "MFZ/ABC8",
+    "Quantity": 6,
+    "Valid": false,
+    "VisualCapacity": 2
+  },
+  {
+    "Width": 900,
+    "Model": "未知型号",
+    "Quantity": 0,
+    "Valid": true,
+    "VisualCapacity": 0
+  },
+  {
+    "Width": 900,
+    "Model": "未知型号",
+    "Quantity": 1,
+    "Valid": true,
+    "VisualCapacity": 4
+  },
+  {
+    "Width": 900,
+    "Model": "未知型号",
+    "Quantity": 2,
+    "Valid": true,
+    "VisualCapacity": 4
+  },
+  {
+    "Width": 900,
+    "Model": "未知型号",
+    "Quantity": 3,
+    "Valid": true,
+    "VisualCapacity": 4
+  },
+  {
+    "Width": 900,
+    "Model": "未知型号",
+    "Quantity": 4,
+    "Valid": true,
+    "VisualCapacity": 4
+  },
+  {
+    "Width": 900,
+    "Model": "未知型号",
+    "Quantity": 5,
+    "Valid": true,
+    "VisualCapacity": 4
+  },
+  {
+    "Width": 900,
+    "Model": "未知型号",
+    "Quantity": 6,
+    "Valid": false,
+    "VisualCapacity": 2
+  },
+  {
+    "Width": 900,
+    "Model": "型号2026-3",
+    "Quantity": 0,
+    "Valid": true,
+    "VisualCapacity": 0
+  },
+  {
+    "Width": 900,
+    "Model": "型号2026-3",
+    "Quantity": 1,
+    "Valid": true,
+    "VisualCapacity": 4
+  },
+  {
+    "Width": 900,
+    "Model": "型号2026-3",
+    "Quantity": 2,
+    "Valid": true,
+    "VisualCapacity": 4
+  },
+  {
+    "Width": 900,
+    "Model": "型号2026-3",
+    "Quantity": 3,
+    "Valid": true,
+    "VisualCapacity": 4
+  },
+  {
+    "Width": 900,
+    "Model": "型号2026-3",
+    "Quantity": 4,
+    "Valid": true,
+    "VisualCapacity": 4
+  },
+  {
+    "Width": 900,
+    "Model": "型号2026-3",
+    "Quantity": 5,
+    "Valid": true,
+    "VisualCapacity": 4
+  },
+  {
+    "Width": 900,
+    "Model": "型号2026-3",
+    "Quantity": 6,
+    "Valid": false,
+    "VisualCapacity": 2
+  }
+]

@@ -8,7 +8,13 @@
 2. 在模型中点取柜体底部前侧中心点；
 3. 生成钢制柜体、隔板、消防水龙卷盘、灭火器、阀门、直流喷雾喷枪与柜门，
    柜门带观察窗及"轻便消防水龙柜 / 火警电话 119"标识；
-4. 通过 ItemType 保存《主要器材表》8 项器材，可统计当前模型器材数量，
+4. 下部储物区的灭火器不再使用简化圆柱示意，而是按华海 MF/ABCE 系列手提式
+   干粉灭火器的毫米几何配方（内联自 灭火器箱/华海灭火器_OPM，原文件不改）
+   生成外观模型：筒身圆角、锥形肩部、黑色底座、阀门、双手柄、销轴、压力表、
+   保险拉环、喷嘴/400mm 软管与标签板；每具为嵌套命名单元 HUAHAI_MF_ABCEx，
+   随柜体整体移动，也可单独选中。输入型号中的数字视为公称充装量，按就近
+   原则映射到 2/4/5/6/8 kg 外观规格（映射结果写入 ItemType）；
+5. 通过 ItemType 保存《主要器材表》8 项器材，可统计当前模型器材数量，
    并可导出 JSON / Excel 清单。
 
 坐标约定（单位均为 mm）：X=柜宽（默认 550），Y=进深（默认 160），
@@ -68,11 +74,30 @@ REEL_BACK_CLEARANCE = 5.0
 
 DEFAULT_EXTINGUISHER_MODEL = u'MFZ/ABC4'
 DEFAULT_EXTINGUISHER_QUANTITY = 2
-EXTINGUISHER_DIAMETER = 140.0
-EXTINGUISHER_HEIGHT = 460.0
-EXTINGUISHER_BOTTOM_GAP = 10.0
-EXTINGUISHER_NECK_DIAMETER = 40.0
-EXTINGUISHER_NECK_HEIGHT = 60.0
+
+# 下部储物区灭火器外观模型：内联改编自 灭火器箱/华海灭火器_OPM 的 specs.json
+# 与 huahai_geometry.py（MF/ABCE 手提式干粉系列，纯毫米配方，原有文件不改）。
+# 输入型号中的数字按就近原则映射到 2/4/5/6/8 kg 外观规格；默认隔板（Z=550）
+# 下净高最多容纳 5kg 外观（6/8kg 自动回退到放得下的较小规格）。
+EXTINGUISHER_SPECS = {
+    '2': {'model': 'MF/ABCE2', 'body_diameter': 110, 'total_height': 360,
+          'filled_weight_kg': 3.43, 'hose_diameter': 0, 'hose_length': 0},
+    '4': {'model': 'MF/ABCE4', 'body_diameter': 130, 'total_height': 485,
+          'filled_weight_kg': 6.26, 'hose_diameter': 18, 'hose_length': 400},
+    '5': {'model': 'MF/ABCE5', 'body_diameter': 140, 'total_height': 535,
+          'filled_weight_kg': 7.6, 'hose_diameter': 18, 'hose_length': 400},
+    '6': {'model': 'MF/ABCE6', 'body_diameter': 150, 'total_height': 575,
+          'filled_weight_kg': 9.1, 'hose_diameter': 18, 'hose_length': 400},
+    '8': {'model': 'MF/ABCE8', 'body_diameter': 160, 'total_height': 605,
+          'filled_weight_kg': 11.68, 'hose_diameter': 18, 'hose_length': 400},
+}
+RED = (204, 9, 6)
+BLACK = (18, 19, 20)
+METAL = (166, 168, 173)
+WHITE = (237, 240, 227)
+LABEL = (245, 242, 224)
+EXTINGUISHER_BAY_CLEARANCE = 2.0
+EXTINGUISHER_MIN_NEIGHBOR_GAP = 25.0
 
 # 卷盘给水支管：DN25，位于隔板上方 100（图集 I-I 的 100 标注），由柜体左侧
 # 穿出并带阀门、管套与螺纹接口。
@@ -187,49 +212,307 @@ def _reel_layout(layout, diameter=REEL_DIAMETER, center_from_left=REEL_CENTER_FR
     }
 
 
-def _max_extinguisher_count(width, diameter=EXTINGUISHER_DIAMETER, wall=WALL_THICKNESS):
-    """下部储物区按柜宽可容纳的灭火器最大数量（整具、不重叠）。"""
+# ---------------------------------------------------------------------------
+# 华海灭火器外观模型配方（内联自 灭火器箱/华海灭火器_OPM/huahai_geometry.py，
+# 原有文件保持不变；纯毫米几何，不依赖 Bentley 运行时）
+# ---------------------------------------------------------------------------
+
+def _ext_capacity_key(value):
+    key = str(value).strip().lower()
+    for unit in ('公斤', '千克', 'kg'):
+        key = key.replace(unit, '')
+    key = key.strip()
+    if key not in EXTINGUISHER_SPECS:
+        raise ValueError('请选择 2、4、5、6 或 8 kg。')
+    return key
+
+
+def _ext_cell_name(capacity):
+    return 'HUAHAI_MF_ABCE%s' % _ext_capacity_key(capacity)
+
+
+def distance(a, b):
+    return math.sqrt(sum((x-y)**2 for x, y in zip(a, b)))
+
+
+def _hose_points(anchors, steps=16):
+    """Cubic Hermite interpolation, sampled for native circular-section lofting."""
+    tangents = []
+    for i in range(len(anchors)):
+        a, b = anchors[max(0, i-1)], anchors[min(len(anchors)-1, i+1)]
+        divisor = 1.0 if i in (0, len(anchors)-1) else 2.0
+        tangents.append(tuple((y-x)/divisor for x, y in zip(a, b)))
+    result = []
+    for i in range(len(anchors)-1):
+        for j in range(steps):
+            t = j/float(steps)
+            h = (2*t**3-3*t*t+1, t**3-2*t*t+t,
+                 -2*t**3+3*t*t, t**3-t*t)
+            result.append(tuple(h[0]*anchors[i][k]+h[1]*tangents[i][k]
+                                +h[2]*anchors[i+1][k]+h[3]*tangents[i+1][k]
+                                for k in range(3)))
+    result.append(anchors[-1])
+    return result
+
+
+def _ext_build_recipe(capacity):
+    key = _ext_capacity_key(capacity)
+    spec = EXTINGUISHER_SPECS[key]
+    radius = spec['body_diameter']/2.0
+    scale = spec['body_diameter']/130.0
+    reference_top = 402+52.5*math.sin(math.radians(8))+2.5*math.cos(math.radians(8))
+    shoulder_z = spec['total_height']-(reference_top-299)*scale
+    offset = shoulder_z-299*scale
+    bottom, top = 8*scale, shoulder_z+9*scale
+    parts = []
+
+    def head(point):
+        x, y, z = point
+        return (x*scale, y*scale, z*scale+offset)
+
+    def cone(name, start, end, r0, r1, color):
+        parts.append(dict(kind='cone', name=name, start=start, end=end,
+                          r0=r0, r1=r1, color=color))
+
+    def box(name, center, size, color, tilt=0):
+        parts.append(dict(kind='box', name=name, center=center, size=size,
+                          tilt=tilt, color=color))
+
+    def head_box(name, center, size, color, tilt=0):
+        box(name, head(center), tuple(v*scale for v in size), color, tilt)
+
+    parts.append(dict(kind='rounded_bottle', name='red_cylinder', radius=radius,
+                      bottom=bottom, top=top, fillet=9*scale, color=RED))
+    cone('tapered_shoulder', (0,0,shoulder_z), (0,0,shoulder_z+49*scale),
+         radius, 19*scale, RED)
+    cone('black_base_foot', (0,0,0), (0,0,12*scale), radius, radius, BLACK)
+    cone('neck_collar', head((0,0,346)), head((0,0,361)), 19*scale, 19*scale, METAL)
+    head_box('valve_block', (0,0,370), (34,28,25), METAL)
+    head_box('fixed_carry_handle', (-38,0,386), (105,18,6), BLACK)
+    head_box('upper_squeeze_lever', (-35,0,402), (105,18,5), RED, 8)
+    cone('lever_pivot', head((4,13,390)), head((4,-13,390)), 5*scale, 5*scale, METAL)
+    cone('pressure_gauge_rim', head((0,-18,374)), head((0,-30,374)),
+         17*scale, 17*scale, BLACK)
+    cone('pressure_gauge_face', head((0,-30,374)), head((0,-32,374)),
+         14*scale, 14*scale, WHITE)
+    head_box('pressure_gauge_needle', (0,-32.5,378), (1.7,1,16), BLACK, 25)
+    parts.append(dict(kind='torus', name='safety_pull_ring',
+                      center=head((21,-18,388)), major=11*scale,
+                      minor=2*scale, color=METAL))
+    hose_length = 0.0
+    if spec['hose_length']:
+        y, start_z, hose_x = 8*scale, head((0,0,373))[2], radius+29*scale
+
+        def path(drop):
+            return _hose_points([(16*scale,y,start_z), (55*scale,y,start_z+3*scale),
+                                 (hose_x,y,start_z-22*scale),
+                                 (hose_x+4*scale,y,start_z-80*scale),
+                                 (hose_x+2*scale,y,start_z-drop*0.65),
+                                 (hose_x,y,start_z-drop)])
+
+        low, high = 100.0, 500.0
+        for _ in range(45):
+            drop = (low+high)/2
+            points = path(drop)
+            length = sum(distance(a,b) for a,b in zip(points, points[1:]))
+            if length < spec['hose_length']:
+                low = drop
+            else:
+                high = drop
+        drop = (low+high)/2
+        points = path(drop)
+        hose_length = sum(distance(a,b) for a,b in zip(points, points[1:]))
+        parts.append(dict(kind='hose', name='curved_black_discharge_hose',
+                          points=points, radius=spec['hose_diameter']/2.0, color=BLACK))
+        nozzle_bottom = start_z-drop-28*scale
+        cone('flared_discharge_nozzle', (hose_x,y,nozzle_bottom),
+             (hose_x,y,nozzle_bottom+30*scale), 13*scale, 9, BLACK)
+        box('hose_retaining_clip', (radius+14*scale,y,start_z-drop*0.6),
+            (30*scale,22*scale,12*scale), BLACK)
+    else:
+        cone('direct_discharge_nozzle_2kg', head((15,8,373)), head((43,8,373)),
+             7*scale, 12*scale, BLACK)
+    box('front_instruction_label', (0,-radius+0.5*scale,bottom+(top-bottom)*0.60),
+        (54*scale,3*scale,95*scale), LABEL)
+    return dict(capacity=key, spec=spec, name=_ext_cell_name(key), parts=parts,
+                hose_length=hose_length, scale=scale)
+
+
+def _ext_point_and_vector(origin, angle, units_per_mm):
+    """Return mm-to-UOR transforms; vectors exclude translation."""
+    if not math.isfinite(angle) or not math.isfinite(units_per_mm) or units_per_mm <= 0:
+        raise ValueError('角度或模型单位无效。')
+    if not all(math.isfinite(v) for v in origin):
+        raise ValueError('放置点无效。')
+    c, s = math.cos(math.radians(angle)), math.sin(math.radians(angle))
+
+    def vector(v):
+        x, y, z = v
+        return ((c*x-s*y)*units_per_mm, (s*x+c*y)*units_per_mm, z*units_per_mm)
+
+    def point(v):
+        return tuple(a+b for a,b in zip(origin, vector(v)))
+    return point, vector
+
+
+def _ext_box_frame(part):
+    """build123d's centered box followed by Rot(0, tilt, 0)."""
+    t = math.radians(part['tilt'])
+    x = (math.cos(t), 0, -math.sin(t))
+    y = (0,1,0)
+    z = (math.sin(t), 0, math.cos(t))
+    dx, dy, dz = part['size']
+    base = tuple(part['center'][i]-0.5*(dx*x[i]+dy*y[i]+dz*z[i]) for i in range(3))
+    top = tuple(base[i]+dz*z[i] for i in range(3))
+    return base, top, x, y
+
+
+def _parse_extinguisher_capacity(model_text, default=4):
+    """从型号字符串提取公称充装量：取最后一串数字；无有效数字时用默认 4。"""
+    runs = []
+    current = ''
+    for ch in str(model_text or ''):
+        if ch.isdigit():
+            current += ch
+        elif current:
+            runs.append(current)
+            current = ''
+    if current:
+        runs.append(current)
+    for run in reversed(runs):
+        value = int(run)
+        if 0 < value <= 20:
+            return value
+    return default
+
+
+def _extinguisher_overhang(spec):
+    """外观模型超出筒身投影的外伸长度（沿 +X 的喷射软管/喷嘴侧）。"""
+    diameter = float(spec['body_diameter'])
+    if spec['hose_length']:
+        return 33.0 * (diameter / 130.0) + spec['hose_diameter'] / 2.0
+    return max(0.0, 43.0 * (diameter / 130.0) - diameter / 2.0)
+
+
+def _extinguisher_neighbor_gap(spec, clearance=EXTINGUISHER_BAY_CLEARANCE):
+    """相邻两具灭火器筒壁间的净距：软管外伸 + 间隙，且不小于最小视觉间距。"""
+    return max(_extinguisher_overhang(spec) + clearance, EXTINGUISHER_MIN_NEIGHBOR_GAP)
+
+
+def _extinguisher_span(spec, count, clearance=EXTINGUISHER_BAY_CLEARANCE):
+    """count 具等距成组布置占用的总宽度（相邻留净距，含软管外伸）。"""
+    if count <= 0:
+        return 0.0
+    diameter = float(spec['body_diameter'])
+    return (count * diameter
+            + (count - 1) * _extinguisher_neighbor_gap(spec, clearance)
+            + _extinguisher_overhang(spec))
+
+
+def _extinguisher_variant_key(model_text, width, depth, divider_z,
+                              count=DEFAULT_EXTINGUISHER_QUANTITY,
+                              wall=WALL_THICKNESS, clearance=EXTINGUISHER_BAY_CLEARANCE):
+    """按输入型号就近选择华海外观规格，并要求能连数量一起放进下部储物区。
+
+    就近顺序：容量差最小者优先，并列取大规格。进深、隔板下净高、成组总宽
+    任一放不下则尝试下一规格；全部放不下返回 None（数量为 0 时仅查单具）。
+    """
+    capacity = _parse_extinguisher_capacity(model_text)
     interior_width = float(width) - 2.0 * wall
-    if diameter <= 0.0:
+    half_depth = (float(depth) - 2.0 * wall) / 2.0
+    available_height = float(divider_z) - wall - clearance
+    ordered = sorted(EXTINGUISHER_SPECS,
+                     key=lambda key: (abs(int(key) - capacity), -int(key)))
+    for key in ordered:
+        spec = EXTINGUISHER_SPECS[key]
+        diameter = float(spec['body_diameter'])
+        if diameter / 2.0 + clearance > half_depth:
+            continue
+        if float(spec['total_height']) > available_height:
+            continue
+        if count <= 0 or _extinguisher_span(spec, count, clearance) <= interior_width - 2.0 * clearance:
+            return key
+    return None
+
+
+def _extinguisher_max_count(model_text, width, depth, divider_z,
+                            wall=WALL_THICKNESS, clearance=EXTINGUISHER_BAY_CLEARANCE):
+    """该型号外观模型在下部储物区按宽度可容纳的最大具数。"""
+    variant_key = _extinguisher_variant_key(model_text, width, depth, divider_z,
+                                            1, wall, clearance)
+    if variant_key is None:
         return 0
-    return max(0, int(interior_width // diameter))
+    spec = EXTINGUISHER_SPECS[variant_key]
+    interior_width = float(width) - 2.0 * wall
+    count = 1
+    while (_extinguisher_span(spec, count + 1, clearance)
+           <= interior_width - 2.0 * clearance):
+        count += 1
+    return count
 
 
-def _extinguisher_fit_error(width, count, diameter=EXTINGUISHER_DIAMETER,
-                            wall=WALL_THICKNESS):
-    """数量超出下部储物区可容纳值时报错，否则返回 None。"""
+def _extinguisher_fit_error(width, depth, divider_z, model_text, count,
+                            wall=WALL_THICKNESS, clearance=EXTINGUISHER_BAY_CLEARANCE):
+    """型号或数量放不进下部储物区时报错，否则返回 None。"""
     try:
         count = int(count)
     except (TypeError, ValueError):
         return u'灭火器数量必须为整数。'
     if count < 0:
         return u'灭火器数量不能为负数。'
-    maximum = _max_extinguisher_count(width, diameter, wall)
+    if count == 0:
+        return None
+    maximum = _extinguisher_max_count(model_text, width, depth, divider_z,
+                                      wall, clearance)
+    if maximum <= 0:
+        return u'所选型号 %s 的灭火器外观模型放不进下部储物区，请改选较小规格或加大柜体。' % (
+            model_text,)
     if count > maximum:
-        return u'下部储物区最多可容纳 %d 具 φ%.0f 灭火器，请减小数量或加大柜宽。' % (
-            maximum, diameter)
+        return u'下部储物区最多可容纳 %d 具 %s（外观模型按华海规格就近映射），请减少数量或加大柜体。' % (
+            maximum, model_text)
     return None
 
 
-def _extinguisher_layout(layout, count=DEFAULT_EXTINGUISHER_QUANTITY,
-                         diameter=EXTINGUISHER_DIAMETER,
-                         body_height=EXTINGUISHER_HEIGHT, bottom_gap=EXTINGUISHER_BOTTOM_GAP,
-                         wall=WALL_THICKNESS):
-    """Evenly distribute `count` bottles across the interior width of the lower bay."""
-    if count <= 0:
+def _extinguisher_visual_spec_text(variant_key):
+    """ItemType / 清单使用的外观模型说明文字。"""
+    if variant_key is None:
+        return u'（无）'
+    spec = EXTINGUISHER_SPECS[variant_key]
+    return u'Ø%.0f×%.0f mm（华海 %s 外观简化模型）' % (
+        spec['body_diameter'], spec['total_height'], spec['model'])
+
+
+def _extinguisher_layout(layout, count, variant_key,
+                         wall=WALL_THICKNESS, clearance=EXTINGUISHER_BAY_CLEARANCE):
+    """将 count 具选定规格的灭火器等距成组、整体居中布置在下部储物区。
+
+    相邻筒壁净距取软管外伸与最小视觉间距的较大值；灭火器落在柜体底板上，
+    瓶顶不得越过隔板；瓶体标识与压力表朝 -Y（柜门方向）。
+    """
+    if count <= 0 or variant_key is None:
         return []
+    spec = EXTINGUISHER_SPECS[variant_key]
+    diameter = float(spec['body_diameter'])
+    total_height = float(spec['total_height'])
+    overhang = _extinguisher_overhang(spec)
+    gap = _extinguisher_neighbor_gap(spec, clearance)
     interior_left = layout['left'] + wall
-    interior_right = layout['right'] - wall
-    step = (interior_right - interior_left) / float(count)
-    bottom_z = layout['bottom'] + bottom_gap
-    top_z = bottom_z + body_height
+    interior_width = layout['right'] - layout['left'] - 2.0 * wall
+    span = _extinguisher_span(spec, count, clearance)
+    start = interior_left + (interior_width - span) / 2.0 + diameter / 2.0
+    bottom_z = layout['bottom'] + wall
     bottles = []
     for index in range(count):
         bottles.append({
-            'center_x': interior_left + step * (index + 0.5),
+            'center_x': start + index * (diameter + gap),
+            'center_y': (layout['front'] + layout['rear']) / 2.0,
             'bottom_z': bottom_z,
-            'top_z': top_z,
+            'top_z': bottom_z + total_height,
             'radius': diameter / 2.0,
+            'diameter': diameter,
+            'total_height': total_height,
+            'overhang': overhang,
+            'variant': variant_key,
         })
     return bottles
 
@@ -430,6 +713,10 @@ ITEM_PROPERTIES = (
     ('ExtinguisherModel', CustomProperty.Type1.eString),
     ('ExtinguisherQuantity', CustomProperty.Type1.eInteger),
     ('ExtinguisherUnit', CustomProperty.Type1.eString),
+    ('ExtinguisherVisualCell', CustomProperty.Type1.eString),
+    ('ExtinguisherVisualSpec', CustomProperty.Type1.eString),
+    ('ExtinguisherVisualDiameterMm', CustomProperty.Type1.eDouble),
+    ('ExtinguisherVisualHeightMm', CustomProperty.Type1.eDouble),
     ('CabinetQuantity', CustomProperty.Type1.eInteger),
     ('ComponentKinds', CustomProperty.Type1.eInteger),
     ('BomJson', CustomProperty.Type1.eString),
@@ -446,6 +733,23 @@ def _metadata(width, depth, height, lower_height,
               extinguisher_quantity=DEFAULT_EXTINGUISHER_QUANTITY):
     rows = _build_bom_rows(width, depth, height,
                            extinguisher_model, extinguisher_quantity)
+    variant_key = _extinguisher_variant_key(extinguisher_model, width, depth,
+                                            lower_height, extinguisher_quantity)
+    if variant_key is not None:
+        visual_spec = EXTINGUISHER_SPECS[variant_key]
+        visual = {
+            'ExtinguisherVisualCell': _ext_cell_name(variant_key),
+            'ExtinguisherVisualSpec': _extinguisher_visual_spec_text(variant_key),
+            'ExtinguisherVisualDiameterMm': float(visual_spec['body_diameter']),
+            'ExtinguisherVisualHeightMm': float(visual_spec['total_height']),
+        }
+    else:
+        visual = {
+            'ExtinguisherVisualCell': u'（无）',
+            'ExtinguisherVisualSpec': u'储物区放不下外观模型',
+            'ExtinguisherVisualDiameterMm': 0.0,
+            'ExtinguisherVisualHeightMm': 0.0,
+        }
     return {
         'ComponentName': u'轻便消防水龙柜',
         'CabinetModel': CABINET_MODEL,
@@ -464,6 +768,10 @@ def _metadata(width, depth, height, lower_height,
         'ExtinguisherModel': extinguisher_model,
         'ExtinguisherQuantity': int(extinguisher_quantity),
         'ExtinguisherUnit': u'具',
+        'ExtinguisherVisualCell': visual['ExtinguisherVisualCell'],
+        'ExtinguisherVisualSpec': visual['ExtinguisherVisualSpec'],
+        'ExtinguisherVisualDiameterMm': visual['ExtinguisherVisualDiameterMm'],
+        'ExtinguisherVisualHeightMm': visual['ExtinguisherVisualHeightMm'],
         'CabinetQuantity': 1,
         'ComponentKinds': len(rows),
         'BomJson': json.dumps(rows, ensure_ascii=False),
@@ -688,6 +996,129 @@ def _create_text(text, origin, text_height, dgn_model, orientation=None,
         return None
 
 
+def _extinguisher_check(status, operation, allow_void=False):
+    if status is None and allow_void:
+        return
+    if status != BentleyStatus.eSUCCESS:
+        raise RuntimeError('%s失败，Bentley 状态：%r' % (operation, status))
+
+
+def _build_extinguisher_cell(recipe, origin, angle, dgn_model):
+    """按毫米配方创建一具灭火器命名单元（内存中，未写入模型）。
+
+    改编自 华海灭火器_OPM/huahai_bentley.py 的 build_cell：配方由外部传入，
+    且不调用 AddToModel——单元将作为嵌套子单元加入柜体 Cell。
+    ``origin`` 为灭火器底部中心（UOR 坐标）。
+    """
+    units_per_mm = _uor_per_mm(dgn_model)
+    point_tuple, vector_tuple = _ext_point_and_vector(
+        (origin.x, origin.y, origin.z), angle, units_per_mm)
+
+    def p(v):
+        return DPoint3d(*point_tuple(v))
+
+    def v(vec):
+        return DVec3d(*vector_tuple(vec))
+
+    def direction(vec):
+        return DVec3d(*(a/units_per_mm for a in vector_tuple(vec)))
+
+    cell = EditElementHandle()
+    # 用命名单元接口指定底部中心为原点，避免匿名单元自动取范围中心。
+    _extinguisher_check(NormalCellHeaderHandler.CreateCellElement(
+        cell, recipe['name'], origin,
+        RotMatrix.FromAxisAndRotationAngle(2, math.radians(angle)),
+        True, dgn_model), '创建命名单元', allow_void=True)
+    if not cell.IsValid():
+        raise RuntimeError('Bentley 未创建有效的命名单元句柄。')
+    _extinguisher_check(NormalCellHeaderHandler.SetDescription(cell,
+        'Huahai %s kg / %s / diameter %s mm / height %s mm' %
+        (recipe['capacity'], recipe['spec']['model'], recipe['spec']['body_diameter'],
+         recipe['spec']['total_height'])), '设置单元说明')
+    colors = {}
+
+    def lathe(part):
+        # 圆柱上下边缘保留原脚本的 9*scale mm 真圆弧圆角。
+        r, f = part['radius'], part['fillet']
+        lo, hi = part['bottom'], part['top']
+        curve = CurveVector(CurveVector.eBOUNDARY_TYPE_Outer)
+
+        def line(a, b):
+            curve.Add(ICurvePrimitive.CreateLine(DSegment3d(p(a), p(b))))
+
+        line((0,0,lo), (r-f,0,lo))
+        curve.Add(ICurvePrimitive.CreateArc(DEllipse3d.FromVectors(
+            p((r-f,0,lo+f)), v((f,0,0)), v((0,0,f)), -math.pi/2, math.pi/2)))
+        line((r,0,lo+f), (r,0,hi-f))
+        curve.Add(ICurvePrimitive.CreateArc(DEllipse3d.FromVectors(
+            p((r-f,0,hi-f)), v((f,0,0)), v((0,0,f)), 0, math.pi/2)))
+        line((r-f,0,hi), (0,0,hi))
+        line((0,0,hi), (0,0,lo))
+        return ISolidPrimitive.CreateDgnRotationalSweep(DgnRotationalSweepDetail(
+            curve, p((0,0,0)), direction((0,0,1)), 2*math.pi, True))
+
+    def hose(part):
+        # 沿平滑中心线以圆截面生成一个封闭放样实体。截面一致朝向避免扭转。
+        points = part['points']
+        sections = CurveVectorPtrArray()
+        radius = part['radius']
+        for i, center in enumerate(points):
+            before, after = points[max(0,i-1)], points[min(len(points)-1,i+1)]
+            dx, dz = after[0]-before[0], after[2]-before[2]
+            length = math.hypot(dx, dz)
+            if length <= 1e-9:
+                raise RuntimeError('软管中心线有重复点。')
+            section = CurveVector(CurveVector.eBOUNDARY_TYPE_Outer)
+            section.Add(ICurvePrimitive.CreateArc(DEllipse3d.FromVectors(
+                p(center), v((0,radius,0)), v((-dz/length*radius,0,dx/length*radius)),
+                0, 2*math.pi)))
+            sections.append(section)
+        return ISolidPrimitive.CreateDgnRuledSweep(DgnRuledSweepDetail(sections, True))
+
+    for part in recipe['parts']:
+        kind = part['kind']
+        if kind == 'cone':
+            primitive = ISolidPrimitive.CreateDgnCone(DgnConeDetail(
+                p(part['start']), p(part['end']), part['r0']*units_per_mm,
+                part['r1']*units_per_mm, True))
+        elif kind == 'box':
+            base, top, x, y = _ext_box_frame(part)
+            dx, dy, dz = part['size']
+            primitive = ISolidPrimitive.CreateDgnBox(DgnBoxDetail(
+                p(base), p(top), direction(x), direction(y),
+                dx*units_per_mm, dy*units_per_mm, dx*units_per_mm, dy*units_per_mm, True))
+        elif kind == 'torus':
+            primitive = ISolidPrimitive.CreateDgnTorusPipe(DgnTorusPipeDetail(
+                p(part['center']), direction((1,0,0)), direction((0,0,1)),
+                part['major']*units_per_mm, part['minor']*units_per_mm, 2*math.pi, True))
+        elif kind == 'rounded_bottle':
+            primitive = lathe(part)
+        elif kind == 'hose':
+            primitive = hose(part)
+        else:
+            raise RuntimeError('未知几何：%s' % kind)
+        if primitive is None:
+            raise RuntimeError('生成实体失败：%s' % part['name'])
+        element = EditElementHandle()
+        _extinguisher_check(DraftingElementSchema.ToElement(element, primitive,
+                                                            None, dgn_model),
+                            part['name'])
+        if not element.IsValid():
+            raise RuntimeError('实体句柄无效：%s' % part['name'])
+        rgb = tuple(part['color'])
+        if rgb not in colors:
+            colors[rgb] = DgnColorMap.CreateElementColor(
+                IntColorDef(*rgb), None, None, ISessionMgr.GetActiveDgnFile())
+        props = ElementPropertiesSetter()
+        props.SetColor(colors[rgb])
+        props.SetWeight(1)
+        props.Apply(element)
+        _extinguisher_check(NormalCellHeaderHandler.AddChildElement(cell, element),
+                            '加入 '+part['name'])
+    _extinguisher_check(NormalCellHeaderHandler.AddChildComplete(cell), '完成灭火器单元')
+    return cell
+
+
 def _create_cabinet_cell(children, dgn_model):
     """Place all coloured parts as one orphan Cell that moves as one element."""
     cell = EditElementHandle()
@@ -737,7 +1168,8 @@ def create_light_hose_cabinet(origin=(0.0, 0.0, 0.0), width=DEFAULT_WIDTH,
     error = _validate_dimensions(width, depth, height, lower_height)
     if error is not None:
         raise ValueError(error)
-    error = _extinguisher_fit_error(width, extinguisher_quantity)
+    error = _extinguisher_fit_error(width, depth, lower_height,
+                                    extinguisher_model, extinguisher_quantity)
     if error is not None:
         raise ValueError(error)
 
@@ -782,25 +1214,49 @@ def create_light_hose_cabinet(origin=(0.0, 0.0, 0.0), width=DEFAULT_WIDTH,
     if shelf is not None:
         parts.append(shelf)
 
+    extinguisher_variant = None
+    extinguishers_placed = 0
+    extinguisher_fallback = False
     if with_equipment:
-        # 3) 下部储物区的灭火器（瓶体 + 瓶口），数量由用户输入。
-        for index, bottle in enumerate(_extinguisher_layout(
-                local, count=extinguisher_quantity)):
-            center_y = depth / 2.0
-            body = _create_prism_element(
-                place(bottle['center_x'], center_y, bottle['bottom_z']),
-                (0.0, 0.0, 1.0), bottle['radius'],
-                bottle['top_z'] - bottle['bottom_z'], dgn_model,
-                RED_COLOR_INDEX, 'extinguisher_%d' % (index + 1))
-            if body is not None:
-                parts.append(body)
-            neck = _create_prism_element(
-                place(bottle['center_x'], center_y, bottle['top_z']),
-                (0.0, 0.0, 1.0), EXTINGUISHER_NECK_DIAMETER / 2.0,
-                EXTINGUISHER_NECK_HEIGHT, dgn_model,
-                YELLOW_COLOR_INDEX, 'extinguisher_neck_%d' % (index + 1))
-            if neck is not None:
-                parts.append(neck)
+        # 3) 下部储物区的灭火器外观模型（华海 MF/ABCE 配方，嵌套命名单元）。
+        #    生成失败时回退为简化圆柱示意，不拖垮整个柜体放置。
+        if extinguisher_quantity > 0:
+            extinguisher_variant = _extinguisher_variant_key(
+                extinguisher_model, width, depth, lower_height,
+                extinguisher_quantity)
+            if extinguisher_variant is None:
+                _log('no fitting extinguisher visual model for %s x%d; skipping'
+                     % (extinguisher_model, extinguisher_quantity))
+            else:
+                recipe = _ext_build_recipe(extinguisher_variant)
+                try:
+                    for bottle in _extinguisher_layout(
+                            local, extinguisher_quantity, extinguisher_variant):
+                        world_x, world_y, world_z = place(
+                            bottle['center_x'], bottle['center_y'],
+                            bottle['bottom_z'])
+                        extinguisher_origin = DPoint3d(
+                            mm(world_x, dgn_model), mm(world_y, dgn_model),
+                            mm(world_z, dgn_model))
+                        extinguisher_cell = _build_extinguisher_cell(
+                            recipe, extinguisher_origin, 0.0, dgn_model)
+                        parts.append(extinguisher_cell)
+                        extinguishers_placed += 1
+                except Exception as error:
+                    _log('extinguisher visual model exception: %r' % error)
+                if extinguishers_placed < extinguisher_quantity:
+                    extinguisher_fallback = True
+                    for index in range(extinguishers_placed, extinguisher_quantity):
+                        bottle = _extinguisher_layout(
+                            local, extinguisher_quantity, extinguisher_variant)[index]
+                        body = _create_prism_element(
+                            place(bottle['center_x'], bottle['center_y'],
+                                  bottle['bottom_z']),
+                            (0.0, 0.0, 1.0), bottle['radius'],
+                            bottle['total_height'], dgn_model,
+                            RED_COLOR_INDEX, 'extinguisher_%d' % (index + 1))
+                        if body is not None:
+                            parts.append(body)
 
         # 4) 上部卷盘：轮毂 + 两片侧板，轴线沿 Y。
         reel = _reel_layout(local)
@@ -933,7 +1389,10 @@ def create_light_hose_cabinet(origin=(0.0, 0.0, 0.0), width=DEFAULT_WIDTH,
     return {'cell': cell, 'parts': tuple(parts), 'width': width,
             'depth': depth, 'height': height, 'lowerHeight': lower_height,
             'extinguisherModel': extinguisher_model,
-            'extinguisherQuantity': extinguisher_quantity}
+            'extinguisherQuantity': extinguisher_quantity,
+            'extinguisherVariant': extinguisher_variant,
+            'extinguishersPlaced': extinguishers_placed,
+            'extinguisherFallback': extinguisher_fallback}
 
 
 def _reel_center_z(layout):
@@ -1004,6 +1463,8 @@ def get_light_hose_cabinet_statistics():
             'componentKinds': int(_read_item_value(item, 'ComponentKinds', 'integer') or len(rows)),
             'extinguisherModel': _read_item_value(item, 'ExtinguisherModel', 'string'),
             'extinguisherQuantity': int(extinguisher_quantity),
+            'extinguisherVisualCell': _read_item_value(item, 'ExtinguisherVisualCell', 'string'),
+            'extinguisherVisualSpec': _read_item_value(item, 'ExtinguisherVisualSpec', 'string'),
         }
         records.append(record)
         key = record['cabinetModel']
@@ -1147,13 +1608,14 @@ def export_light_hose_cabinet_bom_xlsx(output_path=None):
 
     detail_rows = [[u'元素 ID', u'ItemType', u'柜型', u'宽度 mm', u'进深 mm',
                     u'高度 mm', u'柜数量', u'器材种类',
-                    u'灭火器型号', u'灭火器数量']]
+                    u'灭火器型号', u'灭火器数量', u'灭火器外观模型', u'外观模型规格']]
     for record in statistics['records']:
         detail_rows.append([
             record['elementId'], record['itemType'], record['cabinetModel'],
             record['widthMm'], record['depthMm'], record['heightMm'],
             record['cabinetQuantity'], record['componentKinds'],
             record['extinguisherModel'], record['extinguisherQuantity'],
+            record['extinguisherVisualCell'], record['extinguisherVisualSpec'],
         ])
 
     workbook_xml = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
@@ -1236,10 +1698,20 @@ class LightHoseCabinetPlacementTool(DgnPrimitiveTool):
                 u'轻便消防水龙柜生成或附加项写入失败，请查看轻便消防水龙柜_debug_log.txt。',
                 '', False)
         else:
+            if not self.with_equipment or self.extinguisher_quantity <= 0:
+                detail = u''
+            elif result.get('extinguishersPlaced') == self.extinguisher_quantity:
+                detail = u'灭火器外观模型采用华海 %s。' % _ext_cell_name(
+                    result['extinguisherVariant'])
+            elif result.get('extinguisherFallback'):
+                detail = u'注意：灭火器外观模型生成失败，已用简化圆柱示意，详见调试日志。'
+            else:
+                detail = u'注意：灭火器外观模型未能生成，详见调试日志。'
             MessageCenter.ShowInfoMessage(
-                u'已生成轻便消防水龙柜：%.0f×%.0f×%.0f mm，内含 %s 灭火器 %d 具。' %
+                u'已生成轻便消防水龙柜：%.0f×%.0f×%.0f mm，内含 %s 灭火器 %d 具。%s' %
                 (self.width, self.depth, self.height,
-                 self.extinguisher_model, self.extinguisher_quantity), '', False)
+                 self.extinguisher_model, self.extinguisher_quantity, detail),
+                '', False)
         return True
 
     def _OnResetButton(self, event):
@@ -1443,8 +1915,10 @@ def show_light_hose_cabinet_dialog():
     tk.Label(note_chip, textvariable=note, bg=CARD_SOFT, fg='#5B6B82',
              font=ui_font_small, wraplength=460, justify='left').pack(
                  anchor='w', padx=12, pady=8)
-    note.set(u'点取点为柜体底部前侧中心。灭火器型号与数量会写入 ItemType 并计入统计与导出；'
-             u'ItemType 另记录《主要器材表》8 项器材。')
+    note.set(u'点取点为柜体底部前侧中心。灭火器采用华海 MF/ABCE 外观模型（内含筒身'
+             u'圆角、阀门、手柄、压力表、软管等细节）：型号中的数字为公称充装量，'
+             u'按就近原则映射 2/4/5/6/8 kg 规格，映射结果写入 ItemType。'
+             u'型号与数量计入统计与导出。')
 
     def read_dimensions():
         return (float(width_value.get()), float(depth_value.get()),
@@ -1503,7 +1977,7 @@ def show_light_hose_cabinet_dialog():
         if error is not None:
             messagebox.showerror(u'参数错误', error, parent=root)
             return
-        error = _extinguisher_fit_error(width, quantity)
+        error = _extinguisher_fit_error(width, depth, lower_height, model, quantity)
         if error is not None:
             messagebox.showerror(u'参数错误', error, parent=root)
             return

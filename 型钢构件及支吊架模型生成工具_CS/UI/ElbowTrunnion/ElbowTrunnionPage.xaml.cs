@@ -10,7 +10,7 @@ namespace SteelSectionProbe
     {
         private readonly ElbowTrunnionPreviewSession preview=new ElbowTrunnionPreviewSession();
         private ElbowTrunnionSelection selection;
-        private bool ready,active;
+        private bool ready,active,settingExtent;
         private int pickVersion;
         public string PageId { get { return "elbow-trunnion"; } }
         public string PageTitle { get { return "弯头耳轴"; } }
@@ -35,21 +35,21 @@ namespace SteelSectionProbe
             UpdateVariant();
             PageLastInput.Restore(this,PageId,"ElbowCombo","TrunnionCombo","ExtentText",
                 "HollowCheck","WallText","PlateCombo","MaterialCombo","NamingUnitCombo",
-                "PtfeCheck","FlatCheck","OutletCheck");
+                "PtfeCheck","FlatCheck","OutletCheck","FixedLengthCheck");
         }
         public void OnActivated() { active=true; }
         public void OnDeactivated()
         {
             PageLastInput.Save(this,PageId,"ElbowCombo","TrunnionCombo","ExtentText",
                 "HollowCheck","WallText","PlateCombo","MaterialCombo","NamingUnitCombo",
-                "PtfeCheck","FlatCheck","OutletCheck");
+                "PtfeCheck","FlatCheck","OutletCheck","FixedLengthCheck");
             active=false;
             pickVersion++;
             ElbowTrunnionLocateTool.End();
             ElbowTrunnionDragTool.End();
             try { preview.Cancel(); }
             catch(Exception ex) { SetStatus(ex.Message,true); }
-            selection=null;
+            selection=null;PreviewUpdateHint.Set(UpdateButton,false);
             SelectionText.Text="尚未选择弯头。";
             LiveLengthText.Text="";
             PlanText.Text="";
@@ -73,7 +73,7 @@ namespace SteelSectionProbe
             ElbowTrunnionDragTool.End();
             try { preview.Cancel(); }
             catch(Exception ex) { SetStatus(ex.Message,true); }
-            selection=null;
+            selection=null;PreviewUpdateHint.Set(UpdateButton,false);
             SelectionText.Text="尚未选择弯头。";
             LiveLengthText.Text="";
             PlanText.Text="";
@@ -132,7 +132,7 @@ namespace SteelSectionProbe
                     throw new InvalidOperationException("请先打开三维 DGN 模型。");
                 ElbowTrunnionDragTool.End();
                 preview.Cancel();
-                selection=null;
+                selection=null;PreviewUpdateHint.Set(UpdateButton,false);
                 ConfirmButton.IsEnabled=false;
                 SelectionText.Text="等待点选 90° 弯头…";
                 LiveLengthText.Text="";
@@ -148,7 +148,7 @@ namespace SteelSectionProbe
             if (ElbowTrunnionDragTool.IsActive)
             {
                 ElbowTrunnionDragTool.End();
-                selection=null;
+                selection=null;PreviewUpdateHint.Set(UpdateButton,false);
                 LiveLengthText.Text="";
                 SelectionText.Text="已结束拉伸，未生成耳轴。";
             }
@@ -177,12 +177,18 @@ namespace SteelSectionProbe
                         (string.IsNullOrEmpty(candidate.MainDnNote)?"":"\n"+candidate.MainDnNote);
                     LiveLengthText.Text="移动鼠标拉伸取长；松开首击后，再左键固定长度。";
                     ConfirmButton.IsEnabled=false;
+                    if (FixedLengthCheck.IsChecked==true)
+                    {
+                        Regenerate();
+                        LiveLengthText.Text="固定长度模式：按输入的 H/L 生成预览。";
+                        return;
+                    }
                     ElbowTrunnionDragTool.Begin(candidate,options,view,x,y);
                     SetStatus("已进入拉伸取长：移动鼠标预览 H/L，下一次左键固定；右键取消。",false);
                 }
                 catch(Exception ex)
                 {
-                    selection=null;
+                    selection=null;PreviewUpdateHint.Set(UpdateButton,false);
                     SelectionText.Text="弯头读取或拉伸启动失败。";
                     LiveLengthText.Text="";
                     SetStatus(ex.Message,true);
@@ -206,13 +212,15 @@ namespace SteelSectionProbe
                 if (!active || version!=pickVersion || selection==null) return;
                 try
                 {
-                    ExtentText.Text=length.ToString("F1",CultureInfo.CurrentCulture);
+                    settingExtent=true;
+                    try { ExtentText.Text=length.ToString("F1",CultureInfo.CurrentCulture); }
+                    finally { settingExtent=false; }
                     var plan=ElbowTrunnionCalculator.Calculate(selection,Parameters());
                     preview.Regenerate(plan);
                     ShowPlan(plan);
                     LiveLengthText.Text=(plan.Parameters.Trunnion==TrunnionOrientation.Vertical?"高度 H":"长度 L")+
                         " 已固定为 "+length.ToString("F1",CultureInfo.InvariantCulture)+" mm。";
-                    ConfirmButton.IsEnabled=true;
+                    ConfirmButton.IsEnabled=true;PreviewUpdateHint.Set(UpdateButton,false);
                     SetStatus("已固定拉伸长度并生成可撤销预览；可调整参数或确认生成。",false);
                 }
                 catch(Exception ex)
@@ -227,7 +235,7 @@ namespace SteelSectionProbe
             Dispatcher.BeginInvoke(new Action(delegate
             {
                 if (!active) return;
-                selection=null;
+                selection=null;PreviewUpdateHint.Set(UpdateButton,false);
                 ConfirmButton.IsEnabled=false;
                 SelectionText.Text="已取消拉伸，未生成耳轴。";
                 LiveLengthText.Text="";
@@ -241,9 +249,28 @@ namespace SteelSectionProbe
                 if (active && ElbowTrunnionDragTool.IsActive) SetStatus(message,true);
             }));
         }
+        private void FixedLength_Changed(object sender,RoutedEventArgs e)
+        {
+            if (!ready) return;
+            pickVersion++;
+            ElbowTrunnionDragTool.End();
+            if (FixedLengthCheck.IsChecked==true)
+            {
+                if (selection!=null) Regenerate();
+                return;
+            }
+            // Re-pick establishes the originating view and starts a fresh axis constraint.
+            ElbowTrunnionLocateTool.End();
+            try { preview.Cancel(); }
+            catch(Exception ex) { ConfirmButton.IsEnabled=false;SetStatus(ex.Message,true);return; }
+            selection=null;ConfirmButton.IsEnabled=false;
+            PreviewUpdateHint.Set(UpdateButton,false);
+            LiveLengthText.Text="";PlanText.Text="";
+            SelectionText.Text="已切换拉伸模式，请重新点选弯头。";
+        }
         private void Parameter_Changed(object sender,RoutedEventArgs e)
         {
-            if (!ready || selection==null) return;
+            if (!ready || settingExtent || selection==null) return;
             if (ElbowTrunnionDragTool.IsActive)
             {
                 try { ElbowTrunnionDragTool.UpdateParameters(Parameters()); }
@@ -264,12 +291,14 @@ namespace SteelSectionProbe
         private void Regenerate()
         {
             if (selection==null) { SetStatus("请先点选弯头并完成拉伸。",true); return; }
+            PreviewUpdateHint.Set(UpdateButton,true);
+            ConfirmButton.IsEnabled=false;
             try
             {
                 var plan=ElbowTrunnionCalculator.Calculate(selection,Parameters());
                 preview.Regenerate(plan);
                 ShowPlan(plan);
-                ConfirmButton.IsEnabled=true;
+                ConfirmButton.IsEnabled=true;PreviewUpdateHint.Set(UpdateButton,false);
                 SetStatus("耳轴预览已更新。",false);
             }
             catch(Exception ex) { SetStatus("预览更新失败："+ex.Message,true); }
@@ -285,18 +314,20 @@ namespace SteelSectionProbe
         {
             try
             {
+                if (!ConfirmButton.IsEnabled) throw new InvalidOperationException("请先成功更新预览。");
                 if (ElbowTrunnionDragTool.IsActive)
                     throw new InvalidOperationException("请先左键固定拉伸长度。");
                 if (!preview.HasPreview || preview.CurrentPlan==null)
                     throw new InvalidOperationException("当前没有待确认的预览。");
                 string number=preview.CurrentPlan.AssemblyTag;
-                preview.Confirm();
-                selection=null;
+                string writeElapsed=WriteDuration.Measure(preview.Confirm);
+                selection=null;PreviewUpdateHint.Set(UpdateButton,false);
                 ConfirmButton.IsEnabled=false;
                 SelectionText.Text="已生成 "+number;
                 LiveLengthText.Text="";
                 PlanText.Text="";
-                SetStatus("已确认生成 "+number+"，并写入支吊架清单属性。",false);
+                SelectionText.Text += " 写入耗时 "+writeElapsed+"。";
+                SetStatus("已确认生成 "+number+"，并写入支吊架清单属性；写入耗时 "+writeElapsed+"。",false);
             }
             catch(Exception ex) { SetStatus("确认失败："+ex.Message,true); }
         }
@@ -306,7 +337,7 @@ namespace SteelSectionProbe
             ElbowTrunnionDragTool.End();
             try { preview.Cancel(); }
             catch(Exception ex) { SetStatus(ex.Message,true); return; }
-            selection=null;
+            selection=null;PreviewUpdateHint.Set(UpdateButton,false);
             ConfirmButton.IsEnabled=false;
             SelectionText.Text="尚未选择弯头。";
             LiveLengthText.Text="";

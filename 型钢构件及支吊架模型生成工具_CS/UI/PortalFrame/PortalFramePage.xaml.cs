@@ -40,7 +40,7 @@ namespace SteelSectionProbe
             active=false;PortalFrameLocateTool.Picked-=OnPicked;PortalFrameLocateTool.Ended-=OnEnded;
             if(locating)PortalFrameLocateTool.End();locating=false;
             try{preview.Cancel();}catch(Exception ex){Status(ex.Message,true);}
-            line=null;dirty=false;ConfirmButton.IsEnabled=false;UpdateButton.Content="更新预览";
+            line=null;dirty=false;ConfirmButton.IsEnabled=false;PreviewUpdateHint.Set(UpdateButton,false);
         }
         private string Kind{get{return PortalFrameCatalog.Kinds[Math.Max(0,KindCombo.SelectedIndex)];}}
         private char Variant{get{return PortalFrameCatalog.Variants(Kind)[Math.Max(0,VariantCombo.SelectedIndex)];}}
@@ -95,7 +95,7 @@ namespace SteelSectionProbe
         {if(!ready)return;UpdateKind(false);Changed();}
         private void Changed()
         {if(line==null)return;dirty=true;ConfirmButton.IsEnabled=false;
-            UpdateButton.Content="更新预览 ●";PreviewText.Text="参数已变更，请更新预览后再确定生成。";}
+            PreviewUpdateHint.Set(UpdateButton,true);PreviewText.Text="参数已变更，请更新预览后再确定生成。";}
         private static double Number(string text,string label)
         {double value;if(!double.TryParse(text,NumberStyles.Float,CultureInfo.CurrentCulture,out value)&&
             !double.TryParse(text,NumberStyles.Float,CultureInfo.InvariantCulture,out value))
@@ -133,7 +133,7 @@ namespace SteelSectionProbe
             {
                 ValidateLine(line);
                 var plan=PortalFrameCalculator.Calculate(Parameters(),LineHeightMm(line));
-                preview.Show(plan,line);dirty=false;UpdateButton.Content="更新预览";
+                preview.Show(plan,line);dirty=false;PreviewUpdateHint.Set(UpdateButton,false);
                 ConfirmButton.IsEnabled=true;
                 PreviewText.Text="编号："+plan.Number+"\n"+plan.AssemblySpecification+
                     (Kind=="D16"?"\nL2=" :"\n净距 B=")+plan.SpanMm.ToString("0.#")+(Kind=="D16"?" mm；构件 A 实长=":" mm；立柱下料=")+
@@ -167,7 +167,7 @@ namespace SteelSectionProbe
         private void OnEnded()
         {locating=false;try{preview.Cancel();}catch(Exception ex){Status(ex.Message,true);}
             line=null;dirty=false;ConfirmButton.IsEnabled=false;
-            PreviewText.Text="已结束点取。";UpdateButton.Content="更新预览";}
+            PreviewText.Text="已结束点取。";PreviewUpdateHint.Set(UpdateButton,false);}
         private void Pick_Click(object sender,RoutedEventArgs e)
         {try{if(PortalFrameLocateTool.IsActive&&locating){Status("可直接点取下一条辅助线。",false);return;}
             PortalFrameLocateTool.Begin(Kind=="D16");locating=true;}catch(Exception ex){Status(ex.Message,true);}}
@@ -175,24 +175,25 @@ namespace SteelSectionProbe
         private void Update_Click(object sender,RoutedEventArgs e){Regenerate();}
         private void Cancel_Click(object sender,RoutedEventArgs e)
         {try{preview.Cancel();line=null;dirty=false;ConfirmButton.IsEnabled=false;
-            UpdateButton.Content="更新预览";PreviewText.Text="已取消预览。";}
+            PreviewUpdateHint.Set(UpdateButton,false);PreviewText.Text="已取消预览。";}
             catch(Exception ex){Status(ex.Message,true);}}
         private async void Confirm_Click(object sender,RoutedEventArgs e)
         {
             if(dirty){Status("请先更新预览。",true);return;}
             ConfirmButton.IsEnabled=false;Status("正在写入门型架清单…",false);
             await Dispatcher.Yield(DispatcherPriority.Background);
-            var timer=Stopwatch.StartNew();
+
             try
             {
                 bool delete=line!=null&&line.IsAuxiliaryLine&&!line.IsFromReference&&
                     KeepLineCheck.IsChecked!=true;
                 ulong id=line==null?0:line.ElementId;
-                preview.Confirm();
+                string writeElapsed=WriteDuration.Measure(preview.Confirm);
                 if(delete)DeleteLine(id);
-                line=null;UpdateButton.Content="更新预览";
+                line=null;PreviewUpdateHint.Set(UpdateButton,false);
                 PreviewText.Text="已确认生成并写入清单，可继续点取下一条辅助线。";
-                Status("门型架已生成（"+timer.Elapsed.TotalSeconds.ToString("0.0")+" 秒）。",false);
+                PreviewText.Text += " 写入耗时 "+writeElapsed+"。";
+                Status("门型架已生成；写入耗时 "+writeElapsed+"。",false);
             }
             catch(Exception ex){ConfirmButton.IsEnabled=preview.HasPreview;
                 Status("确认失败："+ex.Message,true);}

@@ -26,7 +26,7 @@
    <WrapPanel>
     <Button Content="开始点取" Style="{StaticResource PrimaryButtonStyle}" Click="Pick_Click" Margin="0,0,8,8"/>
     <Button Content="结束点取" Style="{StaticResource SecondaryButtonStyle}" Click="End_Click" Margin="0,0,8,8"/>
-    <Button Content="更新预览" Style="{StaticResource SecondaryButtonStyle}" Click="Update_Click" Margin="0,0,8,8"/>
+    <Button x:Name="UpdateButton" Content="更新预览" Style="{StaticResource SecondaryButtonStyle}" Click="Update_Click" Margin="0,0,8,8"/>
    </WrapPanel>
    <TextBlock x:Name="PreviewText" Text="尚未点取位置。" TextWrapping="Wrap" Margin="0,4,0,12"/>
    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">

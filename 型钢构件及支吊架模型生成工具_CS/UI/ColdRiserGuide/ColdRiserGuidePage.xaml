@@ -38,7 +38,7 @@
             <TextBlock x:Name="ProcessText" Text="类型 1：点取标高 → XY 罗盘定方向 → 拉伸构件 A → 预览 → 确定。" TextWrapping="Wrap" Margin="0,0,0,8"/>
             <WrapPanel><Button Content="开始点取" Style="{StaticResource PrimaryButtonStyle}" Click="Pick_Click" Margin="0,0,8,8"/>
                 <Button Content="结束操作" Style="{StaticResource SecondaryButtonStyle}" Click="End_Click" Margin="0,0,8,8"/>
-                <Button Content="更新预览" Style="{StaticResource SecondaryButtonStyle}" Click="Update_Click" Margin="0,0,8,8"/></WrapPanel>
+                <Button x:Name="UpdateButton" Content="更新预览" Style="{StaticResource SecondaryButtonStyle}" Click="Update_Click" Margin="0,0,8,8"/></WrapPanel>
             <TextBlock x:Name="PreviewText" Text="尚未点取立管。" TextWrapping="Wrap" Margin="0,4,0,12"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button Content="取消预览" Style="{StaticResource SecondaryButtonStyle}" Click="Cancel_Click" Margin="0,0,8,0"/>

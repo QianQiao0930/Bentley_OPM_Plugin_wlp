@@ -51,7 +51,7 @@ namespace SteelSectionProbe
                 Connection=(HandrailConnection)(Math.Max(0,ConnectionCombo.SelectedIndex)+1),StructureOffsetMm=Number(OffsetText,"连接板距离")};
         }
         private void Parameter_Changed(object sender,RoutedEventArgs e)
-        {if(!ready||updating)return;if(ReferenceEquals(sender,InnerCheck))optionalInnerRailing=InnerCheck.IsChecked==true;ConfirmButton.IsEnabled=false;revision++;UpdateSpecification();}
+        {if(!ready||updating)return;if(ReferenceEquals(sender,InnerCheck))optionalInnerRailing=InnerCheck.IsChecked==true;ConfirmButton.IsEnabled=false;if(origin.HasValue)PreviewUpdateHint.Set(UpdateButton,true);revision++;UpdateSpecification();}
         private void UpdateSpecification()
         {
             updating=true;
@@ -90,7 +90,7 @@ namespace SteelSectionProbe
             var log=new SpiralStairLog();lastLogPath=log.FilePath;
             LogButton.IsEnabled=System.IO.File.Exists(lastLogPath);
             log.Write(stage,string.Format(CultureInfo.InvariantCulture,"点取中心UOR：({0:R},{1:R},{2:R})；日志：{3}",origin.Value.X,origin.Value.Y,origin.Value.Z,lastLogPath));
-            SetBusy(true);ConfirmButton.IsEnabled=false;
+            SetBusy(true);ConfirmButton.IsEnabled=false;PreviewUpdateHint.Set(UpdateButton,true);
             double lastReport=-1;
             Action report=()=>{
                 if(lastReport>=0&&watch.Elapsed.TotalSeconds-lastReport<0.5)return;
@@ -124,7 +124,7 @@ namespace SteelSectionProbe
                 }
                 stage="写入盘梯预览";report();
                 if(!active||ticket!=revision)throw new OperationCanceledException();
-                preview.Show(result);complete=total;ConfirmButton.IsEnabled=true;
+                preview.Show(result);complete=total;ConfirmButton.IsEnabled=true;PreviewUpdateHint.Set(UpdateButton,false);
                 log.Write(stage,"预览完成；顶层元素 "+result.Elements.Count+"；用时 "+watch.Elapsed.TotalSeconds.ToString("0.000")+"s");
                 lastBuildSeconds=watch.Elapsed.TotalSeconds;SaveParameters();
                 Status(string.Format(CultureInfo.CurrentCulture,"盘梯预览完成 100% · 用时 {0:0.0}s；请确定生成。",watch.Elapsed.TotalSeconds),false);
@@ -135,13 +135,13 @@ namespace SteelSectionProbe
         private async void Update_Click(object sender,RoutedEventArgs e){await Generate();}
         private void OnEnded(){if(active){revision++;ClearPreview();}}
         private bool ClearPreview()
-        {ConfirmButton.IsEnabled=false;origin=null;try{preview.Cancel();SpiralStairLog.Append(lastLogPath,"取消预览","完成");return true;}catch(Exception ex){SpiralStairLog.Append(lastLogPath,"取消预览",ex.ToString());Status(ex.Message,true);return false;}}
+        {ConfirmButton.IsEnabled=false;origin=null;PreviewUpdateHint.Set(UpdateButton,false);try{preview.Cancel();SpiralStairLog.Append(lastLogPath,"取消预览","完成");return true;}catch(Exception ex){SpiralStairLog.Append(lastLogPath,"取消预览",ex.ToString());Status(ex.Message,true);return false;}}
         private void Cancel_Click(object sender,RoutedEventArgs e)
         {revision++;SpiralStairPlacementTool.End();if(ClearPreview()&&active)Status("已取消盘梯建模及未确认预览。",false);}
         private void Confirm_Click(object sender,RoutedEventArgs e)
         {
             if(busy||!ConfirmButton.IsEnabled)return;
-            try{preview.Confirm();SpiralStairLog.Append(lastLogPath,"确认生成","完成，栏杆清单已写入");origin=null;ConfirmButton.IsEnabled=false;SaveParameters();Status("罐体盘梯已生成 100% · 建模用时 "+lastBuildSeconds.ToString("0.0")+"s；栏杆已写入钢材清单，无辅助线残留。",false);}
+            try{string writeElapsed=WriteDuration.Measure(preview.Confirm);SpiralStairLog.Append(lastLogPath,"确认生成","完成，栏杆清单已写入");origin=null;PreviewUpdateHint.Set(UpdateButton,false);ConfirmButton.IsEnabled=false;SaveParameters();Status("罐体盘梯已生成 100% · 建模用时 "+lastBuildSeconds.ToString("0.0")+"s；栏杆已写入钢材清单，无辅助线残留；写入耗时 "+writeElapsed+"。",false);}
             catch(Exception ex){SpiralStairLog.Append(lastLogPath,"确认生成",ex.ToString());Status("盘梯确认失败："+ex.Message+"；日志："+lastLogPath,true);}
         }
         private void Log_Click(object sender,RoutedEventArgs e)

@@ -49,7 +49,7 @@ namespace SteelSectionProbe
         {
             active=false; locating=false; G2AnchorLocateTool.End();
             try { preview.Cancel(); } catch(Exception ex) { Status(ex.Message,true); }
-            placement=null; ConfirmButton.IsEnabled=false;
+            placement=null;PreviewUpdateHint.Set(UpdateButton,false); ConfirmButton.IsEnabled=false;
             PreviewText.Text="尚未点取位置。";
         }
         public void OnWorkspaceClosing()
@@ -127,11 +127,12 @@ namespace SteelSectionProbe
         private void Regenerate()
         {
             if(!placement.HasValue) return;
+            PreviewUpdateHint.Set(UpdateButton,true);
             try
             {
                 var plan=G2AnchorCalculator.Calculate(Parameters());
                 preview.Regenerate(plan,placement.Value);
-                ConfirmButton.IsEnabled=true;
+                ConfirmButton.IsEnabled=true;PreviewUpdateHint.Set(UpdateButton,false);
                 PreviewText.Text="预览已生成："+plan.AssemblyTag+"，锚板 "+
                     plan.PlateSideMm.ToString("0")+"×"+plan.PlateSideMm.ToString("0")+"×"+
                     plan.PlateThicknessMm.ToString("0")+"，M"+plan.BoltDiameterMm.ToString("0")+
@@ -173,7 +174,7 @@ namespace SteelSectionProbe
             if(!active) return;
             locating=false;
             try { preview.Cancel(); } catch(Exception ex) { Status(ex.Message,true); }
-            placement=null; ConfirmButton.IsEnabled=false;
+            placement=null;PreviewUpdateHint.Set(UpdateButton,false); ConfirmButton.IsEnabled=false;
             PreviewText.Text="已结束点取。";
             Status("已结束点取并取消未确认预览。",false);
         }
@@ -186,7 +187,7 @@ namespace SteelSectionProbe
         {
             try
             {
-                preview.Cancel(); placement=null; ConfirmButton.IsEnabled=false;
+                preview.Cancel(); placement=null;PreviewUpdateHint.Set(UpdateButton,false); ConfirmButton.IsEnabled=false;
                 PreviewText.Text="预览已取消。"; Status("预览已取消。",false);
             }
             catch(Exception ex) { Status(ex.Message,true); }
@@ -195,10 +196,11 @@ namespace SteelSectionProbe
         {
             try
             {
-                preview.Confirm();
-                placement=null; ConfirmButton.IsEnabled=false;
+                string writeElapsed=WriteDuration.Measure(preview.Confirm);
+                placement=null;PreviewUpdateHint.Set(UpdateButton,false); ConfirmButton.IsEnabled=false;
                 PreviewText.Text="已确认生成并写入支吊架材料清单，可继续点取下一处。";
-                Status("G2 混凝土锚板已生成。",false);
+                PreviewText.Text += " 写入耗时 "+writeElapsed+"。";
+                Status("G2 混凝土锚板已生成；写入耗时 "+writeElapsed+"。",false);
             }
             catch(Exception ex) { Status("确认失败："+ex.Message,true); }
         }

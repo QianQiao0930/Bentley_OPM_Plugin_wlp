@@ -492,6 +492,50 @@ namespace SteelSectionProbe
         }
         /// <summary>N3 单三角架 / N4 双三角架：1 条 Assembly + 横担 / 斜撑 /（连接横担）+ 连接板 /
         /// 螺栓 / 筋板。构件角色后缀 A / B / C / PLATE / BOLT / STIFFENER 在同一元素内互不重复。</summary>
+        internal static void AttachN1Cantilever(Element element,N1CantileverPlan plan)
+        {
+            if(element==null||plan==null)throw new ArgumentNullException("element");
+            using(StatisticsTrace.Scope("N1 单悬臂架 AttachN1Cantilever"))
+            {
+                var entries=new List<KeyValuePair<string,object[]>>();
+                string type=N1CantileverCatalog.SupportType,tag=plan.Number;
+                AddEntry(entries,N1CantileverCatalog.AssemblyItemName,"Assembly",type,tag,
+                    "支吊架",plan.Specification,0,1,"套","");
+                AddEntry(entries,N1CantileverCatalog.ComponentItemName("A"),"Component",type,tag,
+                    "构件 A（横担）",plan.Variant.SectionA,plan.ACutMm,1,"件","");
+                if(plan.Parameters.Type==2)AddEntry(entries,N1CantileverCatalog.ComponentItemName("B"),"Component",type,tag,
+                    "构件 B（端部横担）",plan.Variant.SectionB,plan.L2Mm,1,"件","");
+                var plate=N8Catalog.Resolve(plan.Variant.PlateType,"N",0,G2MountFace.Wall);
+                AddEntry(entries,N1CantileverCatalog.ComponentItemName("PLATE"),"Component",type,tag,
+                    "N8 连接板",plate.E+"×"+plate.E+"×"+plate.T,plate.T,1,"件","");
+                AddEntry(entries,N1CantileverCatalog.ComponentItemName("BOLT"),"Component",type,tag,
+                    "N8 连接板螺栓","M"+plate.BoltDiameter+"×"+plate.BoltLength,
+                    plate.BoltLength,plate.BoltCount,"件","");
+                WriteRecords(element,entries);
+            }
+        }
+        internal static void AttachN2Cantilever(Element element,N2CantileverPlan plan)
+        {
+            if(element==null||plan==null)throw new ArgumentNullException("element");
+            using(StatisticsTrace.Scope("N2 双悬臂架 AttachN2Cantilever"))
+            {
+                var entries=new List<KeyValuePair<string,object[]>>();
+                string type=N2CantileverCatalog.SupportType,tag=plan.Number;
+                AddEntry(entries,N2CantileverCatalog.AssemblyItemName,"Assembly",type,tag,
+                    "支吊架",plan.Specification,0,1,"套","");
+                AddEntry(entries,N2CantileverCatalog.ComponentItemName("A"),"Component",type,tag,
+                    "构件 A（横担）",plan.Variant.SectionA,plan.ACutMm,2,"件","");
+                AddEntry(entries,N2CantileverCatalog.ComponentItemName("B"),"Component",type,tag,
+                    "构件 B（端部横担）",plan.Variant.SectionB,plan.BLengthMm,plan.BCount,"件","");
+                var plate=N8Catalog.Resolve(plan.Variant.PlateType,"N",0,G2MountFace.Wall);
+                AddEntry(entries,N2CantileverCatalog.ComponentItemName("PLATE"),"Component",type,tag,
+                    "N8 连接板",plate.E+"×"+plate.E+"×"+plate.T,plate.T,2,"件","");
+                AddEntry(entries,N2CantileverCatalog.ComponentItemName("BOLT"),"Component",type,tag,
+                    "N8 连接板螺栓","M"+plate.BoltDiameter+"×"+plate.BoltLength,
+                    plate.BoltLength,2*plate.BoltCount,"件","");
+                WriteRecords(element,entries);
+            }
+        }
         internal static void AttachBracket(Element element,BracketPlan plan)
         {
             if(element==null||plan==null)throw new ArgumentNullException("element");
@@ -535,6 +579,44 @@ namespace SteelSectionProbe
                 WriteRecords(element,entries);
             }
         }
+        /// <summary>D2/D3/G11 确认时一次写入公共清单；类型名固定，编号与实长写实例值。</summary>
+        internal static void AttachD2Cantilever(Element element,D2CantileverPlan plan)
+        {
+            if(element==null||plan==null)throw new ArgumentNullException("element");
+            using(StatisticsTrace.Scope(plan.Parameters.Kind+" 悬臂架 AttachD2Cantilever"))
+            {
+                var entries=new List<KeyValuePair<string,object[]>>();
+                string kind=plan.Parameters.Kind,type=D2CantileverCatalog.SupportTypeFor(kind),tag=plan.Number;
+                AddEntry(entries,D2CantileverCatalog.AssemblyItemNameFor(kind),"Assembly",type,tag,
+                    "支吊架",plan.Specification,0,1,"套","");
+                AddEntry(entries,D2CantileverCatalog.ComponentItemName(kind,"MemberA"),"Component",type,tag,
+                    "构件 A（悬臂）",plan.Variant.Section,plan.BeamLengthMm,1,"根","");
+                if (plan.ConcreteAnchor != null)
+                {
+                    G11CantileverPlan anchor = plan.ConcreteAnchor;
+                    if (anchor.ConnectionLengthMm > 0)
+                    {
+                        AddEntry(entries, D2CantileverCatalog.ComponentItemName(kind, "MemberAConnection"),
+                            "Component", type, tag, "构件 A（竖向连接段）", plan.Variant.Section,
+                            anchor.ConnectionLengthMm, 1, "根", "");
+                    }
+
+                    AddEntry(entries, D2CantileverCatalog.ComponentItemName(kind, "MemberB"),
+                        "Component", type, tag, "构件 B（膨胀锚栓）", anchor.Bolt.BoltSpecification,
+                        anchor.Bolt.BoltLengthMm, 2, "根", "");
+                }
+
+                if(plan.Plate!=null)
+                {
+                    AddEntry(entries,D2CantileverCatalog.ComponentItemName(kind,"G2Plate"),"Component",type,tag,
+                        "G2 端板",plan.Plate.PlateSpecification,plan.Plate.PlateThicknessMm,1,"块","");
+                    AddEntry(entries,D2CantileverCatalog.ComponentItemName(kind,"G2Bolt"),"Component",type,tag,
+                        "G2 膨胀锚栓",plan.Plate.BoltSpecification,plan.Plate.BoltLengthMm,4,"根","");
+                }
+                WriteRecords(element,entries);
+            }
+        }
+
         internal static void AttachTriangleBracket(Element element,TriangleBracketPlan plan)
         {
             if(element==null||plan==null)throw new ArgumentNullException("element");

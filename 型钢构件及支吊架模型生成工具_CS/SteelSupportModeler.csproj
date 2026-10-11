@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net48</TargetFramework>
     <OutputType>Library</OutputType>
@@ -9,20 +9,11 @@
     <RootNamespace>SteelSectionProbe</RootNamespace>
     <UseWPF>true</UseWPF>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <UseWindowsForms>true</UseWindowsForms>
-    <BentleyRoot Condition="'$(BentleyRoot)' == '' and Exists('D:\Program Files\Bentley\OpenPlant 2024\OpenPlantModeler\Bentley.DgnPlatformNET.dll')">D:\Program Files\Bentley\OpenPlant 2024\OpenPlantModeler</BentleyRoot>
     <BentleyRoot Condition="'$(BentleyRoot)' == '' and Exists('D:\Program Files\Bentley\OpenPlant 2024\OpenPlantModeler\Bentley.DgnPlatformNET.dll')">D:\Program Files\Bentley\OpenPlant 2024\OpenPlantModeler</BentleyRoot>
     <BentleyRoot Condition="'$(BentleyRoot)' == ''">C:\Program Files\Bentley\OpenPlant 2024\OpenPlantModeler</BentleyRoot>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Bentley.OpenPlant.Modeler.Api"><HintPath>$(BentleyRoot)\Assemblies\Bentley.OpenPlant.Modeler.Api.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="Bentley.OpenPlant.Modeler.Interfaces"><HintPath>$(BentleyRoot)\Assemblies\Bentley.OpenPlant.Modeler.Interfaces.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="Bentley.OpenPlantModeler.SDK"><HintPath>$(BentleyRoot)\Assemblies\Bentley.OpenPlantModeler.SDK.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="Bentley.Building.Mechanical.Components"><HintPath>$(BentleyRoot)\Assemblies\Bentley.Building.Mechanical.Components.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="Bentley.ApplicationFramework.Interfaces"><HintPath>$(BentleyRoot)\Assemblies\Bentley.ApplicationFramework.Interfaces.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="Bentley.ApplicationFramework.PropertyContainerManager"><HintPath>$(BentleyRoot)\Assemblies\Bentley.ApplicationFramework.PropertyContainerManager.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="Bentley.Plant.OpenPlantFramework.Differencing.Transformations"><HintPath>$(BentleyRoot)\Assemblies\Bentley.Plant.OpenPlantFramework.Differencing.Transformations.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Bentley.OpenPlant.Modeler.Api"><HintPath>$(BentleyRoot)\Assemblies\Bentley.OpenPlant.Modeler.Api.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Bentley.OpenPlant.Modeler.Interfaces"><HintPath>$(BentleyRoot)\Assemblies\Bentley.OpenPlant.Modeler.Interfaces.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Bentley.OpenPlantModeler.SDK"><HintPath>$(BentleyRoot)\Assemblies\Bentley.OpenPlantModeler.SDK.dll</HintPath><Private>false</Private></Reference>
@@ -43,6 +34,7 @@
     <Reference Include="Bentley.ECObjects3"><HintPath>$(BentleyRoot)\Assemblies\ECFramework\Bentley.ECObjects3.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Bentley.EC.Persistence3"><HintPath>$(BentleyRoot)\Assemblies\ECFramework\Bentley.EC.Persistence3.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Bentley.Platform"><HintPath>$(BentleyRoot)\Assemblies\ECFramework\Bentley.Platform.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.IO.Compression" />
     <Reference Include="System.IO.Compression.FileSystem" />
@@ -56,6 +48,7 @@
     <Reference Include="System.Xaml" />
   </ItemGroup>
   <ItemGroup><EmbeddedResource Include="Registration\commands.xml" LogicalName="CommandTable.xml" /></ItemGroup>
+  <ItemGroup><EmbeddedResource Include="Resources\fire_extinguisher_recipes.json" LogicalName="SteelSectionProbe.fire_extinguisher_recipes.json" /></ItemGroup>
   <ItemGroup><EmbeddedResource Include="Resources\profiles.bin" LogicalName="SteelSectionProbe.profiles.bin" /></ItemGroup>
   <ItemGroup><EmbeddedResource Include="Resources\nozzle_flange_data.json" LogicalName="SteelSectionProbe.nozzle_flange_data.json" /></ItemGroup>
   <ItemGroup><Compile Remove="Development\ComponentPropertiesCheck\**\*.cs" />
@@ -68,6 +61,12 @@
     <Compile Remove="Development\G2AnchorCheck\**\*.cs" />
     <Compile Remove="Development\PipeClampCheck\**\*.cs" />
     <Compile Remove="Development\VerticalPipeSupportCheck\**\*.cs" />
+    <Compile Remove="Development\N1CantileverCheck\**\*.cs" />
+    <Compile Remove="Development\N2CantileverCheck\**\*.cs" />
+    <Compile Remove="Development\AxisPlacementCheck\**\*.cs" />
+    <Compile Remove="Development\WriteDurationCheck\**\*.cs" />
+    <Compile Remove="Development\D2CantileverCheck\**\*.cs" />
+    <Compile Remove="Development\FireCabinetCheck\**\*.cs" />
     <Compile Remove="Development\EquipmentSupportCheck\**\*.cs" />
     <Compile Remove="Development\TriangleBracketCheck\**\*.cs" />
     <Compile Remove="Development\LBracketCheck\**\*.cs" />
@@ -80,6 +79,7 @@
     <Compile Remove="Development\PipeAlignmentCheck\**\*.cs" />
     <Compile Remove="Development\PipeAlignmentUndoCheck\**\*.cs" />
     <Compile Remove="Development\SteelSectionCheck\**\*.cs" /></ItemGroup>
+  <ItemGroup><Compile Remove="Development/HoseCabinetCheck/**/*.cs" /></ItemGroup>
 </Project>
 
 

@@ -47,7 +47,7 @@ namespace SteelSectionProbe
             if(locating)BracketLocateTool.End();locating=false;
             try{preview.Cancel();}catch(Exception ex){Status(ex.Message,true);}
             line=null;dirty=false;ConfirmButton.IsEnabled=false;
-            UpdateButton.Content="更新预览";
+            PreviewUpdateHint.Set(UpdateButton,false);
         }
         private string Kind {get{return TriangleBracketCatalog.Kinds[Math.Max(0,KindCombo.SelectedIndex)];}}
         private char Variant {get{return "ABCD"[Math.Max(0,VariantCombo.SelectedIndex)];}}
@@ -77,7 +77,7 @@ namespace SteelSectionProbe
         {
             if(line==null)return;
             dirty=true;ConfirmButton.IsEnabled=false;
-            UpdateButton.Content="更新预览 ●";
+            PreviewUpdateHint.Set(UpdateButton,true);
             PreviewText.Text="参数已变更，请更新预览后再确定生成。";
         }
         private static double Number(string text,string name)
@@ -119,7 +119,7 @@ namespace SteelSectionProbe
                 double heading=Math.Atan2(p.Reverse?-line.AxisY:line.AxisY,
                     p.Reverse?-line.AxisX:line.AxisX)*180/Math.PI;
                 var plan=TriangleBracketCalculator.Calculate(p,Length(line),heading);
-                preview.Show(plan,line);dirty=false;UpdateButton.Content="更新预览";
+                preview.Show(plan,line);dirty=false;PreviewUpdateHint.Set(UpdateButton,false);
                 ConfirmButton.IsEnabled=true;
                 PreviewText.Text="编号："+plan.Number+"\n"+plan.AssemblySpecification+
                     "\nL1="+plan.L1Mm.ToString("0.#")+" mm；L2="+plan.L2Mm.ToString("0.#")+
@@ -160,7 +160,7 @@ namespace SteelSectionProbe
         {
             locating=false;try{preview.Cancel();}catch(Exception ex){Status(ex.Message,true);}
             line=null;dirty=false;ConfirmButton.IsEnabled=false;
-            PreviewText.Text="已结束点取。";UpdateButton.Content="更新预览";
+            PreviewText.Text="已结束点取。";PreviewUpdateHint.Set(UpdateButton,false);
         }
         private void Pick_Click(object sender,RoutedEventArgs e)
         {try{BracketLocateTool.Begin();locating=true;}catch(Exception ex){Status(ex.Message,true);}}
@@ -169,7 +169,7 @@ namespace SteelSectionProbe
         private void Cancel_Click(object sender,RoutedEventArgs e)
         {
             try{preview.Cancel();line=null;dirty=false;ConfirmButton.IsEnabled=false;
-                UpdateButton.Content="更新预览";PreviewText.Text="已取消预览。";}
+                PreviewUpdateHint.Set(UpdateButton,false);PreviewText.Text="已取消预览。";}
             catch(Exception ex){Status(ex.Message,true);}
         }
         private async void Confirm_Click(object sender,RoutedEventArgs e)
@@ -178,17 +178,18 @@ namespace SteelSectionProbe
             ConfirmButton.IsEnabled=false;
             Status("正在写入三角架清单…",false);
             await Dispatcher.Yield(DispatcherPriority.Background);
-            var timer=Stopwatch.StartNew();
+
             try
             {
                 bool delete=line!=null&&line.IsAuxiliaryLine&&!line.IsFromReference&&
                     KeepLineCheck.IsChecked!=true;
                 ulong id=line==null?0:line.ElementId;
-                preview.Confirm();
+                string writeElapsed=WriteDuration.Measure(preview.Confirm);
                 if(delete)DeleteLine(id);
-                line=null;ConfirmButton.IsEnabled=false;UpdateButton.Content="更新预览";
+                line=null;ConfirmButton.IsEnabled=false;PreviewUpdateHint.Set(UpdateButton,false);
                 PreviewText.Text="已确认生成并写入清单，可继续点取下一条辅助线。";
-                Status("三角架已生成（"+timer.Elapsed.TotalSeconds.ToString("0.0")+" 秒）。",false);
+                PreviewText.Text += " 写入耗时 "+writeElapsed+"。";
+                Status("三角架已生成；写入耗时 "+writeElapsed+"。",false);
             }
             catch(Exception ex){ConfirmButton.IsEnabled=preview.HasPreview;
                 Status("确认失败："+ex.Message,true);}

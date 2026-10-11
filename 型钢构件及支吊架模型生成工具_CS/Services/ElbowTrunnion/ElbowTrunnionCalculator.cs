@@ -25,17 +25,11 @@ namespace SteelSectionProbe
             return nominalRaw > 0 && nominalRaw < 2 ? 1000 : 1;
         }
 
-        internal static double ExtentFromViewProjection(double originX,double originY,
-            double axisX,double axisY,double cursorX,double cursorY,double axisLengthMm)
+        internal static double ExtentFromModelPoint(VectorMm origin,VectorMm direction,VectorMm point)
         {
-            if (!Finite(originX) || !Finite(originY) || !Finite(axisX) || !Finite(axisY) ||
-                !Finite(cursorX) || !Finite(cursorY) || !Finite(axisLengthMm) || axisLengthMm<=0)
-                throw new InvalidOperationException("视图投影坐标或基准长度无效。");
-            double dx=axisX-originX,dy=axisY-originY;
-            double denominator=dx*dx+dy*dy;
-            if (denominator<=1e-6)
-                throw new InvalidOperationException("当前视图看不到拉伸方向，请切换侧视图或轴测视图。");
-            return axisLengthMm*((cursorX-originX)*dx+(cursorY-originY)*dy)/denominator;
+            double value=(point-origin).Dot(direction.Unit());
+            if (!Finite(value)) throw new InvalidOperationException("捕捉点或长度无效。");
+            return value;
         }
         internal static ElbowFrame Frame(double[] m, double uorPerMm, double run, double outlet,
             ElbowOrientation orientation, bool allowDownward)

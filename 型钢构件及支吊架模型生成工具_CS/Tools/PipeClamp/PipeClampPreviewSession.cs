@@ -14,6 +14,8 @@ namespace SteelSectionProbe
     internal sealed class PipeClampPreviewSession
     {
         private Element preview;
+        private DPoint3d center;
+        private DVector3d axis;
         private PipeClampKind kind;
 
         private A2ClampPlan a2Plan;
@@ -34,28 +36,28 @@ namespace SteelSectionProbe
         {
             Replace(A2ClampBuilder.Build(plan,center,axis),A2ClampCatalog.CellName,
                 PipeClampKind.A2StandardTwoBolt);
-            a2Plan=plan;
+            a2Plan=plan;this.center=center;this.axis=axis;
         }
 
         internal void ShowA22(A22ClampPlan plan,DPoint3d center,DVector3d axis)
         {
             Replace(A22ClampBuilder.Build(plan,center,axis),A22ClampCatalog.CellName,
                 PipeClampKind.A22ColdTwoBolt);
-            a22Plan=plan;
+            a22Plan=plan;this.center=center;this.axis=axis;
         }
 
         internal void ShowA24(A22ClampPlan plan,DPoint3d center,DVector3d axis)
         {
             Replace(A22ClampBuilder.Build(plan,center,axis),A24ClampCatalog.CellName,
                 PipeClampKind.A24ColdFourBolt);
-            a22Plan=plan;
+            a22Plan=plan;this.center=center;this.axis=axis;
         }
 
         internal void ShowA1(A1ClampPlan plan,DPoint3d center,DVector3d axis)
         {
             Replace(A1ClampBuilder.Build(plan,center,axis),A1ClampCatalog.CellName,
                 PipeClampKind.A1UBolt);
-            a1Plan=plan;
+            a1Plan=plan;this.center=center;this.axis=axis;
         }
 
         internal void ShowE1(E1GuidePlan plan)
@@ -69,7 +71,7 @@ namespace SteelSectionProbe
         {
             Replace(K1LimitBuilder.Build(plan,center,axis),K1LimitCatalog.CellName,
                 PipeClampKind.K1Limit);
-            k1Plan=plan;
+            k1Plan=plan;this.center=center;this.axis=axis;
         }
 
         internal void ShowT4(T4ShoeLayout layout,T4ShoeBooleanLayout boolean,DPoint3d center,
@@ -77,7 +79,7 @@ namespace SteelSectionProbe
         {
             var parts=T4ShoeBuilder.Build(layout,boolean,center,axis,buildPipe,buildInsulation);
             Replace(parts,T4ShoeCatalog.CellName,PipeClampKind.T4Insulated);
-            t4Layout=layout;
+            t4Layout=layout;this.center=center;this.axis=axis;
             t4Boolean=boolean;
             t4BuildPipe=buildPipe;
             t4BuildInsulation=buildInsulation;
@@ -88,7 +90,7 @@ namespace SteelSectionProbe
         {
             var parts=T4ShoeBuilder.Build(layout,boolean,center,axis,buildPipe,buildInsulation);
             Replace(parts,L2ShoeCatalog.CellName,PipeClampKind.L2ColdShoe);
-            t4Layout=layout;t4Boolean=boolean;
+            t4Layout=layout;this.center=center;this.axis=axis;t4Boolean=boolean;
             t4BuildPipe=buildPipe;t4BuildInsulation=buildInsulation;
         }
 
@@ -111,6 +113,26 @@ namespace SteelSectionProbe
             }
             preview=replacement;
             kind=newKind;
+        }
+
+        /// <summary>使用当前已验证计划构建动态原型，不写模型或清单。</summary>
+        internal Element CreatePrototype()
+        {
+            if(preview==null)throw new InvalidOperationException("请先成功生成预览。");
+            IList<Element> parts;
+            switch(kind)
+            {
+                case PipeClampKind.A1UBolt:parts=A1ClampBuilder.Build(a1Plan,center,axis);break;
+                case PipeClampKind.A2StandardTwoBolt:parts=A2ClampBuilder.Build(a2Plan,center,axis);break;
+                case PipeClampKind.A22ColdTwoBolt:
+                case PipeClampKind.A24ColdFourBolt:parts=A22ClampBuilder.Build(a22Plan,center,axis);break;
+                case PipeClampKind.E1Guide:parts=E1GuideBuilder.Build(e1Plan);break;
+                case PipeClampKind.K1Limit:parts=K1LimitBuilder.Build(k1Plan,center,axis);break;
+                case PipeClampKind.T4Insulated:
+                case PipeClampKind.L2ColdShoe:parts=T4ShoeBuilder.Build(t4Layout,t4Boolean,center,axis,t4BuildPipe,t4BuildInsulation);break;
+                default:throw new InvalidOperationException("未知的管夹种类。");
+            }
+            return new CellHeaderElement(Session.Instance.GetActiveDgnModel(),"AXIS_PLACEMENT_PREVIEW",DPoint3d.Zero,DMatrix3d.Identity,parts);
         }
 
         internal void Confirm()

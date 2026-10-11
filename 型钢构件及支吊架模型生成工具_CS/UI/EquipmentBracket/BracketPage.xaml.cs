@@ -125,7 +125,7 @@ namespace SteelSectionProbe
             if(locating)BracketLocateTool.End();locating=false;
             try{preview.Cancel();}catch(Exception ex){Status(ex.Message,true);}
             line=null;dirty=false;ConfirmButton.IsEnabled=false;
-            UpdateButton.Content="更新预览";UpdateE();
+            PreviewUpdateHint.Set(UpdateButton,false);UpdateE();
         }
         private void SetSubtypeDefaults()
         {
@@ -180,7 +180,7 @@ namespace SteelSectionProbe
             UpdateE();
             if(line==null)return;
             dirty=true;ConfirmButton.IsEnabled=false;
-            UpdateButton.Content="更新预览 ●";
+            PreviewUpdateHint.Set(UpdateButton,true);
             PreviewText.Text="参数已变更，点击一次“更新预览”后即可确认。";
         }
         private static double Number(string text,string name,bool optional=false)
@@ -213,7 +213,7 @@ namespace SteelSectionProbe
                 BracketCalculator.ValidateHorizontal(line);
                 var plan=BracketCalculator.Calculate(Parameters(),
                     Math.Sqrt(line.AxisX*line.AxisX+line.AxisY*line.AxisY+line.AxisZ*line.AxisZ));
-                preview.Show(plan,line);dirty=false;UpdateButton.Content="更新预览";
+                preview.Show(plan,line);dirty=false;PreviewUpdateHint.Set(UpdateButton,false);
                 ConfirmButton.IsEnabled=true;
                 PreviewText.Text="编号："+plan.Number+"\n"+plan.Specification+
                     "\n垂直荷载："+plan.VerticalLoad+" kN"+
@@ -235,7 +235,7 @@ namespace SteelSectionProbe
                 try
                 {
                     preview.Cancel();ConfirmButton.IsEnabled=false;
-                    dirty=false;UpdateButton.Content="更新预览";
+                    dirty=false;PreviewUpdateHint.Set(UpdateButton,false);
                     line=PipeClampReader.Read(located.ModelRef,located.ElementId,
                         located.ClickX,located.ClickY,located.ClickZ);
                     BracketCalculator.ValidateHorizontal(line);
@@ -251,7 +251,7 @@ namespace SteelSectionProbe
         {
             locating=false;try{preview.Cancel();}catch(Exception ex){Status(ex.Message,true);}
             line=null;dirty=false;ConfirmButton.IsEnabled=false;PreviewText.Text="已结束点取。";
-            UpdateButton.Content="更新预览";UpdateE();
+            PreviewUpdateHint.Set(UpdateButton,false);UpdateE();
         }
         private void Pick_Click(object sender,RoutedEventArgs e)
         {try{BracketLocateTool.Begin();locating=true;}catch(Exception ex){Status(ex.Message,true);}}
@@ -259,7 +259,7 @@ namespace SteelSectionProbe
         private void Update_Click(object sender,RoutedEventArgs e){Regenerate();}
         private void Cancel_Click(object sender,RoutedEventArgs e)
         {try{preview.Cancel();line=null;dirty=false;ConfirmButton.IsEnabled=false;
-             UpdateButton.Content="更新预览";UpdateE();}
+             PreviewUpdateHint.Set(UpdateButton,false);UpdateE();}
          catch(Exception ex){Status(ex.Message,true);}}
         private async void Confirm_Click(object sender,RoutedEventArgs e)
         {
@@ -267,18 +267,19 @@ namespace SteelSectionProbe
             ConfirmButton.IsEnabled=false;
             Status("正在写入三角架清单…",false);
             await Dispatcher.Yield(DispatcherPriority.Background);
-            var timer=Stopwatch.StartNew();
+
             try
             {
                 bool delete=line!=null&&!line.IsPipe&&line.IsAuxiliaryLine&&
                     !line.IsFromReference&&KeepLineCheck.IsChecked!=true;
                 ulong id=line==null?0:line.ElementId;
-                preview.Confirm();
+                string writeElapsed=WriteDuration.Measure(preview.Confirm);
                 if(delete)DeleteLine(id);
                 line=null;ConfirmButton.IsEnabled=false;
-                UpdateButton.Content="更新预览";UpdateE();
+                PreviewUpdateHint.Set(UpdateButton,false);UpdateE();
                 PreviewText.Text="已确认生成并写入清单，可继续点取下一条辅助线。";
-                Status("三角架已生成（"+timer.Elapsed.TotalSeconds.ToString("0.0")+" 秒）。",false);
+                PreviewText.Text += " 写入耗时 "+writeElapsed+"。";
+                Status("三角架已生成；写入耗时 "+writeElapsed+"。",false);
             }
             catch(Exception ex){ConfirmButton.IsEnabled=preview.HasPreview;
                 Status("确认失败："+ex.Message,true);}

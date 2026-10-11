@@ -23,8 +23,16 @@ namespace SteelSectionProbe
         }
         private static void Main()
         {
-            Equal(ElbowTrunnionCalculator.ExtentFromViewProjection(
-                10,20,10,120,10,70,1000),500,"视图投影拉伸长度");
+            var anchor=new VectorMm(100,200,1000);
+            Equal(ElbowTrunnionCalculator.ExtentFromModelPoint(anchor,new VectorMm(0,0,-1),
+                new VectorMm(9000,-8000,501)),499,"捕捉远处构件仅取真实标高");
+            Equal(ElbowTrunnionCalculator.ExtentFromModelPoint(anchor,new VectorMm(0,0,-1),
+                new VectorMm(100,200,501)),499,"轴上点与同标高远处点一致");
+            Equal(ElbowTrunnionCalculator.ExtentFromModelPoint(anchor,new VectorMm(0.6,0.8,0),
+                anchor+new VectorMm(0.6,0.8,0)*500+new VectorMm(-0.8,0.6,0)*300),500,
+                "任意水平朝向忽略横向偏移");
+            Equal(ElbowTrunnionCalculator.ExtentFromModelPoint(anchor,new VectorMm(0,0,-1),
+                new VectorMm(100,200,1100)),-100,"反方向长度保留符号");
             var ecGroups=new Dictionary<string,Dictionary<string,string>>(StringComparer.OrdinalIgnoreCase) {
                 {"OpenPlant_3D.LONG_RADIUS_90_DEGREE_PIPE_ELBOW",
                     new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase) { {"ANGLE","90"} }},
@@ -34,8 +42,6 @@ namespace SteelSectionProbe
             };
             if(ElbowTrunnionCatalog.SelectElbowClass(ecGroups)!="OpenPlant_3D.HVAC_ROUND_ELBOW")
                 throw new Exception("风管弯头不能被管道 90° 基类遮盖");
-            Reject(()=>ElbowTrunnionCalculator.ExtentFromViewProjection(
-                10,20,10,20,15,30,1000),"端视图中不可见的拉伸方向");
             var vf=ElbowTrunnionCalculator.Frame(Matrix(false),1,100,100,
                 ElbowOrientation.Vertical,false);
             var hf=ElbowTrunnionCalculator.Frame(Matrix(true),1,100,100,
@@ -105,7 +111,7 @@ namespace SteelSectionProbe
             vertical.ExtentMm=20;
             Reject(()=>ElbowTrunnionCalculator.Calculate(vs,vertical),"过短的 F2 高度");
             CheckListingContract(f4);
-            Console.WriteLine("ElbowTrunnionCheck: 4 variants, projection, geometry, numbering, listing contract and invalid input passed.");
+            Console.WriteLine("ElbowTrunnionCheck: 4 variants, model-coordinate snapping, geometry, numbering, listing contract and invalid input passed.");
         }
 
         private static void CheckAdditionalMainDns(ElbowFrame verticalFrame,ElbowFrame horizontalFrame)

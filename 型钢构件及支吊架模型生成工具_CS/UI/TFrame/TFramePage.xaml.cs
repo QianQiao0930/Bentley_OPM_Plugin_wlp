@@ -39,7 +39,7 @@ namespace SteelSectionProbe
             active=false;TFrameLocateTool.Picked-=OnPicked;TFrameLocateTool.Ended-=OnEnded;
             if(locating)TFrameLocateTool.End();locating=false;
             try{preview.Cancel();}catch(Exception ex){Status(ex.Message,true);}
-            line=null;dirty=false;ConfirmButton.IsEnabled=false;UpdateButton.Content="更新预览";
+            line=null;dirty=false;ConfirmButton.IsEnabled=false;PreviewUpdateHint.Set(UpdateButton,false);
             UpdateLimits();
         }
         private string Kind{get{return TFrameCatalog.Kinds[Math.Max(0,KindCombo.SelectedIndex)];}}
@@ -136,7 +136,7 @@ namespace SteelSectionProbe
         }
         private void Changed()
         {if(line==null)return;dirty=true;ConfirmButton.IsEnabled=false;
-            UpdateButton.Content="更新预览 ●";
+            PreviewUpdateHint.Set(UpdateButton,true);
             PreviewText.Text="参数已变更，请更新预览后再确定生成。";}
         private static double Number(string text,string label)
         {double value;if(!double.TryParse(text,NumberStyles.Float,CultureInfo.CurrentCulture,out value)&&
@@ -170,7 +170,7 @@ namespace SteelSectionProbe
             {
                 ValidateLine(line);
                 var plan=TFrameCalculator.Calculate(Parameters(),Kind=="D15"?Length(line):Math.Abs(line.AxisZ));
-                preview.Show(plan,line);dirty=false;UpdateButton.Content="更新预览";
+                preview.Show(plan,line);dirty=false;PreviewUpdateHint.Set(UpdateButton,false);
                 ConfirmButton.IsEnabled=true;
                 PreviewText.Text="编号："+plan.Number+"\n"+plan.AssemblySpecification+
                     "\n构件 A 下料长="+plan.PostLengthMm.ToString("0.#")+
@@ -205,31 +205,32 @@ namespace SteelSectionProbe
         private void OnEnded()
         {locating=false;try{preview.Cancel();}catch(Exception ex){Status(ex.Message,true);}
             line=null;dirty=false;ConfirmButton.IsEnabled=false;
-            PreviewText.Text="已结束点取。";UpdateButton.Content="更新预览";UpdateLimits();}
+            PreviewText.Text="已结束点取。";PreviewUpdateHint.Set(UpdateButton,false);UpdateLimits();}
         private void Pick_Click(object sender,RoutedEventArgs e)
         {try{TFrameLocateTool.Begin();locating=true;}catch(Exception ex){Status(ex.Message,true);}}
         private void End_Click(object sender,RoutedEventArgs e){TFrameLocateTool.End();}
         private void Update_Click(object sender,RoutedEventArgs e){Regenerate();}
         private void Cancel_Click(object sender,RoutedEventArgs e)
         {try{preview.Cancel();line=null;dirty=false;ConfirmButton.IsEnabled=false;
-            UpdateButton.Content="更新预览";PreviewText.Text="已取消预览。";UpdateLimits();}
+            PreviewUpdateHint.Set(UpdateButton,false);PreviewText.Text="已取消预览。";UpdateLimits();}
             catch(Exception ex){Status(ex.Message,true);}}
         private async void Confirm_Click(object sender,RoutedEventArgs e)
         {
             if(dirty){Status("请先更新预览。",true);return;}
             ConfirmButton.IsEnabled=false;Status("正在写入 T 型架清单…",false);
             await Dispatcher.Yield(DispatcherPriority.Background);
-            var timer=Stopwatch.StartNew();
+
             try
             {
                 bool delete=line!=null&&line.IsAuxiliaryLine&&!line.IsFromReference&&
                     KeepLineCheck.IsChecked!=true;
                 ulong id=line==null?0:line.ElementId;
-                preview.Confirm();if(delete)DeleteLine(id);
-                line=null;UpdateButton.Content="更新预览";
+                string writeElapsed=WriteDuration.Measure(preview.Confirm);if(delete)DeleteLine(id);
+                line=null;PreviewUpdateHint.Set(UpdateButton,false);
                 UpdateLimits();
                 PreviewText.Text="已确认生成并写入清单，可继续点取下一条辅助线。";
-                Status("T 型架已生成（"+timer.Elapsed.TotalSeconds.ToString("0.0")+" 秒）。",false);
+                PreviewText.Text += " 写入耗时 "+writeElapsed+"。";
+                Status("T 型架已生成；写入耗时 "+writeElapsed+"。",false);
             }
             catch(Exception ex){ConfirmButton.IsEnabled=preview.HasPreview;
                 Status("确认失败："+ex.Message,true);}

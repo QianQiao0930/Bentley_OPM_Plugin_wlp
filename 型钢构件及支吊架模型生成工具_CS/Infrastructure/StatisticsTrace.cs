@@ -83,8 +83,7 @@ namespace SteelSectionProbe
                 var text=new StringBuilder();
                 text.Append('[').Append(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff",
                     CultureInfo.InvariantCulture)).Append("] ").Append(Context);
-                text.Append(" | 总计 ").Append(Watch.Elapsed.TotalMilliseconds.ToString("0.0",
-                    CultureInfo.InvariantCulture)).Append(" ms");
+                text.Append(" | 总计 ").Append(WriteDuration.Format(Watch.Elapsed.TotalMilliseconds));
                 foreach(var note in Notes) text.Append(" | ").Append(note);
                 foreach(var pair in Counts)
                 {
@@ -97,8 +96,8 @@ namespace SteelSectionProbe
                     int calls;
                     Counts.TryGetValue(pair.Key+"@调用",out calls);
                     text.Append(" | ").Append(pair.Key).Append(' ')
-                        .Append(pair.Value.ToString("0.0",CultureInfo.InvariantCulture))
-                        .Append(" ms×").Append(calls.ToString(CultureInfo.InvariantCulture));
+                        .Append(WriteDuration.Format(pair.Value))
+                        .Append("×").Append(calls.ToString(CultureInfo.InvariantCulture));
                 }
                 return text.ToString();
             }

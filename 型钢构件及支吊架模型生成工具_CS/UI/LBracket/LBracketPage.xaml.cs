@@ -41,7 +41,7 @@ namespace SteelSectionProbe
             active=false;LBracketLocateTool.Picked-=OnPicked;LBracketLocateTool.Ended-=OnEnded;
             if(locating)LBracketLocateTool.End();locating=false;
             try{preview.Cancel();}catch(Exception ex){PreviewText.Text=ex.Message;Status("D7 预览清理失败。",true);}
-            selection=null;dirty=false;ConfirmButton.IsEnabled=false;UpdateButton.Content="更新预览";
+            selection=null;dirty=false;ConfirmButton.IsEnabled=false;PreviewUpdateHint.Set(UpdateButton,false);
             UpdateLimits();
         }
         private char Variant {get{return LBracketCatalog.Keys[Math.Max(0,VariantCombo.SelectedIndex)];}}
@@ -78,7 +78,7 @@ namespace SteelSectionProbe
         {
             if(!ready)return;UpdateLimits();
             if(selection==null)return;
-            dirty=true;ConfirmButton.IsEnabled=false;UpdateButton.Content="更新预览 ●";
+            dirty=true;ConfirmButton.IsEnabled=false;PreviewUpdateHint.Set(UpdateButton,true);
             PreviewText.Text="参数已更改，请更新预览。";
         }
         private void Regenerate()
@@ -88,7 +88,7 @@ namespace SteelSectionProbe
             {
                 var plan=LBracketCalculator.Calculate(Parameters(),selection);
                 preview.Show(plan);dirty=false;ConfirmButton.IsEnabled=true;
-                UpdateButton.Content="更新预览";
+                PreviewUpdateHint.Set(UpdateButton,false);
                 PreviewText.Text="编号："+(plan.Number.Length==0?"未编号":plan.Number)+
                     "\nH="+plan.Selection.HeightMm.ToString("0.#")+" mm，L="+
                     plan.Selection.LengthMm.ToString("0.#")+" mm，B="+
@@ -129,7 +129,7 @@ namespace SteelSectionProbe
         {
             locating=false;try{preview.Cancel();}catch(Exception ex){PreviewText.Text=ex.Message;}
             selection=null;dirty=false;ConfirmButton.IsEnabled=false;
-            PreviewText.Text="已结束点取。";UpdateButton.Content="更新预览";UpdateLimits();
+            PreviewText.Text="已结束点取。";PreviewUpdateHint.Set(UpdateButton,false);UpdateLimits();
         }
         private void Pick_Click(object sender,RoutedEventArgs e)
         {try{LBracketLocateTool.Begin();locating=true;}
@@ -138,24 +138,24 @@ namespace SteelSectionProbe
         private void Update_Click(object sender,RoutedEventArgs e){Regenerate();}
         private void Cancel_Click(object sender,RoutedEventArgs e)
         {try{preview.Cancel();selection=null;dirty=false;ConfirmButton.IsEnabled=false;
-                PreviewText.Text="已取消预览。";UpdateButton.Content="更新预览";UpdateLimits();}
+                PreviewText.Text="已取消预览。";PreviewUpdateHint.Set(UpdateButton,false);UpdateLimits();}
             catch(Exception ex){PreviewText.Text=ex.Message;Status("D7 取消失败。",true);}}
         private async void Confirm_Click(object sender,RoutedEventArgs e)
         {
             if(dirty){Status("请先更新预览。",true);return;}
             ConfirmButton.IsEnabled=false;
             await Dispatcher.Yield(DispatcherPriority.Background);
-            var timer=System.Diagnostics.Stopwatch.StartNew();
+
             try
             {
                 bool remove=selection!=null&&!selection.IsFromReference&&
                     KeepLineCheck.IsChecked!=true;
                 ulong id=selection==null?0:selection.ElementId;
-                preview.Confirm();selection=null;UpdateLimits();
-                timer.Stop();
-                PreviewText.Text="D7 已生成并写入清单，耗时 "+
-                    timer.Elapsed.TotalSeconds.ToString("0.0",CultureInfo.InvariantCulture)+" 秒。可继续点取。";
-                Status("D7 已生成（"+timer.Elapsed.TotalSeconds.ToString("0.0",CultureInfo.InvariantCulture)+" 秒）。",false);
+                string writeElapsed=WriteDuration.Measure(preview.Confirm);selection=null;UpdateLimits();
+
+                PreviewText.Text="D7 已生成并写入清单。可继续点取。";
+                PreviewText.Text += " 写入耗时 "+writeElapsed+"。";
+                Status("D7 已生成；写入耗时 "+writeElapsed+"。",false);
                 if(remove)try{DeleteLine(id);}catch(Exception ex)
                     {PreviewText.Text+="\n辅助折线未删除："+ex.Message;
                         Status("D7 已生成，辅助线未删除。",true);}

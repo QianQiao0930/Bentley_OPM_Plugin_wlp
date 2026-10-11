@@ -51,9 +51,15 @@
                 <WrapPanel>
                     <Button Content="开始点取" Style="{StaticResource PrimaryButtonStyle}" Click="Pick_Click" Margin="0,0,8,8"/>
                     <Button Content="结束点取" Style="{StaticResource SecondaryButtonStyle}" Click="End_Click" Margin="0,0,8,8"/>
-                    <Button Content="更新预览" Style="{StaticResource SecondaryButtonStyle}" Click="Update_Click" Margin="0,0,8,8"/>
+                    <Button x:Name="UpdateButton" Content="更新预览" Style="{StaticResource SecondaryButtonStyle}" Click="Update_Click" Margin="0,0,8,8"/>
                     <Button Content="沿轴滑动" Style="{StaticResource SecondaryButtonStyle}" Click="Slide_Click" Margin="0,0,8,8"/>
                 </WrapPanel>
+                <WrapPanel Margin="0,4,0,8">
+                    <TextBlock Text="沿轴偏移（mm，正值向上）" VerticalAlignment="Center" Margin="0,0,8,4"/>
+                    <TextBox x:Name="AxisOffsetText" Text="0" TextChanged="AxisOffset_Changed" Width="110" Margin="0,0,8,4"/>
+                    <Button Content="应用偏移" Style="{StaticResource SecondaryButtonStyle}" Click="ApplyOffset_Click" Margin="0,0,0,4"/>
+                </WrapPanel>
+                <TextBlock x:Name="AxisPositionText" Text="定位基点：尚未点取。" TextWrapping="Wrap" Margin="0,0,0,8"/>
                 <TextBlock x:Name="PreviewText" Text="尚未点取立管。" TextWrapping="Wrap" Margin="0,4,0,12"/>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Content="取消预览" Style="{StaticResource SecondaryButtonStyle}" Click="Cancel_Click" Margin="0,0,8,0"/>

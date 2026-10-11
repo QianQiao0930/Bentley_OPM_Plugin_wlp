@@ -57,7 +57,10 @@
                             <TextBlock x:Name="ExtentLabel" Text="高度 H（mm）"
                                        Foreground="Black" TextWrapping="Wrap" />
                             <TextBox x:Name="ExtentText" Text="1000"
-                                     LostFocus="Parameter_Changed" />
+                                     TextChanged="Parameter_Changed" />
+                            <CheckBox x:Name="FixedLengthCheck" Content="固定长度耳轴"
+                                      Margin="0,8,0,0" Checked="FixedLength_Changed"
+                                      Unchecked="FixedLength_Changed" />
                             <CheckBox x:Name="HollowCheck" IsChecked="True"
                                       Margin="0,8,0,0" Checked="Parameter_Changed"
                                       Unchecked="Parameter_Changed">
@@ -108,7 +111,7 @@
             <Border Style="{StaticResource CardStyle}">
                 <StackPanel>
                     <TextBlock Text="03  点选与预览" Style="{StaticResource SectionTitleStyle}" />
-                    <TextBlock Text="点选 90° OpenPlant 弯头后，移动鼠标拉伸取长，左键固定长度并生成可撤销预览；确认后写入支吊架清单属性。"
+                    <TextBlock Text="勾选固定长度耳轴时，点选弯头后按输入的 H/L 生成预览；不勾选时，通过 AccuDraw 沿耳轴方向拉伸或输入距离，左键固定。确认后写入支吊架清单属性。"
                                Foreground="{StaticResource InkBrush}" TextWrapping="Wrap"
                                Margin="0,0,0,8" />
                     <WrapPanel>
@@ -116,7 +119,7 @@
                                 Click="Pick_Click" Margin="0,0,6,6" />
                         <Button Content="结束点选" Style="{StaticResource SecondaryButtonStyle}"
                                 Click="Stop_Click" Margin="0,0,6,6" />
-                        <Button Content="更新预览" Style="{StaticResource SecondaryButtonStyle}"
+                        <Button x:Name="UpdateButton" Content="更新预览" Style="{StaticResource SecondaryButtonStyle}"
                                 Click="Refresh_Click" Margin="0,0,6,6" />
                     </WrapPanel>
                     <TextBlock x:Name="SelectionText" Foreground="{StaticResource InkBrush}"

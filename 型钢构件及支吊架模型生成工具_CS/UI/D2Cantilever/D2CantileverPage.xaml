@@ -1,0 +1,50 @@
+﻿<UserControl x:Class="SteelSectionProbe.D2CantileverPage"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ x:ClassModifier="internal" Background="{DynamicResource BackgroundBrush}">
+ <UserControl.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries>
+  <ResourceDictionary Source="../Themes/Theme.xaml"/>
+ </ResourceDictionary.MergedDictionaries></ResourceDictionary></UserControl.Resources>
+ <Grid><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel>
+   <Border Style="{StaticResource CardStyle}"><StackPanel>
+    <TextBlock Text="01  悬臂与尺寸" Style="{StaticResource SectionTitleStyle}"/>
+    <TextBlock x:Name="LineHintText" Text="辅助线起点为生根端，终点为悬臂末端；线长为 L，标高为构件顶面。" TextWrapping="Wrap" Margin="0,0,0,8"/>
+    <TextBlock Text="架型"/><ComboBox x:Name="KindCombo" SelectionChanged="Kind_Changed"/>
+    <StackPanel x:Name="TypePanel" Margin="0,8,0,8"><TextBlock Text="结构类型"/>
+     <ComboBox x:Name="TypeCombo" SelectionChanged="Parameter_Changed"/></StackPanel>
+    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+     <StackPanel Grid.Column="0"><TextBlock Text="子项"/><ComboBox x:Name="VariantCombo" SelectionChanged="Parameter_Changed"/>
+      <TextBlock Text="编号前缀" Margin="0,8,0,0"/><TextBox x:Name="NameText" Text="D2" TextChanged="Parameter_Changed"/></StackPanel>
+     <StackPanel Grid.Column="2"><TextBlock Text="荷载距离 B（mm）" ToolTip="生根面至荷载中心的距离，按 B 查询允许荷载。"/>
+      <TextBox x:Name="BText" Text="250" TextChanged="Parameter_Changed"/>
+      <TextBlock x:Name="BHintText" Text="B ≤1000；L−B ≥150 mm" Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,4,0,0"/></StackPanel>
+    </Grid>
+    <CheckBox x:Name="ReverseCheck" Content="反向（交换辅助线两端）" Margin="0,8,0,0" Checked="Parameter_Changed" Unchecked="Parameter_Changed"/>
+    <CheckBox x:Name="KeepLineCheck" Content="确认后保留辅助线" IsChecked="True" Margin="0,5,0,0" Checked="Parameter_Changed" Unchecked="Parameter_Changed"/>
+    <TextBlock x:Name="SectionText" TextWrapping="Wrap" Margin="0,10,0,0"/>
+   </StackPanel></Border>
+   <Border x:Name="PlatePanel" Style="{StaticResource CardStyle}"><StackPanel>
+    <TextBlock Text="02  起点连接板（可选）" Style="{StaticResource SectionTitleStyle}"/>
+    <CheckBox x:Name="PlateCheck" Content="起点附加 G2 端板及锚栓" Checked="Parameter_Changed" Unchecked="Parameter_Changed"/>
+    <Grid Margin="0,8,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+     <StackPanel Grid.Column="0"><TextBlock Text="端板子项"/><ComboBox x:Name="PlateSubtypeCombo" SelectionChanged="Parameter_Changed"/></StackPanel>
+     <StackPanel Grid.Column="2"><TextBlock Text="端板外移（mm）"/><TextBox x:Name="PlateOffsetText" Text="0" TextChanged="Parameter_Changed"/></StackPanel>
+    </Grid>
+   </StackPanel></Border>
+  </StackPanel></ScrollViewer>
+  <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,8,4,0"><StackPanel>
+   <TextBlock Text="03  点取与预览" Style="{StaticResource SectionTitleStyle}"/>
+   <WrapPanel>
+    <Button Content="开始点取" Style="{StaticResource PrimaryButtonStyle}" Click="Pick_Click" Margin="0,0,8,8"/>
+    <Button Content="结束点取" Style="{StaticResource SecondaryButtonStyle}" Click="End_Click" Margin="0,0,8,8"/>
+    <Button x:Name="UpdateButton" Content="更新预览" Style="{StaticResource SecondaryButtonStyle}" Click="Update_Click" Margin="0,0,8,8"/>
+   </WrapPanel>
+   <TextBlock x:Name="PreviewText" Text="尚未选择水平辅助线。" TextWrapping="Wrap" Margin="0,4,0,12"/>
+   <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+    <Button Content="取消预览" Style="{StaticResource SecondaryButtonStyle}" Click="Cancel_Click" Margin="0,0,8,0"/>
+    <Button x:Name="ConfirmButton" Content="确定生成" Style="{StaticResource PrimaryButtonStyle}" Click="Confirm_Click" IsEnabled="False"/>
+   </StackPanel>
+  </StackPanel></Border>
+ </Grid>
+</UserControl>

@@ -68,7 +68,7 @@ namespace SteelSectionProbe
             if(PipeClampLocateTool.IsActive&&locating)PipeClampLocateTool.End();
             if(L7GuideDirectionTool.IsActive)L7GuideDirectionTool.End();
             if(L7GuideLengthTool.IsActive)L7GuideLengthTool.End();
-            locating=false;selection=null;
+            locating=false;selection=null;PreviewUpdateHint.Set(UpdateButton,false);
             try{preview.Cancel();}catch(Exception ex){Status(ex.Message,true);}
             ConfirmButton.IsEnabled=false;
         }
@@ -97,6 +97,7 @@ namespace SteelSectionProbe
         private void Data_Changed(object sender,RoutedEventArgs e)
         {
             if(initializing||DataText==null)return;
+            if(selection!=null)PreviewUpdateHint.Set(UpdateButton,true);
             try {if(preview.HasPreview){preview.Cancel();ConfirmButton.IsEnabled=false;}}
             catch(Exception ex){Status(ex.Message,true);}
             UpdateData();
@@ -175,7 +176,7 @@ namespace SteelSectionProbe
                 if(PipeClampLocateTool.IsActive&&locating){Status("可直接点取下一处，无需再点开始点取。",false);return;}
                 if(L7GuideDirectionTool.IsActive)L7GuideDirectionTool.End();
                 if(L7GuideLengthTool.IsActive)L7GuideLengthTool.End();
-                preview.Cancel();ConfirmButton.IsEnabled=false;selection=null;
+                preview.Cancel();ConfirmButton.IsEnabled=false;selection=null;PreviewUpdateHint.Set(UpdateButton,false);
                 PipeClampLocateTool.Begin();locating=true;
                 PreviewText.Text="请点取立管或竖直辅助线上的安装标高。";
                 Status("请选择立管或竖直辅助线。",false);
@@ -218,7 +219,7 @@ namespace SteelSectionProbe
                     PreviewText.Text="标高已确定；请在 XY 罗盘平面内转动，左键锁定安装方向。";
                 }
                 catch(Exception ex)
-                {selection=null;PreviewText.Text="点取失败："+ex.Message;Status(ex.Message,true);}
+                {selection=null;PreviewUpdateHint.Set(UpdateButton,false);PreviewText.Text="点取失败："+ex.Message;Status(ex.Message,true);}
             }),DispatcherPriority.Background);
         }
         private void OnLocateEnded()
@@ -272,10 +273,11 @@ namespace SteelSectionProbe
         private void Regenerate()
         {
             if(selection==null)return;
+            PreviewUpdateHint.Set(UpdateButton,true);
             try
             {
                 var plan=Plan();preview.Show(plan,center,axis);
-                ConfirmButton.IsEnabled=true;
+                ConfirmButton.IsEnabled=true;PreviewUpdateHint.Set(UpdateButton,false);
                 MeasureText.Text=!plan.HasMember?
                     "夹板长 "+plan.BearingLengthMm.ToString("0.#")+" mm；方向 "+
                         plan.AngleDeg.ToString("0.#")+"°":
@@ -298,7 +300,7 @@ namespace SteelSectionProbe
             if(L7GuideLengthTool.IsActive)L7GuideLengthTool.End();
             locating=false;
             try{preview.Cancel();}catch(Exception ex){Status(ex.Message,true);}
-            selection=null;ConfirmButton.IsEnabled=false;
+            selection=null;PreviewUpdateHint.Set(UpdateButton,false);ConfirmButton.IsEnabled=false;
         }
         private void Update_Click(object sender,RoutedEventArgs e){Regenerate();}
         private void Cancel_Click(object sender,RoutedEventArgs e)
@@ -313,11 +315,9 @@ namespace SteelSectionProbe
         {
             try
             {
-                var watch=Stopwatch.StartNew();
-                preview.Confirm();watch.Stop();
-                string elapsed=watch.Elapsed.TotalMilliseconds.ToString("0.0",
-                    CultureInfo.InvariantCulture)+" ms";
-                ConfirmButton.IsEnabled=false;selection=null;
+
+                string elapsed=WriteDuration.Measure(preview.Confirm);
+                ConfirmButton.IsEnabled=false;selection=null;PreviewUpdateHint.Set(UpdateButton,false);
                 PreviewText.Text="已确认生成并写入附加项；写入耗时 "+elapsed+"。可继续点取下一处。";
                 Status(Series()+" 保冷立管导向架已生成；附加项写入耗时 "+elapsed+"。",false);
             }
