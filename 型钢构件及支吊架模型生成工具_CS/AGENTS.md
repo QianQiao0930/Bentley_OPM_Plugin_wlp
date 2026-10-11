@@ -1,5 +1,7 @@
 ﻿# 型钢构件及支吊架模型生成工具：AI 与开发者协作规范
 
+2026-10-11：当前版本更新为 V0.0.3。App/AssemblyInfo.cs 的程序集/文件版本为 0.0.3.0，信息版本为 0.0.3；首页角标 Text 与 ToolTip 同步。后文 V0.0.2 为历史记录。
+
 2026-10-06：版本号 0.0.2。本工程 `<GenerateAssemblyInfo>false</GenerateAssemblyInfo>` 且原先没有 AssemblyInfo，DLL 文件版本一直是 0.0.0.0；程序集版本的**唯一来源**是 `App/AssemblyInfo.cs`（`AssemblyVersion` / `AssemblyFileVersion` = 0.0.2.0，`AssemblyInformationalVersion` = 0.0.2）。**csproj 里加 `<Version>` 不会生效**，不要那样改。改版本必须同时改 `UI/HomePage.xaml` 标题栏角标「V0.0.x · 开发：魏」（`Text` 与 `ToolTip` 各一处），否则界面与 DLL 版本不一致。Release 默认用 D 盘 SDK（`D:\Program Files\Bentley\OpenPlant 2024\OpenPlantModeler`，csproj 里 D 判断在前，C 盘只作兜底）；实测 `bin\Release\net48` 与 `bin\Release\net48_full` 两个产物的 SHA256 一致（`5A7950A7C4718B2468C9B754FB463F8C52B68332FF1684EBB493F2539D79449C`），符合 §11.3 的备用件一致性要求。
 
 2026-10-04：锁 Z 支持 1～15 起点批量，独立路由计算位移，重叠同目标去重，冲突及其重叠组跳过；所有模式一次实际修改最多 15 根直管（含随动水平管及伸缩立管，管件另计），超出整批拒绝。参考文件只读水平管允许作基准，附件逐层 GetTransformToParent 将本地 UOR 转至活动模型 UOR，再转毫米；外径/保温按等比缩放，非等比及剪切拒绝，目标仍只许活动模型。参考对象禁止构造修改/拓扑探测对象。56 项纯计算检查通过，参考附件变换、批量几何写回及 Undo 须宿主实测。
