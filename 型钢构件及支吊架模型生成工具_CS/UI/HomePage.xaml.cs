@@ -59,6 +59,9 @@ namespace SteelSectionProbe
         /// </summary>
         internal void Refresh()
         {
+            RefreshLicenseStatus();
+            VersionText.Text = ProductInfo.DisplayVersion;
+            AuthorText.Text = "· 作者：" + ProductInfo.AuthorName;
             DateTime utcNow = DateTime.UtcNow;
             List<HomeEntry> ranked = HomePreferences.Rank(utcNow);
             Dictionary<string, int> rankOf = RankIndexMap(ranked);
@@ -344,6 +347,25 @@ namespace SteelSectionProbe
                 if (chrome > 0) return chrome;
             }
             return 0;
+        }
+
+        internal void RefreshLicenseStatus()
+        {
+            ActivationButton.Visibility = LicenseService.IsLicensingEnabled ? Visibility.Visible : Visibility.Collapsed;
+            ActivationButton.Content = LicenseService.DisplayStatus;
+            ActivationButton.ToolTip = LicenseService.LicenseDescription;
+            ActivationButton.Foreground = (Brush)FindResource(
+                LicenseService.IsActivated ? "StatusBrush" : "MutedBrush");
+        }
+
+        private void About_Click(object sender, RoutedEventArgs e)
+        {
+            FeatureRequested?.Invoke("about");
+        }
+
+        private void Activation_Click(object sender, RoutedEventArgs e)
+        {
+            FeatureRequested?.Invoke("activation");
         }
 
         /// <summary>点星标按钮：打开 1～5 星的评分菜单。</summary>

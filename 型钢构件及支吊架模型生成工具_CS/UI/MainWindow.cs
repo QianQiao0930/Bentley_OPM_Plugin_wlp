@@ -61,6 +61,16 @@ namespace SteelSectionProbe
             FormClosed += OnFormClosed;
         }
 
+        internal void ShowActivationPage()
+        {
+            workspace.ShowActivationPage();
+        }
+
+        internal void ShowAboutPage()
+        {
+            workspace.ShowAboutPage();
+        }
+
         internal void ShowSteelSectionsPage()
         {
             workspace.ShowSteelSectionsPage();

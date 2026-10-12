@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <OutputType>WinExe</OutputType>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>7.3</LangVersion>
+    <AssemblyName>SteelSupportLicenseIssuer</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System.Runtime.Serialization" />
+    <Compile Include="../../Domain/Licensing/ActivationPayload.cs" Link="ActivationPayload.cs" />
+    <Compile Include="../../Services/Licensing/ActivationCodec.cs" Link="ActivationCodec.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="Exists('../../Resources/license_public_key.xml')">
+    <EmbeddedResource Include="../../Resources/license_public_key.xml" LogicalName="SteelSectionProbe.license_public_key.xml" />
+  </ItemGroup>
+</Project>

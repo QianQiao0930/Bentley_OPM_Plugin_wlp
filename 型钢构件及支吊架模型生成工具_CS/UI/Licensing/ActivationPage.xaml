@@ -1,0 +1,56 @@
+<UserControl x:Class="SteelSectionProbe.ActivationPage" x:ClassModifier="internal"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{DynamicResource BackgroundBrush}">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../Themes/Theme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="0,8,0,0">
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <TextBlock Text="授权状态" Style="{StaticResource SectionTitleStyle}" />
+                    <TextBlock x:Name="ActivationStatusText" FontSize="20" FontWeight="SemiBold" />
+                    <TextBlock x:Name="LicenseInfoText" Margin="0,8,0,0" TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <TextBlock Text="01  复制本机机器码" Style="{StaticResource SectionTitleStyle}" />
+                    <TextBlock Text="申请永久授权时需提供机器码；申请一个月或 90 天试用码无需机器码。" TextWrapping="Wrap" />
+                    <Grid Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="MachineCodeText" IsReadOnly="True" FontSize="11"
+                                 VerticalContentAlignment="Center" Margin="0,0,8,0" />
+                        <Button x:Name="CopyMachineButton" Grid.Column="1" Content="复制机器码"
+                                Style="{StaticResource SecondaryButtonStyle}" Click="CopyMachine_Click" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <TextBlock Text="02  输入激活码或试用码" Style="{StaticResource SectionTitleStyle}" />
+                    <TextBlock Text="粘贴完整授权码即可使用全部功能。试用从签发时刻起计时，以授权到期时间为准。" TextWrapping="Wrap" />
+                    <TextBox x:Name="ActivationCodeText" Height="130" Margin="0,10,0,12"
+                             AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top"
+                             VerticalScrollBarVisibility="Auto" MaxLength="8192" />
+                    <WrapPanel>
+                        <Button x:Name="ActivateButton" Content="激活 / 启用试用" Margin="0,0,8,8"
+                                Style="{StaticResource PrimaryButtonStyle}" Click="Activate_Click" />
+                        <Button Content="联系作者" Margin="0,0,0,8"
+                                Style="{StaticResource SecondaryButtonStyle}" Click="ContactAuthor_Click" />
+                    </WrapPanel>
+                    <TextBlock x:Name="ResultText" Margin="0,12,0,0" TextWrapping="Wrap"
+                               Foreground="{StaticResource StatusBrush}" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

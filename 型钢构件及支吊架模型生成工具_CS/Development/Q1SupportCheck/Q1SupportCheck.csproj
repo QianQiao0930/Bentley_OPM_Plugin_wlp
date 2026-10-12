@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+ <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><LangVersion>7.3</LangVersion><NoWarn>0649</NoWarn></PropertyGroup>
+ <ItemGroup>
+  <Compile Include="../../Domain/ProfileModels.cs" Link="ProfileModels.cs"/>
+  <Compile Include="../../Data/RuntimeData.cs" Link="RuntimeData.cs"/>
+  <Compile Include="../../Data/ProfileLookup.cs" Link="ProfileLookup.cs"/>
+  <Compile Include="../../Domain/PipeClamp/A1ClampPlan.cs" Link="A1ClampPlan.cs"/>
+  <Compile Include="../../Data/PipeClamp/A1ClampCatalog.cs" Link="A1ClampCatalog.cs"/>
+  <Compile Include="../../Services/PipeClamp/A1ClampCalculator.cs" Link="A1ClampCalculator.cs"/>
+  <Compile Include="../../Domain/Q1Support/Q1SupportPlan.cs" Link="Q1SupportPlan.cs"/>
+  <Compile Include="../../Data/Q1Support/Q1SupportCatalog.cs" Link="Q1SupportCatalog.cs"/>
+  <Compile Include="../../Services/Q1Support/Q1SupportCalculator.cs" Link="Q1SupportCalculator.cs"/>
+  <Compile Include="../../Services/AxisPlacement/AxisPlacementCalculator.cs" Link="AxisPlacementCalculator.cs"/>
+  <Compile Include="../../Domain/Q2Support/Q2SupportPlan.cs" Link="Q2SupportPlan.cs"/>
+  <Compile Include="../../Data/Q2Support/Q2SupportCatalog.cs" Link="Q2SupportCatalog.cs"/>
+  <Compile Include="../../Services/Q2Support/Q2SupportCalculator.cs" Link="Q2SupportCalculator.cs"/>
+  <EmbeddedResource Include="../../Resources/profiles.bin" LogicalName="SteelSectionProbe.profiles.bin"/>
+ </ItemGroup>
+</Project>

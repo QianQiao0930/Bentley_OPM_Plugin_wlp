@@ -238,6 +238,39 @@ namespace SteelSectionProbe
                 WriteRecords(element,entries);
             }
         }
+        internal static void AttachQ2Support(Element element,Q2SupportPlan p)
+        {
+            if(element==null||p==null)throw new ArgumentNullException("element");
+            var entries=new List<KeyValuePair<string,object[]>>();string type=Q2SupportCatalog.SupportType,tag=p.Number,pipe=p.PipeNumber;
+            AddEntry(entries,"PipeSupportAssembly_Q2","Assembly",type,tag,"支吊架",p.Specification,0,1,"套",pipe);
+            AddEntry(entries,"PipeSupportComponent_Q2_MEMBER_A","Component",type,tag,"构件A",p.Section,p.LengthMm,1,"件",pipe);
+            AddEntry(entries,"PipeSupportComponent_Q2_BIG_U_BOLT","Component",type,tag,"大管U型螺栓",p.BigClamp.BoltSpecification,p.BigClamp.BoltLengthMm,1,"件",pipe);
+            AddEntry(entries,"PipeSupportComponent_Q2_BIG_NUT","Component",type,tag,"大管螺母",p.BigClamp.NutSpecification,0,4,"件",pipe);
+            if(p.SmallClamp!=null)
+            {
+                AddEntry(entries,"PipeSupportComponent_Q2_SMALL_U_BOLT","Component",type,tag,"小管U型螺栓",p.SmallClamp.BoltSpecification,p.SmallClamp.BoltLengthMm,p.SmallStationsMm.Length,"件",pipe);
+                AddEntry(entries,"PipeSupportComponent_Q2_SMALL_NUT","Component",type,tag,"小管螺母",p.SmallClamp.NutSpecification,0,4*p.SmallStationsMm.Length,"件",pipe);
+            }
+            if(p.SmallBlockMm!=null)AddEntry(entries,"PipeSupportComponent_Q2_SMALL_BLOCK","Component",type,tag,"小管承重块",BlockSpecification(p.SmallBlockMm),p.SmallBlockHeightMm,p.SmallStationsMm.Length,"块",pipe);
+            WriteRecords(element,entries);
+        }
+        private static string BlockSpecification(double[] size){return size[0]+"×"+size[1]+"×"+size[2];}
+        internal static void AttachQ1Support(Element element,Q1SupportPlan plan)
+        {
+            if(element==null||plan==null)throw new ArgumentNullException("element");
+            var entries=new List<KeyValuePair<string,object[]>>();
+            string type=Q1SupportCatalog.SupportType,tag=plan.Number,pipe=plan.PipeNumber;
+            AddEntry(entries,"PipeSupportAssembly_Q1","Assembly",type,tag,"支吊架",plan.Specification,0,1,"套",pipe);
+            AddEntry(entries,"PipeSupportComponent_Q1_MEMBER_A","Component",type,tag,"构件A",plan.Section,plan.LengthMm,1,"件",pipe);
+            AddEntry(entries,"PipeSupportComponent_Q1_BIG_U_BOLT","Component",type,tag,"大管U型螺栓",plan.BigClamp.BoltSpecification,plan.BigClamp.BoltLengthMm,1,"件",pipe);
+            AddEntry(entries,"PipeSupportComponent_Q1_BIG_NUT","Component",type,tag,"大管螺母",plan.BigClamp.NutSpecification,0,4,"件",pipe);
+            AddEntry(entries,"PipeSupportComponent_Q1_SMALL_U_BOLT","Component",type,tag,"小管U型螺栓",plan.SmallClamp.BoltSpecification,plan.SmallClamp.BoltLengthMm,1,"件",pipe);
+            AddEntry(entries,"PipeSupportComponent_Q1_SMALL_NUT","Component",type,tag,"小管螺母",plan.SmallClamp.NutSpecification,0,4,"件",pipe);
+            if(plan.Parallel&&plan.PadThicknessMm>0)
+                AddEntry(entries,"PipeSupportComponent_Q1_PAD","Component",type,tag,"现场垫板",
+                    plan.PadSizeMm.ToString("0.###")+"×"+plan.PadSizeMm.ToString("0.###")+"×"+plan.PadThicknessMm.ToString("0.###"),0,1,"块",pipe);
+            WriteRecords(element,entries);
+        }
         /// <summary>A1 U 型管卡：整组、U 型螺栓和四颗螺母；通板没有建模也不入清单。</summary>
         internal static void AttachA1Clamp(Element element,A1ClampPlan plan)
         {

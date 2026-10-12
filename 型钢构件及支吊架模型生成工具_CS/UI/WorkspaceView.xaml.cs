@@ -12,6 +12,7 @@ namespace SteelSectionProbe
         private readonly Dictionary<string, IWorkspacePage> pages = new Dictionary<string, IWorkspacePage>();
         private readonly HomePage homePage;
         private IWorkspacePage currentPage;
+        private readonly DispatcherTimer licenseTimer;
 
         internal event Action CloseRequested;
         internal SteelSectionPage SteelSections { get; private set; }
@@ -24,6 +25,10 @@ namespace SteelSectionProbe
             homePage.FeatureRequested += OpenPage;
             homePage.StatusRequested += SetStatus;
 
+#if ENABLE_LICENSING
+            RegisterPage(new ActivationPage());
+#endif
+            RegisterPage(new AboutPage());
             SteelSections = new SteelSectionPage();
             RegisterPage(SteelSections);
             RegisterPage(new HandrailPage());
@@ -38,6 +43,7 @@ namespace SteelSectionProbe
             RegisterPage(new FireCabinetPage());
             RegisterPage(new HoseCabinetPage());
             RegisterPage(new PipeClampPage());
+            RegisterPage(new Q1SupportPage());
             RegisterPage(new G2AnchorPage());
             RegisterPage(new VerticalPipeSupportPage());
             RegisterPage(new ColdRiserGuidePage());
@@ -53,6 +59,12 @@ namespace SteelSectionProbe
             RegisterPage(new PadPlatePage());
             RegisterPage(new N8Page());
             ShowHome();
+            licenseTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            licenseTimer.Tick += LicenseTimer_Tick;
+            if (LicenseService.IsLicensingEnabled)
+            {
+                licenseTimer.Start();
+            }
         }
 
         private void RegisterPage(IWorkspacePage page)
@@ -62,6 +74,13 @@ namespace SteelSectionProbe
 
         private void OpenPage(string id)
         {
+            if (id != "activation" && id != "about" && !LicenseService.IsActivated)
+            {
+                ShowActivationPage();
+                SetStatus("请先激活软件，再使用功能模块。", true);
+                return;
+            }
+
             IWorkspacePage page;
             if (!pages.TryGetValue(id, out page))
             {
@@ -71,7 +90,10 @@ namespace SteelSectionProbe
                 return;
             }
             // 首页"使用频率"统计的唯一埋点：命令行入口（STEELPROBE PLACE）也走这条路径。
-            HomePreferences.RecordUsage(id);
+            if (id != "activation" && id != "about")
+            {
+                HomePreferences.RecordUsage(id);
+            }
             if (currentPage != null && !ReferenceEquals(currentPage, page)) currentPage.OnDeactivated();
             currentPage = page;
             PageHost.Content = page.View;
@@ -81,6 +103,43 @@ namespace SteelSectionProbe
             HomeButton.Visibility = Visibility.Visible;
             SetHeaderVisible(true);
             SetStatus("已进入“" + page.PageTitle + "”。", false);
+        }
+
+        internal void ShowActivationPage()
+        {
+            if (LicenseService.IsLicensingEnabled)
+            {
+                OpenPage("activation");
+            }
+        }
+
+        internal void ShowAboutPage()
+        {
+            OpenPage("about");
+        }
+
+        private void LicenseTimer_Tick(object sender, EventArgs e)
+        {
+            if (!LicenseService.IsTrial)
+            {
+                return;
+            }
+
+            homePage.RefreshLicenseStatus();
+#if ENABLE_LICENSING
+            if (currentPage is ActivationPage activationPage)
+            {
+                activationPage.RefreshStatus();
+            }
+#endif
+
+            if (!LicenseService.IsActivated && currentPage != null &&
+                currentPage.PageId != "activation" && currentPage.PageId != "about")
+            {
+                // 通过正常页面生命周期退出点取并清理未确认预览。
+                ShowActivationPage();
+                SetStatus(LicenseService.StatusMessage, true);
+            }
         }
 
         internal void ShowSteelSectionsPage()
@@ -183,6 +242,8 @@ namespace SteelSectionProbe
 
         internal void OnWorkspaceClosing()
         {
+            licenseTimer.Stop();
+            licenseTimer.Tick -= LicenseTimer_Tick;
             foreach (IWorkspacePage page in pages.Values) page.OnWorkspaceClosing();
             currentPage = null;
             HomePreferences.Save();

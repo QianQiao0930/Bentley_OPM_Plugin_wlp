@@ -306,6 +306,7 @@
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <Border Width="34" Height="34" CornerRadius="8" Background="{StaticResource CardBrush}"
                             BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
@@ -322,51 +323,110 @@
                         <TextBlock Text="选择建模或查询功能" FontSize="10.5" Margin="0,3,0,0"
                                    Foreground="{StaticResource MutedBrush}" TextTrimming="CharacterEllipsis" />
                     </StackPanel>
-                    <!-- 版本与开发者：标题行右端的小字角标，不另占一行 -->
-                    <TextBlock Grid.Column="1" Text="V0.0.3 · 开发：魏" FontSize="9"
-                               Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Right"
-                               VerticalAlignment="Top" Margin="0,2,0,0" ToolTip="版本 V0.0.3 · 开发者：魏" />
+                    <!-- 版本来源为程序集，按钮进入无需授权的作者联系页。 -->
+                    <Button x:Name="AboutButton" Grid.Column="2" Width="176" Height="42"
+                            Margin="12,0,0,0" Padding="12,0" VerticalAlignment="Center"
+                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                            Click="About_Click"
+                            ToolTip="版本信息、联系作者、反馈问题与申请授权">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource SecondaryButtonStyle}">
+                                <Setter Property="Background" Value="{StaticResource CardBrush}" />
+                                <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                <Setter Property="BorderThickness" Value="1.5" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="VersionButtonBorder" CornerRadius="6"
+                                                    Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                  Margin="{TemplateBinding Padding}" />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="VersionButtonBorder" Property="Background"
+                                                            Value="{StaticResource CardSoftBrush}" />
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="VersionButtonBorder" Property="Background"
+                                                            Value="{StaticResource BackgroundBrush}" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                        <Grid x:Name="AboutButtonContent" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="VersionText" FontSize="13" FontWeight="Bold"
+                                       Foreground="{StaticResource InkBrush}" VerticalAlignment="Center"
+                                       LineHeight="20" LineStackingStrategy="BlockLineHeight" />
+                            <TextBlock x:Name="AuthorText" Grid.Column="1" FontSize="13" Margin="6,0,0,0"
+                                       Foreground="{StaticResource InkBrush}" VerticalAlignment="Center"
+                                       LineHeight="20" LineStackingStrategy="BlockLineHeight" />
+                            <Path Grid.Column="2" Data="M0,0 L4,4 L0,8" Width="4" Height="8"
+                                  Margin="10,0,0,0" VerticalAlignment="Center" Stretch="Uniform"
+                                  Stroke="{StaticResource AccentBrush}" StrokeThickness="1.5"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                        </Grid>
+                    </Button>
                 </Grid>
 
-                <!-- 第二行：搜索 / 排序 / 重置，右对齐。 -->
-                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right"
-                            VerticalAlignment="Center" Margin="0,10,0,0">
-                    <Grid Width="172" Height="30" Margin="0,0,8,0">
-                        <Border Background="{StaticResource BackgroundBrush}"
-                                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
-                                CornerRadius="6" />
-                        <Viewbox Width="15" Height="15" Margin="9,0,0,0"
-                                 HorizontalAlignment="Left" VerticalAlignment="Center">
-                            <Canvas Width="24" Height="24">
-                                <Path Data="{StaticResource HomeIcon_search}"
-                                      Style="{StaticResource HomeIconGlyphStyle}"
-                                      Stroke="{StaticResource MutedBrush}" />
-                            </Canvas>
-                        </Viewbox>
-                        <TextBox x:Name="SearchBox" Height="28" Margin="1" Padding="28,0,8,0"
-                                 Background="Transparent" BorderThickness="0" FontSize="11.5"
-                                 VerticalContentAlignment="Center"
-                                 Foreground="{StaticResource InkBrush}"
-                                 TextChanged="Search_TextChanged" />
-                        <TextBlock x:Name="SearchPlaceholder" Text="搜索功能模块..."
-                                   Margin="30,0,0,0" VerticalAlignment="Center"
-                                   IsHitTestVisible="False" FontSize="11.5"
-                                   Foreground="{StaticResource MutedBrush}" />
-                    </Grid>
+                <!-- 第二行：左侧授权入口，右侧搜索、排序和重置。 -->
+                <Grid Grid.Row="1" Margin="0,10,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Button x:Name="ActivationButton" Content="未激活" Height="30" MinWidth="80"
+                            HorizontalAlignment="Left" Margin="0,0,8,0" Padding="12,0" FontSize="11"
+                            Style="{StaticResource SecondaryButtonStyle}" Click="Activation_Click" />
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right"
+                                VerticalAlignment="Center">
+                        <Grid Width="172" Height="30" Margin="0,0,8,0">
+                            <Border Background="{StaticResource BackgroundBrush}"
+                                    BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                                    CornerRadius="6" />
+                            <Viewbox Width="15" Height="15" Margin="9,0,0,0"
+                                     HorizontalAlignment="Left" VerticalAlignment="Center">
+                                <Canvas Width="24" Height="24">
+                                    <Path Data="{StaticResource HomeIcon_search}"
+                                          Style="{StaticResource HomeIconGlyphStyle}"
+                                          Stroke="{StaticResource MutedBrush}" />
+                                </Canvas>
+                            </Viewbox>
+                            <TextBox x:Name="SearchBox" Height="28" Margin="1" Padding="28,0,8,0"
+                                     Background="Transparent" BorderThickness="0" FontSize="11.5"
+                                     VerticalContentAlignment="Center"
+                                     Foreground="{StaticResource InkBrush}"
+                                     TextChanged="Search_TextChanged" />
+                            <TextBlock x:Name="SearchPlaceholder" Text="搜索功能模块..."
+                                       Margin="30,0,0,0" VerticalAlignment="Center"
+                                       IsHitTestVisible="False" FontSize="11.5"
+                                       Foreground="{StaticResource MutedBrush}" />
+                        </Grid>
 
-                    <ComboBox x:Name="SortBox" Width="116" Height="30" Margin="0,0,8,0"
-                              FontSize="11" SelectionChanged="Sort_SelectionChanged">
-                        <ComboBoxItem Content="默认排序" />
-                        <ComboBoxItem Content="最近使用" />
-                        <ComboBoxItem Content="常用优先" />
-                    </ComboBox>
+                        <ComboBox x:Name="SortBox" Width="116" Height="30" Margin="0,0,8,0"
+                                  FontSize="11" SelectionChanged="Sort_SelectionChanged">
+                            <ComboBoxItem Content="默认排序" />
+                            <ComboBoxItem Content="最近使用" />
+                            <ComboBoxItem Content="常用优先" />
+                        </ComboBox>
 
-                    <Button x:Name="ResetButton" Content="重置排序"
-                            Style="{StaticResource GhostButtonStyle}"
-                            Height="30" MinWidth="0" Padding="9,0" FontSize="11"
-                            ToolTip="清除所有星标与使用统计，首页恢复出厂顺序"
-                            Click="Reset_Click" />
-                </StackPanel>
+                        <Button x:Name="ResetButton" Content="重置排序"
+                                Style="{StaticResource GhostButtonStyle}"
+                                Height="30" MinWidth="0" Padding="9,0" FontSize="11"
+                                ToolTip="清除所有星标与使用统计，首页恢复出厂顺序"
+                                Click="Reset_Click" />
+                    </StackPanel>
+                </Grid>
             </Grid>
         </Border>
 

@@ -13,25 +13,26 @@ namespace SteelSectionProbe
         private readonly DPoint3d center;
         private readonly double[] axis;
         private readonly Func<double,Element> build;
+        private readonly string directionLabel;
         private Element prototype;
         private double shownAngle;
         private bool compassActivated;
         private AccuDraw.RotationMode compassRotationMode;
         private bool compassWasActive;
-        private A1ClampOrientationTool(DPoint3d center,DVector3d axis,Func<double,Element> build)
+        private A1ClampOrientationTool(DPoint3d center,DVector3d axis,Func<double,Element> build,string label)
             :base(0,0)
-        {this.center=center;this.axis=new[]{axis.X,axis.Y,axis.Z};this.build=build;}
+        {this.center=center;this.axis=new[]{axis.X,axis.Y,axis.Z};this.build=build;directionLabel=label;}
         internal static event Action<double> Oriented;
         internal static event Action Ended;
         internal static bool IsActive{get{return active!=null;}}
-        internal static void Begin(DPoint3d center,DVector3d axis,Func<double,Element> build)
+        internal static void Begin(DPoint3d center,DVector3d axis,Func<double,Element> build,string label="A1 开口方向")
         {
             // 已有方向工具时**静默退役**（只清 active，不调 End/ExitTool）：ExitTool 挂起的
             // "退出当前工具"会在下一个原生事件结算，那时当前工具已经是新装的实例，
             // 会被误杀并触发一次伪 Ended（同 2906eca 竞态）。旧实例由随后的
             // InstallTool 工具切换收尾，其 OnCleanup 因 active!=this 而静默。
             if(active!=null)active=null;
-            var tool=new A1ClampOrientationTool(center,axis,build);active=tool;
+            var tool=new A1ClampOrientationTool(center,axis,build,label);active=tool;
             try{tool.InstallTool();}catch{active=null;throw;}
         }
         internal static void End()
@@ -48,7 +49,7 @@ namespace SteelSectionProbe
         {
             base.OnPostInstall();
             NotificationManager.OutputPrompt("精确绘图罗盘已垂直于管轴：法线沿管轴，X 为开口 0°，"
-                +"回车锁轴、Tab 切换字段；移动光标调整 A1 开口方向，左键锁定方向并生成预览；右键取消。");
+                +"回车锁轴、Tab 切换字段；移动光标调整 "+directionLabel+"，左键锁定方向并生成预览；右键取消。");
             BeginDynamics();
             // 动态绘图起来之后再接管罗盘（与 Python 端 F2 弯头耳轴的 _start_drag 同序）：
             // 不显式激活时罗盘是灰的、键盘焦点也不在罗盘上，回车会被 MicroStation 当成

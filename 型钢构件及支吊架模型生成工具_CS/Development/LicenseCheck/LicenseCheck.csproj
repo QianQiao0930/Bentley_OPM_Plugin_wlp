@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <LangVersion>7.3</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System.Runtime.Serialization" />
+    <Compile Include="../../Domain/Licensing/ActivationPayload.cs" Link="ActivationPayload.cs" />
+    <Compile Include="../../Services/Licensing/ActivationCodec.cs" Link="ActivationCodec.cs" />
+    <Compile Include="../../Services/Licensing/LicenseRegistration.cs" Link="LicenseRegistration.cs" />
+    <Compile Include="../../Services/Licensing/LicenseValidity.cs" Link="LicenseValidity.cs" />
+    <Compile Include="../../Infrastructure/Licensing/ActivationStore.cs" Link="ActivationStore.cs" />
+    <Compile Include="../../Infrastructure/Licensing/MachineIdentity.cs" Link="MachineIdentity.cs" />
+    <Compile Include="../LicenseIssuer/LicenseSigner.cs" Link="LicenseSigner.cs" />
+    <EmbeddedResource Include="../../Resources/license_public_key.xml" LogicalName="SteelSectionProbe.license_public_key.xml" />
+  </ItemGroup>
+</Project>

@@ -30,16 +30,29 @@
    </StackPanel></StackPanel></Border>
   <Border x:Name="DoublePanel" Style="{StaticResource CardStyle}"><StackPanel>
    <TextBlock Text="N4 设备与跨距尺寸" Style="{StaticResource SectionTitleStyle}"/>
-   <StackPanel>
-     <TextBlock Text="L2：两横担间距（mm）"/><TextBox x:Name="L2Text" TextChanged="Parameter_Changed"/>
-     <TextBlock Text="L3：管中心到外侧构件 C（mm）" Margin="0,8,0,0"/><TextBox x:Name="L3Text" TextChanged="Parameter_Changed"/>
-     <TextBlock Text="L4：管中心到内侧构件 C（mm）" Margin="0,8,0,0"/><TextBox x:Name="L4Text" TextChanged="Parameter_Changed"/>
+   <Grid>
+    <Grid.ColumnDefinitions>
+     <ColumnDefinition Width="*"/>
+     <ColumnDefinition Width="12"/>
+     <ColumnDefinition Width="*"/>
+    </Grid.ColumnDefinitions>
+    <StackPanel Grid.Column="0">
+     <TextBlock Text="L2：两横担间距（mm）" TextWrapping="Wrap"/>
+     <TextBox x:Name="L2Text" TextChanged="Parameter_Changed"/>
+     <TextBlock Text="L3：管中心到外侧构件 C（mm）" TextWrapping="Wrap" Margin="0,8,0,0"/>
+     <TextBox x:Name="L3Text" TextChanged="Parameter_Changed"/>
+     <TextBlock Text="L4：管中心到内侧构件 C（mm）" TextWrapping="Wrap" Margin="0,8,0,0"/>
+     <TextBox x:Name="L4Text" TextChanged="Parameter_Changed"/>
     </StackPanel>
-    <StackPanel>
-     <TextBlock Text="设备外径 2R（mm，必填）"/><TextBox x:Name="EquipmentOdText" TextChanged="Parameter_Changed"/>
-     <TextBlock Text="预焊件长度 D（mm，可为 0）" Margin="0,8,0,0"/><TextBox x:Name="PreweldText" Text="0" TextChanged="Parameter_Changed"/>
-     <CheckBox x:Name="ShowPreweldCheck" Content="显示设备预焊件参照" Margin="0,8,0,0" Checked="Parameter_Changed" Unchecked="Parameter_Changed"/>
+    <StackPanel Grid.Column="2">
+     <TextBlock Text="设备外径 2R（mm，必填）" TextWrapping="Wrap"/>
+     <TextBox x:Name="EquipmentOdText" TextChanged="Parameter_Changed"/>
+     <TextBlock Text="预焊件长度 D（mm，可为 0）" TextWrapping="Wrap" Margin="0,8,0,0"/>
+     <TextBox x:Name="PreweldText" Text="0" TextChanged="Parameter_Changed"/>
+     <CheckBox x:Name="ShowPreweldCheck" Content="显示设备预焊件参照" Margin="0,8,0,0"
+               Checked="Parameter_Changed" Unchecked="Parameter_Changed"/>
     </StackPanel>
+   </Grid>
    </StackPanel></Border>
  </StackPanel></ScrollViewer>
  <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,8,4,0">

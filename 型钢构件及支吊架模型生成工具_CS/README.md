@@ -1,5 +1,17 @@
 ﻿# 型钢构件及支吊架模型生成工具：OpenPlant Modeler 2024 C# 版
 
+2026-10-11：新增 EnableLicensing 编译开关，缺省 true（授权版），false 生成无授权版；只有编译参数生效，无用户配置开关。无授权构建排除激活页面、授权领域/验签/存储/机器标识及公钥，LicenseService 不访问授权文件，全部业务入口开放，隐藏首页激活按钮和作者页授权卡片，不启动到期定时器。Deployment/build_version.ps1 的 Licensed / Unlicensed 输出隔离；默认安装脚本仍只安装授权版。两种 DLL 编译零警告、零错误，138 项授权及双构建检查通过。
+
+
+2026-10-11：签发器新增“90 天试用（无需机器码）”，保留一个自然月及永久授权。90 天码从签发 UTC 时刻起计时，到期自动为未激活；同一码可用于多台电脑，重复导入不延长期限。新版签名载荷 version=3、trialDays=90，严格校验到期日；原密钥及旧码保持兼容，接收 90 天码需更新 DLL。125 项授权检查通过，插件与签发器 Release 编译零警告、零错误。
+
+
+2026-10-11：版本角标改为按钮，点击进入“关于与联系作者”；作者魏，邮箱 yo196544wobi@163.com，可复制邮箱、打开默认邮件草稿及进入激活页。版本显示改由 App/ProductInfo.cs 读取 App/AssemblyInfo.cs 信息版本，升级时不再修改首页硬编码文字。新增签发日起一个自然月的通用试用码，不绑定机器，到期为未激活；后台状态按当前 UTC 判断，工作区每秒检查到期并退出业务页面。旧永久激活码保持兼容，密钥不变。103 项授权检查及三种宽度 WPF 布局检查通过；邮件客户端与 OPM 到期清理仍需宿主实测。
+
+
+2026-10-11：新增离线永久授权。首页搜索框左侧显示“未激活 / 已激活”，点击进入独立激活页；未激活不能进入业务页，STEELPROBE PLACE 和型钢直接放置也拦截。RSA-2048/SHA-256 签名绑定 Windows 安装机器码，授权保存至 %LOCALAPPDATA%/SteelSectionProbe/license/activation.txt，首次读取验签后缓存，错误码不覆盖现有授权，保存失败不解锁。无服务器、期限或远程撤销。作者签发工具及私钥保护/回退说明见 Development/LicenseIssuer/README.md。改动前已提交未授权基线 f301ea5；原 DLL 备份在 bin/Baselines/V0.0.3_Unlicensed。48 项授权检查、首页检查和 WPF 离线布局通过；OPM 宿主中激活、重启与 Key-in 交互仍需实测。
+
+
 ## 最近变更（摘要）
 
 2026-10-06：版本号升到 **0.0.2**。程序集版本在 [`App/AssemblyInfo.cs`](App/AssemblyInfo.cs)（`AssemblyVersion` / `AssemblyFileVersion` = 0.0.2.0，`AssemblyInformationalVersion` = 0.0.2）；此前工程 `GenerateAssemblyInfo=false` 又没有 AssemblyInfo，DLL 的文件版本一直是 0.0.0.0。首页标题栏角标同步改为 `V0.0.2 · 开发：魏`（`UI/HomePage.xaml`）。**改版本号要同时改这两处**，csproj 里的 `<Version>` 在本工程不生效。编译默认使用 D 盘 SDK（`D:\Program Files\Bentley\OpenPlant 2024\OpenPlantModeler`），C 盘路径只作兜底。
@@ -276,7 +288,7 @@ dotnet build SteelSupportModeler.csproj -c Release /p:OutputPath=bin\Release\net
 3. 开放路径过滤、扫掠预览、参数重建、确认和取消。
 4. `PipeSupportComponents` ItemType 附加及源路径删除选项。
 5. 各支吊架功能页的实体布尔差集/相并、真圆弧扫掠、普通 Cell 写入与删除、预览取消、ItemType 逐条写入与回读。
-6. 点取参考文件元素、临时辅助线清理、AccuDraw 罗盘与方向工具交接。
+6. 点取参考文件元素、临时辅助线清理、AccuDraw 罗盘与滑动工具交接。
 7. 管道标高对齐的移动能力探测、写回生效与复核、一次 Undo 撤消整批（独立 `PipeAlign` 工程与集成页共用这套判据）。
 8. 首页进入/返回、窗口尺寸与高 DPI 下的版式。
 
@@ -666,3 +678,60 @@ HoseCabinetCheck 改为验证实际使用的单层路径包络、C1连续、半�
 ### V0.0.3（2026-10-11）
 
 程序集与首页显示统一为 V0.0.3，程序集/文件版本为 0.0.3.0。包含已实现的悬臂架、沿轴定位和耗时统计优化、灭火器箱及轻便消防水龙柜迁移，以及单层螺旋软管放样简化。
+
+2026-10-11：首页版本按钮放大为 176×42 DIP，复用 PrimaryButtonStyle 深色底，金色版本与箭头、白色作者文字。内部 Grid 和各项均居中，版本/作者统一 18 DIP 行高，移除箭头负边距，保持 About_Click 导航。520/640/840 DIP 离线布局及 Release 编译通过，已更新加载目录 DLL。
+
+2026-10-11：按用户反馈替换首页版本按钮深色填充：白色卡片底、主题黄色 1.5 DIP 边框，悬停/按下保持黄色边框；版本和作者文字统一 13 DIP、20 DIP 行高并居中，按钮仍为 176×42 DIP。此记录替代上条深色底说明。
+
+2026-10-11：N4 的“设备与跨距尺寸”区域改为等宽双列（间隔 12 DIP）；左列 L2/L3/L4，右列设备外径/预焊件长度/预焊件参照开关。只调整共用 BracketPage.xaml 的 DoublePanel 布局，保留所有控件名称和参数事件，N3 隐藏该区域的行为及建模、编号、统计逻辑不变。
+
+## 授权编译开关
+
+在本工程目录运行（不带参数默认授权版）：
+
+```powershell
+& .\Deployment\build_version.ps1 -Edition Licensed
+& .\Deployment\build_version.ps1 -Edition Unlicensed
+```
+
+- 授权版：`bin/Release/net48_full/SteelSectionProbe.dll`，保留永久及试用授权。
+- 无授权版：`bin/Release/Unlicensed/SteelSectionProbe.dll`，直接使用全部功能，无激活页或试用期限。
+- 两种构建都保留版本、作者联系方式、建模和统计功能；输出 DLL 名称相同，按所在目录区分。
+- 签发器不受本开关影响，已有授权文件不删除；换回授权版后按原授权状态运行。
+- 构建脚本不安装。`Deployment/install_new_version.ps1` 始终取授权版；要使用无授权版，关闭 OPM 后将无授权 DLL 复制到实际加载位置。
+
+也可直接传入 MSBuild 属性：
+
+```powershell
+dotnet build SteelSupportModeler.csproj -c Release -p:EnableLicensing=true -p:OutDir=bin\Release\net48_full\
+dotnet build SteelSupportModeler.csproj -c Release -p:EnableLicensing=false
+```
+
+`false` 在未指定 OutDir 时自动写入独立 Unlicensed 目录。属性仅接受 true / false，拼写错误会令编译失败。分发时确认所选产物目录。
+
+## 大管支撑小管（Q1）
+
+首页独立入口“大管支撑小管”（`q1-small-pipe-support`），位于 HGT21629 支吊架分区。按用户要求独立于“放置管夹”页面。选择类型 1～4、小管 DN15～100（1/2″～4″），输入图示两管中心标高差 H（mm，最大 1000），再点击支撑大管，直接生成固定方向预览；自动读取大管 DN、外径、保温厚度及管道号。仅接受可识别管径的不保温管，大管 DN 必须大于小管；实际外径不匹配 A1 管卡或 H 不能容纳两管及管卡时拒绝生成。
+
+类型确定上下及两管关系，无旋转步骤。“镜像”将整组构件关于过大管轴的高度平面翻至另一侧，保留上下类型；“确定生成”才写入公共清单。右键、取消、结束点取、返回首页及关闭窗口清理未确认预览。参数修改立即使确认失效，点击“更新预览”重新建模。类型、小管直径、H、镜像选项通过 `PageLastInput` 跨会话保存。
+
+点取与预览区提供开始点取、结束点取、更新预览、沿轴滑动，以及沿轴偏移数值和应用偏移。滑动复用 `AxisSlideTool`，动态帧只平移原型，左键锁定、右键恢复移动前位置；数值偏移和滑动均限制在选中大管段内。取消、返回首页和关闭窗口结束滑动并清理未确认预览。
+
+类型 1/2 小管分别在下/上，两管垂直，管卡分装在角钢两翼，小管卡开口为局部 +X，中心位于该翼的 −X 侧，螺母夹住角钢真实厚度；类型 3/4 小管分别在上/下，两管平行，装在同一翼并增加现场垫板。子项 A（DN15～25）用 ∠50×6、允许荷载 0.6 kN；B（DN32～50）用 ∠75×7、1.6 kN；C（DN65～100）用 ∠100×10、3 kN。型钢轮廓来自 `profiles.bin`，两套 U 型管卡复用 A1 真半圆、直腿和每套四颗螺母；Q1 按管壁定位角钢，保留 2 mm 建模净隙，直腿按角钢厚度、螺母高度及至少 3 mm 外露丝头缩短，清单记录实际直腿及展开长度，不修改独立 A1 标准尺寸；螺母间增加角钢板厚间隙，角钢开真实通孔。构件长度为最外侧管卡腿中心间跨度加两端各 50 mm。类型 3/4 图纸未标垫板尺寸，当前按小管至角钢的 2 mm 净空确定厚度，方形边长取小管螺杆直径的两倍，作为现场配垫的建模约定；焊缝不建模。
+
+编号为 `Q1-类型-子项-支撑管DN-被支撑管DN-H`。确认后写一个 `Q1_ANGLE_SMALL_PIPE_SUPPORT` 普通 Cell，ItemType 使用固定名称 `PipeSupportAssembly_Q1` 与 `PipeSupportComponent_Q1_MEMBER_A / BIG_U_BOLT / BIG_NUT / SMALL_U_BOLT / SMALL_NUT / PAD`，属性存中文类型、管道号及本次尺寸。源大管保持不变，小管不创建参考管体。
+
+验证：`dotnet run --project Development/Q1SupportCheck/Q1SupportCheck.csproj -c Release`；`powershell.exe -NoProfile -STA -File Development/Q1SupportCheck/check_layout.ps1`。Q1 16155 项纯计算检查、原管夹回归及首页清单检查通过，WPF 在 360/520/840 px、420/650 px 高度下操作栏可见。Bentley 实体布尔、实际点取、滑动工具交接、预览清理与 ItemType 写入仍需在 OPM 宿主实测。
+
+
+## Q2 横向角钢支撑（大管支撑小管模块）
+
+在现有“大管支撑小管”首页入口内选择 Q1 / Q2，PageId 保持不变。Q2 类型1：水平大管生根，两侧各一根水平小管；类型2：水平大管生根，单侧水平小管；类型3：水平大管生根，单侧立管；类型4：立管生根，单侧立管。Q2 小管范围 DN15～150，与 Q1 的 DN15～100 分开。选择 A/B/C 子项、小管 DN、中心间距 L 和镜像，Q2类型4点取主管立管后复用A1径向角度工具，绕主管轴线移动光标选取布置角度，左键锁定后生成预览；“调整角度”可重新选取。其余类型点取后直接生成预览。角钢、两套管卡和小管承重块整体绕管轴转动，镜像仍保留，沿轴滑动保持锁定角度。右键、切换类型、离开页面和关闭窗口终止角度工具并还原AccuDraw。类型1～3接受坡度不超过5°的水平管，类型4接受偏离竖直不超过5°的立管；立管方位跟随实际轴线。沿轴滑动、数值偏移、预览取消及确认统计复用现有工作流。类型1对称双臂的镜像不改变双侧小管站位；类型2～4的镜像将悬臂翻至管道另一侧。
+
+Q2 角钢子项独立按荷载选择：A=∠50×6，B=∠75×7，C=∠100×10。L≤250/500/750/1000 mm 时，A允许荷载为0.5/0.2/无/无 kN，B为2/1/0.5/0.2 kN，C为4/2/1/0.6 kN。A在L>500 mm时拒绝生成，L>1000及两管安装区域重叠也拒绝。类型1每侧小管中心至自由端150mm；类型2自由端150mm、生根外侧管卡腿至端部50mm；类型3/4两端从最外侧管卡腿中心各延长50mm。小管参考管体不创建；图中类型1/2未画小管夹，因此仅建生根管卡和承托角钢，类型3/4另建立管管卡及承重块。
+
+立管安装方式可选 A“承重/固定”或 G“承重/导向”。A每腿两螺母同在角钢外侧；G每腿一内一外，管卡弯弧内侧至管壁径向净隙3mm，角钢侧也留3mm安装间隙。均每套四颗螺母，螺杆末端留丝头。管卡真半圆、螺母和扫掠复用A1，Q2只覆盖本次计划的腿中心距及直腿长度，不修改独立A1标准表。
+
+承重块按用户提供表：DN15～65用50×30×10，DN80～150用100×50×10 mm。布局解释为沿立管焊接长边×径向伸出短边×切向板厚；块底落在角钢水平翼顶面，内端使用管壁圆柱差集形成贴管曲面。类型3/4均只给被支撑小立管加承重块，支撑主管不加块。承重块表仅限制小立管选型；水平或竖直支撑主管均可使用A1表内大管径，包括DN300。块仅为焊接件几何，源管道不修改，不绘制6mm焊缝。
+
+Q2编号为`Q2-类型-子项-支撑管DN-被支撑管DN-L`。普通Cell名`Q2_ANGLE_SMALL_PIPE_SUPPORT`，确认时一次写入固定`PipeSupportAssembly_Q2`及`PipeSupportComponent_Q2_MEMBER_A/BIG_U_BOLT/BIG_NUT/SMALL_U_BOLT/SMALL_NUT/SMALL_BLOCK`，中文SupportType来自Q2SupportCatalog。实现位于Domain/Data/Services/Q2Support，页面及预览会话复用Q1Support。检查运行Development/Q1SupportCheck，覆盖Q1回归、Q2荷载边界、四布置、端距、A/G螺母、承重块尺寸、轴向限制和滑动边界。两系列WPF布局在360/520/840×420/650通过，Bentley实体布尔、管壁贴合、立管承重块及实际交互仍需宿主验证。

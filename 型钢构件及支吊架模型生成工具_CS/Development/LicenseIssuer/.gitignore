@@ -1,0 +1,4 @@
+# 私钥只能由软件作者保存，禁止提交或随插件分发。
+private-key.xml
+private-key*.xml
+issued-*.txt

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net48</TargetFramework>
     <OutputType>Library</OutputType>
@@ -8,6 +8,10 @@
     <AssemblyName>SteelSectionProbe</AssemblyName>
     <RootNamespace>SteelSectionProbe</RootNamespace>
     <UseWPF>true</UseWPF>
+    <!-- 默认分发授权版；只有开发端编译参数才能关闭授权。 -->
+    <EnableLicensing Condition="'$(EnableLicensing)' == ''">true</EnableLicensing>
+    <DefineConstants Condition="'$(EnableLicensing)' == 'true'">$(DefineConstants);ENABLE_LICENSING</DefineConstants>
+    <OutDir Condition="'$(EnableLicensing)' == 'false' and '$(OutDir)' == ''">bin\$(Configuration)\Unlicensed\</OutDir>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <UseWindowsForms>true</UseWindowsForms>
     <BentleyRoot Condition="'$(BentleyRoot)' == '' and Exists('D:\Program Files\Bentley\OpenPlant 2024\OpenPlantModeler\Bentley.DgnPlatformNET.dll')">D:\Program Files\Bentley\OpenPlant 2024\OpenPlantModeler</BentleyRoot>
@@ -60,6 +64,7 @@
     <Compile Remove="Development\E1GuideCheck\**\*.cs" />
     <Compile Remove="Development\G2AnchorCheck\**\*.cs" />
     <Compile Remove="Development\PipeClampCheck\**\*.cs" />
+    <Compile Remove="Development\Q1SupportCheck\**\*.cs" />
     <Compile Remove="Development\VerticalPipeSupportCheck\**\*.cs" />
     <Compile Remove="Development\N1CantileverCheck\**\*.cs" />
     <Compile Remove="Development\N2CantileverCheck\**\*.cs" />
@@ -80,6 +85,25 @@
     <Compile Remove="Development\PipeAlignmentUndoCheck\**\*.cs" />
     <Compile Remove="Development\SteelSectionCheck\**\*.cs" /></ItemGroup>
   <ItemGroup><Compile Remove="Development/HoseCabinetCheck/**/*.cs" /></ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources/license_public_key.xml" LogicalName="SteelSectionProbe.license_public_key.xml" Condition="'$(EnableLicensing)' == 'true'" />
+    <Compile Remove="Development/LicenseIssuer/**/*.cs" />
+    <Compile Remove="Development/LicenseCheck/**/*.cs" />
+    <Compile Remove="Development/LicenseUiCheck/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup><Page Remove="Development/LicenseCheck/**/*.xaml" /></ItemGroup>
+  <ItemGroup Condition="'$(EnableLicensing)' == 'false'">
+    <Compile Remove="Domain/Licensing/**/*.cs" />
+    <Compile Remove="Services/Licensing/**/*.cs" />
+    <Compile Remove="Infrastructure/Licensing/ActivationStore.cs;Infrastructure/Licensing/MachineIdentity.cs" />
+    <Compile Remove="UI/Licensing/**/*.cs" />
+    <Page Remove="UI/Licensing/**/*.xaml" />
+  </ItemGroup>
+  <Target Name="ValidateLicensingOption" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(EnableLicensing)' != 'true' and '$(EnableLicensing)' != 'false'"
+           Text="EnableLicensing 只允许 true 或 false。默认 true 为授权版。" />
+    <Message Importance="high" Text="授权编译开关 EnableLicensing=$(EnableLicensing)" />
+  </Target>
 </Project>
 
 

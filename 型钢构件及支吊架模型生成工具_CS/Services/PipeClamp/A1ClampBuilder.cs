@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Bentley.DgnPlatformNET;
 using Bentley.DgnPlatformNET.Elements;
@@ -41,7 +41,7 @@ namespace SteelSectionProbe
             var model=Session.Instance.GetActiveDgnModel();
             if(model==null||!model.Is3d)throw new InvalidOperationException("A1 管卡需要三维模型。");
             var frame=new Frame(center,model.GetModelInfo().UorPerMeter/1000.0,axis,plan.AngleDeg);
-            double radius=plan.Row.C/2.0,tip=plan.Row.D;
+            double radius=(plan.LegSpacingMm??plan.Row.C)/2.0,tip=plan.StraightLegMm??plan.Row.D;
             var first=frame.Point(0,tip,radius);
             var path=new[]{
                 SolidPathSegment.Line(first,frame.Point(0,0,radius)),
@@ -55,7 +55,7 @@ namespace SteelSectionProbe
             {
                 result.Add(Nut(frame,plan,sign,plan.NutLow1Mm,plan.NutCenterMm));
                 result.Add(Nut(frame,plan,sign,plan.NutLow2Mm,
-                    plan.NutCenterMm+plan.NutHeightMm));
+                    plan.NutLow2Mm+plan.NutHeightMm));
             }
             return result;
         }
@@ -66,12 +66,12 @@ namespace SteelSectionProbe
             for(int i=0;i<6;i++)
             {double theta=Math.PI/6+i*Math.PI/3;
                 points.Add(frame.Point(radius*Math.Cos(theta),low,
-                    sign*plan.Row.C/2.0+radius*Math.Sin(theta)));}
+                    sign*(plan.LegSpacingMm??plan.Row.C)/2.0+radius*Math.Sin(theta)));}
             var solid=SolidPrimitiveFactory.PolygonPrism(points,frame.Vector(0,high-low,0));
             double hole=(plan.Row.Bolt+2.0)/2.0;
             SolidPrimitiveFactory.Subtract(ref solid,new[]{SolidPrimitiveFactory.Cylinder(
-                frame.Point(0,low-5,sign*plan.Row.C/2.0),
-                frame.Point(0,high+5,sign*plan.Row.C/2.0),hole*frame.Scale)},"A1 螺母中心孔");
+                frame.Point(0,low-5,sign*(plan.LegSpacingMm??plan.Row.C)/2.0),
+                frame.Point(0,high+5,sign*(plan.LegSpacingMm??plan.Row.C)/2.0),hole*frame.Scale)},"A1 螺母中心孔");
             return SolidPrimitiveFactory.Element(solid,A1ClampCatalog.NutColor);
         }
     }

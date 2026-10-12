@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>型钢构件及支吊架模型生成工具 - UI 原型 v4</title>
+<style>
+:root{
+  --bg:#F4F7FA; --surface:#FFFFFF; --border:#DDE3EA; --border-soft:#E8EDF2;
+  --text:#1B2733; --text-2:#5B6B7B; --text-3:#94A3B3;
+  --accent:#1F6FEB; --accent-soft:#EAF2FF;
+  --teal:#0E9F9A; --teal-soft:#E4F6F5;
+  --violet:#7C5CD6; --violet-soft:#F1EDFB;
+  --amber:#E8A317; --amber-d:#B57A00; --green:#22A06B; --red:#D9434A;
+  --mono:"Cascadia Mono","JetBrains Mono",Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none!important}
+body{font-family:"Segoe UI","Microsoft YaHei UI","Microsoft YaHei",sans-serif;background:#DCE3EA;min-height:100vh;display:flex;justify-content:center;align-items:center;padding:30px 0;color:var(--text);font-size:13px}
+button{font:inherit;color:inherit}
+.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+
+/* ================= 窗口壳（首页 / 内页共用，尺寸恒定） ================= */
+.win{width:400px;height:880px;background:var(--bg);border:1px solid #C5CFDA;border-radius:8px;box-shadow:0 20px 50px rgba(30,50,80,.18),0 2px 6px rgba(30,50,80,.08);display:flex;flex-direction:column;overflow:hidden}
+.titlebar{height:32px;background:var(--surface);display:flex;align-items:center;padding-left:10px;flex-shrink:0;border-bottom:1px solid var(--border-soft);user-select:none}
+.tlogo{width:16px;height:16px;border-radius:3px;background:linear-gradient(135deg,#1F6FEB,#0E9F9A);color:#fff;font:700 8px var(--mono);display:flex;align-items:center;justify-content:center}
+.ttext{margin-left:8px;font-size:12px;color:var(--text-2);flex:1}
+.wbtn{width:42px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--text-2);cursor:pointer}
+.wbtn:hover{background:#EEF2F6}
+.wbtn.close:hover{background:#E81123;color:#fff}
+.view{flex:1;min-height:0;display:flex;flex-direction:column}
+.view.in-r{animation:vin-r .2s ease-out}
+.view.in-l{animation:vin-l .2s ease-out}
+@keyframes vin-r{from{opacity:0;transform:translateX(10px)}}
+@keyframes vin-l{from{opacity:0;transform:translateX(-10px)}}
+
+/* 网格底纹头部（首页 / 内页共用） */
+.gridbg{position:relative;background-color:var(--surface);background-image:linear-gradient(#EEF2F7 1px,transparent 1px),linear-gradient(90deg,#EEF2F7 1px,transparent 1px);background-size:14px 14px;border-bottom:1px solid var(--border-soft);flex-shrink:0}
+.gridbg::after{content:"";position:absolute;left:0;right:0;bottom:0;height:60%;background:linear-gradient(rgba(255,255,255,0),#fff);pointer-events:none}
+.gridbg>*{position:relative;z-index:1}
+.brk{position:relative}
+.brk::before,.brk::after{content:"";position:absolute;width:8px;height:8px;border:2px solid var(--accent)}
+.brk::before{top:-3px;left:-3px;border-right:none;border-bottom:none}
+.brk::after{bottom:-3px;right:-3px;border-left:none;border-top:none}
+
+/* ================= 首页 ================= */
+.header{padding:14px 16px 12px}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:44px;height:44px;background:#fff;border:1px solid var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;font:700 21px "STKaiti","KaiTi",serif;flex-shrink:0}
+.brand h1{font-size:15.5px;font-weight:700;letter-spacing:.5px}
+.bsub{font:10px var(--mono);color:var(--text-3);letter-spacing:1.2px;margin-top:4px}
+.meta-row{display:flex;align-items:center;gap:6px;margin-top:10px}
+.chip{font:11px var(--mono);padding:2px 8px;border-radius:4px;border:1px solid var(--border);background:#fff;color:var(--text-2)}
+.chip b{color:var(--accent);font-weight:600}
+.license{margin-left:auto;display:flex;align-items:center;gap:6px;font:600 11px var(--mono);color:var(--green);padding:2px 9px;border-radius:4px;background:#E8F7F0;border:1px solid #BFE8D4;cursor:pointer}
+.license .dot{width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 0 0 3px rgba(34,160,107,.18)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);margin-top:10px;border:1px solid var(--border);border-radius:6px;background:#fff}
+.stat{padding:6px 10px;border-right:1px solid var(--border-soft)}
+.stat:last-child{border-right:none}
+.stat .k{font-size:10px;color:var(--text-3)}
+.stat .v{font:600 15px var(--mono);margin-top:1px}
+.stat .v small{font-size:10px;color:var(--text-3);font-weight:400;margin-left:2px}
+
+.toolbar{padding:10px 16px;flex-shrink:0;border-bottom:1px solid var(--border-soft);display:flex;flex-direction:column;gap:8px}
+.srow{display:flex;gap:6px}
+.search{flex:1;display:flex;align-items:center;height:34px;background:#fff;border:1px solid var(--border);border-radius:6px;padding:0 10px;gap:8px;transition:.15s}
+.search:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(31,111,235,.12)}
+.search .i{width:15px;height:15px;color:var(--text-3)}
+.search input{flex:1;min-width:0;border:none;outline:none;font:inherit;font-size:13px;background:transparent;color:var(--text)}
+.search input::placeholder{color:var(--text-3)}
+.kbd{font:10px var(--mono);color:var(--text-3);border:1px solid var(--border);border-bottom-width:2px;border-radius:3px;padding:0 5px;white-space:nowrap}
+.vseg{display:flex;border:1px solid var(--border);border-radius:6px;background:#fff;overflow:hidden;flex-shrink:0}
+.vseg button{width:30px;height:32px;border:none;background:none;color:var(--text-3);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.vseg button+button{border-left:1px solid var(--border-soft)}
+.vseg button:hover{color:var(--text)}
+.vseg button.on{background:var(--accent-soft);color:var(--accent)}
+.vseg .i{width:15px;height:15px}
+.tabs{display:flex;background:#E9EEF3;border-radius:6px;padding:2px}
+.tab{flex:1;text-align:center;padding:5px 0;font-size:12px;color:var(--text-2);border-radius:4px;cursor:pointer;transition:.15s;white-space:nowrap;border:none;background:none}
+.tab:hover{color:var(--text)}
+.tab.on{background:#fff;color:var(--accent);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.tab .n{font:10px var(--mono);color:var(--text-3);margin-left:2px}
+.tab.fav-tab.on{color:var(--amber-d)}
+.sortbar{display:flex;align-items:center;gap:6px}
+.sortbar .lbl{font:10px var(--mono);color:var(--text-3);letter-spacing:1px}
+.seg{display:flex;flex:1;border:1px solid var(--border);border-radius:6px;background:#fff;overflow:hidden}
+.seg button{flex:1;height:28px;border:none;background:none;font-size:12px;color:var(--text-2);cursor:pointer;border-right:1px solid var(--border-soft);display:flex;align-items:center;justify-content:center;gap:3px;white-space:nowrap}
+.seg button:last-child{border-right:none}
+.seg button:hover{background:#F6F8FA}
+.seg button.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.seg .i{width:12px;height:12px;stroke-width:2}
+.toggle{height:30px;padding:0 8px;border:1px solid var(--border);border-radius:6px;background:#fff;display:flex;align-items:center;gap:3px;font-size:12px;color:var(--text-2);cursor:pointer;white-space:nowrap}
+.toggle .i{width:13px;height:13px;stroke-width:2}
+.toggle.on{color:var(--amber-d);background:#FFF6E0;border-color:#F0D9A0}
+.toggle.on .i{fill:currentColor}
+.iconbtn{width:30px;height:30px;flex-shrink:0;border:1px solid var(--border);border-radius:6px;background:#fff;display:flex;align-items:center;justify-content:center;color:var(--text-2);cursor:pointer}
+.iconbtn .i{width:14px;height:14px;stroke-width:2}
+.iconbtn:hover{color:var(--accent);border-color:var(--accent)}
+
+.content,.mscroll{flex:1;overflow-y:auto}
+.content{padding:0 10px 14px 16px}
+.content::-webkit-scrollbar,.mscroll::-webkit-scrollbar,.pop::-webkit-scrollbar{width:6px}
+.content::-webkit-scrollbar-thumb,.mscroll::-webkit-scrollbar-thumb,.pop::-webkit-scrollbar-thumb{background:#C9D3DD;border-radius:3px}
+.sec-h{display:flex;align-items:center;gap:8px;margin:14px 0 8px;cursor:pointer;user-select:none}
+.sec-h .idx,.card-h .idx{font:600 10px var(--mono);color:var(--accent);letter-spacing:.5px}
+.sec-h .name,.card-h .name{font-size:12px;font-weight:700}
+.sec-h .cnt,.card-h .cnt{font:10px var(--mono);color:var(--text-3);letter-spacing:.5px}
+.sec-h .hint{font:10px var(--mono);color:var(--amber-d)}
+.sec-h .line,.card-h .line{flex:1;height:1px;background:repeating-linear-gradient(90deg,var(--border) 0 4px,transparent 4px 7px)}
+.sec-h .arrow{color:var(--text-3);transition:transform .2s}
+.sec.collapsed .arrow{transform:rotate(-90deg)}
+.sec.collapsed .list{display:none}
+.rsub{font:10px var(--mono);color:var(--text-3);letter-spacing:1px;margin:2px 0 6px 2px}
+
+[data-cat=model]{--c:var(--accent)}
+[data-cat=support]{--c:var(--teal)}
+[data-cat=query]{--c:var(--violet)}
+.ico{width:38px;height:38px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid}
+.ico.model{background:var(--accent-soft);color:var(--accent);border-color:#D6E5FB}
+.ico.support{background:var(--teal-soft);color:var(--teal);border-color:#C7EAE8}
+.ico.query{background:var(--violet-soft);color:var(--violet);border-color:#E0D8F6}
+.ico.sm{width:28px;height:28px;border-radius:5px}
+.ico.sm .i{width:15px;height:15px}
+
+.recent{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.r-item{display:flex;align-items:center;gap:8px;padding:7px 8px;background:#fff;border:1px solid var(--border-soft);border-radius:6px;cursor:pointer;text-align:left;min-width:0;transition:.15s}
+.r-item:hover{border-color:#B9CCE6;box-shadow:0 2px 6px rgba(31,111,235,.06)}
+.r-item.sel{border-color:var(--accent);background:#F5F9FF}
+.rb{display:flex;flex-direction:column;min-width:0;gap:1px}
+.rn{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rt{font:10px var(--mono);color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rt b{color:var(--text-2);font-weight:600}
+
+/* 模块按钮（详细模式） */
+.item{position:relative;display:flex;align-items:flex-start;gap:10px;background:#fff;border:1px solid var(--border-soft);border-radius:6px;padding:10px 6px 9px 11px;margin-bottom:6px;cursor:pointer;outline:none;transition:border-color .15s,box-shadow .15s,transform .12s;min-width:0}
+.item::before{content:"";position:absolute;left:-1px;top:10px;bottom:10px;width:3px;border-radius:0 2px 2px 0;background:var(--c);opacity:0;transition:.15s}
+.item:hover{border-color:#B9CCE6;box-shadow:0 2px 8px rgba(31,111,235,.08);transform:translateX(2px)}
+.item:hover::before,.item.sel::before{opacity:1}
+.item.sel{border-color:var(--accent);background:#F5F9FF;box-shadow:0 0 0 3px rgba(31,111,235,.10)}
+.item.fav{background:linear-gradient(135deg,#FFFBF0 0,#fff 28%)}
+.item.fav.sel{background:#F5F9FF}
+.rank{display:none;flex-shrink:0;width:24px;height:20px;margin-top:9px;align-items:center;justify-content:center;border-radius:4px;font:700 10.5px var(--mono);color:var(--text-3);background:#F1F4F7}
+.rank-mode .rank{display:flex}
+.rank.r1{background:#1F6FEB;color:#fff}
+.rank.r2{background:#4C8DF0;color:#fff}
+.rank.r3{background:#8DB5F5;color:#fff}
+.rank-mode .item.fav .rank{background:#FFF0C7;color:var(--amber-d)}
+.body{flex:1;min-width:0}
+.l1{display:flex;align-items:center;gap:6px;min-width:0}
+.code{font:600 10px var(--mono);padding:1px 5px;border-radius:3px;background:#EEF2F6;color:var(--text-2);border:1px solid var(--border-soft);flex-shrink:0}
+.title{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item.hot .l1::after{content:"HOT";font:700 8.5px var(--mono);color:var(--red);background:#FDECEC;border:1px solid #F7D0D2;padding:0 4px;border-radius:3px;flex-shrink:0;letter-spacing:.5px}
+.mini{display:none;font:10px var(--mono);color:var(--text-3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini b{color:var(--text-2);font-weight:600}
+.desc{font-size:11.5px;color:var(--text-2);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.freq{display:flex;align-items:center;gap:6px;margin-top:7px;font:10px var(--mono);color:var(--text-3);white-space:nowrap}
+.bar{position:relative;width:56px;height:6px;background:#EDF1F5;border-radius:1px;overflow:hidden;flex-shrink:0}
+.bar b{display:block;height:100%;background:var(--c);transition:width .35s}
+.bar::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 5px,#fff 5px 6px)}
+.cnt-n{color:var(--text);font-weight:600;font-size:11px}
+.cnt-n small{font-size:9.5px;color:var(--text-3);font-weight:400;margin-left:1px}
+.mo,.last{padding-left:6px;border-left:1px solid var(--border)}
+.last.none{color:#B8C3CE}
+.side{display:flex;flex-direction:column;align-items:center;justify-content:space-between;align-self:stretch;flex-shrink:0}
+.star,.go{width:26px;height:26px;border:none;background:none;border-radius:5px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.star{color:#C3CDD8}
+.star .i{width:16px;height:16px;stroke-width:1.6}
+.star:hover{background:#FFF6E0;color:var(--amber)}
+.star.on{color:var(--amber)}
+.star.on .i{fill:currentColor}
+.go{color:var(--accent);opacity:0;transition:.15s}
+.go .i{width:15px;height:15px;stroke-width:2.2}
+.go:hover{background:var(--accent-soft)}
+.item:hover .go,.item.sel .go{opacity:1}
+
+/* ===== 简约模式：所有分组改为每行两个小按钮 ===== */
+.compact .list:not(.recent){display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.compact .rsub{grid-column:1/-1;margin:4px 0 0 2px}
+.compact .item{align-items:center;gap:8px;padding:7px 8px;margin:0}
+.compact .item:hover{transform:none}
+.compact .item::before{top:8px;bottom:8px}
+.compact .item .ico{width:28px;height:28px;border-radius:5px}
+.compact .item .ico .i{width:15px;height:15px}
+.compact .item .desc,.compact .item .freq,.compact .item .go,.compact .item .code,.compact .rank,.compact .item.hot .l1::after{display:none}
+.compact .item .title{font-size:12px}
+.compact .item .body{padding-right:12px}
+.compact .mini{display:block}
+.compact .side{position:absolute;top:2px;right:2px}
+.compact .star{width:20px;height:20px;opacity:0}
+.compact .star .i{width:13px;height:13px}
+.compact .item:hover .star,.compact .star.on{opacity:1}
+.compact .sec.collapsed .list{display:none}
+
+mark{background:#FFF0C2;color:inherit;border-radius:2px}
+.empty{text-align:center;padding:48px 0;color:var(--text-3);font-size:12px}
+.empty .mono{font-family:var(--mono);font-size:11px;margin-top:6px}
+
+/* ================= Q1 内页 ================= */
+.mhead{display:flex;align-items:center;gap:12px;padding:12px 12px 12px 16px}
+.mhead .ico{background:var(--teal-soft)}
+.mt{flex:1;min-width:0}
+.mt h2{font-size:15px;font-weight:700;display:flex;align-items:center;gap:6px;letter-spacing:.3px}
+.crumb{font:10px var(--mono);color:var(--text-3);letter-spacing:.4px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crumb b{color:var(--teal);font-weight:600}
+.backbtn{height:30px;padding:0 10px 0 6px;border:1px solid var(--border);border-radius:6px;background:#fff;display:flex;align-items:center;gap:2px;font-size:12px;color:var(--text-2);cursor:pointer;flex-shrink:0}
+.backbtn .i{width:15px;height:15px;stroke-width:2}
+.backbtn:hover{color:var(--accent);border-color:var(--accent)}
+
+.mbody{flex:1;min-height:0;display:flex;flex-direction:column}
+.mscroll{padding:12px 10px 12px 16px}
+.dock{flex-shrink:0;padding:10px 16px 12px;background:var(--bg);border-top:1px solid var(--border);box-shadow:0 -8px 14px -10px rgba(30,50,80,.25)}
+.card{background:#fff;border:1px solid var(--border);border-radius:6px}
+.card-h{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--border-soft)}
+.card-b{padding:12px}
+
+.field{margin-bottom:11px}
+.flabel{display:flex;align-items:baseline;gap:6px;font-size:12px;font-weight:600;margin-bottom:5px}
+.flabel .hint{margin-left:auto;font:10px var(--mono);color:var(--text-3);font-weight:400;letter-spacing:.3px}
+
+/* 下拉选择框 */
+.ctl{display:flex;align-items:center;gap:8px;width:100%;height:34px;padding:0 8px;background:#fff;border:1px solid var(--border);border-radius:6px;cursor:pointer;text-align:left;transition:.15s}
+.ctl:hover{border-color:#B9CCE6}
+.ctl:focus-visible,.ctl.open{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(31,111,235,.12)}
+.sel-ic{width:24px;height:24px;border-radius:4px;background:var(--teal-soft);border:1px solid #C7EAE8;color:var(--teal);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sel-ic .i{width:16px;height:16px;stroke-width:1.6}
+.sel-tx{flex:1;min-width:0;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.k{font:600 11.5px var(--mono);color:var(--text);margin-right:7px}
+.chev{width:14px;height:14px;color:var(--text-3);stroke-width:2;transition:transform .15s}
+.ctl.open .chev{transform:rotate(180deg);color:var(--accent)}
+.tag{font:600 10px var(--mono);padding:1px 6px;border-radius:3px;background:var(--teal-soft);color:var(--teal);border:1px solid #C7EAE8;flex-shrink:0;white-space:nowrap}
+
+/* 弹出列表 */
+.pop{position:fixed;z-index:50;background:#fff;border:1px solid var(--border);border-radius:6px;box-shadow:0 12px 30px rgba(30,50,80,.18);padding:4px;max-height:300px;overflow:auto}
+.og{font:10px var(--mono);color:var(--text-3);letter-spacing:.6px;padding:7px 8px 3px;margin-top:3px;border-top:1px dashed var(--border-soft)}
+.og:first-child{margin-top:0;border-top:none}
+.og b{color:var(--teal);font-weight:600}
+.opt{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:4px;cursor:pointer;font-size:12.5px}
+.opt:hover{background:#F2F6FB}
+.opt.on{background:var(--accent-soft);color:var(--accent)}
+.opt.on .k{color:var(--accent)}
+.opt .in{font:11px var(--mono);color:var(--text-3)}
+.opt .ck{width:14px;height:14px;margin-left:auto;stroke-width:2.4;opacity:0}
+.opt.on .ck{opacity:1}
+
+/* 数值输入框 */
+.ig{display:flex;height:34px;background:#fff;border:1px solid var(--border);border-radius:6px;overflow:hidden;transition:.15s}
+.ig:hover{border-color:#B9CCE6}
+.ig:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(31,111,235,.12)}
+.ig.err{border-color:var(--red);box-shadow:0 0 0 3px rgba(217,67,74,.12)}
+.ig.dis{background:#F4F7FA;opacity:.55;pointer-events:none}
+.ig input{flex:1;min-width:0;border:none;outline:none;background:transparent;font:500 13px var(--mono);color:var(--text);padding:0 10px}
+.ig .unit{display:flex;align-items:center;padding:0 8px;font:10.5px var(--mono);color:var(--text-3);background:#FAFBFC;border-left:1px solid var(--border-soft)}
+.ig .stp{width:30px;border:none;background:#F6F8FA;color:var(--text-2);font-size:15px;cursor:pointer;border-right:1px solid var(--border-soft)}
+.ig .stp.r{border-right:none;border-left:1px solid var(--border-soft)}
+.ig .stp:hover{color:var(--accent);background:var(--accent-soft)}
+.rng{height:3px;background:#EDF1F5;border-radius:2px;margin-top:6px;overflow:hidden}
+.rng b{display:block;height:100%;background:var(--accent);transition:width .2s}
+.err .rng b,.ferr~.rng b{background:var(--red)}
+.ferr{font-size:11px;color:var(--red);margin-top:4px}
+
+/* 开关 */
+.swrow{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border-soft);border-radius:6px;background:#FAFBFC;cursor:pointer;margin-bottom:12px;user-select:none;transition:.15s}
+.swrow:hover{border-color:#B9CCE6}
+.sw{width:32px;height:18px;border-radius:9px;background:#CBD5E0;position:relative;transition:.2s;flex-shrink:0}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:.2s}
+.swrow.on .sw{background:var(--accent)}
+.swrow.on .sw::after{left:16px}
+.swt{flex:1;display:flex;flex-direction:column}
+.swt .t{font-size:12.5px;font-weight:600}
+.swt .d{font-size:11px;color:var(--text-3)}
+
+/* 选型结果卡 */
+.res{display:grid;grid-template-columns:112px 1fr;border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.schem{height:96px;border-right:1px solid var(--border-soft);background-color:#FAFBFC;background-image:linear-gradient(#EEF2F7 1px,transparent 1px),linear-gradient(90deg,#EEF2F7 1px,transparent 1px);background-size:8px 8px}
+.schem svg{display:block}
+.schem .bp{fill:#F1F4F7;stroke:#5B6B7B;stroke-width:1.4}
+.schem .sp{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.4}
+.schem .st{fill:none;stroke:var(--teal);stroke-width:3;stroke-linecap:square;stroke-linejoin:miter}
+.schem .ext{fill:none;stroke:#94A3B3;stroke-width:.8;stroke-dasharray:2 2}
+.schem .dim{fill:none;stroke:var(--amber);stroke-width:1}
+.schem text{font:600 9px var(--mono);fill:var(--amber-d)}
+.schem text.cap{fill:#94A3B3;font-weight:400}
+.kv{display:flex;flex-direction:column}
+.kv div{flex:1;display:flex;align-items:center;justify-content:space-between;padding:0 10px;font-size:11.5px;color:var(--text-2);border-bottom:1px solid var(--border-soft)}
+.kv div:last-child{border-bottom:none}
+.kv b{font:600 12px var(--mono);color:var(--text)}
+.kv b.hl{color:var(--teal)}
+
+/* 点取与预览 */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:10px}
+.step{display:flex;align-items:center;justify-content:center;gap:4px;font-size:11px;color:var(--text-3);padding:4px 0;border-radius:4px;background:#F4F7FA;white-space:nowrap;transition:.2s}
+.step i{width:14px;height:14px;border-radius:50%;border:1.5px solid currentColor;font:600 8.5px var(--mono);font-style:normal;display:flex;align-items:center;justify-content:center}
+.step.act{color:var(--accent);background:var(--accent-soft);font-weight:600}
+.step.act i{animation:pulse 1s infinite}
+.step.done{color:var(--green);background:#E8F7F0}
+.step.done i{background:var(--green);border-color:var(--green);color:#fff}
+.bgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}
+.mb{position:relative;height:32px;padding:0 10px;border:1px solid var(--border);border-radius:6px;background:#fff;font-size:12px;color:var(--text);display:flex;align-items:center;justify-content:center;gap:4px;cursor:pointer;white-space:nowrap;transition:.15s}
+.mb .i{width:13px;height:13px;stroke-width:2}
+.mb:hover:not(:disabled){border-color:#B9CCE6;color:var(--accent)}
+.mb:disabled{color:#B8C3CE;background:#F7F9FB;border-color:var(--border-soft);cursor:not-allowed}
+.mb.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.mb.primary:hover:not(:disabled){background:#1A5FD0;color:#fff}
+.mb.primary:disabled{background:#B9CCE6;border-color:#B9CCE6;color:#fff}
+.mb.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
+.mb.attn::after{content:"";position:absolute;top:-4px;right:-4px;width:9px;height:9px;border-radius:50%;background:var(--amber);border:2px solid #fff;animation:pulse 1s infinite}
+.orow{display:flex;align-items:center;gap:6px;margin-bottom:10px}
+.orow .lb{font-size:12px;font-weight:600;white-space:nowrap}
+.orow .ig{flex:1;height:32px}
+.orow .mb{flex-shrink:0}
+.readout{border:1px solid var(--border-soft);border-radius:6px;background:#FAFBFC;font:11px var(--mono)}
+.ro{display:flex;align-items:center;gap:8px;padding:6px 10px;min-width:0}
+.ro+.ro{border-top:1px dashed var(--border-soft)}
+.ro .dot{width:6px;height:6px;border-radius:50%;background:#C3CDD8;flex-shrink:0}
+.ro.ok .dot{background:var(--green)}
+.ro.wait .dot{background:var(--amber);animation:pulse .8s infinite}
+.ro .kk{color:var(--text-3);flex-shrink:0}
+.ro .v{color:var(--text-3);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ro.ok .v{color:var(--text)}
+.actions{display:grid;grid-template-columns:1fr 1.4fr;gap:8px;margin-top:10px}
+.actions .mb{height:36px;font-size:13px}
+.actions .mb .i{width:15px;height:15px}
+
+/* ================= 底栏：简易控制台（结构不变） ================= */
+.footer{height:46px;background:#fff;border-top:1px solid var(--border);display:flex;align-items:center;padding:0 10px 0 16px;gap:8px;flex-shrink:0}
+.status{display:flex;align-items:center;gap:8px;flex:1;min-width:0;font-size:12px;color:var(--text-2)}
+.status .sd{width:7px;height:7px;border-radius:50%;background:var(--amber);flex-shrink:0;animation:pulse 2s infinite}
+.status.ready .sd{background:var(--green);animation:none}
+.status.busy .sd{background:var(--accent);animation:pulse .6s infinite}
+.status span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@keyframes pulse{50%{opacity:.35}}
+.conn{font:10px var(--mono);color:var(--text-3);white-space:nowrap}
+.conn i{color:var(--green);font-style:normal}
+.btn{height:30px;padding:0 14px;border-radius:5px;border:1px solid var(--border);background:#fff;font-size:12px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:#B4C0CC;background:#F6F8FA}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:#1A5FD0}
+.btn.primary:disabled{background:#B9CCE6;border-color:#B9CCE6;cursor:not-allowed}
+</style>
+</head>
+<body>
+
+<!-- ================= 图标库 ================= -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-clamp" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 8v8M8 12h8"/></symbol>
+  <symbol id="i-tri" viewBox="0 0 24 24"><path d="M12 4L21 19H3z"/></symbol>
+  <symbol id="i-tri2" viewBox="0 0 24 24"><path d="M3 19h18M3 19V5l8 14M21 19V5l-8 14"/></symbol>
+  <symbol id="i-align" viewBox="0 0 24 24"><path d="M12 17V5M7 10l5-5 5 5M5 20h14"/></symbol>
+  <symbol id="i-fence" viewBox="0 0 24 24"><path d="M5 4v16M19 4v16M5 9h14M5 15h14M12 9v6"/></symbol>
+  <symbol id="i-ibeam" viewBox="0 0 24 24"><path d="M6 5h12M6 19h12M12 5v14"/></symbol>
+  <symbol id="i-stair" viewBox="0 0 24 24"><path d="M4 20h4v-4h4v-4h4V8h4"/></symbol>
+  <symbol id="i-manhole" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-cabinet" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="1"/><circle cx="12" cy="11" r="3"/><path d="M9 18h6"/></symbol>
+  <symbol id="i-platform" viewBox="0 0 24 24"><path d="M3 6h18M3 10h18M6 10v10M18 10v10"/></symbol>
+  <symbol id="i-ladder" viewBox="0 0 24 24"><path d="M8 3v18M16 3v18M8 7h8M8 12h8M8 17h8"/></symbol>
+  <symbol id="i-saddle" viewBox="0 0 24 24"><path d="M4 20h16M7 20v-6a5 5 0 0 1 10 0v6"/></symbol>
+  <symbol id="i-pipe" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><circle cx="17" cy="8" r="2.5"/><path d="M11 12.5l4-3"/></symbol>
+  <symbol id="i-portal" viewBox="0 0 24 24"><path d="M5 20V5h14v15M5 9h14"/></symbol>
+  <symbol id="i-cantil" viewBox="0 0 24 24"><path d="M5 3v18M5 7h14M5 14l14-7"/></symbol>
+  <symbol id="i-table" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M4 9h16M10 9v11"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.3-4.3"/></symbol>
+  <symbol id="i-mto" viewBox="0 0 24 24"><path d="M7 3h10v18H7z"/><path d="M10 8h4M10 12h4M10 16h2"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></symbol>
+  <symbol id="i-go" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M5 20V12M12 20V5M19 20v-9"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-az" viewBox="0 0 24 24"><path d="M4 18l4-12 4 12M5.5 14h5M14 6h6l-6 12h6"/></symbol>
+  <symbol id="i-reset" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></symbol>
+  <symbol id="i-rows" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></symbol>
+  <symbol id="i-pick" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/></symbol>
+  <symbol id="i-slide" viewBox="0 0 24 24"><path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/></symbol>
+</defs></svg>
+
+<div class="win">
+  <!-- 标题栏（固定） -->
+  <div class="titlebar">
+    <div class="tlogo">OP</div>
+    <div class="ttext">型钢构件及支吊架模型生成工具</div>
+    <div class="wbtn" title="最小化"><svg width="10" height="10"><path d="M0 5.5h10" stroke="currentColor"/></svg></div>
+    <div class="wbtn close" title="关闭"><svg width="10" height="10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor"/></svg></div>
+  </div>
+
+  <!-- ======================= 首页 ======================= -->
+  <div class="view" id="home">
+    <div class="header gridbg">
+      <div class="brand">
+        <div class="logo brk">魏</div>
+        <div><h1>型钢构件及支吊架模型生成工具</h1><div class="bsub">STEEL &amp; SUPPORT MODELER · OPM</div></div>
+      </div>
+      <div class="meta-row">
+        <span class="chip">VER <b>0.0.3</b></span><span class="chip">BY 魏</span>
+        <span class="license" id="license" title="点击查看授权信息"><i class="dot"></i>已激活</span>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="k">功能模块</div><div class="v" id="stTotal">18</div></div>
+        <div class="stat"><div class="k">本月调用</div><div class="v" id="stMonth">26<small>次</small></div></div>
+        <div class="stat"><div class="k">收藏</div><div class="v" id="stFav">2</div></div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div class="srow">
+        <div class="search"><svg class="i"><use href="#i-search"/></svg><input id="q" placeholder="搜索名称、编号或描述…" autocomplete="off"><span class="kbd">Ctrl K</span></div>
+        <div class="vseg" id="vseg">
+          <button data-v="0" class="on" title="详细模式"><svg class="i"><use href="#i-rows"/></svg></button>
+          <button data-v="1" title="简约模式（每行两个）"><svg class="i"><use href="#i-grid"/></svg></button>
+        </div>
+      </div>
+      <div class="tabs" id="tabs">
+        <button class="tab on" data-tab="all">全部<span class="n">18</span></button>
+        <button class="tab" data-tab="model">建模<span class="n">9</span></button>
+        <button class="tab" data-tab="support">支吊架<span class="n">6</span></button>
+        <button class="tab" data-tab="query">查询<span class="n">3</span></button>
+        <button class="tab fav-tab" data-tab="fav">★ 收藏<span class="n" id="favN">2</span></button>
+      </div>
+      <div class="sortbar">
+        <span class="lbl">SORT</span>
+        <div class="seg" id="sortSeg">
+          <button class="on" data-sort="default"><svg class="i"><use href="#i-list"/></svg>默认</button>
+          <button data-sort="uses"><svg class="i"><use href="#i-chart"/></svg>频次</button>
+          <button data-sort="recent"><svg class="i"><use href="#i-clock"/></svg>最近</button>
+          <button data-sort="name"><svg class="i"><use href="#i-az"/></svg>名称</button>
+        </div>
+        <button class="toggle on" id="pin" title="收藏项在任何排序下都置顶"><svg class="i"><use href="#i-star"/></svg>置顶</button>
+        <button class="iconbtn" id="reset" title="重置筛选与排序"><svg class="i"><use href="#i-reset"/></svg></button>
+      </div>
+    </div>
+
+    <div class="content" id="content">
+      <section class="sec" data-sec="recent">
+        <div class="sec-h"><span class="idx">01 /</span><span class="name">最近使用</span><span class="cnt">4 项</span><span class="line"></span><svg class="arrow" width="10" height="10" viewBox="0 0 10 10"><path d="M2 3.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></div>
+        <div class="list recent" id="recent">
+          <button class="r-item" data-id="10" data-cat="support"><span class="ico sm support"><svg class="i"><use href="#i-clamp"/></svg></span><span class="rb"><span class="rn">放置管夹</span><span class="rt"><b>A1</b> · 1 分钟前</span></span></button>
+          <button class="r-item" data-id="11" data-cat="support"><span class="ico sm support"><svg class="i"><use href="#i-tri"/></svg></span><span class="rb"><span class="rn">单三角架</span><span class="rt"><b>N3</b> · 1 分钟前</span></span></button>
+          <button class="r-item" data-id="13" data-cat="support"><span class="ico sm support"><svg class="i"><use href="#i-pipe"/></svg></span><span class="rb"><span class="rn">大管支撑小管</span><span class="rt"><b>Q1</b> · 1 小时前</span></span></button>
+          <button class="r-item" data-id="12" data-cat="support"><span class="ico sm support"><svg class="i"><use href="#i-tri2"/></svg></span><span class="rb"><span class="rn">双三角架</span><span class="rt"><b>N4</b> · 22 小时前</span></span></button>
+        </div>
+      </section>
+
+      <section class="sec" data-sec="rank" hidden>
+        <div class="sec-h"><span class="idx">02 /</span><span class="name">使用频率排行</span><span class="cnt">18 项</span><span class="hint" id="rankHint">★ 收藏置顶</span><span class="line"></span><svg class="arrow" width="10" height="10" viewBox="0 0 10 10"><path d="M2 3.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></div>
+        <div class="list" id="rankList"></div>
+      </section>
+
+      <section class="sec" data-sec="model">
+        <div class="sec-h"><span class="idx">02 /</span><span class="name">建模类</span><span class="cnt">9 项</span><span class="line"></span><svg class="arrow" width="10" height="10" viewBox="0 0 10 10"><path d="M2 3.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></div>
+        <div class="list">
+          <div class="item hot" tabindex="0" data-id="1" data-cat="model" data-uses="12" data-month="3" data-last="4320"><span class="rank r3">03</span><span class="ico model"><svg class="i"><use href="#i-align"/></svg></span>
+            <div class="body"><div class="l1"><span class="code">EL</span><span class="title">管道标高对齐</span></div><div class="mini"><b>EL</b> · 12次</div><div class="desc">管底、中心或管顶对齐；连通随动及立管伸缩。</div>
+            <div class="freq"><span class="bar"><b style="width:57%"></b></span><span class="cnt-n">12<small>次</small></span><span class="mo">本月 3</span><span class="last">3 天前</span></div></div>
+            <div class="side"><button class="star" title="收藏"><svg class="i"><use href="#i-star"/></svg></button><button class="go" title="进入"><svg class="i"><use href="#i-go"/></svg></button></div></div>
+          <div class="item" tabindex="0" data-id="2" data-cat="model" data-uses="7" data-month="1" data-last=""><span class="rank">07</span><span class="ico model"><svg class="i"><use href="#i-fence"/></svg></span>
+            <div class="body"><div class="l1"><span class="code">FN</span><span class="title">普通钢结构围栏</span></div><div class="mini"><b>FN</b> · 7次</div><div class="desc">沿水平或坡段路径生成立柱、扶手和踢脚板。</div>
+            <div class="freq"><span class="bar"><b style="width:33%"></b></span><span class="cnt-n">7<small>次</small></span><span class="mo">本月 1</span><span class="last none">未使用</span></div></div>
+            <div class="side"><button class="star" title="收藏"><svg class="i"><use href="#i-star"/></svg></button><button class="go" title="进入"><svg class="i"><use href="#i-go"/></svg></button></div></div>
+          <div class="item hot" tabindex="0" data-id="3" data-cat="model" data-uses="21" data-month="5" data-last="2880"><span class="rank r1">01</span><span class="ico model"><svg class="i"><use href="#i-ibeam"/></svg></span>
+            <div class="body"><div class="l1"><span class="code">SB</span><span class="title">型钢生成</span></div><div class="mini"><b>SB</b> · 21次</div><div class="desc">二维截面或沿路径生成三维型钢。</div>
+            <div class="freq"><span class="bar"><b style="width:100%"></b></span><span class="cnt-n">21<small>次</small></span><span class="mo">本月 5</span><span class="last">2 天前</span></div></div>
+            <div class="side"><button class="star" title="收藏"><svg class="i"><use href="#i-star"/></svg></button><button class="go" title="进入"><svg class="i"><use href="#i-go"/></svg></button></div></div>
+          <div class="item" tabindex="0" data-id="4" data-cat="model" data-uses="4" data-month="0" data-last=""><span class="rank">12</span><span class="ico model"><svg class="i"><use href="#i-stair"/></svg></span>
+            <div class="body"><div class="l1"><span class="code">TL</span><span class="title">罐体盘梯生成</span></div><div class="mini"><b>TL</b> · 4次</div><div class="desc">沿罐体生成梯梁、踏步、平台及内外栏杆。</div>
+            <div class="freq"><span class="bar"><b style="width:19%"></b></span><span class="cnt-n">4<small>次</small></span><span class="mo">本月 0</span><span class="last none">未使用</span></div></div>
+            <div class="side"><button class="star" title="收藏"><svg class="i"><use href="#i-star"/></svg></button><button class="go" title="进入"><svg class="i"><use href="#i-go"/></svg></button></div></div>
+          <div class="item" tabindex="0" data-id="5" data-cat="model" data-uses="3" data-month="0" data-last=""><span class="rank">14</span><span class="ico model"><svg class="i"><use href="#i-manhole"/></svg></span>
+            <div class="body"><div class="l1"><span class="code">MH</span><span class="title">罐壁人孔</span></div><div class="mini"><b>MH</b> · 3次</div><div class="desc">DN450～DN600，吊杆或铰链开盖。</div>
+            <div class="freq"><span class="bar"><b style="width:14%"></b></span><span class="cnt-n">3<small>次</small></span><span class="mo">本月 0</span><span class="last none">未使用</span></div></div>
+            <div class="side"><button class="star" title="收藏"><svg class="i"><use href="#i-star"/></svg></button><button class="go" title="进入"><svg class="i"><use href="#i-go"/></svg></button></div></div>
+          <div class="item" tabindex="0" data-id="6" data-cat="model" data-uses="2" data-month="0" data-last=""><span class="rank">16</span><span class="ico model"><svg class="i"><use href="#i-cabinet"/></svg></span>
+            <div class="body"><div class="l1"><span class="code">P380</span><span class="title">轻便消防水龙柜</span></div><div class="mini"><b>P380</b> · 2次</div><div class="desc">P380 细节卷盘、DN25 接口和器材统计导出。</div>
+            <div class="freq"><span class="bar"><b style="width:10%"></b></span><span class="cnt-n">2<small>次</small></span><span class="mo">本月 0</span><span class="last none">未使用</span></div></div>
+            <div class="side"><button class="star" title="收藏"><svg class="i"><use href="#i-star"/></svg></button><button class="go" title="进入"><svg class="i"><use href="#i-go"/></svg></button></div></div>
+          <div class="item" tabindex="0" data-id="7" data-cat="model" data-uses="5" data-month="1" data-last=""><span class="rank">10</span><span class="ico model"><svg class="i"><use href="#i-platform"/></svg></span>
+            <div class="body"><div class="l1"><span class="code">PF</span><span class="title">操作平台生成</span></div><div class="mini"><b>PF</b> · 5次</div><div class="desc">矩形/异形平台，自动布置梁格与格栅板。</div>
+            <div class="freq"><span class="bar"><b style="width:24%"></b></span><span class="cnt-n">5<small>次</small></span><span class="mo">本月 1</span><span class="last none">未使用</span></div></div>
+            <div class="side"><button class="star" title="收藏"><svg class="i"><use href="#i-star"/></svg></button><button class="go" title="进入"><svg class="i"><use href="#i-go"/></svg></button></div></div>
+          <div class="item" tabindex="0" data-id="8" data-cat="model" data-uses="6" data-month="0" data-last=""><span class="rank">08</span><span class="ico model"><svg class="i"><use href="#i-ladder"/></svg></span>
+            <div class="body"><div class="l1"><span class="code">LD</span><span class="title">直爬梯生成</span></div><div class="mini"><b>LD</b> · 6次</div><div class="desc">带护笼直梯，按高度自动分段。</div>
+            <div class="freq"><span class="bar"><b style="width:29%"></b></span><span class="cnt-n">6<small>次</small></span><span class="mo">本月 0</span><span class="last none">未使用</span></div></div>
+            <div class="side"><button class="star" title="收藏"><svg class="i"><use href="#i-star"/></svg></button><button class="go" title="进入"><svg class="i"><use href="#i-go"/></svg></button></div></div>
+          <div class="item" tabindex="0" data-id="9" data-cat="model" data-uses="1" data-month="0" data-last=""><span class="rank">18</span><span class="ico model"><svg class="i"><use href="#i-saddle"/></svg></span>
+            <div class="body"><div class="l1"><span class="code">SD</span><span class="title">设备鞍座</span></div><div class="mini"><b>SD</b> · 1次</div><div class="desc">卧式设备 A/B 型鞍座参数化生成。</div>
+            <div class="freq"><span class="bar"><b style="width:5%"></b></span><span class="cnt-n">1<small>次</small></span><span class="mo">本月 0</span><span class="last none">未使用</span></div></div>
+            <div class="side"><button class="star" title="收藏"><svg class="i"><use href="#i-star"/></svg></button><button class="go" title="进入"><svg class="i"><use href="#i-go"/></svg></button></div></div>
+        </div>
+      </section>
+
+      <section class="sec" data-sec="support">
+        <div class="sec-h"><span class="idx">03 /</span><span class="name">支吊架类</span><span class="cnt">6 项</span><span class="line"></span><svg class="arrow" width="10" height="10" viewBox="0 0 10 10"><path d="M2 3.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></div>
+        <div class="list">
+          <div class="item fav" tabindex="0" data-id="10" data-cat="support" data-uses="8" data-month="2" data-last="1"><span class="rank">05</span><span class="ico support"><svg class="i"><use href="#i-clamp"/></svg></span>
+            <div class="body"><div class="l1"><span class="code">A1</span><span class="title">放置管夹</span></div><div class="mini"><b>A1</b> · 8次</div><div class="desc">A1、A2、A22、A24、E1、K1、T4、L2 管夹与管托。</div>
+            <div class="freq"><span class="bar"><b style="width:38%"></b></span><span class="cnt-n">8<small>次</small></span><span class="mo">本月 2</span><span class="last">1 分钟前</span></div></div>
+            <div class="side"><button class="star on" title="取消收藏"><svg class="i"><use href="#i-star"/></svg></button><button class="go" title="进入"><svg class="i"><use href="#i-go"/></svg></button></div></div>
+          <div class="item" tabindex="0" data-id="11" data-cat="support" data-uses="9" data-month="3" data-last="1"><span class="rank">04</span><span class="ico support"><svg class="i"><use href="#i-tri"/></svg></span>
+            <div class="body"><div class="l1"><span class="code">N3</span><span class="title">单三角架</span></div><div class="mini"><b>N3</b> · 9次</div><div class="desc">设备表面至横担末端辅助线定位。</div>
+            <div class="freq"><span class="bar"><b style="width:43%"></b></span><span class="cnt-n">9<small>次</small></span><span class="mo">本月 3</span><span class="last">1 分钟前</span></div></div>
+            <div class="side"><button class="star" title="收藏"><svg class="i"><use href="#i-star"/></svg></button><button class="go" title="进入"><svg class="i"><use href="#i-go"/></svg></button></div></div>
+          <div class="item" tabindex="0" data-id="12" data-cat="support" data-uses="5" data-month="2" data-last="1320"><span class="rank">11</span><span class="ico support"><svg class="i"><use href="#i-tri2"/></svg></span>
+            <div class="body"><div class="l1"><span class="code">N4</span><span class="title">双三角架</span></div><div class="mini"><b>N4</b> · 5次</div><div class="desc">设备中心至立管中心辅助线定位。</div>
+            <div class="freq"><span class="bar"><b style="width:24%"></b></span><span class="cnt-n">5<small>次</small></span><span class="mo">本月 2</span><span class="last">22 小时前</span></div></div>
+            <div class="side"><button class="star" title="收藏"><svg class="i"><use href="#i-star"/></svg></button><button class="go" title="进入"><svg class="i"><use href="#i-go"/></svg></button></div></div>
+          <div class="item" tabindex="0" data-id="13" data-cat="support" data-uses="8" data-month="2" data-last="60"><span class="rank">06</span><span class="ico support"><svg class="i"><use href="#i-pipe"/></svg></span>
+            <div class="body"><div class="l1"><span class="code">Q1</span><span class="title">大管支撑小管</span></div><div class="mini"><b>Q1</b> · 8次</div><div class="desc">大管用角钢支撑不保温小管（1/2"～4"），四种布置形式。</div>
+            <div class="freq"><span class="bar"><b style="width:38%"></b></span><span class="cnt-n">8<small>次</small></span><span class="mo">本月 2</span><span class="last">1 小时前</span></div></div>
+            <div class="side"><button class="star" title="收藏"><svg class="i"><use href="#i-star"/></svg></button><button class="go" title="进入"><svg class="i"><use href="#i-go"/></svg></button></div></div>
+          <div class="item" tabindex="0" data-id="14" data-cat="support" data-uses="3" data-month="1" data-last=""><span class="rank">15</span><span class="ico support"><svg class="i"><use href="#i-portal"/></svg></span>
+            <div class="body"><div class="l1"><span class="code">G1</span><span class="title">门型支架</span></div><div class="mini"><b>G1</b> · 3次</div><div class="desc">单层/双层门型架，横担长度自动计算。</div>
+            <div class="freq"><span class="bar"><b style="width:14%"></b></span><span class="cnt-n">3<small>次</small></span><span class="mo">本月 1</span><span class="last none">未使用</span></div></div>
+            <div class="side"><button class="star" title="收藏"><svg class="i"><use href="#i-star"/></svg></button><button class="go" title="进入"><svg class="i"><use href="#i-go"/></svg></button></div></div>
+          <div class="item" tabindex="0" data-id="15" data-cat="support" data-uses="2" data-month="0" data-last=""><span class="rank">17</span><span class="ico support"><svg class="i"><use href="#i-cantil"/></svg></span>
+            <div class="body"><div class="l1"><span class="code">C1</span><span class="title">悬臂支架</span></div><div class="mini"><b>C1</b> · 2次</div><div class="desc">生根于梁柱的悬臂型钢支架。</div>
+            <div class="freq"><span class="bar"><b style="width:10%"></b></span><span class="cnt-n">2<small>次</small></span><span class="mo">本月 0</span><span class="last none">未使用</span></div></div>
+            <div class="side"><button class="star" title="收藏"><svg class="i"><use href="#i-star"/></svg></button><button class="go" title="进入"><svg class="i"><use href="#i-go"/></svg></button></div></div>
+        </div>
+      </section>
+
+      <section class="sec" data-sec="query">
+        <div class="sec-h"><span class="idx">04 /</span><span class="name">查询类</span><span class="cnt">3 项</span><span class="line"></span><svg class="arrow" width="10" height="10" viewBox="0 0 10 10"><path d="M2 3.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></div>
+        <div class="list">
+          <div class="item fav hot" tabindex="0" data-id="16" data-cat="query" data-uses="15" data-month="4" data-last="5760"><span class="rank r2">02</span><span class="ico query"><svg class="i"><use href="#i-table"/></svg></span>
+            <div class="body"><div class="l1"><span class="code">QS</span><span class="title">型钢规格查询</span></div><div class="mini"><b>QS</b> · 15次</div><div class="desc">工字钢、槽钢、角钢、H 型钢截面参数。</div>
+            <div class="freq"><span class="bar"><b style="width:71%"></b></span><span class="cnt-n">15<small>次</small></span><span class="mo">本月 4</span><span class="last">4 天前</span></div></div>
+            <div class="side"><button class="star on" title="取消收藏"><svg class="i"><use href="#i-star"/></svg></button><button class="go" title="进入"><svg class="i"><use href="#i-go"/></svg></button></div></div>
+          <div class="item" tabindex="0" data-id="17" data-cat="query" data-uses="6" data-month="1" data-last=""><span class="rank">09</span><span class="ico query"><svg class="i"><use href="#i-search"/></svg></span>
+            <div class="body"><div class="l1"><span class="code">QC</span><span class="title">管夹选型查询</span></div><div class="mini"><b>QC</b> · 6次</div><div class="desc">按管径、温度与荷载匹配管夹型号。</div>
+            <div class="freq"><span class="bar"><b style="width:29%"></b></span><span class="cnt-n">6<small>次</small></span><span class="mo">本月 1</span><span class="last none">未使用</span></div></div>
+            <div class="side"><button class="star" title="收藏"><svg class="i"><use href="#i-star"/></svg></button><button class="go" title="进入"><svg class="i"><use href="#i-go"/></svg></button></div></div>
+          <div class="item" tabindex="0" data-id="18" data-cat="query" data-uses="4" data-month="1" data-last=""><span class="rank">13</span><span class="ico query"><svg class="i"><use href="#i-mto"/></svg></span>
+            <div class="body"><div class="l1"><span class="code">MTO</span><span class="title">支吊架材料统计</span></div><div class="mini"><b>MTO</b> · 4次</div><div class="desc">统计当前模型中的支吊架材料并导出 Excel。</div>
+            <div class="freq"><span class="bar"><b style="width:19%"></b></span><span class="cnt-n">4<small>次</small></span><span class="mo">本月 1</span><span class="last none">未使用</span></div></div>
+            <div class="side"><button class="star" title="收藏"><svg class="i"><use href="#i-star"/></svg></button><button class="go" title="进入"><svg class="i"><use href="#i-go"/></svg></button></div></div>
+        </div>
+      </section>
+
+      <div class="empty" id="empty" hidden>未找到匹配的功能模块<div class="mono" id="emptyQ">NO RESULT</div></div>
+    </div>
+  </div>
+
+  <!-- ======================= Q1 内页 ======================= -->
+  <div class="view" id="q1" hidden>
+    <div class="mhead gridbg">
+      <span class="ico support brk"><svg class="i"><use href="#i-pipe"/></svg></span>
+      <div class="mt">
+        <h2>大管支撑小管<span class="code">Q1</span></h2>
+        <div class="crumb">HOME / <b>支吊架</b> / 角钢 · 不保温小管 1/2"～4"</div>
+      </div>
+      <button class="backbtn" id="back" title="返回首页（未生成的预览将被取消）"><svg class="i"><use href="#i-back"/></svg>返回首页</button>
+    </div>
+
+    <div class="mbody">
+      <!-- 01 参数设置（可滚动） -->
+      <div class="mscroll" id="mscroll">
+        <div class="card">
+          <div class="card-h"><span class="idx">01 /</span><span class="name">参数设置</span><span class="cnt">PARAMETERS</span><span class="line"></span></div>
+          <div class="card-b">
+            <div class="field">
+              <div class="flabel">布置类型<span class="hint">LAYOUT · 4 种</span></div>
+              <button class="ctl" id="typeSel"><span class="sel-ic" id="typeIc"></span><span class="sel-tx" id="typeTx"><span class="k">类型 1</span>小管在下，两管垂直</span><svg class="i chev"><use href="#i-chev"/></svg></button>
+            </div>
+            <div class="field">
+              <div class="flabel">被支撑小管公称直径<span class="hint">DN · INCH</span></div>
+              <button class="ctl" id="dnSel"><span class="sel-tx" id="dnTx"><span class="k">DN80</span>3"</span><span class="tag" id="dnTag">子项 C</span><svg class="i chev"><use href="#i-chev"/></svg></button>
+            </div>
+            <div class="field" id="hField">
+              <div class="flabel">小管与大管中心间距 H<span class="hint">0 &lt; H ≤ 1000 mm</span></div>
+              <div class="ig" id="hIg"><button class="stp" data-h="-1" title="-50">−</button><input id="hIn" value="500" inputmode="decimal" autocomplete="off"><span class="unit">mm</span><button class="stp r" data-h="1" title="+50">+</button></div>
+              <div class="rng"><b id="hRng" style="width:50%"></b></div>
+              <div class="ferr" id="hErr" hidden>⚠ H 须在 1～1000 mm 之间，修正后才能点取</div>
+            </div>
+            <div class="swrow" id="mirror">
+              <span class="sw"></span>
+              <span class="swt"><span class="t">镜像</span><span class="d">角钢放在大管另一侧</span></span>
+              <span class="tag" id="mirrorSide">右侧</span>
+            </div>
+            <div class="flabel">选型结果<span class="hint">RESULT · 自动匹配</span></div>
+            <div class="res">
+              <div class="schem" id="schem"></div>
+              <div class="kv">
+                <div>子项<b class="hl" id="rSub">C</b></div>
+                <div>角钢<b id="rAng">∠100×10</b></div>
+                <div>允许荷载<b id="rLoad">3 kN</b></div>
+                <div>布置<b id="rLay">T1 · 右侧</b></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 02 点取与预览（钉在底部） -->
+      <div class="dock">
+        <div class="card">
+          <div class="card-h"><span class="idx">02 /</span><span class="name">点取与预览</span><span class="cnt">PICK &amp; PREVIEW</span><span class="line"></span></div>
+          <div class="card-b">
+            <div class="steps" id="steps">
+              <div class="step"><i>1</i>选取大管</div><div class="step"><i>2</i>点取基点</div>
+              <div class="step"><i>3</i>调整预览</div><div class="step"><i>4</i>确定生成</div>
+            </div>
+            <div class="bgrid">
+              <button class="mb primary" id="bStart"><svg class="i"><use href="#i-pick"/></svg>开始点取</button>
+              <button class="mb" id="bEnd" disabled><svg class="i"><use href="#i-stop"/></svg>结束点取</button>
+              <button class="mb" id="bUpd" disabled><svg class="i"><use href="#i-refresh"/></svg>更新预览</button>
+              <button class="mb" id="bSlide" disabled><svg class="i"><use href="#i-slide"/></svg>沿轴滑动</button>
+            </div>
+            <div class="orow">
+              <span class="lb">沿轴偏移</span>
+              <div class="ig dis" id="oIg"><button class="stp" data-o="-1" title="-10">−</button><input id="oIn" value="0" inputmode="decimal" disabled><span class="unit">mm</span><button class="stp r" data-o="1" title="+10">+</button></div>
+              <button class="mb" id="bOff" disabled>应用偏移</button>
+            </div>
+            <div class="readout">
+              <div class="ro" id="roPipe"><span class="dot"></span><span class="kk">大管</span><span class="v">尚未选取支撑大管</span></div>
+              <div class="ro" id="roBase"><span class="dot"></span><span class="kk">基点</span><span class="v">尚未点取</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="mb" id="bCancel" disabled>取消预览</button>
+          <button class="mb primary" id="bOk" disabled><svg class="i"><use href="#i-check"/></svg>确定生成</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 底栏：简易控制台（首页 / 内页共用） -->
+  <div class="footer">
+    <div class="status" id="status"><i class="sd"></i><span id="statusText">请选择一个功能模块进入工作区</span></div>
+    <span class="conn">OPM <i>●</i></span>
+    <button class="btn primary" id="enter" disabled>进入</button>
+    <button class="btn" id="close">关闭</button>
+  </div>
+
+  <div class="pop" id="pop" hidden></div>
+</div>
+
+<script>
+/* ================= 基础 ================= */
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+const pad = n => String(n).padStart(2, '0');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const CATS = ['model', 'support', 'query'];
+const state = { view:'home', tab:'all', q:'', sort:'default', pin:true, sel:null, collapsed:new Set(), compact:store.get('opm.compact', false) };
+let busyTimer = null;
+
+/* ================= 底栏控制台 ================= */
+function setStatus(cls, txt){ $('#status').className = 'status' + (cls ? ' ' + cls : ''); $('#statusText').textContent = txt; }
+function flash(msg, cls = 'ready', ms = 1400){
+  clearTimeout(busyTimer); setStatus(cls, msg);
+  busyTimer = setTimeout(() => { busyTimer = null; updateStatus(); }, ms);
+}
+function refreshStatus(){ clearTimeout(busyTimer); busyTimer = null; updateStatus(); }
+function updateStatus(){
+  if(busyTimer) return;
+  if(state.view === 'q1'){ setStatus(...q1Status()); return; }
+  const m = byId(state.sel);
+  $('#enter').disabled = !m;
+  setStatus(m ? 'ready' : '', m ? `已选择：${m.code} ${m.title} · 双击或回车进入` : '请选择一个功能模块进入工作区');
+}
+
+/* ======================================================================
+   首页
+   ====================================================================== */
+const MODS = $$('#content .item').map((el, i) => ({
+  el, order:i, id:+el.dataset.id, cat:el.dataset.cat,
+  uses:+el.dataset.uses, month:+el.dataset.month,
+  last: el.dataset.last === '' ? null : +el.dataset.last,
+  fav: el.classList.contains('fav'),
+  icon: $('.ico use', el).getAttribute('href'),
+  code: $('.code', el).textContent, title: $('.title', el).textContent, desc: $('.desc', el).textContent
+}));
+const byId = id => MODS.find(m => m.id === id);
+
+function hl(s){
+  const e = esc(s);
+  if(!state.q) return e;
+  const re = new RegExp(esc(state.q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+  return e.replace(re, m => `<mark>${m}</mark>`);
+}
+function ago(min){
+  if(min == null) return '未使用';
+  if(min < 1) return '刚刚';
+  if(min < 60) return min + ' 分钟前';
+  if(min < 1440) return Math.floor(min / 60) + ' 小时前';
+  return Math.floor(min / 1440) + ' 天前';
+}
+const match = m => !state.q || (m.code + ' ' + m.title + ' ' + m.desc).toLowerCase().includes(state.q.toLowerCase());
+const inTab = m => state.tab === 'all' || state.tab === m.cat || (state.tab === 'fav' && m.fav);
+const vis   = m => inTab(m) && match(m);
+function cmp(a, b){
+  if(state.pin && a.fav !== b.fav) return a.fav ? -1 : 1;
+  switch(state.sort){
+    case 'uses':   return b.uses - a.uses || a.order - b.order;
+    case 'recent': return (a.last ?? 1e9) - (b.last ?? 1e9) || a.order - b.order;
+    case 'name':   return a.title.localeCompare(b.title, 'zh');
+    default:       return a.order - b.order;
+  }
+}
+
+function paint(m, max, rankMode){
+  const el = m.el;
+  $('.code', el).innerHTML  = hl(m.code);
+  $('.title', el).innerHTML = hl(m.title);
+  $('.desc', el).innerHTML  = hl(m.desc);
+  $('.mini', el).innerHTML  = (rankMode ? `#${pad(m.rank)} · ` : '') + `<b>${hl(m.code)}</b> · ${m.uses}次`;
+  $('.bar b', el).style.width = Math.max(4, Math.round(m.uses / max * 100)) + '%';
+  $('.cnt-n', el).innerHTML = m.uses + '<small>次</small>';
+  $('.mo', el).textContent  = '本月 ' + m.month;
+  const last = $('.last', el);
+  last.textContent = ago(m.last);
+  last.classList.toggle('none', m.last == null);
+  const st = $('.star', el);
+  st.classList.toggle('on', m.fav);
+  st.title = m.fav ? '取消收藏' : '收藏';
+  el.classList.toggle('fav', m.fav);
+  el.classList.toggle('sel', state.sel === m.id);
+  el.classList.toggle('hot', m.rank <= 3 && m.uses > 0);
+  const r = $('.rank', el);
+  r.textContent = pad(m.rank);
+  r.className = 'rank' + (m.rank <= 3 ? ' r' + m.rank : '');
+  el.title = `${m.code} ${m.title}\n${m.desc}\n累计 ${m.uses} 次 · 本月 ${m.month} 次 · 排名 #${m.rank} · ${ago(m.last)}`;
+  el.hidden = !vis(m);
+}
+
+function renderRecent(){
+  const rec = MODS.filter(m => m.last != null && m.last < 2880).sort((a, b) => a.last - b.last).slice(0, 4);
+  $('#recent').innerHTML = rec.map(m => `
+    <button class="r-item${state.sel === m.id ? ' sel' : ''}" data-id="${m.id}" data-cat="${m.cat}">
+      <span class="ico sm ${m.cat}"><svg class="i"><use href="${m.icon}"/></svg></span>
+      <span class="rb"><span class="rn">${esc(m.title)}</span><span class="rt"><b>${esc(m.code)}</b> · ${ago(m.last)}</span></span>
+    </button>`).join('');
+  return rec.length;
+}
+
+function render(){
+  const max = Math.max(1, ...MODS.map(m => m.uses));
+  const rankMode = state.sort === 'uses';
+  [...MODS].sort((a, b) => b.uses - a.uses || a.order - b.order).forEach((m, i) => m.rank = i + 1);
+  MODS.forEach(m => paint(m, max, rankMode));
+
+  const content = $('#content');
+  content.classList.toggle('rank-mode', rankMode);
+  content.classList.toggle('compact', state.compact);
+
+  let idx = 0;
+  const setSec = (sec, show, cnt) => {
+    sec.hidden = !show;
+    if(!show) return;
+    $('.idx', sec).textContent = pad(++idx) + ' /';
+    $('.cnt', sec).textContent = cnt + ' 项';
+    sec.classList.toggle('collapsed', state.collapsed.has(sec.dataset.sec));
+  };
+
+  const recSec = $('[data-sec=recent]');
+  if(state.tab === 'all' && !state.q) setSec(recSec, true, renderRecent()); else setSec(recSec, false);
+
+  const rankSec = $('[data-sec=rank]');
+  if(rankMode){
+    const box = $('#rankList');
+    box.textContent = '';
+    const list   = MODS.filter(vis).sort(cmp);
+    const pinned = state.pin ? list.filter(m => m.fav) : [];
+    const rest   = state.pin ? list.filter(m => !m.fav) : list;
+    if(pinned.length){ box.insertAdjacentHTML('beforeend', '<div class="rsub">★ PINNED · 收藏置顶</div>'); pinned.forEach(m => box.appendChild(m.el)); }
+    if(rest.length){ if(pinned.length) box.insertAdjacentHTML('beforeend', '<div class="rsub">BY FREQUENCY · 按累计次数</div>'); rest.forEach(m => box.appendChild(m.el)); }
+    $('#rankHint').hidden = !state.pin;
+    setSec(rankSec, list.length > 0, list.length);
+  } else setSec(rankSec, false);
+
+  CATS.forEach(c => {
+    const sec = $(`[data-sec=${c}]`), box = $('.list', sec);
+    if(rankMode){ sec.hidden = true; return; }
+    const list = MODS.filter(m => m.cat === c).sort(cmp);
+    list.forEach(m => box.appendChild(m.el));
+    const n = list.filter(vis).length;
+    setSec(sec, n > 0, n);
+  });
+
+  $('#empty').hidden = MODS.some(vis);
+  $('#emptyQ').textContent = state.q ? `NO RESULT FOR "${state.q}"` : 'NO ITEMS';
+
+  const favCnt = MODS.filter(m => m.fav).length;
+  $('#stTotal').textContent = MODS.length;
+  $('#stMonth').innerHTML   = MODS.reduce((s, m) => s + m.month, 0) + '<small>次</small>';
+  $('#stFav').textContent   = favCnt;
+  $('#favN').textContent    = favCnt;
+  $$('#tabs .tab').forEach(t => t.classList.toggle('on', t.dataset.tab === state.tab));
+  $$('#sortSeg button').forEach(b => b.classList.toggle('on', b.dataset.sort === state.sort));
+  $$('#vseg button').forEach(b => b.classList.toggle('on', +b.dataset.v === +state.compact));
+  $('#pin').classList.toggle('on', state.pin);
+  updateStatus();
+}
+
+function visibleIds(){ return $$('#content .sec:not([hidden]):not(.collapsed) .item:not([hidden])').map(e => +e.dataset.id); }
+function select(id, scroll){
+  state.sel = id;
+  $$('.item.sel, .r-item.sel').forEach(e => e.classList.remove('sel'));
+  $$(`#content [data-id="${id}"]`).forEach(e => e.classList.add('sel'));
+  if(scroll){ const el = byId(id)?.el; el && !el.hidden && el.scrollIntoView({ block:'nearest' }); }
+  updateStatus();
+}
+function enter(id){
+  const m = byId(id);
+  if(!m) return;
+  m.uses++; m.month++; m.last = 0; state.sel = id;
+  render();
+  if(id === 13){
+    flash(`▶ 正在载入工作区：${m.code} ${m.title} …`, 'busy', 400);
+    setTimeout(() => showView('q1'), 260);
+  } else {
+    flash(`原型仅实现 Q1 内页 · 已记录调用：${m.code} ${m.title}`, 'busy', 1800);
+  }
+}
+
+/* ---- 视图切换：窗口壳不动，只换中间区域 ---- */
+function showView(v){
+  closePop();
+  state.view = v;
+  $('#home').hidden = v !== 'home';
+  $('#q1').hidden   = v !== 'q1';
+  const cur = v === 'home' ? $('#home') : $('#q1');
+  cur.classList.remove('in-r', 'in-l'); void cur.offsetWidth;
+  cur.classList.add(v === 'home' ? 'in-l' : 'in-r');
+  $('#enter').hidden = v !== 'home';
+  $('#close').textContent = v === 'home' ? '关闭' : '关闭工具';
+  if(v === 'q1'){ renderQ1(); flash('已进入“大管支撑小管”。', 'ready', 1800); }
+  else { render(); flash('已返回首页', 'ready', 1200); }
+}
+
+/* ---- 首页事件 ---- */
+$('#content').addEventListener('click', e => {
+  const star = e.target.closest('.star');
+  if(star){
+    e.stopPropagation();
+    const m = byId(+star.closest('.item').dataset.id);
+    m.fav = !m.fav; render();
+    flash(`${m.fav ? '★ 已收藏' : '☆ 已取消收藏'}：${m.code} ${m.title}`);
+    return;
+  }
+  const go = e.target.closest('.go');
+  if(go){ enter(+go.closest('.item').dataset.id); return; }
+  const h = e.target.closest('.sec-h');
+  if(h){
+    const sec = h.parentElement, k = sec.dataset.sec;
+    state.collapsed.has(k) ? state.collapsed.delete(k) : state.collapsed.add(k);
+    sec.classList.toggle('collapsed'); return;
+  }
+  const it = e.target.closest('.item, .r-item');
+  if(it) select(+it.dataset.id);
+});
+$('#content').addEventListener('dblclick', e => {
+  if(e.target.closest('.star, .go')) return;
+  const it = e.target.closest('.item, .r-item');
+  if(it) enter(+it.dataset.id);
+});
+$('#tabs').addEventListener('click', e => { const t = e.target.closest('[data-tab]'); if(t){ state.tab = t.dataset.tab; render(); } });
+$('#sortSeg').addEventListener('click', e => { const b = e.target.closest('[data-sort]'); if(b){ state.sort = b.dataset.sort; render(); $('#content').scrollTop = 0; } });
+$('#vseg').addEventListener('click', e => {
+  const b = e.target.closest('[data-v]'); if(!b) return;
+  state.compact = b.dataset.v === '1'; store.set('opm.compact', state.compact); render();
+  flash(state.compact ? '▦ 已切换为简约模式（每行两个）' : '≡ 已切换为详细模式');
+});
+$('#pin').addEventListener('click', () => { state.pin = !state.pin; render(); flash(state.pin ? '★ 收藏项已置顶' : '已取消收藏置顶'); });
+$('#reset').addEventListener('click', () => {
+  Object.assign(state, { sort:'default', tab:'all', q:'', pin:true });
+  state.collapsed.clear(); $('#q').value = ''; render(); flash('已重置筛选与排序');
+});
+let qTimer;
+$('#q').addEventListener('input', e => { clearTimeout(qTimer); qTimer = setTimeout(() => { state.q = e.target.value.trim(); render(); }, 150); });
+$('#enter').addEventListener('click', () => enter(state.sel));
+$('#close').addEventListener('click', () => flash(state.view === 'home' ? '（原型）关闭窗口' : '（原型）关闭工具', ''));
+$('#license').addEventListener('click', () => flash('授权状态：已激活 · 有效期至 2026-12-31', 'ready', 2200));
+
+/* ======================================================================
+   Q1 大管支撑小管
+   ※ TYPES / DNS / SUB 为示意数据，请按标准表替换
+   ====================================================================== */
+const TYPES = [
+  { n:1, t:'小管在下，两管垂直', up:false, par:false },
+  { n:2, t:'小管在下，两管平行', up:false, par:true  },
+  { n:3, t:'小管在上，两管垂直', up:true,  par:false },
+  { n:4, t:'小管在上，两管平行', up:true,  par:true  }
+];
+const DNS = [ ['DN15','1/2"','A'], ['DN20','3/4"','A'], ['DN25','1"','A'],
+              ['DN32','1-1/4"','B'], ['DN40','1-1/2"','B'], ['DN50','2"','B'],
+              ['DN65','2-1/2"','C'], ['DN80','3"','C'], ['DN100','4"','C'] ];
+const SUB = { A:{ angle:'∠50×5', load:1 }, B:{ angle:'∠75×8', load:2 }, C:{ angle:'∠100×10', load:3 } };
+
+const q1 = { type:1, dn:'DN80', H:500, mirror:false, phase:'idle', pipe:null, base:null, slide:false, offset:0, dirty:false, seq:1, timers:[] };
+const dnInfo = () => DNS.find(d => d[0] === q1.dn);
+const hValid = () => Number.isFinite(q1.H) && q1.H > 0 && q1.H <= 1000;
+const f1 = v => v.toFixed(1);
+
+/* 下拉项小示意图 */
+function typeIcon(n){
+  const T = TYPES[n - 1], by = T.up ? 16 : 8, sy = T.up ? 5 : 19;
+  const small = T.par ? `<circle cx="12" cy="${sy}" r="2.4"/>` : `<path d="M6.5 ${sy}h11"/>`;
+  return `<svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="${by}" r="4.5"/>${small}<path d="M18.5 ${by}V${sy}" stroke-dasharray="2 2"/></svg>`;
+}
+
+/* 结果卡示意图：类型决定上下 / 垂直平行，镜像决定角钢在左右哪侧 */
+function schem(){
+  const T = TYPES[q1.type - 1], side = q1.mirror ? -1 : 1, cx = 56, R = 15;
+  const H = hValid() ? q1.H : 500;
+  const Hs = 20 + Math.min(H, 1000) / 1000 * 28;
+  const cy = T.up ? 76 : 20, sy = T.up ? cy - Hs : cy + Hs, sr = 6, armY = sy + sr + 1.5;
+  const ax = cx + side * (R + 6), ex = cx - side * 17, dx = cx - side * (R + 20);
+  const small = T.par
+    ? `<circle class="sp" cx="${cx}" cy="${sy}" r="${sr}"/>`
+    : `<rect class="sp" x="${cx - 17}" y="${sy - sr}" width="34" height="${sr * 2}" rx="2"/>`;
+  return `<svg width="112" height="96" viewBox="0 0 112 96">
+    <path class="ext" d="M${cx - R - 4} ${cy}H${dx} M${cx} ${sy}H${dx}"/>
+    <circle class="bp" cx="${cx}" cy="${cy}" r="${R}"/>
+    <path class="ext" d="M${cx} ${cy - R - 3}V${cy + R + 3} M${cx - R - 3} ${cy}H${cx + R + 3}"/>
+    ${small}
+    <path class="st" d="M${ax} ${cy}V${armY}H${ex}"/>
+    <path class="dim" d="M${dx} ${cy}V${sy} M${dx - 3} ${cy}h6 M${dx - 3} ${sy}h6"/>
+    <text x="${dx - side * 7}" y="${(cy + sy) / 2 + 3}" text-anchor="middle">H</text>
+    <text class="cap" x="4" y="${T.up ? 10 : 92}">T${T.n}${q1.mirror ? ' · M' : ''}</text>
+    <text class="cap" x="108" y="${T.up ? 10 : 92}" text-anchor="end">${H}</text>
+  </svg>`;
+}
+
+function rowState(sel, cls, text){
+  const el = $(sel);
+  el.className = 'ro' + (cls ? ' ' + cls : '');
+  $('.v', el).textContent = text;
+}
+
+function renderQ1(){
+  const T = TYPES[q1.type - 1], d = dnInfo(), s = SUB[d[2]], ok = hValid();
+  // 参数
+  $('#typeIc').innerHTML = typeIcon(q1.type);
+  $('#typeTx').innerHTML = `<span class="k">类型 ${T.n}</span>${T.t}`;
+  $('#dnTx').innerHTML   = `<span class="k">${d[0]}</span>${d[1]}`;
+  $('#dnTag').textContent = '子项 ' + d[2];
+  $('#hIg').classList.toggle('err', !ok);
+  $('#hErr').hidden = ok;
+  if(document.activeElement !== $('#hIn')) $('#hIn').value = Number.isFinite(q1.H) ? q1.H : '';
+  $('#hRng').style.width = Math.min(100, Math.max(0, (q1.H || 0) / 10)) + '%';
+  $('#hRng').style.background = ok ? '' : 'var(--red)';
+  $('#mirror').classList.toggle('on', q1.mirror);
+  $('#mirrorSide').textContent = q1.mirror ? '左侧' : '右侧';
+  // 选型结果
+  $('#schem').innerHTML = schem();
+  $('#rSub').textContent  = d[2];
+  $('#rAng').textContent  = s.angle;
+  $('#rLoad').textContent = s.load + ' kN';
+  $('#rLay').textContent  = `T${T.n} · ${q1.mirror ? '左' : '右'}侧`;
+  // 步骤：0 待定 / 1 完成 / 2 进行中
+  const ph = q1.phase;
+  const st = ph === 'idle' ? [0,0,0,0] : ph === 'pipe' ? [2,0,0,0] : ph === 'base' ? [1,2,0,0] : q1.dirty ? [1,1,2,0] : [1,1,1,2];
+  $$('#steps .step').forEach((el, i) => el.className = 'step' + (st[i] === 1 ? ' done' : st[i] === 2 ? ' act' : ''));
+  // 按钮状态机
+  const picking = ph === 'pipe' || ph === 'base', prev = ph === 'preview';
+  $('#bStart').disabled = ph !== 'idle';
+  $('#bEnd').disabled   = !picking;
+  $('#bUpd').disabled   = !prev;
+  $('#bUpd').classList.toggle('attn', prev && q1.dirty);
+  $('#bSlide').disabled = !prev;
+  $('#bSlide').classList.toggle('on', prev && q1.slide);
+  $('#oIg').classList.toggle('dis', !prev);
+  $('#oIn').disabled = !prev;
+  $('#bOff').disabled = !prev;
+  $('#bCancel').disabled = ph === 'idle';
+  $('#bOk').disabled = !(prev && !q1.dirty && ok);
+  // 读数
+  rowState('#roPipe', q1.pipe ? 'ok' : ph === 'pipe' ? 'wait' : '',
+    q1.pipe ? `${q1.pipe.id} · ${q1.pipe.dn}` : ph === 'pipe' ? '等待在视图中选取…' : '尚未选取支撑大管');
+  rowState('#roBase', q1.base ? 'ok' : ph === 'base' ? 'wait' : '',
+    q1.base ? `X ${f1(q1.base.x)}  Y ${f1(q1.base.y)}  Z ${f1(q1.base.z)}${q1.offset ? `  Δ${q1.offset > 0 ? '+' : ''}${q1.offset}` : ''}`
+            : ph === 'base' ? '等待点取基点…' : '尚未点取');
+}
+
+function q1Status(){
+  if(!hValid()) return ['', '⚠ 间距 H 超出范围，请修正参数'];
+  switch(q1.phase){
+    case 'pipe':    return ['busy', '请在视图中选取支撑大管 · Esc 结束点取'];
+    case 'base':    return ['busy', '请在大管上点取基点 · Esc 结束点取'];
+    case 'preview': return q1.dirty ? ['', '参数已变更 · 请点击“更新预览”'] : ['ready', `预览中${q1.slide ? ' · 沿轴滑动' : ''} · 确认无误后点击“确定生成”`];
+    default:        return ['ready', '参数就绪 · 点击“开始点取”选取支撑大管'];
+  }
+}
+
+/* ---- Q1 操作 ---- */
+const later  = (fn, ms) => q1.timers.push(setTimeout(fn, ms));
+const clearT = () => { q1.timers.forEach(clearTimeout); q1.timers = []; };
+function changed(){ if(q1.phase === 'preview') q1.dirty = true; renderQ1(); }
+
+function startPick(){
+  if(q1.phase !== 'idle') return;
+  if(!hValid()){ flash('⚠ 间距 H 无效，请先修正参数', '', 1800); $('#hIn').focus(); return; }
+  q1.phase = 'pipe'; q1.pipe = null; q1.base = null; renderQ1(); refreshStatus();
+  later(() => {   // 模拟：在 OPM 视图中选中大管
+    q1.pipe = { id:'P-' + (1200 + Math.floor(Math.random() * 90)), dn:'DN' + [200, 250, 300, 350][Math.floor(Math.random() * 4)] };
+    q1.phase = 'base'; renderQ1(); flash(`已选取大管 ${q1.pipe.id}，请点取基点`, 'busy', 1100);
+  }, 1400);
+  later(() => {   // 模拟：点取基点
+    q1.base = { x:12450 + Math.random() * 500, y:3200 + Math.random() * 300, z:6500 };
+    q1.phase = 'preview'; q1.dirty = false; q1.offset = 0; $('#oIn').value = 0;
+    renderQ1(); flash('✔ 预览已生成 · 可沿轴调整或直接确定生成', 'ready', 2000);
+  }, 2800);
+}
+function endPick(){
+  if(q1.phase !== 'pipe' && q1.phase !== 'base') return;
+  clearT(); q1.phase = 'idle'; q1.base = null; renderQ1(); flash('已结束点取', '', 1200);
+}
+function updPreview(){ q1.dirty = false; renderQ1(); flash('↻ 预览已更新', 'ready', 1200); }
+function toggleSlide(){
+  q1.slide = !q1.slide; renderQ1();
+  flash(q1.slide ? '↔ 沿轴滑动已开启 · 在视图中拖动预览' : '沿轴滑动已关闭', 'ready', 1600);
+}
+function applyOffset(){
+  const v = parseFloat($('#oIn').value);
+  if(!Number.isFinite(v)){ flash('⚠ 偏移值无效', '', 1400); return; }
+  q1.offset = v; renderQ1(); flash(`已应用沿轴偏移 ${v > 0 ? '+' : ''}${v} mm`, 'ready', 1400);
+}
+function resetPreview(){ clearT(); Object.assign(q1, { phase:'idle', base:null, slide:false, offset:0, dirty:false }); $('#oIn').value = 0; }
+function cancelPreview(){ resetPreview(); renderQ1(); flash('已取消预览', '', 1200); }
+function confirmGen(){
+  const d = dnInfo(), no = `Q1-${d[2]}-${String(q1.seq++).padStart(3, '0')}`;
+  resetPreview(); renderQ1();
+  flash(`✔ 已生成 ${no}（${d[0]} · ${SUB[d[2]].angle}），已写入清单`, 'ready', 2600);
+}
+
+/* ---- 自定义下拉 ---- */
+let popFor = null;
+function closePop(){ $('#pop').hidden = true; popFor && popFor.classList.remove('open'); popFor = null; }
+function openPop(btn, kind){
+  if(popFor === btn){ closePop(); return; }
+  closePop(); popFor = btn; btn.classList.add('open');
+  const pop = $('#pop');
+  let html = '';
+  if(kind === 'type'){
+    html = TYPES.map(T => `<div class="opt${T.n === q1.type ? ' on' : ''}" data-v="${T.n}">
+      <span class="sel-ic">${typeIcon(T.n)}</span><span><span class="k">类型 ${T.n}</span>${T.t}</span>
+      <svg class="i ck"><use href="#i-check"/></svg></div>`).join('');
+  } else {
+    let g = '';
+    DNS.forEach(d => {
+      if(d[2] !== g){ g = d[2]; html += `<div class="og">子项 <b>${g}</b> · ${SUB[g].angle} · ${SUB[g].load} kN</div>`; }
+      html += `<div class="opt${d[0] === q1.dn ? ' on' : ''}" data-v="${d[0]}"><span class="k" style="width:46px">${d[0]}</span><span class="in">${d[1]}</span><svg class="i ck"><use href="#i-check"/></svg></div>`;
+    });
+  }
+  pop.innerHTML = html; pop.dataset.kind = kind; pop.hidden = false;
+  const r = btn.getBoundingClientRect(), wr = $('.win').getBoundingClientRect();
+  pop.style.left = r.left + 'px'; pop.style.width = r.width + 'px';
+  const ph = pop.offsetHeight;
+  pop.style.top = (r.bottom + 4 + ph > wr.bottom - 46 && r.top - 4 - ph > wr.top + 32) ? (r.top - 4 - ph) + 'px' : (r.bottom + 4) + 'px';
+  $('.opt.on', pop)?.scrollIntoView({ block:'nearest' });
+}
+$('#typeSel').addEventListener('click', e => openPop(e.currentTarget, 'type'));
+$('#dnSel').addEventListener('click', e => openPop(e.currentTarget, 'dn'));
+$('#pop').addEventListener('click', e => {
+  const o = e.target.closest('.opt'); if(!o) return;
+  if($('#pop').dataset.kind === 'type'){
+    q1.type = +o.dataset.v; closePop(); changed();
+    flash(`布置类型 → 类型 ${q1.type} · ${TYPES[q1.type - 1].t}`);
+  } else {
+    q1.dn = o.dataset.v; closePop(); changed();
+    const d = dnInfo(); flash(`小管 → ${d[0]} (${d[1]}) · 子项 ${d[2]} ${SUB[d[2]].angle}`);
+  }
+});
+document.addEventListener('mousedown', e => {
+  if(popFor && !$('#pop').contains(e.target) && !popFor.contains(e.target)) closePop();
+});
+$('#mscroll').addEventListener('scroll', closePop);
+window.addEventListener('resize', closePop);
+window.addEventListener('scroll', closePop);
+
+/* ---- Q1 控件事件 ---- */
+$('#hIn').addEventListener('input', e => {
+  const v = e.target.value.trim(); q1.H = v === '' ? NaN : Number(v);
+  changed(); refreshStatus();
+});
+$('#hIn').addEventListener('blur', () => { if(hValid()) $('#hIn').value = q1.H; });
+$$('#hIg .stp').forEach(b => b.addEventListener('click', () => {
+  const base = Number.isFinite(q1.H) ? q1.H : 500;
+  q1.H = Math.min(1000, Math.max(50, Math.round((base + 50 * b.dataset.h) / 50) * 50));
+  $('#hIn').value = q1.H; changed(); refreshStatus();
+}));
+$$('#oIg .stp').forEach(b => b.addEventListener('click', () => {
+  $('#oIn').value = (parseFloat($('#oIn').value) || 0) + 10 * b.dataset.o;
+}));
+$('#mirror').addEventListener('click', () => {
+  q1.mirror = !q1.mirror; changed();
+  flash(`镜像：角钢位于大管${q1.mirror ? '左' : '右'}侧`);
+});
+$('#bStart').addEventListener('click', startPick);
+$('#bEnd').addEventListener('click', endPick);
+$('#bUpd').addEventListener('click', updPreview);
+$('#bSlide').addEventListener('click', toggleSlide);
+$('#bOff').addEventListener('click', applyOffset);
+$('#bCancel').addEventListener('click', cancelPreview);
+$('#bOk').addEventListener('click', confirmGen);
+$('#back').addEventListener('click', () => { if(q1.phase !== 'idle') resetPreview(); showView('home'); });
+
+/* ================= 键盘 ================= */
+document.addEventListener('keydown', e => {
+  if(state.view === 'q1'){
+    if(e.key === 'Escape'){
+      if(popFor) closePop();
+      else if(q1.phase === 'pipe' || q1.phase === 'base') endPick();
+    }
+    if(e.key === 'Enter' && document.activeElement === $('#oIn')) applyOffset();
+    return;
+  }
+  const inSearch = document.activeElement === $('#q');
+  if(e.ctrlKey && e.key.toLowerCase() === 'k'){ e.preventDefault(); $('#q').focus(); $('#q').select(); return; }
+  if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+    const ids = visibleIds(); if(!ids.length) return;
+    e.preventDefault();
+    let i = ids.indexOf(state.sel);
+    i = e.key === 'ArrowDown' ? Math.min(i + 1, ids.length - 1) : Math.max(i - 1, 0);
+    select(ids[i], true); return;
+  }
+  if(e.key === 'Enter'){
+    if(document.activeElement && document.activeElement.matches('button')) return;
+    const ids = visibleIds();
+    if(state.sel != null && ids.includes(state.sel)) enter(state.sel);
+    else if(ids.length) select(ids[0], true);
+    return;
+  }
+  if(e.key === 'Escape'){
+    if(inSearch && $('#q').value){ $('#q').value = ''; state.q = ''; render(); }
+    else { state.sel = null; $$('.sel').forEach(x => x.classList.remove('sel')); updateStatus(); }
+  }
+});
+
+render();
+renderQ1();
+</script>
+</body>
+</html>

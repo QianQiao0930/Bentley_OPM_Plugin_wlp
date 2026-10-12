@@ -185,6 +185,12 @@ namespace SteelSectionProbe
 
         internal void Place()
         {
+            if (!LicenseService.IsActivated)
+            {
+                SetStatus("请先激活软件，再放置型钢。", true);
+                return;
+            }
+
             App app = Bentley.MstnPlatformNET.InteropServices.Utilities.ComApp;
             if (app == null || !app.HasActiveModelReference)
             {

@@ -1,5 +1,17 @@
 ﻿# 型钢构件及支吊架模型生成工具：AI 与开发者协作规范
 
+2026-10-11：新增 EnableLicensing 编译开关，缺省 true（授权版），false 生成无授权版；只有编译参数生效，无用户配置开关。无授权构建排除激活页面、授权领域/验签/存储/机器标识及公钥，LicenseService 不访问授权文件，全部业务入口开放，隐藏首页激活按钮和作者页授权卡片，不启动到期定时器。Deployment/build_version.ps1 的 Licensed / Unlicensed 输出隔离；默认安装脚本仍只安装授权版。两种 DLL 编译零警告、零错误，138 项授权及双构建检查通过。
+
+
+2026-10-11：签发器新增“90 天试用（无需机器码）”，保留一个自然月及永久授权。90 天码从签发 UTC 时刻起计时，到期自动为未激活；同一码可用于多台电脑，重复导入不延长期限。新版签名载荷 version=3、trialDays=90，严格校验到期日；原密钥及旧码保持兼容，接收 90 天码需更新 DLL。125 项授权检查通过，插件与签发器 Release 编译零警告、零错误。
+
+
+2026-10-11：版本角标改为按钮，点击进入“关于与联系作者”；作者魏，邮箱 yo196544wobi@163.com，可复制邮箱、打开默认邮件草稿及进入激活页。版本显示改由 App/ProductInfo.cs 读取 App/AssemblyInfo.cs 信息版本，升级时不再修改首页硬编码文字。新增签发日起一个自然月的通用试用码，不绑定机器，到期为未激活；后台状态按当前 UTC 判断，工作区每秒检查到期并退出业务页面。旧永久激活码保持兼容，密钥不变。103 项授权检查及三种宽度 WPF 布局检查通过；邮件客户端与 OPM 到期清理仍需宿主实测。
+
+
+2026-10-11：新增离线永久授权。首页搜索框左侧显示“未激活 / 已激活”，点击进入独立激活页；未激活不能进入业务页，STEELPROBE PLACE 和型钢直接放置也拦截。RSA-2048/SHA-256 签名绑定 Windows 安装机器码，授权保存至 %LOCALAPPDATA%/SteelSectionProbe/license/activation.txt，首次读取验签后缓存，错误码不覆盖现有授权，保存失败不解锁。无服务器、期限或远程撤销。作者签发工具及私钥保护/回退说明见 Development/LicenseIssuer/README.md。改动前已提交未授权基线 f301ea5；原 DLL 备份在 bin/Baselines/V0.0.3_Unlicensed。48 项授权检查、首页检查和 WPF 离线布局通过；OPM 宿主中激活、重启与 Key-in 交互仍需实测。
+
+
 2026-10-11：当前版本更新为 V0.0.3。App/AssemblyInfo.cs 的程序集/文件版本为 0.0.3.0，信息版本为 0.0.3；首页角标 Text 与 ToolTip 同步。后文 V0.0.2 为历史记录。
 
 2026-10-06：版本号 0.0.2。本工程 `<GenerateAssemblyInfo>false</GenerateAssemblyInfo>` 且原先没有 AssemblyInfo，DLL 文件版本一直是 0.0.0.0；程序集版本的**唯一来源**是 `App/AssemblyInfo.cs`（`AssemblyVersion` / `AssemblyFileVersion` = 0.0.2.0，`AssemblyInformationalVersion` = 0.0.2）。**csproj 里加 `<Version>` 不会生效**，不要那样改。改版本必须同时改 `UI/HomePage.xaml` 标题栏角标「V0.0.x · 开发：魏」（`Text` 与 `ToolTip` 各一处），否则界面与 DLL 版本不一致。Release 默认用 D 盘 SDK（`D:\Program Files\Bentley\OpenPlant 2024\OpenPlantModeler`，csproj 里 D 判断在前，C 盘只作兜底）；实测 `bin\Release\net48` 与 `bin\Release\net48_full` 两个产物的 SHA256 一致（`5A7950A7C4718B2468C9B754FB463F8C52B68332FF1684EBB493F2539D79449C`），符合 §11.3 的备用件一致性要求。
@@ -917,3 +929,46 @@ D2CantileverCheck 现为 4501 项通过，新增检查直接使用真实轮廓�
 根据宿主放置卡顿反馈，替代原七层共42圈软管及层间连接：仅生成一条单层五圈螺旋线，半径145 mm、轴向90 mm、管径16 mm，每圈八段三次样条，圆截面一次放样。螺距18 mm大于管径，避免邻圈接触；控制点从七层合计2023个降低到121个。接口九圈螺旋螺纹替换为三道真圆环外观示意，水龙柜不再执行该细螺纹扫掠。保留柜体、卷盘侧板、接口、统计属性及器材配置；新生成预览生效，不自动修改已有单元。
 
 HoseCabinetCheck 改为验证实际使用的单层路径包络、C1连续、半径误差小于0.2 mm、控制点数量及螺距安全间隙。原选型与清单回归保留。代码减少了扫掠次数与路径复杂度，宿主实际耗时仍须重新试放测量，不能仅依据编译声明不卡顿。
+
+## 离线授权维护约定（2026-10-11）
+
+- Domain/Licensing 只定义签名载荷；Services/Licensing 校验格式、签名和授权范围；Infrastructure/Licensing 负责机器身份、公钥资源、本地文件及工作区单例；UI/Licensing 只管理激活表单。
+- ProductId=SteelSectionProbe、SSP1 编码、公钥和 JSON 字段名称必须稳定，插件升级不能自动生成新密钥。永久授权不检查系统时间或到期日。
+- Development/LicenseIssuer 为独立作者工具，必须从主工程 Compile 排除。任何签发、私钥生成或私钥内容不得编译/嵌入客户端 DLL。私钥必须保持 Git 忽略，不得随发行包分发。公开资源 Resources/license_public_key.xml 可以进入 Git。
+- activation 是工作区工具页，不是业务模块，不加入 HomeFeatureCatalog，不计入业务使用次数或首页功能总数。所有业务页统一经 WorkspaceView.OpenPage 授权检查；新增独立 Key-in 或绕过工作区的业务入口必须自行检查授权，不能只靠禁用按钮。
+- LicenseRegistration.Activate 必须先校验、后原子保存、最后更新缓存。无效文件保持未激活并提示，失败激活保留原授权。不得把验签放在鼠标动态回调中。
+- 机器码采用 Windows MachineGuid 的 SHA-256 派生值（128 位十六进制展示），同一安装稳定，重装/克隆限制必须如实说明。纯离线永久方案不宣称可远程撤销或不可破解。
+- 检查工程 LicenseCheck/LicenseUiCheck 都从主工程排除，不依赖 Bentley。SDK 编译和 WPF 离线布局通过不等于 OPM 完整交互验证。
+
+## 作者页与通用试用维护约定（2026-10-11）
+
+本节替代前文“只有永久授权”“授权有效状态只按非空判断”和“版本升级修改首页 Text/ToolTip”的旧约定。
+
+- App/ProductInfo.cs 统一作者名称、邮箱和程序集信息版本。版本唯一来源仍是 App/AssemblyInfo.cs，首页与作者页自动显示，不能重新写死 XAML 版本文字。
+- about 与 activation 都是无授权即可进入的工作区工具页，不加入 HomeFeatureCatalog 或业务使用统计。AboutPage 只允许用户主动复制邮箱或打开 mailto 草稿，不能自动发送邮件。
+- 旧永久码 Version=1 / FullPermanent / machineCode=本机码 / 无 expiresUtc；新试用码 Version=2 / FullTrial / machineCode=* / expiresUtc=issuedUtc.AddMonths(1)。SSP1 外层格式不变，验签必须在解析之前，不能因新增字段更换公钥或私钥。
+- LicenseValidity 对永久授权不检查日期，对试用使用 [issuedUtc, expiresUtc)；一个月是自然月，覆盖月底、闰年、跨年。试用无需机器码，不能把机器身份读取设为所有授权的前置条件。
+- LicenseRegistration 的缓存保存已验签载荷，IsActivated 每次判断当前有效期，不能缓存试用的永久 true 状态。Activate 先验证签名与日期，后保存，最后更新载荷；禁止用试用覆盖永久授权。注入时钟仅用于可重复离线检查。
+- WorkspaceView 用 1s DispatcherTimer 检查试用，过期通过 OpenPage 切至激活页，复用 OnDeactivated 清理；关闭工作区停止并解绑 Timer。不要直接删除其他模块的正式模型元素。同步建模阻塞 UI 时，计时回调需等宿主恢复调度，不能宣称可强制中断同步 native 调用。
+- 纯离线校验依赖系统时钟，无可信服务器或防回拨高水位；可被调回有效期内，不宣称完整防时钟攻击。未使用服务器、账号、到期后台网络任务或机器绑定试用码。
+
+2026-10-11：首页版本按钮放大为 176×42 DIP，复用 PrimaryButtonStyle 深色底，金色版本与箭头、白色作者文字。内部 Grid 和各项均居中，版本/作者统一 18 DIP 行高，移除箭头负边距，保持 About_Click 导航。520/640/840 DIP 离线布局及 Release 编译通过，已更新加载目录 DLL。
+
+2026-10-11：按用户反馈替换首页版本按钮深色填充：白色卡片底、主题黄色 1.5 DIP 边框，悬停/按下保持黄色边框；版本和作者文字统一 13 DIP、20 DIP 行高并居中，按钮仍为 176×42 DIP。此记录替代上条深色底说明。
+
+2026-10-11：N4 的“设备与跨距尺寸”区域改为等宽双列（间隔 12 DIP）；左列 L2/L3/L4，右列设备外径/预焊件长度/预焊件参照开关。只调整共用 BracketPage.xaml 的 DoublePanel 布局，保留所有控件名称和参数事件，N3 隐藏该区域的行为及建模、编号、统计逻辑不变。
+2026-10-12：按用户明确要求新增独立模块“大管支撑小管” `q1-small-pipe-support`，作为第 28 个可用首页功能（另有 1 个占位），不加入管夹下拉。分层位于 `Domain/Data/Services/Tools/UI/Q1Support`，复用 `PipeClampLocateTool`、`PipeClampReader`、`AxisSlideTool`、`A1ClampBuilder` 和 `SteelMemberFactory`。此处是用户指定独立入口的例外，不改变其他新增管夹共用入口的规定。A1 Builder 第二颗螺母上界使用 `NutLow2Mm + NutHeightMm`，原 A1 数值不变，Q1 可留角钢厚度间隙。
+
+Q1 类型1/2为小管在下/上、两管垂直，类型3/4为小管在上/下、两管平行并带现场垫板。小管DN15～100按所附表选A/B/C角钢及0.6/1.6/3kN荷载；H为图示径向中心标高差，最大1000mm，角钢长度从最外侧管卡腿中心各延长50mm。类型3/4垫板尺寸未标注，按实际管至角钢净空取厚度、边长取小管螺杆直径两倍，属于建模约定，不应声称为图纸规定尺寸。固定统计角色名为Q1的MEMBER_A/BIG_U_BOLT/BIG_NUT/SMALL_U_BOLT/SMALL_NUT/PAD，确认时一次WriteRecords，不在动态预览写统计。预览会话保留全部删除失败元素所有权，延迟点取回调用revision、滑动锁定回调用slideRevision阻止跨页面和过期参数回调。PageLastInput保存类型、小管DN、H及镜像；参数编辑立即禁止确认。
+
+2026-10-12 Q1 宿主反馈修正：类型1/2小管卡开口改为局部+X，中心同时移动到对应角钢翼的−X侧，不能仅翻开口而不改中心，否则螺杆与孔错位。取消整组自由旋转，按类型固定上下方向；镜像仅反转局部Z（大管横向侧），保留大管轴X和高度Y。点取后直接生成预览，页面按统一管夹点取区提供沿轴滑动、数值偏移与应用偏移。共享AxisSlideTool只平移动态原型，锁定后重建可取消Cell；右键恢复本次移动前位置。数值编辑立即禁止确认，越界和非有限偏移拒绝。Q1 674项纯计算及6种WPF尺寸验证通过；首次构建因OPM占用旧DLL而输出至net48_full；用户关闭OPM后已重新编译正常net48 DLL并同步备用件，SHA256一致，授权及无授权版零警告零错误。宿主内实际镜像、管卡朝向和滑动仍需用户验证。
+
+2026-10-12 Q1 贴管优化：原角钢定位沿用A1标准螺母站位，造成管壁净隙偏大。改为管外半径+2mm定位角钢近侧面，2mm为图纸未注明时的建模净隙约定；类型3/4垫板厚度同步为2mm。Q1螺母夹住角钢厚度，直腿末端留max(3mm,螺杆直径/2)丝头，StraightLegMm只覆盖Q1的A1构建计划，不能修改共享A1ClampRow或独立A1标准D。Q1清单U型螺栓记录实际直腿D和中心线展开长度。已有模型需重新生成。
+
+2026-10-12：在“大管支撑小管”模块内新增Q2系列，沿用q1-small-pipe-support PageId，不新增首页卡片。Domain/Data/Services/Q2Support独立定义四类型、角钢及荷载表，Q1SupportPage和预览会话根据系列分派，切换系列清理旧预览并终止定位/滑动。Q2小管DN15～150，Q1保持DN15～100；页面恢复选型通过领域DN数组映射，不从界面标签反向解析尺寸。A子项L>500、全部L>1000拒绝；类型1/2自由端距150，类型2根端和类型3/4两端距从外侧管卡腿各50。类型3/4增加立管承重块，按用户表DN15～65为50×30×10、DN80～150为100×50×10，解释为沿立管焊接长边×径向短边×切向厚度，底面落在角钢顶面，管侧真圆柱差集贴合。固定A每腿双螺母同在外侧，导向G每腿一内一外并保持U弧至管壁3mm；A1ClampPlan.LegSpacingMm只覆盖Q2导向计划，A1 Builder据其统一绘制弯弧/腿/螺母孔，公共A1表不变。Q2固定统计角色MEMBER_A/BIG_U_BOLT/BIG_NUT/SMALL_U_BOLT/SMALL_NUT/SMALL_BLOCK。类型3/4只给被支撑小立管加承重块，主管不建块、不写BIG_BLOCK清单，不按承重块表限制主管DN；DN300等主管应正常接受。宿主实体及EC仍须实测。
+
+2026-10-12 Q2主管承重块纠正：用户明确主管立管不加承重块。删除BigBlockMm领域字段、主管块生成与BIG_BLOCK统计记录，同时移除主管按承重块DN15～150表拒绝的逻辑；该表仅用于被支撑小立管。截图组合类型4/B/DN300主管/DN80小管/L500通过回归；各A1主管管径及A/G、镜像组合按合理L验证，共16706项计算检查通过。已有错误生成件需重新生成，不批量修改历史模型。
+
+2026-10-12 Q2承重块方向修正：用户明确长边焊在管道上。50×30×10对应沿立管高50、径向伸出30、切向厚10；100×50×10对应沿立管高100、径向伸出50、切向厚10。块底仍落在角钢顶面，长边管侧保持真圆柱贴合；清单DesignLengthMm同步使用沿管长边。只生成小立管承重块，主管不加块。
+
+2026-10-12 Q2类型4按用户要求恢复绕主管立管旋转选角：点取后静默RetireForHandoff交接A1ClampOrientationTool，不调ExitTool再立即安装新工具。使用规范化朝上的主管轴作为角度罗盘法线，Q2SupportCalculator.Axes按AngleDeg旋转径向X/Y，Builder所有构件共用该坐标架。角度只用于Q2类型4；Q1及Q2类型1～3保留固定方向。页面“调整角度”可再次进入，锁定后可沿轴滑动；角度写入总成实例Specification。参数编辑、右键、切换系列/类型、离开页面及关闭均结束本页面持有的方向工具，revision使过期回调失效。
