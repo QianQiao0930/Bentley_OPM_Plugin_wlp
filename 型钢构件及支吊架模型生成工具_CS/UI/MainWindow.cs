@@ -15,6 +15,8 @@ namespace SteelSectionProbe
         private readonly ElementHost elementHost = new ElementHost();
         private readonly WorkspaceView workspace;
 
+        private bool homeShell;
+        private int moduleHeightLogical=720;
         internal static MainWindow Current;
         internal SteelSectionPage SteelSections { get { return workspace.SteelSections; } }
 
@@ -51,7 +53,7 @@ namespace SteelSectionProbe
             // 否则 150% 缩放下首次打开会把首页按 1:1 布局成窄版（卡片只剩一列）。
             Shown += delegate
             {
-                int min = ToDevicePixels(560);
+                int min = ToDevicePixels(400);
                 MinimumSize = new Size(min, min);
                 SetHomeLayout(true);
                 // 首次显示后再按真实可视树校准首页宽度（构造期拿不到 DPI，也还没布局）。
@@ -60,6 +62,14 @@ namespace SteelSectionProbe
 
             FormClosed += OnFormClosed;
         }
+
+        internal void BeginTitleDrag()
+        {
+            Capture=false;
+            var message=Message.Create(Handle,0xA1,new IntPtr(2),IntPtr.Zero);
+            WndProc(ref message);
+        }
+        internal void MinimizeFromHome(){WindowState=FormWindowState.Minimized;}
 
         internal void ShowActivationPage()
         {
@@ -81,55 +91,38 @@ namespace SteelSectionProbe
             workspace.ShowHome();
         }
 
-        /// <summary>
-        /// 首页与功能页**同为 560 逻辑宽**（2026-09-28 起：卡片收窄到 240 后两列放得下，
-        /// 首页不再需要比功能页宽）。数字是 <b>96 dpi 下的逻辑宽度</b>，会按实际 DPI 换算成设备像素。
-        /// <para>
-        /// 兜底值之外还有一层保险：<see cref="WorkspaceView.ScheduleHomeWidthCheck"/> 会按真实可视树
-        /// 实测"两列卡片 + 页边距 + 滚动条"需要的宽度，再回调 <see cref="ApplyHomeWidth"/> 校准
-        /// （实测 552 → 被下限夹到 560）。万一以后卡片改宽，窗口会自动跟着加宽而不是掉成单列。
-        /// </para>
-        /// <para>
-        /// ⚠️ 设计尺寸不能直接写进 <see cref="ClientSize"/> —— 那是以<b>设备像素</b>为单位的，
-        /// 而本窗体的 <c>AutoScaleMode = Dpi</c> 会在高 DPI 下把窗体尺寸再乘一次缩放系数，
-        /// 两者打架就会出现"返回首页后卡片宽度时宽时窄、和刚打开时不一样"。
-        /// 因此统一按 WPF 子控件的真实 DPI 换算（<see cref="ToDevicePixels"/>）。
-        /// </para>
-        /// </summary>
+        /// <summary>首页使用原型400×880 DIP窗口壳；模块页保留原560 DIP宽与用户调整的高度。</summary>
         internal void SetHomeLayout(bool home)
         {
-            homeLayout = home;
-            int width = ToDevicePixels(home ? homeWidthLogical : 560);
-            if(ClientSize.Width!=width)ClientSize=new Size(width,ClientSize.Height);
+            if(home)
+            {
+                if(!homeShell){moduleHeightLogical=Math.Max(560,(int)Math.Round(ClientSize.Height/(double)ToDevicePixels(100)*100));}
+                homeShell=true;
+                FormBorderStyle=FormBorderStyle.None;
+                MinimumSize=new Size(ToDevicePixels(400),ToDevicePixels(880));
+                MaximumSize=MinimumSize;
+                ClientSize=MinimumSize;
+                var path=new System.Drawing.Drawing2D.GraphicsPath();
+                int radius=ToDevicePixels(8)*2;
+                path.AddArc(0,0,radius,radius,180,90);path.AddArc(ClientSize.Width-radius,0,radius,radius,270,90);
+                path.AddArc(ClientSize.Width-radius,ClientSize.Height-radius,radius,radius,0,90);path.AddArc(0,ClientSize.Height-radius,radius,radius,90,90);path.CloseFigure();
+                var previous=Region;Region=new Region(path);path.Dispose();previous?.Dispose();
+            }
+            else
+            {
+                homeShell=false;
+                var previous=Region;Region=null;previous?.Dispose();
+                FormBorderStyle=FormBorderStyle.Sizable;
+                MaximumSize=Size.Empty;
+                MinimumSize=new Size(ToDevicePixels(560),ToDevicePixels(560));
+                ClientSize=new Size(ToDevicePixels(560),ToDevicePixels(moduleHeightLogical));
+            }
         }
 
-        /// <summary>
-        /// 首页宽度兜底值（逻辑宽）。**与功能页同宽 = 560**：卡片改成 240 宽后两列只需
-        /// 24 页边距 + 2×(240+12) + 16 滚动条开销 + 8 余量 = 552 ≤ 560，正好放得下，
-        /// 所以首页不再比功能页宽，首帧也不会出现"先宽后窄"的跳动。
-        /// </summary>
-        private const int HomeWidthFallback = 560;
-
-        /// <summary>当前首页宽度（逻辑宽），首帧用兜底值，之后由实测校准。</summary>
-        private int homeWidthLogical = HomeWidthFallback;
-
-        /// <summary>当前是否处于首页布局（校准回调只在首页生效，避免影响功能页）。</summary>
-        private bool homeLayout = true;
-
-        /// <summary>
-        /// 由 WPF 侧实测得出的首页宽度（逻辑宽）回调过来。宽度没变或不在首页时返回 false（表示已收敛）。
-        /// 只做"恰好容纳两列"的校准，不做任何会影响功能页的改动。
-        /// </summary>
+        /// <summary>保留现有校准调用接口；固定尺寸首页不再随卡片扩大。</summary>
         internal bool ApplyHomeWidth(double measuredLogicalWidth)
         {
-            if (!homeLayout) return false;
-            int width = (int)Math.Ceiling(measuredLogicalWidth);
-            if (width < 560) width = 560;
-            if (Math.Abs(width - homeWidthLogical) < 2) return false;   // 已收敛，别再动窗口
-            homeWidthLogical = width;
-            int device = ToDevicePixels(width);
-            if (ClientSize.Width != device) ClientSize = new Size(device, ClientSize.Height);
-            return true;
+            return false; // 原型首页固定400 DIP，不再由卡片测量自动扩大窗口。
         }
 
         /// <summary>逻辑宽度（96 dpi 基准）→ 当前 DPI 的设备像素。取不到 DPI 时按 1:1 处理。</summary>

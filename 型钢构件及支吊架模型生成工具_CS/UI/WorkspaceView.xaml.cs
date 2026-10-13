@@ -24,6 +24,7 @@ namespace SteelSectionProbe
             homePage = new HomePage();
             homePage.FeatureRequested += OpenPage;
             homePage.StatusRequested += SetStatus;
+            homePage.SelectionChanged += selected=>HomeEnterButton.IsEnabled=selected;
 
 #if ENABLE_LICENSING
             RegisterPage(new ActivationPage());
@@ -227,8 +228,8 @@ namespace SteelSectionProbe
             }
             BuildStatusPanel.Visibility=Visibility.Collapsed;StatusText.Visibility=Visibility.Visible;
             if(StatusText.Text!=message)StatusText.Text = message;
-            StatusText.Foreground = (Brush)FindResource(isError ? "ErrorBrush" : "StatusBrush");
-            StatusDot.Fill = (Brush)FindResource(isError ? "ErrorBrush" : "AccentBrush");
+            StatusText.Foreground = ReferenceEquals(PageHost.Content,homePage)&&!isError?new SolidColorBrush(Color.FromRgb(91,107,123)):(Brush)FindResource(isError ? "ErrorBrush" : "StatusBrush");
+            StatusDot.Fill = ReferenceEquals(PageHost.Content,homePage)&&!isError?new SolidColorBrush(Color.FromRgb(232,163,23)):(Brush)FindResource(isError ? "ErrorBrush" : "AccentBrush");
         }
         internal void SetBuildProgress(int percent,string stage,int seconds)
         {
@@ -248,6 +249,8 @@ namespace SteelSectionProbe
             currentPage = null;
             HomePreferences.Save();
         }
+
+        private void HomeEnter_Click(object sender,RoutedEventArgs e){homePage.EnterSelected();}
 
         private void HomeButton_Click(object sender, RoutedEventArgs e)
         {

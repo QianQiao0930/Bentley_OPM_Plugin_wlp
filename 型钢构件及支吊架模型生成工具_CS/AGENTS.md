@@ -972,3 +972,7 @@ Q1 类型1/2为小管在下/上、两管垂直，类型3/4为小管在上/下、
 2026-10-12 Q2承重块方向修正：用户明确长边焊在管道上。50×30×10对应沿立管高50、径向伸出30、切向厚10；100×50×10对应沿立管高100、径向伸出50、切向厚10。块底仍落在角钢顶面，长边管侧保持真圆柱贴合；清单DesignLengthMm同步使用沿管长边。只生成小立管承重块，主管不加块。
 
 2026-10-12 Q2类型4按用户要求恢复绕主管立管旋转选角：点取后静默RetireForHandoff交接A1ClampOrientationTool，不调ExitTool再立即安装新工具。使用规范化朝上的主管轴作为角度罗盘法线，Q2SupportCalculator.Axes按AngleDeg旋转径向X/Y，Builder所有构件共用该坐标架。角度只用于Q2类型4；Q1及Q2类型1～3保留固定方向。页面“调整角度”可再次进入，锁定后可沿轴滑动；角度写入总成实例Specification。参数编辑、右键、切换系列/类型、离开页面及关闭均结束本页面持有的方向工具，revision使过期回调失效。
+
+2026-10-12 首页UI原型v4：用户明确只改主页UI、不改功能，改前已提交77bac1e。首页窗口固定400×880 DIP，MainWindow仅首页使用无原生外框与WPF32标题栏，模块页恢复原Sizable、560宽和此前模块高度，不能将未改模块强压到400宽。HomePage内159头部/47统计/131工具/46共享底栏，详细78、最近与简约47、两列间距6、滚动条6、圆角6；头部网格14与副标题字距1.2取自原型。UI/Home/HomeTheme.xaml隔离于全局Theme，HomePresentation仅显示代号，HomeTrackedText仅绘字距，所有Domain/Data/Services/Tools/Infrastructure/Registration/Resources/App文件保持基线内容。SVG品牌及17个HomeIcon几何不替换。模块与数字来自真实HomeFeatureCatalog/偏好，禁止把原型18项和示例调用数写入业务数据。
+
+主页交互按原型单击选中、双击/箭头/Enter打开；继续FeatureRequested→OpenPage，不另开业务入口。原五级星标、≥3置顶、授权守卫、偏好JSON和使用统计均保留。重置图标默认清展示筛选，右键仍提供原统计/星标重置及确认。进入模块后原PageHost外边距14,4,10,10及36底栏恢复。HomeUiCheck以真实页面+隔离夹具覆盖33项UI检查并渲染1/1.25/1.5/2倍DPI；不得用截图代替OPM宿主拖动/最小化/切页实测。后续模块UI改造另行授权，勿扩大本阶段范围。

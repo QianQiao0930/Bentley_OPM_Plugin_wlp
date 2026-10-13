@@ -25,7 +25,7 @@ namespace SteelSectionProbe
         internal event Action<string, bool> StatusRequested;
 
         /// <summary>排序下拉的三档，见 <see cref="HomePage"/> 注释。</summary>
-        private enum SortMode { Default, RecentlyUsed, Frequent }
+        private enum SortMode { Default, RecentlyUsed, Frequent, Name }
 
         /// <summary>"最近使用"最多显示的卡片数。</summary>
         private const int RecentLimit = 4;
@@ -35,7 +35,13 @@ namespace SteelSectionProbe
 
         private SortMode sortMode = SortMode.Default;
         private string searchText = "";
-        private bool ready;
+        private bool ready,compact,pin=true;
+        private string categoryTab="all",selectedPageId="";
+        internal event Action<bool> SelectionChanged;
+        public static readonly DependencyProperty ShowRanksProperty=DependencyProperty.Register("ShowRanks",typeof(bool),typeof(HomePage),new PropertyMetadata(false));
+        public bool ShowRanks {get{return (bool)GetValue(ShowRanksProperty);}private set{SetValue(ShowRanksProperty,value);}}
+        private Dictionary<string,int> rankForView;
+        private int maximumUses=1;
 
         /// <summary>同一功能的所有卡片实例（最近使用 + 所属分类可能各一份），评分时一起刷新。</summary>
         private readonly Dictionary<string, List<HomeCardItem>> itemsByPageId =
@@ -60,21 +66,22 @@ namespace SteelSectionProbe
         internal void Refresh()
         {
             RefreshLicenseStatus();
-            VersionText.Text = ProductInfo.DisplayVersion;
-            AuthorText.Text = "· 作者：" + ProductInfo.AuthorName;
+            VersionText.Text = ProductInfo.DisplayVersion.TrimStart('V');
+            AuthorText.Text = "BY " + ProductInfo.AuthorName;
             DateTime utcNow = DateTime.UtcNow;
             List<HomeEntry> ranked = HomePreferences.Rank(utcNow);
-            Dictionary<string, int> rankOf = RankIndexMap(ranked);
+            Dictionary<string, int> rankOf = RankIndexMap(ranked);rankForView=rankOf;
+            maximumUses=1;foreach(var entry in ranked){var record=HomePreferences.RecordFor(entry.Feature.PageId);if(record!=null)maximumUses=Math.Max(maximumUses,record.TotalUseCount);}
 
             var filtered = new List<HomeEntry>();
             foreach (HomeEntry entry in ranked)
-                if (Matches(entry.Feature)) filtered.Add(entry);
+                if (Matches(entry.Feature)&&MatchesTab(entry)) filtered.Add(entry);
 
             itemsByPageId.Clear();
 
             // ---- 最近使用（仅无搜索词时显示；按最近进入时间降序，最多 RecentLimit 张） ----
             var recent = new List<HomeEntry>();
-            if (searchText.Length == 0)
+            if (searchText.Length == 0&&categoryTab=="all")
             {
                 foreach (HomeEntry entry in ranked)
                 {
@@ -88,7 +95,7 @@ namespace SteelSectionProbe
             }
             List<HomeCardItem> recentItems = BuildItems(recent, utcNow, true);
             RecentList.ItemsSource = recentItems;
-            SetSection(RecentSection, recentItems.Count);
+            SetSection(RecentSection, recentItems.Count);RecentCountText.Text=recentItems.Count+" 项";
 
             // ---- 分类分区（建模类 / HGT21629 支吊架 / 统计与扩展 / 规划中）。
             //      顺序与显示名来自 HomeCategories —— 标题文本不写死在 XAML 里，避免两处漂移。 ----
@@ -125,6 +132,20 @@ namespace SteelSectionProbe
                 shown += items.Count;
             }
 
+            int total=0,months=0,favs=0,models=0,supports=0,stats=0;
+            foreach(var entry in ranked)
+            {
+                if(!entry.Feature.IsReady)continue;total++;
+                if(entry.Stars>0)favs++;
+                if(entry.Feature.Category==HomeCategories.Modeling)models++;
+                if(entry.Feature.Category==HomeCategories.Support)supports++;
+                if(entry.Feature.Category==HomeCategories.Stats)stats++;
+                var record=HomePreferences.RecordFor(entry.Feature.PageId);int count;
+                if(record!=null&&record.MonthlyUse!=null&&record.MonthlyUse.TryGetValue(utcNow.ToString("yyyy-MM",CultureInfo.InvariantCulture),out count))months+=count;
+            }
+            TotalText.Text=total.ToString();MonthText.Text=months.ToString();FavoriteText.Text=favs.ToString();
+            AllTab.Content="全部 "+total;ModelTab.Content="建模 "+models;SupportTab.Content="支吊架 "+supports;StatsTab.Content="查询 "+stats;FavTab.Content="★ 收藏 "+favs;
+            ApplyCardView();UpdateSelection();
             EmptyHint.Visibility = shown == 0 ? Visibility.Visible : Visibility.Collapsed;
         }
 
@@ -134,7 +155,7 @@ namespace SteelSectionProbe
         {
             TextBlock title;
             if (titles.TryGetValue(section.Key, out title) && title != null)
-                title.Text = HomeCategories.DisplayNameOf(section.Key);
+                title.Text = section.Key==HomeCategories.Modeling?"建模":section.Key==HomeCategories.Stats?"查询与统计":HomeCategories.DisplayNameOf(section.Key);
             TextBlock countText;
             if (counts.TryGetValue(section.Key, out countText) && countText != null)
                 countText.Text = count.ToString(CultureInfo.InvariantCulture) + " 项";
@@ -156,7 +177,9 @@ namespace SteelSectionProbe
             foreach (HomeEntry entry in entries)
             {
                 var item = new HomeCardItem(entry, utcNow, showTime);
-                item.IconGeometry = ResolveIcon(item.IconKey);
+                item.RankLabel=entry.Feature.IsReady?(RankIndexOf(rankForView,entry)+1).ToString("00"):"";
+                item.UsageRatio=100.0*item.UseCount/maximumUses;
+                item.IconGeometry = ResolveIcon(item.IconKey);item.IsSelected=item.PageId==selectedPageId;
                 items.Add(item);
 
                 if (string.IsNullOrEmpty(item.PageId)) continue;
@@ -181,7 +204,8 @@ namespace SteelSectionProbe
         /// <summary>搜索是否命中：标题、说明或所属分区中文名包含关键词（忽略大小写）。</summary>
         private bool Matches(FeatureDescriptor feature)
         {
-            if (searchText.Length == 0) return true;
+            if (searchText.Length == 0&&categoryTab=="all") return true;
+            if (Contains(HomePresentation.Code(feature.PageId),searchText))return true;
             if (Contains(feature.Title, searchText)) return true;
             if (Contains(feature.Description, searchText)) return true;
             return Contains(HomeCategories.DisplayNameOf(feature.Category), searchText);
@@ -246,14 +270,20 @@ namespace SteelSectionProbe
         /// </summary>
         private void SortGroup(List<HomeEntry> group, Dictionary<string, int> rankOf)
         {
-            if (sortMode == SortMode.Default || group.Count < 2) return;
+            if(group.Count<2)return;
+            if(sortMode==SortMode.Default&&pin)return;
+            if(sortMode==SortMode.Default){group.Sort((a,b)=>a.Feature.DefaultOrder.CompareTo(b.Feature.DefaultOrder));return;}
+            if(sortMode==SortMode.Name)
+            {
+                group.Sort((a,b)=>{int star=pin?HomeFeatureRanker.CompareStarTier(a,b):0;return star!=0?star:string.Compare(a.Feature.Title,b.Feature.Title,StringComparison.CurrentCulture);});return;
+            }
 
             Comparison<HomeEntry> comparison;
             if (sortMode == SortMode.RecentlyUsed)
             {
                 comparison = delegate(HomeEntry a, HomeEntry b)
                 {
-                    int compare = HomeFeatureRanker.CompareStarTier(a, b);
+                    int compare = pin?HomeFeatureRanker.CompareStarTier(a, b):0;
                     if (compare != 0) return compare;
                     compare = CompareRecent(a, b);
                     if (compare != 0) return compare;
@@ -264,7 +294,7 @@ namespace SteelSectionProbe
             {
                 comparison = delegate(HomeEntry a, HomeEntry b)
                 {
-                    int compare = HomeFeatureRanker.CompareStarTier(a, b);
+                    int compare = pin?HomeFeatureRanker.CompareStarTier(a, b):0;
                     if (compare != 0) return compare;
                     if (a.FrequencyScore != b.FrequencyScore)
                         return b.FrequencyScore.CompareTo(a.FrequencyScore);
@@ -292,9 +322,10 @@ namespace SteelSectionProbe
             {
                 case 1: sortMode = SortMode.RecentlyUsed; break;
                 case 2: sortMode = SortMode.Frequent; break;
+                case 3: sortMode=SortMode.Name;break;
                 default: sortMode = SortMode.Default; break;
             }
-            Refresh();
+            ShowRanks=sortMode==SortMode.Frequent;Refresh();
         }
 
         private void Card_Click(object sender, RoutedEventArgs e)
@@ -354,8 +385,8 @@ namespace SteelSectionProbe
             ActivationButton.Visibility = LicenseService.IsLicensingEnabled ? Visibility.Visible : Visibility.Collapsed;
             ActivationButton.Content = LicenseService.DisplayStatus;
             ActivationButton.ToolTip = LicenseService.LicenseDescription;
-            ActivationButton.Foreground = (Brush)FindResource(
-                LicenseService.IsActivated ? "StatusBrush" : "MutedBrush");
+            ActivationButton.Foreground=new SolidColorBrush(LicenseService.IsActivated?Color.FromRgb(34,160,107):Color.FromRgb(181,122,0));
+            ActivationButton.Background=new SolidColorBrush(LicenseService.IsActivated?Color.FromRgb(232,247,240):Color.FromRgb(255,246,224));
         }
 
         private void About_Click(object sender, RoutedEventArgs e)
@@ -434,6 +465,73 @@ namespace SteelSectionProbe
             Refresh();
             if (StatusRequested != null) StatusRequested("首页排序已重置为出厂顺序。", false);
         }
+
+        private bool MatchesTab(HomeEntry entry)
+        {return categoryTab=="all"||categoryTab==entry.Feature.Category||(categoryTab=="fav"&&entry.Stars>0);}
+        private void Tab_Click(object sender,RoutedEventArgs e)
+        {
+            categoryTab=((FrameworkElement)sender).Tag.ToString();
+            foreach(var tab in new[]{AllTab,ModelTab,SupportTab,StatsTab,FavTab})tab.IsChecked=tab.Tag.ToString()==categoryTab;
+            Refresh();HomeScroll.ScrollToTop();
+        }
+        private void Sort_Click(object sender,RoutedEventArgs e)
+        {
+            var button=(ToggleButton)sender;int index=int.Parse(button.Tag.ToString());SortBox.SelectedIndex=index;
+            foreach(var tab in new[]{DefaultSort,RecentSort,FrequentSort,NameSort})tab.IsChecked=tab.Tag.ToString()==index.ToString();
+        }
+        private void Pin_Click(object sender,RoutedEventArgs e){pin=PinToggle.IsChecked==true;Refresh();}
+        private void View_Click(object sender,RoutedEventArgs e)
+        {
+            compact=((FrameworkElement)sender).Tag.ToString()=="compact";
+            DetailToggle.IsChecked=!compact;CompactToggle.IsChecked=compact;ApplyCardView();
+        }
+        private void ApplyCardView()
+        {
+            foreach(var list in new[]{ModelingList,SupportList,StatsList,PlannedList})
+            {
+                list.ItemTemplate=(DataTemplate)FindResource(compact?"CompactCardTemplate":"FeatureCardTemplate");
+                list.ItemsPanel=(ItemsPanelTemplate)FindResource(compact?"HomeTwoColumns":"HomeSingleColumn");
+                list.Margin=compact?new Thickness(-3,0,-3,-6):new Thickness(0);
+            }
+        }
+        private void FilterReset_Click(object sender,RoutedEventArgs e)
+        {
+            SearchBox.Clear();categoryTab="all";AllTab.IsChecked=true;
+            foreach(var tab in new[]{ModelTab,SupportTab,StatsTab,FavTab})tab.IsChecked=false;
+            pin=true;PinToggle.IsChecked=true;SortBox.SelectedIndex=0;
+            DefaultSort.IsChecked=true;RecentSort.IsChecked=FrequentSort.IsChecked=NameSort.IsChecked=false;Refresh();
+        }
+        private void Section_Click(object sender,RoutedEventArgs e)
+        {var list=FindName(((FrameworkElement)sender).Tag.ToString()) as ItemsControl;if(list!=null)list.Visibility=list.Visibility==Visibility.Visible?Visibility.Collapsed:Visibility.Visible;}
+        private void SelectCard_Click(object sender,RoutedEventArgs e)
+        {
+            var item=ItemOf(sender);if(item==null||!item.IsReady)return;
+            selectedPageId=item.PageId;UpdateSelection();
+            StatusRequested?.Invoke("已选择“"+item.Title+"”，双击或点击进入。",false);
+        }
+        private void UpdateSelection()
+        {
+            bool selected=false;
+            foreach(var bucket in itemsByPageId.Values)foreach(var item in bucket){item.IsSelected=item.PageId==selectedPageId;selected|=item.IsSelected;}
+            SelectionChanged?.Invoke(selected);
+        }
+        internal void EnterSelected()
+        {
+            List<HomeCardItem> bucket;
+            if(!itemsByPageId.TryGetValue(selectedPageId,out bucket)||bucket.Count==0||!bucket[0].CanRate)return;
+            FeatureRequested?.Invoke(selectedPageId);
+        }
+        private void Go_Click(object sender,RoutedEventArgs e){SelectCard_Click(sender,e);EnterSelected();}
+        private void Card_Focused(object sender,System.Windows.Input.KeyboardFocusChangedEventArgs e){SelectCard_Click(sender,new RoutedEventArgs());}
+        private void Card_DoubleClick(object sender,System.Windows.Input.MouseButtonEventArgs e){SelectCard_Click(sender,e);EnterSelected();}
+        private void Home_KeyDown(object sender,System.Windows.Input.KeyEventArgs e)
+        {
+            if(e.Key==System.Windows.Input.Key.K&&(System.Windows.Input.Keyboard.Modifiers&System.Windows.Input.ModifierKeys.Control)!=0){SearchBox.Focus();SearchBox.SelectAll();e.Handled=true;}
+            else if(e.Key==System.Windows.Input.Key.Enter&&e.OriginalSource is FrameworkElement&&((FrameworkElement)e.OriginalSource).Name=="CardFace"){EnterSelected();e.Handled=true;}
+        }
+        private void Title_Drag(object sender,System.Windows.Input.MouseButtonEventArgs e){if(e.ChangedButton==System.Windows.Input.MouseButton.Left)MainWindow.Current?.BeginTitleDrag();}
+        private void Minimize_Click(object sender,RoutedEventArgs e){MainWindow.Current?.MinimizeFromHome();}
+        private void WindowClose_Click(object sender,RoutedEventArgs e){MainWindow.Current?.Close();}
 
         private static HomeCardItem ItemOf(object sender)
         {

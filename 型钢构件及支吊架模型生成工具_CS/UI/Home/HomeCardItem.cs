@@ -40,6 +40,17 @@ namespace SteelSectionProbe
         public string Title { get; private set; }
 
         public string Description { get; private set; }
+        public string Code {get{return HomePresentation.Code(PageId);}}
+        public int UseCount {get;private set;}
+        public int MonthCount {get;private set;}
+        public bool IsHot {get{return MonthCount>=3;}}
+        public string MonthUsageText {get{return "│ 本月 "+MonthCount;}}
+        public string LastUsedText {get;private set;}
+        public string MiniText {get{return Code+" · "+LastUsedText;}}
+        public double UsageRatio {get;internal set;}
+        public string RankLabel {get;internal set;}
+        private bool selected;
+        public bool IsSelected {get{return selected;} internal set{selected=value;Raise("IsSelected");}}
 
         /// <summary>使用情况文案，作为卡片提示（占位卡为 null，不显示提示）。</summary>
         public string UsageText { get; private set; }
@@ -87,6 +98,11 @@ namespace SteelSectionProbe
                 ? HomeRelativeTime.Label(record.LastUsedUtc, utcNow)
                 : "";
 
+            UseCount=record==null?0:record.TotalUseCount;
+            int month=0;
+            if(record!=null&&record.MonthlyUse!=null)record.MonthlyUse.TryGetValue(utcNow.ToString("yyyy-MM",CultureInfo.InvariantCulture),out month);
+            MonthCount=month;LastUsedText=record==null?"未使用":HomeRelativeTime.Label(record.LastUsedUtc,utcNow);
+            if(string.IsNullOrEmpty(LastUsedText))LastUsedText="未使用";
             ApplyStars(entry.Stars);
         }
 
