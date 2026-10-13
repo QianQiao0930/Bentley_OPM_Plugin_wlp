@@ -976,3 +976,6 @@ Q1 类型1/2为小管在下/上、两管垂直，类型3/4为小管在上/下、
 2026-10-12 首页UI原型v4：用户明确只改主页UI、不改功能，改前已提交77bac1e。首页窗口固定400×880 DIP，MainWindow仅首页使用无原生外框与WPF32标题栏，模块页恢复原Sizable、560宽和此前模块高度，不能将未改模块强压到400宽。HomePage内159头部/47统计/131工具/46共享底栏，详细78、最近与简约47、两列间距6、滚动条6、圆角6；头部网格14与副标题字距1.2取自原型。UI/Home/HomeTheme.xaml隔离于全局Theme，HomePresentation仅显示代号，HomeTrackedText仅绘字距，所有Domain/Data/Services/Tools/Infrastructure/Registration/Resources/App文件保持基线内容。SVG品牌及17个HomeIcon几何不替换。模块与数字来自真实HomeFeatureCatalog/偏好，禁止把原型18项和示例调用数写入业务数据。
 
 主页交互按原型单击选中、双击/箭头/Enter打开；继续FeatureRequested→OpenPage，不另开业务入口。原五级星标、≥3置顶、授权守卫、偏好JSON和使用统计均保留。重置图标默认清展示筛选，右键仍提供原统计/星标重置及确认。进入模块后原PageHost外边距14,4,10,10及36底栏恢复。HomeUiCheck以真实页面+隔离夹具覆盖33项UI检查并渲染1/1.25/1.5/2倍DPI；不得用截图代替OPM宿主拖动/最小化/切页实测。后续模块UI改造另行授权，勿扩大本阶段范围。
+
+
+2026-10-13 Q1/Q2模块页UI原型v4：改前提交已确认的首页35c0192。仅q1-small-pipe-support使用与首页相同的400×880 DIP固定外框；原型32标题栏、63模块头、34输入框、98结果卡、302 Q1底部操作区与46共享底栏。Q2增加的系列/子项/立管选项置于参数滚动区，类型4保留独立角度按钮，操作区增加40 DIP且仍固定在底部。其他模块恢复原560宽、原外边距与36底栏。QSupportTheme局部加载；新增Presentation partial只做窗口导航与数值步进，步进写回原TextBox并经过原TextChanged；二维示意不参与建模。原Q1SupportPage.xaml.cs、领域、目录、计算、工具、统计和持久化均保持35c0192内容，原控件名、参数事件与业务按钮处理函数已逐项对照，品牌SVG路径一致。37项WPF展示/滚动/DPI检查、33项首页回归及16976项Q1/Q2真实计算检查通过；离线展示夹具不运行Bentley工具，不代表OPM点取/旋转/滑动/生成及窗口切换已实测。
