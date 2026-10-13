@@ -91,7 +91,7 @@ namespace SteelSectionProbe
             workspace.ShowHome();
         }
 
-        /// <summary>首页和已改造的Q1/Q2页使用400×880 DIP窗口壳；其余模块保留原560 DIP宽与用户调整的高度。</summary>
+        /// <summary>首页和已改造的模块/工具页使用400×880 DIP窗口壳；其余模块保留原560 DIP宽与用户调整的高度。</summary>
         internal void SetHomeLayout(bool home, bool prototypeModule = false)
         {
             if(home || prototypeModule)

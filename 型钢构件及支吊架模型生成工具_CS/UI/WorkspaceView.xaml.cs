@@ -98,11 +98,12 @@ namespace SteelSectionProbe
             if (currentPage != null && !ReferenceEquals(currentPage, page)) currentPage.OnDeactivated();
             currentPage = page;
             PageHost.Content = page.View;
-            if(MainWindow.Current!=null)MainWindow.Current.SetHomeLayout(false, id == "q1-small-pipe-support");
+            bool prototypePage = id == "q1-small-pipe-support" || Equals(page.View.Tag, "prototype-v4");
+            if(MainWindow.Current!=null)MainWindow.Current.SetHomeLayout(false, prototypePage);
             page.OnActivated();
             SubtitleText.Text = page.PageTitle + " · " + page.PageSubtitle;
             HomeButton.Visibility = Visibility.Visible;
-            SetHeaderVisible(id != "q1-small-pipe-support");
+            SetHeaderVisible(!prototypePage);
             SetStatus("已进入“" + page.PageTitle + "”。", false);
         }
 

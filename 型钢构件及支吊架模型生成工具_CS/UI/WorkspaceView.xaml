@@ -18,6 +18,9 @@
                     <DataTrigger Binding="{Binding Content.Tag,ElementName=PageHost}" Value="q-support-v4">
                         <Setter Property="Margin" Value="1"/>
                     </DataTrigger>
+                    <DataTrigger Binding="{Binding Content.Tag,ElementName=PageHost}" Value="prototype-v4">
+                        <Setter Property="Margin" Value="1"/>
+                    </DataTrigger>
                 </Style.Triggers>
             </Style>
         </Grid.Style>
@@ -53,6 +56,9 @@
                         <DataTrigger Binding="{Binding Content.Tag, ElementName=PageHost}" Value="q-support-v4">
                             <Setter Property="Margin" Value="0"/>
                         </DataTrigger>
+                        <DataTrigger Binding="{Binding Content.Tag, ElementName=PageHost}" Value="prototype-v4">
+                            <Setter Property="Margin" Value="0"/>
+                        </DataTrigger>
                     </Style.Triggers>
                 </Style>
             </ContentControl.Style>
@@ -74,6 +80,11 @@
                             <Setter Property="Background" Value="White"/>
                             <Setter Property="BorderBrush" Value="#DDE3EA"/>
                         </DataTrigger>
+                        <DataTrigger Binding="{Binding Content.Tag, ElementName=PageHost}" Value="prototype-v4">
+                            <Setter Property="Height" Value="46"/>
+                            <Setter Property="Background" Value="White"/>
+                            <Setter Property="BorderBrush" Value="#DDE3EA"/>
+                        </DataTrigger>
                     </Style.Triggers>
                 </Style>
             </Border.Style>
@@ -88,6 +99,9 @@
                             <DataTrigger Binding="{Binding Content.Tag,ElementName=PageHost}" Value="q-support-v4">
                                 <Setter Property="Margin" Value="16,2,10,2"/>
                             </DataTrigger>
+                            <DataTrigger Binding="{Binding Content.Tag,ElementName=PageHost}" Value="prototype-v4">
+                                <Setter Property="Margin" Value="16,2,10,2"/>
+                            </DataTrigger>
                         </Style.Triggers>
                     </Style>
                 </Grid.Style>
@@ -99,7 +113,7 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <Ellipse x:Name="StatusDot" Width="8" Height="8" Fill="{StaticResource AccentBrush}" VerticalAlignment="Center" Margin="2,0,7,0"/>
-                <TextBlock x:Name="StatusText" Grid.Column="1" Text="请选择一个功能模块。" TextTrimming="CharacterEllipsis" VerticalAlignment="Center">
+                <TextBlock x:Name="StatusText" Grid.Column="1" Text="请选择一个功能模块。" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" TextWrapping="Wrap" MaxHeight="28" LineHeight="14" LineStackingStrategy="BlockLineHeight" ToolTip="{Binding Text,RelativeSource={RelativeSource Self}}">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
                             <Setter Property="TextAlignment" Value="Center"/>
@@ -108,12 +122,17 @@
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding Content.Tag,ElementName=PageHost}" Value="home">
                                     <Setter Property="TextAlignment" Value="Left"/>
-                                    <Setter Property="FontSize" Value="12"/>
+                                    <Setter Property="FontSize" Value="10.5"/>
                                     <Setter Property="Foreground" Value="#5B6B7B"/>
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding Content.Tag,ElementName=PageHost}" Value="q-support-v4">
                                     <Setter Property="TextAlignment" Value="Left"/>
-                                    <Setter Property="FontSize" Value="12"/>
+                                    <Setter Property="FontSize" Value="10.5"/>
+                                    <Setter Property="Foreground" Value="#5B6B7B"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Content.Tag,ElementName=PageHost}" Value="prototype-v4">
+                                    <Setter Property="TextAlignment" Value="Left"/>
+                                    <Setter Property="FontSize" Value="10.5"/>
                                     <Setter Property="Foreground" Value="#5B6B7B"/>
                                 </DataTrigger>
                             </Style.Triggers>
@@ -129,6 +148,9 @@
                                     <Setter Property="Visibility" Value="Visible"/>
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding Content.Tag,ElementName=PageHost}" Value="q-support-v4">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Content.Tag,ElementName=PageHost}" Value="prototype-v4">
                                     <Setter Property="Visibility" Value="Visible"/>
                                 </DataTrigger>
                             </Style.Triggers>
@@ -189,6 +211,14 @@
                                     <Setter Property="Background" Value="White"/>
                                     <Setter Property="BorderBrush" Value="#DDE3EA"/>
                                 </DataTrigger>
+                                <DataTrigger Binding="{Binding Content.Tag,ElementName=PageHost}" Value="prototype-v4">
+                                    <Setter Property="Content" Value="关闭工具"/>
+                                    <Setter Property="Width" Value="78"/>
+                                    <Setter Property="Height" Value="30"/>
+                                    <Setter Property="Margin" Value="0"/>
+                                    <Setter Property="Background" Value="White"/>
+                                    <Setter Property="BorderBrush" Value="#DDE3EA"/>
+                                </DataTrigger>
                             </Style.Triggers>
                         </Style>
                     </Button.Style>
@@ -214,6 +244,9 @@
                             <Setter Property="Visibility" Value="Visible"/>
                         </DataTrigger>
                         <DataTrigger Binding="{Binding Content.Tag,ElementName=PageHost}" Value="q-support-v4">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Content.Tag,ElementName=PageHost}" Value="prototype-v4">
                             <Setter Property="Visibility" Value="Visible"/>
                         </DataTrigger>
                     </Style.Triggers>

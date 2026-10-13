@@ -81,6 +81,7 @@
     <Compile Remove="Development\HomeCheck\**\*.cs" />
     <Compile Remove="Development\HomeUiCheck\**\*.cs" />
     <Compile Remove="Development\QSupportUiCheck\**\*.cs" />
+    <Compile Remove="Development\ToolPagesUiCheck\**\*.cs" />
     <Compile Remove="Development\SteelHandrailCheck\**\*.cs" />
     <Compile Remove="Development\SpiralStairCheck\**\*.cs" />
     <Compile Remove="Development\PipeAlignmentCheck\**\*.cs" />
