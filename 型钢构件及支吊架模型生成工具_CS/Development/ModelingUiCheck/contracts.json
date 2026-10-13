@@ -1,0 +1,567 @@
+{
+  "SteelSectionPage.xaml": {
+    "class": "SteelSectionPage",
+    "events": [
+      "CancelButton_Click",
+      "ConfirmButton_Click",
+      "FamilyCombo_SelectionChanged",
+      "ModeCombo_SelectionChanged",
+      "PlaceButton_Click",
+      "ProfileCombo_SelectionChanged",
+      "RotationTextBox_LostFocus",
+      "RotationTextBox_PreviewTextInput",
+      "RotationTextBox_TextChanged",
+      "SweepButton_Click"
+    ],
+    "named": {
+      "FamilyCombo": {
+        "SelectionChanged": "FamilyCombo_SelectionChanged"
+      },
+      "ProfileCombo": {
+        "SelectionChanged": "ProfileCombo_SelectionChanged"
+      },
+      "ModeCombo": {
+        "SelectionChanged": "ModeCombo_SelectionChanged"
+      },
+      "RotationTextBox": {
+        "TextChanged": "RotationTextBox_TextChanged",
+        "LostFocus": "RotationTextBox_LostFocus",
+        "PreviewTextInput": "RotationTextBox_PreviewTextInput",
+        "Text": "0.0"
+      },
+      "PlaceButton": {
+        "Click": "PlaceButton_Click"
+      },
+      "SweepButton": {
+        "Click": "SweepButton_Click"
+      },
+      "DeletePathCheckBox": {},
+      "CancelButton": {
+        "Click": "CancelButton_Click"
+      },
+      "ConfirmButton": {
+        "Click": "ConfirmButton_Click"
+      },
+      "ProfileSummaryText": {},
+      "DimensionItems": {},
+      "ProfilePreview": {}
+    }
+  },
+  "SteelHandrail/HandrailPage.xaml": {
+    "class": "HandrailPage",
+    "events": [
+      "Cancel_Click",
+      "Confirm_Click",
+      "End_Click",
+      "Export_Click",
+      "Parameter_Changed",
+      "Pick_Click",
+      "Update_Click"
+    ],
+    "named": {
+      "ConnectionCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "OffsetPanel": {},
+      "OffsetText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "120"
+      },
+      "ConnectionText": {},
+      "SideCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "ClosureCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "ReverseCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed"
+      },
+      "SpacingText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "2000"
+      },
+      "UpdateButton": {
+        "Click": "Update_Click"
+      },
+      "PreviewText": {
+        "Text": "请选择活动模型中的开放直线、折线或纯直线复杂链。"
+      },
+      "ConfirmButton": {
+        "Click": "Confirm_Click",
+        "IsEnabled": "False"
+      }
+    }
+  },
+  "SpiralStair/SpiralStairPage.xaml": {
+    "class": "SpiralStairPage",
+    "events": [
+      "Cancel_Click",
+      "Confirm_Click",
+      "Log_Click",
+      "Parameter_Changed",
+      "Pick_Click",
+      "Update_Click"
+    ],
+    "named": {
+      "ParametersPanel": {},
+      "DiameterText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "20000"
+      },
+      "WidthText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "700"
+      },
+      "StartText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "0"
+      },
+      "EndText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "20000"
+      },
+      "IntervalText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "10000"
+      },
+      "GapText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "0"
+      },
+      "RiserText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "200"
+      },
+      "DepthText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "250"
+      },
+      "LandingText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "1000"
+      },
+      "TopText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "1000"
+      },
+      "AngleText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "0"
+      },
+      "DirectionCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "InnerCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed"
+      },
+      "InnerHint": {
+        "Text": "罐壁间隙大于100mm时强制生成内侧栏杆。"
+      },
+      "SpacingText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "2000"
+      },
+      "ConnectionCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "OffsetPanel": {},
+      "OffsetText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "120"
+      },
+      "LayoutText": {},
+      "PickButton": {
+        "Click": "Pick_Click"
+      },
+      "UpdateButton": {
+        "Click": "Update_Click"
+      },
+      "LogButton": {
+        "Click": "Log_Click",
+        "IsEnabled": "False"
+      },
+      "ConfirmButton": {
+        "Click": "Confirm_Click",
+        "IsEnabled": "False"
+      }
+    }
+  },
+  "PipeAlignment/PipeAlignmentPage.xaml": {
+    "class": "PipeAlignmentPage",
+    "events": [
+      "Apply_Click",
+      "ClearPreview_Click",
+      "ClearTargets_Click",
+      "Debug_Click",
+      "Parameters_Changed",
+      "Preview_Changed",
+      "Preview_Click",
+      "Reference_Click",
+      "RemoveRow_Click",
+      "Reset_Click",
+      "Selection_Click",
+      "Target_Click"
+    ],
+    "named": {
+      "ReferenceText": {
+        "Text": "尚未选择基准"
+      },
+      "BottomRadio": {
+        "Checked": "Parameters_Changed",
+        "GroupName": "Align"
+      },
+      "CenterRadio": {
+        "Checked": "Parameters_Changed",
+        "GroupName": "Align"
+      },
+      "TopRadio": {
+        "Checked": "Parameters_Changed",
+        "GroupName": "Align"
+      },
+      "PipeSurface": {
+        "Checked": "Parameters_Changed",
+        "GroupName": "Surface"
+      },
+      "InsulationSurface": {
+        "Checked": "Parameters_Changed",
+        "GroupName": "Surface"
+      },
+      "ToleranceText": {
+        "TextChanged": "Parameters_Changed",
+        "Text": "1.000"
+      },
+      "SingleScope": {
+        "Checked": "Parameters_Changed",
+        "Visibility": "Collapsed",
+        "GroupName": "Scope"
+      },
+      "GroupScope": {
+        "Checked": "Parameters_Changed",
+        "GroupName": "Scope"
+      },
+      "ZScope": {
+        "Checked": "Parameters_Changed",
+        "GroupName": "Scope"
+      },
+      "CountText": {},
+      "PickTargetButton": {
+        "Click": "Target_Click"
+      },
+      "ShowCurrent": {
+        "Checked": "Preview_Changed",
+        "Unchecked": "Preview_Changed",
+        "IsChecked": "True"
+      },
+      "ShowTarget": {
+        "Checked": "Preview_Changed",
+        "Unchecked": "Preview_Changed",
+        "IsChecked": "True"
+      },
+      "PipeList": {
+        "SelectionMode": "Extended"
+      },
+      "SummaryText": {},
+      "ReadoutText": {},
+      "ApplyButton": {
+        "Click": "Apply_Click"
+      },
+      "StatusText": {}
+    }
+  },
+  "TankManhole/TankManholePage.xaml": {
+    "class": "TankManholePage",
+    "events": [
+      "End_Click",
+      "Parameter_Changed",
+      "Pick_Click"
+    ],
+    "named": {
+      "DnCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "ModeCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "PressureCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "NeckText": {
+        "LostFocus": "Parameter_Changed",
+        "Text": "150"
+      },
+      "HeadingText": {
+        "LostFocus": "Parameter_Changed",
+        "Text": "0"
+      },
+      "MirrorCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed"
+      },
+      "BoltsCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed",
+        "IsChecked": "True"
+      },
+      "LiftingCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed",
+        "IsChecked": "True"
+      },
+      "SpecificationText": {},
+      "PreviewText": {
+        "Text": "尚未点取位置。"
+      }
+    }
+  },
+  "Nozzle/NozzlePage.xaml": {
+    "class": "NozzlePage",
+    "events": [
+      "Cancel_Click",
+      "Catalog_Changed",
+      "Confirm_Click",
+      "Dn_Changed",
+      "End_Click",
+      "Parameter_Changed",
+      "Pick_Click",
+      "Update_Click"
+    ],
+    "named": {
+      "RatingCombo": {
+        "SelectionChanged": "Catalog_Changed"
+      },
+      "DnCombo": {
+        "SelectionChanged": "Dn_Changed"
+      },
+      "ScheduleCombo": {
+        "SelectionChanged": "Catalog_Changed"
+      },
+      "WallText": {
+        "LostFocus": "Parameter_Changed"
+      },
+      "LengthText": {
+        "LostFocus": "Parameter_Changed",
+        "Text": "200"
+      },
+      "BoltHolesCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed"
+      },
+      "AxisCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "SpecificationText": {},
+      "UpdateButton": {
+        "Click": "Update_Click"
+      },
+      "PreviewText": {
+        "Text": "尚未点取基点。"
+      },
+      "ConfirmButton": {
+        "Click": "Confirm_Click",
+        "IsEnabled": "False"
+      }
+    }
+  },
+  "SquareManhole/SquareManholePage.xaml": {
+    "class": "SquareManholePage",
+    "events": [
+      "Cancel_Click",
+      "Confirm_Click",
+      "End_Click",
+      "Parameter_Changed",
+      "Pick_Click",
+      "Update_Click"
+    ],
+    "named": {
+      "BarrelWidthText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "600"
+      },
+      "BarrelDepthText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "600"
+      },
+      "BarrelHeightText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "100"
+      },
+      "CoverWidthText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "620"
+      },
+      "CoverDepthText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "620"
+      },
+      "CoverHeightText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "40"
+      },
+      "WallText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "4"
+      },
+      "RotationText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "0"
+      },
+      "SpecificationText": {},
+      "PreviewText": {
+        "Text": "尚未点取筒体下口中心。"
+      },
+      "UpdateButton": {
+        "Click": "Update_Click"
+      },
+      "ConfirmButton": {
+        "Click": "Confirm_Click",
+        "IsEnabled": "False"
+      }
+    }
+  },
+  "FireCabinet/FireCabinetPage.xaml": {
+    "class": "FireCabinetPage",
+    "events": [
+      "Cancel_Click",
+      "Capacity_Changed",
+      "Confirm_Click",
+      "End_Click",
+      "Excel_Click",
+      "Json_Click",
+      "Parameter_Changed",
+      "Pick_Click",
+      "Statistics_Click",
+      "Tab_Changed",
+      "Type_Changed",
+      "Update_Click"
+    ],
+    "named": {
+      "PageTabs": {
+        "SelectionChanged": "Tab_Changed"
+      },
+      "TypeCombo": {
+        "SelectionChanged": "Type_Changed"
+      },
+      "BoxCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "CapacityLabel": {
+        "Text": "容量（kg）"
+      },
+      "CapacityCombo": {
+        "SelectionChanged": "Capacity_Changed"
+      },
+      "HeadingText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "0"
+      },
+      "SpecificationText": {},
+      "InteriorText": {},
+      "UpdateButton": {
+        "Click": "Update_Click"
+      },
+      "PreviewText": {
+        "Text": "尚未点取放置点。"
+      },
+      "ConfirmButton": {
+        "Click": "Confirm_Click",
+        "IsEnabled": "False"
+      },
+      "ExcelButton": {
+        "Click": "Excel_Click",
+        "IsEnabled": "False"
+      },
+      "JsonButton": {
+        "Click": "Json_Click",
+        "IsEnabled": "False"
+      },
+      "TotalsText": {
+        "Text": "尚未统计。"
+      },
+      "SummaryGrid": {
+        "IsReadOnly": "True"
+      }
+    }
+  },
+  "HoseCabinet/HoseCabinetPage.xaml": {
+    "class": "HoseCabinetPage",
+    "events": [
+      "Cancel_Click",
+      "Confirm_Click",
+      "End_Click",
+      "Excel_Click",
+      "Json_Click",
+      "Parameter_Changed",
+      "Pick_Click",
+      "Statistics_Click",
+      "Tab_Changed",
+      "Update_Click"
+    ],
+    "named": {
+      "PageTabs": {
+        "SelectionChanged": "Tab_Changed"
+      },
+      "WidthText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "550"
+      },
+      "HeightText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "1200"
+      },
+      "ModelText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "MFZ/ABC4"
+      },
+      "HeadingText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "0"
+      },
+      "DepthText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "160"
+      },
+      "LowerText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "550"
+      },
+      "QuantityText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "2"
+      },
+      "EquipmentCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed",
+        "IsChecked": "True"
+      },
+      "SpecificationText": {},
+      "InteriorText": {},
+      "UpdateButton": {
+        "Click": "Update_Click"
+      },
+      "PreviewText": {
+        "Text": "尚未点取放置点。"
+      },
+      "ConfirmButton": {
+        "Click": "Confirm_Click",
+        "IsEnabled": "False"
+      },
+      "ExcelButton": {
+        "Click": "Excel_Click",
+        "IsEnabled": "False"
+      },
+      "JsonButton": {
+        "Click": "Json_Click",
+        "IsEnabled": "False"
+      },
+      "TotalsText": {
+        "Text": "尚未统计。"
+      },
+      "SummaryGrid": {
+        "IsReadOnly": "True"
+      }
+    }
+  }
+}
