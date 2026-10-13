@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using SteelSectionProbe;
 namespace SteelSectionProbe
 {
@@ -11,8 +11,33 @@ internal static class Program
 {
     private static void Check(bool ok,string message)
     {if(!ok)throw new Exception(message);}
+    private static void CheckDiagonalPipeAxes()
+    {
+        int calls=0;
+        foreach(double degrees in new[]{0d,15,30,45,60,90,120,180,225,270,315})
+        {
+            double c=Math.Cos(degrees*Math.PI/180),s=Math.Sin(degrees*Math.PI/180);
+            var real=new E1GuideSegment(1900,6300,5299,1900+1000*c,6300+1000*s,5299);
+            double clickX=1900+200*c-136*s,clickY=6300+200*s+136*c;
+            var axis=E1GuideAxisResolver.Resolve(new E1GuideSegment[0],null,()=>{calls++;return real;},clickX,clickY,5299);
+            var selected=new PipeClampSelection{StartX=axis.StartX,StartY=axis.StartY,StartZ=axis.StartZ,
+                EndX=axis.EndX,EndY=axis.EndY,EndZ=axis.EndZ,ClickX=clickX,ClickY=clickY,ClickZ=5299};
+            var projected=selected.ProjectedCenter();
+            Check(Math.Abs(projected[0]-(1900+200*c))<1e-8&&Math.Abs(projected[1]-(6300+200*s))<1e-8&&projected[2]==5299,"A1真斜轴投影 "+degrees);
+            Check(Math.Abs(selected.AxisX-1000*c)<1e-8&&Math.Abs(selected.AxisY-1000*s)<1e-8,"斜轴方向不丢失 "+degrees);
+        }
+        Check(calls==11,"无快照轴必须读取显示几何");
+        var line=new E1GuideSegment(1,2,3,4,6,3);
+        var snapshot=new E1GuideSegment(0,0,0,100,0,0);
+        Func<E1GuideSegment> unexpected=()=>{throw new Exception("已有真实轴不应重复读原生几何");};
+        Check(ReferenceEquals(E1GuideAxisResolver.Resolve(new[]{line},snapshot,unexpected,0,0,0),line),"单条真实直线优先，不能忽略它");
+        Check(ReferenceEquals(E1GuideAxisResolver.Resolve(new E1GuideSegment[0],snapshot,unexpected,0,0,0),snapshot),"快照真实轴保持");
+        Check(E1GuideAxisResolver.Resolve(new E1GuideSegment[0],null,()=>null,0,0,0)==null,"轴读取失败不造世界轴假管线");
+        Console.WriteLine("A1斜管回归：11个水平角度的真实管轴读取选择及管夹投影通过。");
+    }
     private static void Main()
     {
+        CheckDiagonalPipeAxes();
         Check(E1GuideCatalog.Dns.Length==26,"DN count");
         Check(E1GuideCatalog.MatchDn(88.9)==80,"OD to DN");
         Check(E1GuideCatalog.MatchDn(900)==900,"nominal to DN");

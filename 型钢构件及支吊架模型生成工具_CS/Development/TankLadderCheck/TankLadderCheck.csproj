@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net48</TargetFramework><LangVersion>7.3</LangVersion></PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System.Web.Extensions"/>
+    <Compile Include="../../Domain/TankLadder/TankLadderModels.cs" Link="TankLadderModels.cs"/>
+    <Compile Include="../../Data/TankLadder/TankLadderCatalog.cs" Link="TankLadderCatalog.cs"/>
+    <Compile Include="../../Services/TankLadder/TankLadderCalculator.cs" Link="TankLadderCalculator.cs"/>
+    <Compile Include="../../Tools/TankLadder/TankLadderPreviewSession.cs" Link="TankLadderPreviewSession.cs"/>
+    <Compile Include="../../Domain/ProfileModels.cs" Link="ProfileModels.cs"/>
+    <Compile Include="../../Data/RuntimeData.cs" Link="RuntimeData.cs"/>
+    <Compile Include="../../Data/ProfileLookup.cs" Link="ProfileLookup.cs"/>
+    <EmbeddedResource Include="../../Resources/profiles.bin" LogicalName="SteelSectionProbe.profiles.bin"/>
+    <None Update="python_reference.json" CopyToOutputDirectory="PreserveNewest"/>
+  </ItemGroup>
+</Project>

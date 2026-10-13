@@ -139,27 +139,12 @@ namespace SteelSectionProbe
         internal static Element Text(string label, FireCabinetFrame frame, double x, double y, double z,
             double height, bool front)
         {
-            var model = Session.Instance.GetActiveDgnModel();
-            var paragraph = new ParagraphProperties(model) { Justification = TextElementJustification.CenterBaseline };
-            var run = new RunProperties(DgnFontManager.GetDefaultTrueTypeFont(), new DPoint2d(height * frame.Scale, height * frame.Scale), model);
-            var block = new Bentley.DgnPlatformNET.TextBlock(new TextBlockProperties(model), paragraph, run, model);
-            block.AppendText(label);
-            block.SetUserOrigin(frame.Point(x, y, z));
-            block.SetOrientation(DMatrix3d.FromColumns(frame.Direction(1, 0, 0),
+            var orientation = DMatrix3d.FromColumns(frame.Direction(1, 0, 0),
                 front ? frame.Direction(0, 0, 1) : frame.Direction(0, 1, 0),
-                front ? frame.Direction(0, -1, 0) : frame.Direction(0, 0, 1)));
-            Element element = TextHandlerBase.CreateElement(null, block);
-            if (element == null)
-            {
-                throw new InvalidOperationException("箱体标识生成失败：" + label);
-            }
-            var setter = new ElementPropertiesSetter();
-            setter.SetColor(FireExtinguisherBuilder.Color(new[] { 255, 220, 0 }));
-            if (!setter.Apply(element))
-            {
-                throw new InvalidOperationException("箱体标识颜色设置失败。");
-            }
-            return element;
+                front ? frame.Direction(0, -1, 0) : frame.Direction(0, 0, 1));
+            return ModelTextFactory.Create(Session.Instance.GetActiveDgnModel(), label,
+                frame.Point(x, y, z), orientation, height, frame.Scale,
+                FireExtinguisherBuilder.Color(new[] { 255, 220, 0 }));
         }
     }
 }

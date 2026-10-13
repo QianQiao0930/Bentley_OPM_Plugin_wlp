@@ -20,5 +20,9 @@ namespace SteelSectionProbe
         internal double L,L1,L2,L3,L4,H,EquipmentOd,Preweld,PlateThickness,
             BeamLength,BraceRun,EndOverhang,SectionAHeight,SectionAWidth,
             SectionAWeb,SectionCWidth,ConnectorSpan,VerticalLoad,HorizontalLoad;
+        /// <summary>从定向辅助线起点到支架建模原点的距离，毫米。</summary>
+        internal double RootOffsetMm;
+        /// <summary>相对横担顶面的横担板中心、斜撑板中心及斜撑接触面标高，毫米。</summary>
+        internal double BeamCenterZMm,BracePlateCenterZMm,BraceContactZMm;
     }
 }

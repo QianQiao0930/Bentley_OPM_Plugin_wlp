@@ -24,6 +24,7 @@ namespace SteelSectionProbe
         {
             CheckCatalog();
             CheckA1();
+            CheckU3();
             CheckA2();
             CheckA22();
             CheckA24();
@@ -117,11 +118,43 @@ namespace SteelSectionProbe
         }
 
         /// <summary>管夹的清单属性契约（中文类型名 + ASCII 代号）。</summary>
+        private static void CheckU3()
+        {
+            int count=0;
+            foreach(var row in U3ClampCatalog.Rows)
+            foreach(string item in new[]{"A","G"})
+            foreach(string material in new[]{"C1","S","S1"})
+            {
+                var p=U3ClampCalculator.Calculate(row.Dn,false,null,null,null,item,material,10,25,3,4,90,"P");
+                double nut=p.Clamp.NutHeightMm,near=row.OutsideMm/2+p.RubberMm,far=near+10;
+                Equal(p.Number,"U3-"+item+"-DN"+row.Dn+"-"+material,"U3编号");
+                Equal(p.BlockHeightMm,row.Dn<=65?50:100,"块长边");
+                Equal(p.BlockProjectionMm,row.Dn<=65?30:50,"块短边");
+                Equal(p.WeldMm,4,"薄壁焊高");
+                var thick=U3ClampCalculator.Calculate(row.Dn,true,row.Dn,row.OutsideMm,0,item,material,10,25,3,8,180,"P");
+                Equal(thick.WeldMm,6,"厚壁焊高上限");
+                Equal(thick.Clamp.AngleDeg,180,"选向角度");
+                Equal(thick.RubberMm,material=="S1"?3:0,"S1衬垫");
+                Equal(p.Clamp.NutLow1Mm,item=="A"?far:near-nut,"第一螺母");
+                Equal(p.Clamp.NutLow2Mm,item=="A"?far+nut:far,"第二螺母");
+                Equal((p.Clamp.LegSpacingMm.Value-row.Bolt)/2-row.OutsideMm/2-p.RubberMm,item=="G"?3:0,"净间隙");
+                Check(p.Clamp.StraightLegMm>p.Clamp.NutLow2Mm+nut,"腿端余量");
+                Equal(p.BlockMaterial,material=="C1"?"Q235B":"06Cr19Ni10","块材质");
+                count++;
+            }
+            Reject(()=>U3ClampCalculator.Calculate(15,true,300,null,null,"A","C1",10,25,3,6,0,""),"主管超范围");
+            Reject(()=>U3ClampCalculator.Calculate(15,false,null,null,5,"A","C1",10,25,3,6,0,""),"保温");
+            Reject(()=>U3ClampCalculator.Calculate(15,false,null,null,null,"A","C1",double.NaN,25,3,6,0,""),"非有限厚度");
+            Reject(()=>U3ClampCalculator.Calculate(15,false,null,null,null,"A","C1",40,25,3,6,0,""),"块不够伸出");
+            Reject(()=>U3ClampCalculator.ValidateAxis(1,0,0),"水平轴");
+            U3ClampCalculator.ValidateAxis(0,0,-1);
+            Console.WriteLine("U3："+count+"组管径/子项/材料及边界检查通过。");
+        }
         private static void CheckCatalog()
         {
             var types=PipeClampCatalog.All;
-            Equal(types.Length,8,"管夹类型数量");
-            string[] codes={"A2","E1","K1","T4","A1","A22","A24","L2"};
+            Equal(types.Length,9,"管夹类型数量");
+            string[] codes={"A2","E1","K1","T4","A1","A22","A24","L2","U3"};
             for(int i=0;i<types.Length;i++)
             {
                 Equal(types[i].Code,codes[i],codes[i]+" 编号前缀");

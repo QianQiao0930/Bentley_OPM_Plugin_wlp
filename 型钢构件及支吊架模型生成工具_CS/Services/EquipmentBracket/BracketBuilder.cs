@@ -31,13 +31,9 @@ namespace SteelSectionProbe
             double startY=plan.Reverse?line.EndY:line.StartY;
             double startZ=plan.Reverse?line.EndZ:line.StartZ;
             if(plan.Reverse){rx=-rx;ry=-ry;}
-            if(plan.Double)
-            {
-                // Source line: equipment centre -> pipe centre. Move the working origin
-                // back from the pipe centre by L1 to the outer face of the end plate.
-                double pipeX=startX+plan.L*rx,pipeY=startY+plan.L*ry;
-                startX=pipeX-plan.L1*rx;startY=pipeY-plan.L1*ry;
-            }
+            // N4: equipment centre to bracket face. N3: shell to preweld outer face.
+            // Reverse swaps the root end before applying this offset.
+            startX+=plan.RootOffsetMm*rx;startY+=plan.RootOffsetMm*ry;
             var f=new Frame {Ox=startX,Oy=startY,Oz=startZ,Rx=rx,Ry=ry,
                 Tx=-ry,Ty=rx,Scale=model.GetModelInfo().UorPerMeter/1000.0};
             var parts=new List<Element>();
@@ -49,27 +45,29 @@ namespace SteelSectionProbe
             bool channel=plan.SectionA.StartsWith("[");
             double heading=Math.Atan2(ry,rx)*180/Math.PI;
             var n8=N8Catalog.Resolve(plan.PlateType,"N",heading+180,G2MountFace.Wall);
+            double braceHeight;
+            var braceProfile=Profile(plan.SectionB,out braceHeight);
             int sides=plan.Double?2:1;
             for(int side=0;side<sides;side++)
             {
                 double offset=plan.Double?(side==0?-plan.L2/2:plan.L2/2):0;
                 double beamStart=plan.Double?0:plan.PlateThickness;
-                double beamZ=-plan.SectionAHeight/2;
+                double beamZ=plan.BeamCenterZMm;
                 var beamBody=SteelMemberFactory.AlongAxisBody(Profile(plan.SectionA),
                     f.P(beamStart,offset,beamZ),f.Scale,f.T,f.Z,f.R,plan.BeamLength);
                 beamBodies.Add(beamBody);
                 // The brace ends at the contact face of the beam. Its centreline is
                 // tilted 45 degrees in the radial/vertical plane.
-                double braceZ0=plan.Type==1?-plan.H:plan.H;
-                double braceZ1=plan.Type==1?-plan.SectionAHeight:0;
+                double braceZ0=plan.BracePlateCenterZMm;
+                double braceZ1=plan.BraceContactZMm;
                 double braceR0=plan.Double?0:plan.PlateThickness;
                 double braceR1=braceR0+plan.BraceRun;
                 double vr=braceR1-braceR0,vz=braceZ1-braceZ0;
                 double vl=Math.Sqrt(vr*vr+vz*vz);
                 var along=new DVector3d(f.Rx*vr/vl,f.Ry*vr/vl,vz/vl);
                 var normal=new DVector3d(-f.Rx*vz/vl,-f.Ry*vz/vl,vr/vl);
-                const double overrun=50;
-                var braceBody=SteelMemberFactory.AlongAxisBody(Profile(plan.SectionB),
+                double overrun=BracketCalculator.BraceCutOverrunMm(braceHeight,vr,vz);
+                var braceBody=SteelMemberFactory.AlongAxisBody(braceProfile,
                     f.P(braceR0-overrun*vr/vl,offset,braceZ0-overrun*vz/vl),
                     f.Scale,f.T,normal,along,vl+2*overrun);
                 double big=Math.Max(2000,plan.L+plan.BeamLength+plan.H+100);
@@ -111,35 +109,39 @@ namespace SteelSectionProbe
                         stiffenerBodies.Add(Stiffener(f,
                             channel?edge:r,t,plan,flange,channel,t<0?-1:1));
                 }
-                if(plan.ShowPreweld&&plan.Preweld>2*plan.PlateThickness)
-                {
-                    // Display-only reference geometry: never included in the BOM.
-                    foreach(double t in new[]{-plan.L2/2,plan.L2/2})
-                    {
-                        foreach(double z in new[]{-plan.SectionAHeight/2,plan.Type==1?-plan.H:plan.H})
-                        {
-                            var baseFrame=new G2AnchorFrame(f.P(0,t,z),f.Scale,
-                                heading+180,G2MountFace.Wall);
-                            var padFrame=new G2AnchorFrame(baseFrame.Point(plan.PlateThickness,0,0),
-                                f.Scale,heading+180,G2MountFace.Wall);
-                            parts.Add(Transparent(N8Builder.BuildPlate(n8,padFrame)));
-                            var tubeOuter=SolidPrimitiveFactory.Cylinder(
-                                baseFrame.Point(2*plan.PlateThickness,0,0),
-                                baseFrame.Point(plan.Preweld,0,0),50*f.Scale);
-                            var tubeInner=SolidPrimitiveFactory.Cylinder(
-                                baseFrame.Point(2*plan.PlateThickness-2,0,0),
-                                baseFrame.Point(plan.Preweld+2,0,0),46*f.Scale);
-                            SolidPrimitiveFactory.Subtract(ref tubeOuter,new[]{tubeInner},"预焊件空心管");
-                            parts.Add(Transparent(SolidPrimitiveFactory.Element(tubeOuter,SupportSteelAppearance.Color)));
-                        }
-                    }
-                }
             }
+            if(plan.ShowPreweld&&plan.Preweld>(plan.Double?2:1)*plan.PlateThickness)
+                AddPreweld(parts,plan,n8,f,heading);
             if(plan.Double)Merge(ref frameBody,beamBodies[1],"第二根横担融合");
             foreach(var stiffener in stiffenerBodies)
                 Merge(ref frameBody,stiffener,"筋板与横担融合");
             if(frameBody!=null)parts.Add(SolidPrimitiveFactory.Element(frameBody,SupportSteelAppearance.Color));
             return parts;
+        }
+        /// <summary>透明设备预焊件仅作参照，随组合预览清理，不写材料清单。</summary>
+        private static void AddPreweld(List<Element> parts,BracketPlan plan,N8Plan n8,Frame f,double heading)
+        {
+            double[] offsets=plan.Double?new[]{-plan.L2/2,plan.L2/2}:new[]{0.0};
+            // N3's support plate occupies [0,T]; the placeholder occupies [-D,0].
+            // N4's support plate occupies [-T,0], retaining its existing layout.
+            double padStart=plan.Double?plan.PlateThickness:0;
+            double tubeStart=padStart+plan.PlateThickness;
+            foreach(double t in offsets)
+            {
+                foreach(double z in new[]{plan.BeamCenterZMm,plan.BracePlateCenterZMm})
+                {
+                    var baseFrame=new G2AnchorFrame(f.P(0,t,z),f.Scale,heading+180,G2MountFace.Wall);
+                    var padFrame=new G2AnchorFrame(baseFrame.Point(padStart,0,0),f.Scale,
+                        heading+180,G2MountFace.Wall);
+                    parts.Add(Transparent(N8Builder.BuildPlate(n8,padFrame)));
+                    var tubeOuter=SolidPrimitiveFactory.Cylinder(baseFrame.Point(tubeStart,0,0),
+                        baseFrame.Point(plan.Preweld,0,0),50*f.Scale);
+                    var tubeInner=SolidPrimitiveFactory.Cylinder(baseFrame.Point(tubeStart-2,0,0),
+                        baseFrame.Point(plan.Preweld+2,0,0),46*f.Scale);
+                    SolidPrimitiveFactory.Subtract(ref tubeOuter,new[]{tubeInner},"预焊件空心管");
+                    parts.Add(Transparent(SolidPrimitiveFactory.Element(tubeOuter,SupportSteelAppearance.Color)));
+                }
+            }
         }
         private static void Merge(ref SolidKernelEntity frame,SolidKernelEntity body,string name)
         {
@@ -166,6 +168,11 @@ namespace SteelSectionProbe
         }
         private static ModeData Profile(string spec)
         {
+            double height;
+            return Profile(spec,out height);
+        }
+        private static ModeData Profile(string spec,out double height)
+        {
             bool channel=spec.StartsWith("[");
             string family=channel?"parallel_channel":"hot_rolled_h";
             string prefix=channel?spec.Substring(1):spec+"xr";
@@ -174,6 +181,8 @@ namespace SteelSectionProbe
             var profile=data.Profiles.FirstOrDefault(x=>channel?x.Name==prefix:
                 x.Name.StartsWith(prefix,StringComparison.Ordinal));
             if(profile==null)throw new InvalidOperationException("型钢目录缺少 "+spec);
+            if(!profile.Dimensions.TryGetValue("H",out height)||height<=0)
+                throw new InvalidOperationException("型钢目录缺少有效截面高度："+spec);
             return ProfileLookup.Mode(RuntimeData.Families,family,profile.Name,"geometric_center");
         }
         private static Element Box(Frame f,double r0,double r1,double t0,double t1,double z0,double z1)

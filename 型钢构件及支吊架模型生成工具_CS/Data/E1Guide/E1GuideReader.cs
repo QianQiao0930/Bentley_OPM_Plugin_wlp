@@ -63,17 +63,27 @@ namespace SteelSectionProbe
                         !snapshot.Schema.StartsWith("OpenPlant",StringComparison.OrdinalIgnoreCase)) &&
                     !snapshot.AllProperties.Any(x=>x.Key.StartsWith("OpenPlant",StringComparison.OrdinalIgnoreCase)) &&
                     string.IsNullOrEmpty(snapshot.ReadWarning)};
-            if(segments.Count>1)
+            E1GuideSegment snapshotAxis=null;
+            if(snapshot.StartX.HasValue && snapshot.StartY.HasValue && snapshot.StartZ.HasValue &&
+                snapshot.EndX.HasValue && snapshot.EndY.HasValue && snapshot.EndZ.HasValue)
+                snapshotAxis=new E1GuideSegment(snapshot.StartX.Value,snapshot.StartY.Value,snapshot.StartZ.Value,
+                    snapshot.EndX.Value,snapshot.EndY.Value,snapshot.EndZ.Value);
+            var exactAxis=E1GuideAxisResolver.Resolve(segments,snapshotAxis,delegate
             {
-                var selected=E1GuideSegmentSelector.Nearest(segments,
-                    selection.ClickX,selection.ClickY,selection.ClickZ);
-                CopySegment(selected,selection);
-            }
-            else if(snapshot.StartX.HasValue && snapshot.EndX.HasValue)
+                // COM 对实体 Cell 通常只有包围盒，不能据此跳过真实管轴读取。
+                // 复用管道对齐已使用的显示几何通道；内部只物化数值，不保留回调里的 Bentley 曲线。
+                if(openCurve && segments.Count==0) return null;
+                var geometry=PipeAlignment.PipeGeometryReader.Read(element,model,1.0/mmPerUor);
+                if(geometry.Axis==null) return null;
+                selection.AxisNote="管轴来源："+geometry.Source;
+                var a=geometry.Axis;
+                return new E1GuideSegment(a.StartXmm,a.StartYmm,a.StartZmm,a.EndXmm,a.EndYmm,a.EndZmm);
+            },selection.ClickX,selection.ClickY,selection.ClickZ);
+            if(exactAxis!=null) CopySegment(exactAxis,selection);
+            else if(pipe)
             {
-                selection.StartX=snapshot.StartX.Value;selection.StartY=snapshot.StartY.Value;
-                selection.StartZ=snapshot.StartZ.Value;selection.EndX=snapshot.EndX.Value;
-                selection.EndY=snapshot.EndY.Value;selection.EndZ=snapshot.EndZ.Value;
+                throw new InvalidOperationException("该管道未读取到真实直管轴线，不能按包围盒定位管架；"+
+                    "请点取沿该直管中心绘制的辅助线。"+Diagnostics(modelRef,id,snapshot,curve));
             }
             else if(CanUseRange(snapshot))
             {

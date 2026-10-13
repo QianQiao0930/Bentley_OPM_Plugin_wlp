@@ -14,10 +14,12 @@ namespace SteelSectionProbe
     {
         internal sealed class Data
         {
-            // N3：只有类型 / 子项 / H / 反向 / 保留辅助线（双三角架面板不显示）。
+            // N3：类型 / 子项 / H / 反向 / 保留辅助线 / 预焊件占位。
             public int N3TypeIndex=0,N3SubtypeIndex=0;
             public string N3Height="";
             public bool N3Reverse=false,N3KeepLine=true;
+            public string N3Preweld="100";
+            public bool N3ShowPreweld=false;
             // N4：额外有 L2 / L3 / L4 / 设备外径 / 预焊件长度 / 显示预焊件。
             public int N4TypeIndex=0,N4SubtypeIndex=0;
             public string N4Height="",N4L2="",N4L3="",N4L4="",N4Od="",N4Preweld="0";

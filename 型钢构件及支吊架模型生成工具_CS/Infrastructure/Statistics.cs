@@ -272,6 +272,17 @@ namespace SteelSectionProbe
             WriteRecords(element,entries);
         }
         /// <summary>A1 U 型管卡：整组、U 型螺栓和四颗螺母；通板没有建模也不入清单。</summary>
+        internal static void AttachU3Clamp(Element element,U3ClampPlan p)
+        {
+            if(element==null||p==null)throw new ArgumentNullException("element");
+            var entries=new List<KeyValuePair<string,object[]>>();string type=U3ClampCatalog.SupportType,tag=p.Number,pipe=p.Clamp.PipeNumber;
+            AddEntry(entries,"PipeSupportAssembly_U3","Assembly",type,tag,"支吊架",p.Specification,0,1,"套",pipe);
+            AddEntry(entries,"PipeSupportComponent_U3_U_BOLT","Component",type,tag,"U型螺栓",p.Clamp.BoltSpecification,p.Clamp.BoltLengthMm,1,"件",pipe);
+            AddEntry(entries,"PipeSupportComponent_U3_NUT","Component",type,tag,"螺母",p.Clamp.NutSpecification,0,4,"件",pipe);
+            AddEntry(entries,"PipeSupportComponent_U3_BLOCK","Component",type,tag,"承重块",p.BlockHeightMm+"×"+p.BlockProjectionMm+"×10 / "+p.BlockMaterial,p.BlockHeightMm,1,"块",pipe);
+            if(p.RubberMm>0)AddEntry(entries,"PipeSupportComponent_U3_EPDM","Component",type,tag,"橡胶衬垫","EPDM / 厚"+p.RubberMm+" mm",0,1,"件",pipe);
+            WriteRecords(element,entries);
+        }
         internal static void AttachA1Clamp(Element element,A1ClampPlan plan)
         {
             if(element==null||plan==null)throw new ArgumentNullException("element");

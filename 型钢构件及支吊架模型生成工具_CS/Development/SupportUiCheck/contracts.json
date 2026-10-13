@@ -257,7 +257,7 @@
       }
     ],
     "bindings": [],
-    "businessSha256": "4eafca9f545b3babb8b5d6d67b63473fbb961c862e58892b54a80e5037954b8e"
+    "businessSha256": "aa68dd74e1489d7bce55da5a2cb635104e774c45d052bed292edfb332dac8e96"
   },
   "ElbowTrunnion/ElbowTrunnionPage.xaml": {
     "class": "ElbowTrunnionPage",
@@ -941,11 +941,24 @@
       "ConfirmButton": {
         "Click": "Confirm_Click",
         "IsEnabled": "False"
+      },
+      "SinglePreweldPanel": {},
+      "N3ShowPreweldCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed"
+      },
+      "N3PreweldText": {
+        "Text": "100",
+        "TextChanged": "Parameter_Changed",
+        "IsEnabled": "{Binding IsChecked,ElementName=N3ShowPreweldCheck}"
+      },
+      "HeightLabelText": {
+        "Text": "H：两块连接板中心距（mm）"
       }
     },
     "choices": [],
     "bindings": [],
-    "businessSha256": "1e72f6dfb8ed51b46b45aec3a148405582e7d230c7ac9f06c26e8bd249cca268"
+    "businessSha256": "389a4c84737e451a42e94211da811581b86e22ba6e61cec730d771630b287dd2"
   },
   "D2Cantilever/D2CantileverPage.xaml": {
     "class": "D2CantileverPage",

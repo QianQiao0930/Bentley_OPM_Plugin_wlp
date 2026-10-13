@@ -102,10 +102,10 @@ namespace SteelSectionProbe
                 ready.Add(feature);
             }
 
-            Equal(ready.Count, 28, "可用功能数");
+            Equal(ready.Count, 29, "可用功能数");
             Equal(placeholders, 1, "规划中占位卡数");
             Equal(Order(HomeFeatureRanker.Rank(all, new Dictionary<string, HomePreferenceRecord>(), Now)),
-                "steel-sections,steel-handrail,tank-spiral-stair,component-properties,pipe-alignment,elbow-trunnion,support-statistics,tank-manhole,square-manhole,solid-nozzle,fire-cabinet,hose-cabinet," +
+                "steel-sections,steel-handrail,tank-spiral-stair,tank-ladder,component-properties,pipe-alignment,elbow-trunnion,support-statistics,tank-manhole,square-manhole,solid-nozzle,fire-cabinet,hose-cabinet," +
                 "pipe-clamp,q1-small-pipe-support,vertical-pipe-support,cold-riser-guide,g2-anchor-plate,n1-cantilever,n2-cantilever,n3-single-bracket,n4-double-bracket,d2-cantilever,triangle-bracket,l-bracket,portal-frame,t-frame,pad-plate,n8-connection-plate,",
                 "清单出厂顺序");
         }
@@ -144,6 +144,7 @@ namespace SteelSectionProbe
             foreach (FeatureDescriptor feature in HomeFeatureCatalog.All())
                 if (feature.IsReady) byId[feature.PageId] = feature.Category;
             Equal(byId["steel-handrail"], HomeCategories.Modeling, "普通钢结构围栏分区");
+            Equal(byId["tank-ladder"], HomeCategories.Modeling, "水箱爬梯分区");
             Equal(byId["steel-sections"], HomeCategories.Modeling, "型钢生成分区");
             Equal(byId["tank-manhole"], HomeCategories.Modeling, "罐壁人孔分区");
             Equal(byId["fire-cabinet"], HomeCategories.Modeling, "灭火器箱分区");
@@ -199,7 +200,7 @@ namespace SteelSectionProbe
         {
             List<HomeEntry> entries = HomeFeatureRanker.Rank(HomeFeatureCatalog.All(),
                 new Dictionary<string, HomePreferenceRecord>(), Now);
-            Equal(entries.Count, 29, "冷启动条目数");
+            Equal(entries.Count, 30, "冷启动条目数");
             Equal(PinnedOrder(entries), "", "冷启动不应有置顶项");
             for (int i = 1; i < entries.Count; i++)
             {

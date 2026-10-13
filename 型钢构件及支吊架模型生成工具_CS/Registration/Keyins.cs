@@ -15,12 +15,20 @@ namespace SteelSectionProbe
                 if (!LicenseService.IsActivated)
                 {
                     MainWindow.Current.ShowActivationPage();
-                    MainWindow.Current.SetStatus("请先激活软件，再放置型钢。", true);
+                    MainWindow.Current.SetStatus("请先激活软件，再使用型钢生成。", true);
                     return;
                 }
 
                 MainWindow.Current.ShowSteelSectionsPage();
-                MainWindow.Current.SteelSections.Place();
+            }
+        }
+
+        public static void Query(string args)
+        {
+            MainWindow.ShowWindow();
+            if (MainWindow.Current != null)
+            {
+                MainWindow.Current.ShowComponentPropertiesPage();
             }
         }
     }

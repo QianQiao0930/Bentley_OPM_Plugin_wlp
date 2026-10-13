@@ -21,7 +21,7 @@ namespace SteelSectionProbe
                 string project=Path.GetFullPath(args[0]),output=Path.Combine(project,"Development/ModelingUiCheck/previews");Directory.CreateDirectory(output);
                 var root=Load(Path.Combine(project,"UI/WorkspaceView.xaml"));((FrameworkElement)root.FindName("HeaderRow")).Visibility=Visibility.Collapsed;((RowDefinition)root.FindName("HeaderRowDef")).MinHeight=0;
                 var host=(ContentControl)root.FindName("PageHost");
-                var pages=new[]{Tuple.Create("steel-sections",(UserControl)new SteelSectionPage()),Tuple.Create("steel-handrail",(UserControl)new HandrailPage()),Tuple.Create("tank-spiral-stair",(UserControl)new SpiralStairPage()),Tuple.Create("pipe-alignment",(UserControl)new PipeAlignmentPage()),Tuple.Create("tank-manhole",(UserControl)new TankManholePage()),Tuple.Create("solid-nozzle",(UserControl)new NozzlePage()),Tuple.Create("square-manhole",(UserControl)new SquareManholePage()),Tuple.Create("fire-cabinet",(UserControl)new FireCabinetPage()),Tuple.Create("hose-cabinet",(UserControl)new HoseCabinetPage())};
+                var pages=new[]{Tuple.Create("steel-sections",(UserControl)new SteelSectionPage()),Tuple.Create("steel-handrail",(UserControl)new HandrailPage()),Tuple.Create("tank-spiral-stair",(UserControl)new SpiralStairPage()),Tuple.Create("tank-ladder",(UserControl)new TankLadderPage()),Tuple.Create("pipe-alignment",(UserControl)new PipeAlignmentPage()),Tuple.Create("tank-manhole",(UserControl)new TankManholePage()),Tuple.Create("solid-nozzle",(UserControl)new NozzlePage()),Tuple.Create("square-manhole",(UserControl)new SquareManholePage()),Tuple.Create("fire-cabinet",(UserControl)new FireCabinetPage()),Tuple.Create("hose-cabinet",(UserControl)new HoseCabinetPage())};
                 foreach(var pair in pages)
                 {
                     var page=pair.Item2;host.Content=page;Arrange(root);Seed(page);Arrange(root);
@@ -38,9 +38,10 @@ namespace SteelSectionProbe
                     foreach(double scale in new[]{1d,1.25,1.5,2}){var bmp=new RenderTargetBitmap((int)(400*scale),(int)(880*scale),96*scale,96*scale,PixelFormats.Pbgra32);bmp.Render(root);Check(bmp.PixelHeight==(int)(880*scale),"DPI "+pair.Item1+scale);}
                     Console.WriteLine(pair.Item1+": 400x880, original controls and fixed actions rendered.");
                 }
+                TankLadderFixtures.CheckLifecycle((TankLadderPage)pages.First(p=>p.Item1=="tank-ladder").Item2,()=>Arrange(root),Check);
                 var align=pages.First(p=>p.Item1=="pipe-alignment").Item2;Check(((RadioButton)align.FindName("SingleScope")).Visibility==Visibility.Collapsed,"隐藏的只移动选中范围保持隐藏");
                 host.Content=new UserControl();root.Measure(new Size(560,720));root.Arrange(new Rect(0,0,560,720));root.UpdateLayout();Check(host.Margin==new Thickness(14,4,10,10),"未改支吊架恢复原外边距");Check(((FrameworkElement)root.FindName("WorkspaceFooter")).ActualHeight==36,"未改模块原底栏");
-                Console.WriteLine("PASS: "+checks+" 九页布局/固定操作/消防页签/DPI展示检查。");return 0;
+                Console.WriteLine("PASS: "+checks+" 十页布局/固定操作/消防页签/DPI展示检查。");return 0;
             }catch(Exception e){Console.Error.WriteLine(e);return 1;}
         }
         private static void Seed(UserControl page)

@@ -1,0 +1,63 @@
+<UserControl xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:proto="clr-namespace:SteelSectionProbe" x:Class="SteelSectionProbe.TankLadderPage" x:ClassModifier="internal" Background="#F4F7FA" Tag="prototype-v4">
+    <UserControl.Resources>
+        <ResourceDictionary><ResourceDictionary.MergedDictionaries>
+            <ResourceDictionary Source="../Prototype/ModelingTheme.xaml"/>
+        </ResourceDictionary.MergedDictionaries></ResourceDictionary>
+    </UserControl.Resources>
+    <Grid>
+        <Grid.RowDefinitions><RowDefinition Height="95"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <proto:PrototypeChrome Title="水箱爬梯" Code="TL" Caption="HOME / 建模 / 箱顶基准 · 竖直爬梯" Icon="M6,2 V22 M18,2 V22 M6,6 H18 M6,11 H18 M6,16 H18 M6,21 H18" Accent="#1F6FEB" IconBackground="#EAF2FF" IconBorder="#D3E2FF"/>
+        <Grid Grid.Row="1" Margin="16,12,10,12">
+            <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel>
+                    <Border Style="{StaticResource CardStyle}" Padding="0">
+                        <StackPanel>
+                            <Border MinHeight="35" BorderBrush="#E8EDF2" BorderThickness="0,0,0,1" Padding="12,8"><TextBlock Text="01 / 尺寸与布置" Style="{StaticResource SectionTitleStyle}" Margin="0"/></Border>
+                            <StackPanel Margin="12">
+                                <TextBlock Text="点取箱顶基准点：顶部横向角钢的中点。水箱底面按此点标高减水箱高度计算。" Margin="0,0,0,10"/>
+                                <TextBlock Text="水箱高度（mm）" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                <TextBox x:Name="HeightText" Text="2000" TextChanged="Parameter_Changed" Style="{StaticResource ModelInput}"/>
+                                <TextBlock Text="顶部两角钢净距（mm）" FontWeight="SemiBold" Margin="0,10,0,5"/>
+                                <TextBox x:Name="WidthText" Text="420" TextChanged="Parameter_Changed" Style="{StaticResource ModelInput}"/>
+                                <TextBlock Text="加强撑竖向间距（mm）" FontWeight="SemiBold" Margin="0,10,0,5"/>
+                                <TextBox x:Name="SupportSpacingText" Text="900" TextChanged="Parameter_Changed" Style="{StaticResource ModelInput}"/>
+                                <TextBlock Text="朝向角（°）" FontWeight="SemiBold" Margin="0,10,0,5"/>
+                                <TextBox x:Name="HeadingText" Text="0" TextChanged="Parameter_Changed" Style="{StaticResource ModelInput}"/>
+                                <CheckBox x:Name="MergeCheck" Content="全部构件相并为整体实体" IsChecked="True" Checked="Parameter_Changed" Unchecked="Parameter_Changed" Margin="0,12,0,0" Style="{StaticResource ModelCheck}"/>
+                                <TextBlock Text="0°时梯腿向 −Y 侧伸出；朝向角绕竖轴旋转。取消相并时，各构件仍封装在同一个模型块中。" Margin="0,8,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource CardStyle}" Padding="0">
+                        <StackPanel>
+                            <Border MinHeight="35" BorderBrush="#E8EDF2" BorderThickness="0,0,0,1" Padding="12,8"><TextBlock Text="02 / 构件与当前结果" Style="{StaticResource SectionTitleStyle}" Margin="0"/></Border>
+                            <StackPanel Margin="12">
+                                <TextBlock Text="顶部角钢 ∠50×5，高600；梯腿扁钢60×10，顶部外廓340、转弯R150；踏步φ18，竖向间距300；靠箱支撑60×10，长250。"/>
+                                <TextBlock x:Name="SpecificationText" Margin="0,10,0,0"/>
+                                <TextBlock Text="按原工具生成竖直爬梯，不含护笼。梯腿底端保留距箱底40 mm的原布置。" Margin="0,10,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+            <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,10,0,0" Padding="12">
+                <StackPanel>
+                    <TextBlock Text="点取后预览；修改参数后更新预览，再确认生成。" Margin="0,0,0,8"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <Button Content="开始点取" Click="Pick_Click" Style="{StaticResource PrimaryButtonStyle}" Height="32" Margin="0"/>
+                        <Button Grid.Column="2" Content="结束点取" Click="End_Click" Style="{StaticResource SecondaryButtonStyle}" Height="32" Margin="0"/>
+                        <Button Grid.Column="4" x:Name="UpdateButton" Content="更新预览" Click="Update_Click" Style="{StaticResource SecondaryButtonStyle}" Height="32" Margin="0"/>
+                    </Grid>
+                    <TextBlock x:Name="PreviewText" Text="尚未点取箱顶基准点。" Margin="0,8,0,10" MaxHeight="42" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text,RelativeSource={RelativeSource Self}}"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <Button Content="取消预览" Click="Cancel_Click" Style="{StaticResource SecondaryButtonStyle}" Height="36" Margin="0"/>
+                        <Button Grid.Column="2" x:Name="ConfirmButton" Content="确定生成" Click="Confirm_Click" IsEnabled="False" Style="{StaticResource PrimaryButtonStyle}" Height="36" Margin="0"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

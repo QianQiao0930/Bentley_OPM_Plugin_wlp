@@ -61,6 +61,7 @@
     <Compile Remove="Development\TankManholeCheck\**\*.cs" />
     <Compile Remove="Development\NozzleCheck\**\*.cs" />
     <Compile Remove="Development\SquareManholeCheck\**\*.cs" />
+    <Compile Remove="Development\TankLadderCheck\**\*.cs" />
     <Compile Remove="Development\E1GuideCheck\**\*.cs" />
     <Compile Remove="Development\G2AnchorCheck\**\*.cs" />
     <Compile Remove="Development\PipeClampCheck\**\*.cs" />

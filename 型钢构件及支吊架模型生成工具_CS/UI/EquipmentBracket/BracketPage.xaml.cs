@@ -27,11 +27,12 @@ namespace SteelSectionProbe
             TitleText.Text=PageTitle;
             InstructionText.Text=isDouble?
                 "绘制水平辅助线：起点为设备中心，终点为立管中心。输入设备外径后，由线长算出 L1。参数更改后须更新预览。":
-                "绘制水平辅助线：起点在设备表面，终点为横担末端；辅助线标高为管底和横担顶面。";
+                "绘制水平辅助线：起点在设备表面，终点为横担末端；标高为管底和横担顶面。勾选预焊件占位后，支架长度扣除 D，末端位置保持不变。";
             PreviewInstructionText.Text=isDouble?
                 "点取设备中心至管中心的水平辅助线。修改参数后点击更新预览，确认后才写入清单；右键结束点取并取消未确认预览。":
                 "点取设备表面至横担末端的水平辅助线。可调整参数并更新预览；确认后才写入清单，右键结束点取并取消未确认预览。";
             DoublePanel.Visibility=isDouble?Visibility.Visible:Visibility.Collapsed;
+            SinglePreweldPanel.Visibility=isDouble?Visibility.Collapsed:Visibility.Visible;
             EPanel.Visibility=isDouble?Visibility.Collapsed:Visibility.Visible;
             TypeCombo.ItemsSource=new[]{"类型 1：斜撑在下","类型 2：斜撑在上"};
             SubtypeCombo.ItemsSource=new[]{"A","B","C","D","E","F"};
@@ -78,6 +79,8 @@ namespace SteelSectionProbe
                     if(!string.IsNullOrEmpty(lastChoice.N3Height)) HeightText.Text=lastChoice.N3Height;
                     ReverseCheck.IsChecked=lastChoice.N3Reverse;
                     KeepLineCheck.IsChecked=lastChoice.N3KeepLine;
+                    N3PreweldText.Text=string.IsNullOrEmpty(lastChoice.N3Preweld)?"100":lastChoice.N3Preweld;
+                    N3ShowPreweldCheck.IsChecked=lastChoice.N3ShowPreweld;
                 }
             }
             catch { /* 恢复失败就用当前默认值，不要挡住页面 */ }
@@ -108,6 +111,8 @@ namespace SteelSectionProbe
                     lastChoice.N3Height=HeightText.Text??"";
                     lastChoice.N3Reverse=ReverseCheck.IsChecked==true;
                     lastChoice.N3KeepLine=KeepLineCheck.IsChecked==true;
+                    lastChoice.N3Preweld=N3PreweldText.Text??"100";
+                    lastChoice.N3ShowPreweld=N3ShowPreweldCheck.IsChecked==true;
                 }
                 BracketLastChoice.Save(lastChoice);
             }
@@ -165,10 +170,25 @@ namespace SteelSectionProbe
             int i=Math.Max(0,SubtypeCombo.SelectedIndex);
             double thickness=N8Catalog.Resolve(BracketCatalog.PlateType[i],"H",0,G2MountFace.Wall).T;
             double length=Math.Sqrt(line.AxisX*line.AxisX+line.AxisY*line.AxisY+line.AxisZ*line.AxisZ);
-            double beamLength=length-thickness;
-            double margin=BracketCalculator.N3EndMargin(length,thickness,h);
+            double supportLength;
+            bool showPreweld=N3ShowPreweldCheck.IsChecked==true;
+            try
+            {
+                supportLength=BracketCalculator.N3SupportLength(new BracketParameters {
+                    ShowPreweld=showPreweld,
+                    PreweldMm=showPreweld?Number(N3PreweldText.Text,"预焊件长度 D"):0},length,thickness);
+            }
+            catch(InvalidOperationException ex)
+            {
+                EText.Text=ex.Message;EText.Foreground=Brushes.DarkRed;
+                ConfirmButton.IsEnabled=false;return false;
+            }
+            double beamLength=supportLength-thickness;
+            double margin=BracketCalculator.N3EndMargin(supportLength,thickness,h);
             bool valid=margin>=BracketCalculator.MinimumN3EndMargin;
-            EText.Text="横担长度 "+beamLength.ToString("0.#")+" mm − H "+h.ToString("0.#")+
+            EText.Text=(showPreweld?"支架 L = 辅助线 "+length.ToString("0.#")+
+                " − 占位 D "+(length-supportLength).ToString("0.#")+" = "+supportLength.ToString("0.#")+" mm\n":"")+
+                "横担长度 "+beamLength.ToString("0.#")+" mm − H "+h.ToString("0.#")+
                 " mm = E "+margin.ToString("0.#")+" mm（最小 150 mm）"+
                 (valid?"":"\n输入不合规：末端太小，不合图集要求；请减小 H 或加长辅助线。");
             EText.Foreground=valid?Brushes.Black:Brushes.DarkRed;
@@ -202,8 +222,9 @@ namespace SteelSectionProbe
                 L3Mm=isDouble?Number(L3Text.Text,"L3",true):0,
                 L4Mm=isDouble?Number(L4Text.Text,"L4",true):0,
                 EquipmentOdMm=isDouble?Number(EquipmentOdText.Text,"设备外径 2R"):0,
-                PreweldMm=isDouble?Number(PreweldText.Text,"D",true):0,
-                ShowPreweld=isDouble&&ShowPreweldCheck.IsChecked==true};
+                PreweldMm=isDouble?Number(PreweldText.Text,"D",true):
+                    (N3ShowPreweldCheck.IsChecked==true?Number(N3PreweldText.Text,"预焊件长度 D"):0),
+                ShowPreweld=isDouble?ShowPreweldCheck.IsChecked==true:N3ShowPreweldCheck.IsChecked==true};
         }
         private void Regenerate()
         {

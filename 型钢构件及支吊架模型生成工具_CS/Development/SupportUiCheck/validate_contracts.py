@@ -25,4 +25,4 @@ for filename, baseline in MANIFEST.items():
         assert any(node.get(binding["attribute"]) == binding["value"] for node in page.iter()), (filename, binding)
     source = (PROJECT / "UI" / (filename + ".cs")).read_bytes().replace(b"\r\n", b"\n")
     assert hashlib.sha256(source).hexdigest() == baseline["businessSha256"], filename
-    print(filename + ": original UI contract and business source preserved")
+    print(filename + ": UI contract and saved business baseline preserved")

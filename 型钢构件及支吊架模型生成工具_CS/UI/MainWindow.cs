@@ -86,6 +86,11 @@ namespace SteelSectionProbe
             workspace.ShowSteelSectionsPage();
         }
 
+        internal void ShowComponentPropertiesPage()
+        {
+            workspace.ShowComponentPropertiesPage();
+        }
+
         internal void ShowHome()
         {
             workspace.ShowHome();

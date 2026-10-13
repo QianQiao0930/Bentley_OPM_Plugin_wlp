@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Bentley.DgnPlatformNET;
 using Bentley.DgnPlatformNET.Elements;
@@ -8,7 +8,7 @@ using Bentley.MstnPlatformNET;
 namespace SteelSectionProbe
 {
     /// <summary>
-    /// 八种管夹共用的预览生命周期：重建时先写入新版预览、成功后再删除旧版；
+    /// 九种管夹共用的预览生命周期：重建时先写入新版预览、成功后再删除旧版；
     /// 确认时按当前种类写入 <c>PipeSupportComponents</c> ItemType；取消与离开页面都清理未确认元素。
     /// </summary>
     internal sealed class PipeClampPreviewSession
@@ -21,6 +21,7 @@ namespace SteelSectionProbe
         private A2ClampPlan a2Plan;
         private A22ClampPlan a22Plan;
         private A1ClampPlan a1Plan;
+        private U3ClampPlan u3Plan;
         private E1GuidePlan e1Plan;
         private K1LimitPlan k1Plan;
         private T4ShoeLayout t4Layout;
@@ -58,6 +59,12 @@ namespace SteelSectionProbe
             Replace(A1ClampBuilder.Build(plan,center,axis),A1ClampCatalog.CellName,
                 PipeClampKind.A1UBolt);
             a1Plan=plan;this.center=center;this.axis=axis;
+        }
+
+        internal void ShowU3(U3ClampPlan plan,DPoint3d center,DVector3d axis)
+        {
+            Replace(U3ClampBuilder.Build(plan,center,axis),U3ClampCatalog.CellName,PipeClampKind.U3BearingUBolt);
+            u3Plan=plan;this.center=center;this.axis=axis;
         }
 
         internal void ShowE1(E1GuidePlan plan)
@@ -122,6 +129,7 @@ namespace SteelSectionProbe
             IList<Element> parts;
             switch(kind)
             {
+                case PipeClampKind.U3BearingUBolt:parts=U3ClampBuilder.Build(u3Plan,center,axis);break;
                 case PipeClampKind.A1UBolt:parts=A1ClampBuilder.Build(a1Plan,center,axis);break;
                 case PipeClampKind.A2StandardTwoBolt:parts=A2ClampBuilder.Build(a2Plan,center,axis);break;
                 case PipeClampKind.A22ColdTwoBolt:
@@ -141,6 +149,8 @@ namespace SteelSectionProbe
             var element=preview;
             switch(kind)
             {
+                case PipeClampKind.U3BearingUBolt:
+                    Statistics.AttachU3Clamp(element,u3Plan);break;
                 case PipeClampKind.A1UBolt:
                     Statistics.AttachA1Clamp(element,a1Plan);break;
                 case PipeClampKind.A2StandardTwoBolt:
@@ -175,7 +185,7 @@ namespace SteelSectionProbe
 
         private void ClearPlans()
         {
-            a1Plan=null;a2Plan=null;a22Plan=null;e1Plan=null;k1Plan=null;t4Layout=null;t4Boolean=null;
+            u3Plan=null;a1Plan=null;a2Plan=null;a22Plan=null;e1Plan=null;k1Plan=null;t4Layout=null;t4Boolean=null;
             t4BuildPipe=false; t4BuildInsulation=false;
         }
 

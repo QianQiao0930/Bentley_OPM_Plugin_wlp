@@ -34,6 +34,7 @@ namespace SteelSectionProbe
             RegisterPage(SteelSections);
             RegisterPage(new HandrailPage());
             RegisterPage(new SpiralStairPage());
+            RegisterPage(new TankLadderPage());
             RegisterPage(new PipeAlignmentPage());
             RegisterPage(new ComponentPropertiesPage());
             RegisterPage(new ElbowTrunnionPage());
@@ -147,6 +148,11 @@ namespace SteelSectionProbe
         internal void ShowSteelSectionsPage()
         {
             OpenPage("steel-sections");
+        }
+
+        internal void ShowComponentPropertiesPage()
+        {
+            OpenPage("component-properties");
         }
 
         internal void ShowHome()

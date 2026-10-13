@@ -1,9 +1,9 @@
-using System;
+﻿using System;
 using System.Linq;
 
 namespace SteelSectionProbe
 {
-    /// <summary>统一管夹入口的八种构件。A1 另有开口方向调整阶段。</summary>
+    /// <summary>统一管夹入口的九种构件。A1 另有开口方向调整阶段。</summary>
     internal enum PipeClampKind
     {
         A2StandardTwoBolt=0,
@@ -13,7 +13,8 @@ namespace SteelSectionProbe
         A1UBolt=4,
         A22ColdTwoBolt=5,
         A24ColdFourBolt=6,
-        L2ColdShoe=7
+        L2ColdShoe=7,
+        U3BearingUBolt=8
     }
 
     /// <summary>一种管夹的元数据：下拉标签、清单类型名与 ASCII 代号、组合单元名。</summary>
@@ -34,7 +35,7 @@ namespace SteelSectionProbe
     }
 
     /// <summary>
-    /// 八种管夹的注册表。首页只有一个“放置管夹”入口，进入后由本表驱动下拉切换。
+    /// 九种管夹的注册表。首页只有一个“放置管夹”入口，进入后由本表驱动下拉切换。
     /// 纯数据，不引用 Bentley API。
     /// </summary>
     internal static class PipeClampCatalog
@@ -91,7 +92,13 @@ namespace SteelSectionProbe
                 Label="L2 最小长度保冷管托（DN15~600）",
                 SupportType=L2ShoeCatalog.SupportType,SupportCode=L2ShoeCatalog.SupportCode,
                 CellName=L2ShoeCatalog.CellName,
-                Hint="保冷厚度查 H，DN 查最小长度 L、孔组距 F、端距 E 与板厚；与 T4 共用对开承重板、耳板和底座几何。" }
+                Hint="保冷厚度查 H，DN 查最小长度 L、孔组距 F、端距 E 与板厚；与 T4 共用对开承重板、耳板和底座几何。" },
+            new PipeClampType {
+                Kind=PipeClampKind.U3BearingUBolt,Code="U3",
+                Label="U3 带承重块的U形螺栓（1/2″~6″）",
+                SupportType=U3ClampCatalog.SupportType,SupportCode=U3ClampCatalog.CellName,
+                CellName=U3ClampCatalog.CellName,
+                Hint="点取立管或竖直辅助线，调整开口方向；承重块长边沿立管焊接，钢构另行提供。" }
         };
 
         internal static PipeClampType[] All { get { return Types; } }

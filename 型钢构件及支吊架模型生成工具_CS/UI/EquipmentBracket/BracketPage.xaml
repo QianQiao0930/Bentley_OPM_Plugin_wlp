@@ -44,11 +44,17 @@
                                             <ComboBox x:Name="SubtypeCombo" SelectionChanged="Subtype_Changed" Style="{StaticResource ModelCombo}"/>
                                         </StackPanel>
                                     </Grid>
-                                    <TextBlock Text="H：横担顶面至斜撑连接板中心（mm）" TextWrapping="Wrap" Margin="0,8,0,5" FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="HeightLabelText" Text="H：两块连接板中心距（mm）" TextWrapping="Wrap" Margin="0,8,0,5" FontWeight="SemiBold"/>
                                     <TextBox x:Name="HeightText" TextChanged="Height_TextChanged" Style="{StaticResource ModelInput}"/>
                                     <CheckBox x:Name="ReverseCheck" Content="反向（交换辅助线两端）" Margin="0,10,0,0" Checked="Parameter_Changed" Unchecked="Parameter_Changed" Style="{StaticResource ModelCheck}"/>
                                     <CheckBox x:Name="KeepLineCheck" Content="创建后保留所选辅助线" IsChecked="True" Margin="0,6,0,0" Checked="Parameter_Changed" Unchecked="Parameter_Changed" Style="{StaticResource ModelCheck}"/>
                                     <TextBlock x:Name="SectionText" TextWrapping="Wrap" Margin="0,10,0,0"/>
+                                    <StackPanel x:Name="SinglePreweldPanel" Margin="0,10,0,0">
+                                        <CheckBox x:Name="N3ShowPreweldCheck" Content="生成设备预焊件占位" Checked="Parameter_Changed" Unchecked="Parameter_Changed" Style="{StaticResource ModelCheck}"/>
+                                        <TextBlock Text="预焊件总长 D（mm，含占位端板）" TextWrapping="Wrap" Margin="0,8,0,5" FontWeight="SemiBold"/>
+                                        <TextBox x:Name="N3PreweldText" Text="100" IsEnabled="{Binding IsChecked,ElementName=N3ShowPreweldCheck}" TextChanged="Parameter_Changed" Style="{StaticResource ModelInput}"/>
+                                        <TextBlock Text="勾选后，从辅助线起点生成两处透明占位；支架 L 扣除 D，横担实长再扣连接板厚度。占位不计材料。" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                                    </StackPanel>
                                     <Border x:Name="EPanel" Background="{StaticResource CardSoftBrush}" CornerRadius="4" Padding="10,8" Margin="0,10,0,0">
                                         <TextBlock x:Name="EText" Text="E：点取辅助线后计算（最小 150 mm）。" TextWrapping="Wrap"/>
                                     </Border>

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Globalization;
 using System.Linq;
 using System.Windows;
@@ -29,7 +29,7 @@ namespace SteelSectionProbe
 
         public string PageId { get { return "pipe-clamp"; } }
         public string PageTitle { get { return "放置管夹"; } }
-        public string PageSubtitle { get { return "A1 · A2 · A22 · A24 管夹 · E1 · K1 导向限位 · T4 · L2 管托"; } }
+        public string PageSubtitle { get { return "A1 · U3 · A2 · A22 · A24 管夹 · E1 · K1 导向限位 · T4 · L2 管托"; } }
         public FrameworkElement View { get { return this; } }
 
         internal PipeClampPage()
@@ -61,7 +61,15 @@ namespace SteelSectionProbe
             L2DnCombo.ItemsSource=L2ShoeCatalog.DnChoices
                 .Select(dn=>T4ShoeCatalog.DnLabel(dn)).ToArray();
 
+            U3DnCombo.ItemsSource=U3ClampCatalog.Rows.Select(row=>"DN"+row.Dn+"  |  "+row.Nps).ToArray();
+            U3ItemCombo.ItemsSource=new[]{"A · 承重/固定 · 两螺母在同一外侧","G · 承重/导向 · 两螺母一边一个"};
+            U3MaterialCombo.ItemsSource=new[]{"C1 · 碳钢管","S · 不锈钢管 / 不锈钢螺栓","S1 · 不锈钢管 / EPDM · ≤120°C"};
             var last=PipeClampLastChoice.Load();
+            U3DnCombo.SelectedIndex=Clamp(last.U3DnIndex,0,U3ClampCatalog.Rows.Length-1);
+            U3ItemCombo.SelectedIndex=Clamp(last.U3ItemIndex,0,1);
+            U3MaterialCombo.SelectedIndex=Clamp(last.U3MaterialIndex,0,2);
+            U3SteelText.Text=last.U3Steel;U3TopText.Text=last.U3Top;
+            U3RubberText.Text=last.U3Rubber;U3WallText.Text=last.U3Wall;
             KindCombo.SelectedIndex=Clamp(last.KindIndex,0,PipeClampCatalog.All.Length-1);
             A1DnCombo.SelectedIndex=Clamp(last.A1DnIndex,0,A1ClampCatalog.All.Length-1);
             A2DnCombo.SelectedIndex=Clamp(last.A2DnIndex,0,A2ClampCatalog.All.Length-1);
@@ -150,6 +158,7 @@ namespace SteelSectionProbe
         private void UpdatePanelVisibility()
         {
             var kind=CurrentKind();
+            U3Panel.Visibility=kind==PipeClampKind.U3BearingUBolt?Visibility.Visible:Visibility.Collapsed;
             A1Panel.Visibility=kind==PipeClampKind.A1UBolt?Visibility.Visible:Visibility.Collapsed;
             A2Panel.Visibility=kind==PipeClampKind.A2StandardTwoBolt?Visibility.Visible:Visibility.Collapsed;
             A22Panel.Visibility=kind==PipeClampKind.A22ColdTwoBolt?Visibility.Visible:Visibility.Collapsed;
@@ -186,6 +195,10 @@ namespace SteelSectionProbe
             {
                 switch(CurrentKind())
                 {
+                    case PipeClampKind.U3BearingUBolt:
+                        U3RubberText.IsEnabled=U3MaterialCombo.SelectedIndex==2;
+                        U3SpecText.Text=U3Parameters(0).Specification;
+                        break;
                     case PipeClampKind.A1UBolt:
                         A1SpecText.Text="当前规格：DN"+A1Parameters(0).Row.Dn;
                         break;
@@ -239,7 +252,7 @@ namespace SteelSectionProbe
             catch(Exception ex)
             {
                 string message="参数有误："+ex.Message;
-                A1SpecText.Text=message;A2SpecText.Text=message;A22SpecText.Text=message;
+                U3SpecText.Text=message;A1SpecText.Text=message;A2SpecText.Text=message;A22SpecText.Text=message;
                 A24SpecText.Text=message;E1SpecText.Text=message;
                 K1SpecText.Text=message;T4SpecText.Text=message;L2SpecText.Text=message;
                 T4SourceText.Text="请检查输入参数。";
@@ -252,6 +265,19 @@ namespace SteelSectionProbe
                 thickness.ToString("0.###",CultureInfo.InvariantCulture)+" mm";
         }
 
+        private bool UsesOpeningDirection()
+        {return CurrentKind()==PipeClampKind.A1UBolt||CurrentKind()==PipeClampKind.U3BearingUBolt;}
+        private U3ClampPlan U3Parameters(double angle)
+        {
+            if(selection!=null)U3ClampCalculator.ValidateAxis(selection.AxisX,selection.AxisY,selection.AxisZ);
+            return U3ClampCalculator.Calculate(U3ClampCatalog.Rows[Clamp(U3DnCombo.SelectedIndex,0,U3ClampCatalog.Rows.Length-1)].Dn,
+                selection!=null&&selection.IsPipe,selection==null?null:selection.NominalMm,
+                selection==null?null:selection.OutsideMm,selection==null?null:selection.InsulationMm,
+                U3ItemCombo.SelectedIndex==1?"G":"A",new[]{"C1","S","S1"}[Clamp(U3MaterialCombo.SelectedIndex,0,2)],
+                Number(U3SteelText.Text,"已有钢构厚度"),Number(U3TopText.Text,"钢构顶面高差"),
+                U3MaterialCombo.SelectedIndex==2?Number(U3RubberText.Text,"EPDM厚度"):0,
+                Number(U3WallText.Text,"管壁厚度"),angle,selection==null?"":selection.PipeNumber);
+        }
         private A1ClampPlan A1Parameters(double angle)
         {return A1ClampCalculator.Calculate(A1ClampCatalog.All[Clamp(A1DnCombo.SelectedIndex,0,
             A1ClampCatalog.All.Length-1)].Dn,selection!=null&&selection.IsPipe,
@@ -346,6 +372,9 @@ namespace SteelSectionProbe
             try
             {
                 PipeClampLastChoice.Save(new PipeClampLastChoice.Data {
+                    U3DnIndex=Math.Max(0,U3DnCombo.SelectedIndex),U3ItemIndex=Math.Max(0,U3ItemCombo.SelectedIndex),
+                    U3MaterialIndex=Math.Max(0,U3MaterialCombo.SelectedIndex),
+                    U3Steel=U3SteelText.Text,U3Top=U3TopText.Text,U3Rubber=U3RubberText.Text,U3Wall=U3WallText.Text,
                     KindIndex=Math.Max(0,KindCombo.SelectedIndex),
                     A1DnIndex=Math.Max(0,A1DnCombo.SelectedIndex),
                     A2DnIndex=Math.Max(0,A2DnCombo.SelectedIndex),
@@ -440,9 +469,9 @@ namespace SteelSectionProbe
         private Bentley.DgnPlatformNET.Elements.Element A1Prototype(double angle)
         {
             DPoint3d center;DVector3d axis;A1Frame(selection,out center,out axis);
-            var parts=A1ClampBuilder.Build(A1Parameters(angle),center,axis);
+            var parts=CurrentKind()==PipeClampKind.U3BearingUBolt?U3ClampBuilder.Build(U3Parameters(angle),center,axis):A1ClampBuilder.Build(A1Parameters(angle),center,axis);
             return new Bentley.DgnPlatformNET.Elements.CellHeaderElement(
-                Session.Instance.GetActiveDgnModel(),A1ClampCatalog.CellName,
+                Session.Instance.GetActiveDgnModel(),CurrentType().CellName,
                 DPoint3d.Zero,DMatrix3d.Identity,parts);
         }
 
@@ -458,10 +487,10 @@ namespace SteelSectionProbe
         {
             if(!active)return;
             if(orientationFinishing){orientationFinishing=false;return;}
-            try{preview.Cancel();}catch(Exception ex){Status("A1 预览清理失败："+ex.Message,true);}
+            try{preview.Cancel();}catch(Exception ex){Status("管卡预览清理失败："+ex.Message,true);}
             selection=null;axisOffsetMm=0;UpdatePositionReadout();PreviewUpdateHint.Set(UpdateButton,false);ConfirmButton.IsEnabled=false;TryDeleteTempAxisLine();
-            PreviewText.Text="已取消 A1 开口方向调整。";
-            Status("A1 方向调整已取消。",false);
+            PreviewText.Text="已取消管卡开口方向调整。";
+            Status("管卡方向调整已取消。",false);
         }
 
         private void Regenerate()
@@ -477,7 +506,13 @@ namespace SteelSectionProbe
                     axisOffsetMm=value;offsetPending=false;
                 }
                 var kind=CurrentKind();
-                if(kind==PipeClampKind.A1UBolt)
+                if(kind==PipeClampKind.U3BearingUBolt)
+                {
+                    DPoint3d center;DVector3d axis;A1Frame(selection,out center,out axis);
+                    var plan=U3Parameters(a1AngleDeg);preview.ShowU3(plan,center,axis);
+                    PreviewText.Text="预览："+plan.Number+" · 开口 "+a1AngleDeg.ToString("0.#",CultureInfo.InvariantCulture)+"°";
+                }
+                else if(kind==PipeClampKind.A1UBolt)
                 {
                     DPoint3d center;DVector3d axis;A1Frame(selection,out center,out axis);
                     var plan=A1Parameters(a1AngleDeg);
@@ -661,7 +696,7 @@ namespace SteelSectionProbe
                     StopSlide();axisOffsetMm=0;
                     selection=ReadSelection(located);UpdatePositionReadout();
                     RefreshSpecification();   // 规格行与预览用同一套参数来源
-                    if(CurrentKind()==PipeClampKind.A1UBolt)
+                    if(UsesOpeningDirection())
                     {
                         preview.Cancel();ConfirmButton.IsEnabled=false;
                         // 元素定位工具与动态绘制工具不能同时装载。交接用"静默退役"：
@@ -671,9 +706,10 @@ namespace SteelSectionProbe
                         PipeClampLocateTool.RetireForHandoff();
                         locating=false;
                         DPoint3d center;DVector3d axis;A1Frame(selection,out center,out axis);
-                        A1ClampOrientationTool.Begin(center,axis,A1Prototype);
+                        if(CurrentKind()==PipeClampKind.U3BearingUBolt)U3Parameters(0);
+                        A1ClampOrientationTool.Begin(center,axis,A1Prototype,CurrentType().Code+" 开口方向");
                         PreviewText.Text="位置已确定：移动光标调整开口方向，左键锁定并生成预览。";
-                        Status("移动光标调整 A1 开口方向，左键锁定。",false);
+                        Status("移动光标调整 "+CurrentType().Code+" 开口方向，左键锁定。",false);
                     }
                     else Regenerate();
                 }
@@ -747,7 +783,7 @@ namespace SteelSectionProbe
         private double[] PlacementOrigin()
         {
             if(selection==null)throw new InvalidOperationException("请先点取管道或辅助线。");
-            return CurrentKind()==PipeClampKind.A1UBolt&&!selection.IsPipe?
+            return UsesOpeningDirection()&&!selection.IsPipe?
                 new[]{selection.ClickX,selection.ClickY,selection.ClickZ}:selection.ProjectedCenter();
         }
 
@@ -765,7 +801,7 @@ namespace SteelSectionProbe
             if(selection==null){AxisPositionText.Text="基点：尚未点取。";SetOffsetText("0");return;}
             var p=PlacementPoint(axisOffsetMm);
             SetOffsetText(axisOffsetMm.ToString("0.###",CultureInfo.InvariantCulture));
-            AxisPositionText.Text="基点："+(CurrentKind()==PipeClampKind.A1UBolt&&!selection.IsPipe?"A1 辅助线点击点":"管轴上的构件定位截面")+
+            AxisPositionText.Text="基点："+(UsesOpeningDirection()&&!selection.IsPipe?"管卡辅助线点击点":"管轴上的构件定位截面")+
                 "；X="+p[0].ToString("0.###")+"，Y="+p[1].ToString("0.###")+"，Z="+p[2].ToString("0.###")+
                 " mm";
         }

@@ -1,12 +1,12 @@
-# 九个建模模块的原型界面检查
+# 十个建模模块的原型界面检查
 
-链接真实九页 XAML、局部 ModelingTheme、PrototypeChrome、原 ProfilePreviewControl 与 ProfileModels。事件回调使用隔离空夹具，选型和统计数值仅用于渲染，不运行 Bentley 工具、不写模型、授权或用户偏好。
+链接真实十页XAML、局部ModelingTheme、PrototypeChrome、原ProfilePreviewControl与ProfileModels。原九页事件使用隔离空夹具；新增水箱爬梯链接真实页面逻辑及纯Calculator/PreviewSession，用隔离模型API和内存偏好替身验证状态。不运行Bentley原生几何、不写实际模型、授权或用户偏好。
 
 ```powershell
 dotnet run --project Development/ModelingUiCheck/ModelingUiCheck.csproj -c Release -- "E:/Code/Bentley_Python_plugin/型钢构件及支吊架模型生成工具_CS"
 ```
 
-100 项检查覆盖 400×880 外框、32+63 标题、46 共用底栏、确认入口初始可见、参数滚动不带走操作按钮、按钮不超右边界、两个消防统计页签与全部五列、四档 DPI、对齐页原隐藏 SingleScope 和未改支吊架恢复原布局。previews 保存九页、参数滚动至底部和消防统计页签截图，均使用展示夹具。
+121项检查覆盖400×880外框、32+63标题、46共用底栏、确认入口初始可见、参数滚动与固定操作区、按钮边界、消防统计页签/五列、四档DPI及原兼容布局；还覆盖水箱爬梯参数失效、更新失败/成功、确认/取消、延迟点取取消、退出及重复关闭。previews保存十页及参数滚动至底部截图。
 
 contracts.json 保存改前114e0d9的原具名控件、默认值、状态与事件处理函数。已对照所有原选项、表列与绑定，并核对九页原 xaml.cs 内容不变。实际业务检查另运行 SteelHandrailCheck、SpiralStairCheck、PipeAlignmentCheck/UndoCheck、TankManholeCheck、NozzleCheck、SquareManholeCheck、FireCabinetCheck 和 HoseCabinetCheck。
 
