@@ -1,0 +1,1404 @@
+{
+  "PipeClamp/PipeClampPage.xaml": {
+    "class": "PipeClampPage",
+    "events": [
+      "ApplyOffset_Click",
+      "AxisOffset_Changed",
+      "Cancel_Click",
+      "Confirm_Click",
+      "End_Click",
+      "K1Dn_Changed",
+      "Kind_Changed",
+      "Parameter_Changed",
+      "Pick_Click",
+      "Slide_Click",
+      "Update_Click"
+    ],
+    "named": {
+      "KindCombo": {
+        "SelectionChanged": "Kind_Changed"
+      },
+      "KindHintText": {
+        "Visibility": "Collapsed"
+      },
+      "A1Panel": {},
+      "A1DnCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "A1SpecText": {},
+      "A2Panel": {},
+      "A2DnCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "A2InsulationText": {
+        "LostFocus": "Parameter_Changed",
+        "Text": "0"
+      },
+      "A2SpecText": {},
+      "A22Panel": {},
+      "A22DnCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "A22NameText": {
+        "LostFocus": "Parameter_Changed",
+        "Text": "A22"
+      },
+      "A22ColdText": {
+        "LostFocus": "Parameter_Changed",
+        "Text": "50"
+      },
+      "A22SpecText": {},
+      "A24Panel": {},
+      "A24DnCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "A24NameText": {
+        "LostFocus": "Parameter_Changed",
+        "Text": "A24"
+      },
+      "A24ColdText": {
+        "LostFocus": "Parameter_Changed",
+        "Text": "50"
+      },
+      "A24SpecText": {},
+      "E1Panel": {},
+      "E1DnCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "E1MaterialText": {
+        "LostFocus": "Parameter_Changed"
+      },
+      "E1ItemCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "E1StainlessCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed"
+      },
+      "E1DeleteLineCheck": {
+        "IsEnabled": "False"
+      },
+      "E1SpecText": {},
+      "K1Panel": {},
+      "K1DnCombo": {
+        "SelectionChanged": "K1Dn_Changed"
+      },
+      "K1WidthText": {
+        "LostFocus": "Parameter_Changed",
+        "Text": "100"
+      },
+      "K1SubitemCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "K1MaterialText": {
+        "LostFocus": "Parameter_Changed",
+        "Text": "Q235B"
+      },
+      "K1SpecText": {},
+      "T4Panel": {},
+      "T4DnCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "T4LengthText": {
+        "LostFocus": "Parameter_Changed"
+      },
+      "T4InsulationText": {
+        "LostFocus": "Parameter_Changed"
+      },
+      "T4PipeCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed"
+      },
+      "T4InsulationCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed"
+      },
+      "T4NumberExpander": {},
+      "T4NameText": {
+        "LostFocus": "Parameter_Changed"
+      },
+      "T4MaterialCombo": {
+        "SelectionChanged": "Parameter_Changed",
+        "SelectedValuePath": "Tag"
+      },
+      "T4TempCombo": {
+        "SelectionChanged": "Parameter_Changed",
+        "SelectedValuePath": "Tag"
+      },
+      "T4FCombo": {
+        "SelectionChanged": "Parameter_Changed",
+        "SelectedValuePath": "Tag"
+      },
+      "T4SpecText": {},
+      "T4SourceText": {},
+      "L2Panel": {},
+      "L2DnCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "L2ColdText": {
+        "LostFocus": "Parameter_Changed",
+        "Text": "50"
+      },
+      "L2FCodeText": {
+        "LostFocus": "Parameter_Changed"
+      },
+      "L2PipeCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed"
+      },
+      "L2InsulationCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed"
+      },
+      "L2SpecText": {},
+      "PlacementPanel": {},
+      "UpdateButton": {
+        "Click": "Update_Click"
+      },
+      "AxisOffsetText": {
+        "TextChanged": "AxisOffset_Changed",
+        "Text": "0"
+      },
+      "AxisPositionText": {
+        "Text": "基点：尚未点取。"
+      },
+      "PreviewText": {
+        "Text": "尚未选取源元素。"
+      },
+      "ConfirmButton": {
+        "Click": "Confirm_Click",
+        "IsEnabled": "False"
+      }
+    },
+    "choices": [
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Tag": "C1",
+          "Content": "C1 · 碳钢，≤300 ℃"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Tag": "C2",
+          "Content": "C2 · 碳钢，301～425 ℃"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Tag": "A1",
+          "Content": "A1 · 铬钼钢，≤500 ℃"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Tag": "A2",
+          "Content": "A2 · 铬钼钢，501～550 ℃"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Tag": "S",
+          "Content": "S · 不锈钢，≤700 ℃"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Tag": "A",
+          "Content": "A · 250～350 ℃"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Tag": "B",
+          "Content": "B · 351～450 ℃"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Tag": "C",
+          "Content": "C · 451～550 ℃"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Tag": "D",
+          "Content": "D · 551～650 ℃"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Tag": "E",
+          "Content": "E · 651～700 ℃"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Tag": "",
+          "Content": "不带 F"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Tag": "F",
+          "Content": "带 F"
+        }
+      }
+    ],
+    "bindings": [],
+    "businessSha256": "4eafca9f545b3babb8b5d6d67b63473fbb961c862e58892b54a80e5037954b8e"
+  },
+  "ElbowTrunnion/ElbowTrunnionPage.xaml": {
+    "class": "ElbowTrunnionPage",
+    "events": [
+      "Cancel_Click",
+      "Confirm_Click",
+      "FixedLength_Changed",
+      "Parameter_Changed",
+      "Pick_Click",
+      "Refresh_Click",
+      "Stop_Click",
+      "Variant_Changed"
+    ],
+    "named": {
+      "ElbowCombo": {
+        "SelectionChanged": "Variant_Changed"
+      },
+      "TrunnionCombo": {
+        "SelectionChanged": "Variant_Changed"
+      },
+      "VariantText": {},
+      "ExtentLabel": {
+        "Text": "高度 H（mm）"
+      },
+      "ExtentText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "1000"
+      },
+      "FixedLengthCheck": {
+        "Checked": "FixedLength_Changed",
+        "Unchecked": "FixedLength_Changed"
+      },
+      "HollowCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed",
+        "IsChecked": "True"
+      },
+      "WallText": {
+        "LostFocus": "Parameter_Changed"
+      },
+      "PlateLabel": {
+        "Text": "底板类型"
+      },
+      "PlateCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "MaterialCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "NamingUnitCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "PtfeCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed"
+      },
+      "FlatCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed"
+      },
+      "OutletCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed"
+      },
+      "UpdateButton": {
+        "Click": "Refresh_Click"
+      },
+      "SelectionText": {
+        "Text": "尚未选择弯头。"
+      },
+      "LiveLengthText": {},
+      "PlanText": {},
+      "ConfirmButton": {
+        "Click": "Confirm_Click",
+        "IsEnabled": "False"
+      }
+    },
+    "choices": [
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "竖直弯头"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "水平弯头"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "竖直耳轴"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "水平耳轴"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "A 方形底板"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "B 圆形底板"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "C 无底板"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "C1"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "C2"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "L"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "A1"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "A2"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "S"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "公制（DN，默认）"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "英制（NPS 英寸）"
+        }
+      }
+    ],
+    "bindings": [],
+    "businessSha256": "a5ae816ddcfe605792beeefc1b5e099a338c2d6f9db7a323ae4351aa2f04f451"
+  },
+  "G2Anchor/G2AnchorPage.xaml": {
+    "class": "G2AnchorPage",
+    "events": [
+      "Cancel_Click",
+      "Confirm_Click",
+      "End_Click",
+      "Parameter_Changed",
+      "Pick_Click",
+      "Subtype_Changed",
+      "Update_Click"
+    ],
+    "named": {
+      "SubtypeCombo": {
+        "SelectionChanged": "Subtype_Changed"
+      },
+      "BoltText": {
+        "Text": "—"
+      },
+      "MountCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "PlateText": {
+        "Text": "—"
+      },
+      "SpacingText": {
+        "LostFocus": "Parameter_Changed"
+      },
+      "HeadingText": {
+        "LostFocus": "Parameter_Changed",
+        "Text": "0"
+      },
+      "SpecificationText": {},
+      "UpdateButton": {
+        "Click": "Update_Click"
+      },
+      "PreviewText": {
+        "Text": "尚未点取位置。"
+      },
+      "ConfirmButton": {
+        "Click": "Confirm_Click",
+        "IsEnabled": "False"
+      }
+    },
+    "choices": [
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "竖直墙面（螺栓水平）"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "水平楼板顶面（螺栓朝下）"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "水平楼板底面（螺栓朝上）"
+        }
+      }
+    ],
+    "bindings": [],
+    "businessSha256": "d468f9256e188c5096a10a2723f91101b6dd1aa9a3cee77c156b84e8f4911a84"
+  },
+  "VerticalPipeSupport/VerticalPipeSupportPage.xaml": {
+    "class": "VerticalPipeSupportPage",
+    "events": [
+      "ApplyOffset_Click",
+      "AxisOffset_Changed",
+      "Cancel_Click",
+      "Confirm_Click",
+      "End_Click",
+      "Kind_Changed",
+      "Parameter_Changed",
+      "Pick_Click",
+      "PipeDn_Changed",
+      "Slide_Click",
+      "Update_Click"
+    ],
+    "named": {
+      "KindCombo": {
+        "SelectionChanged": "Kind_Changed"
+      },
+      "TrunnionPanel": {},
+      "TrunnionPipeDn": {
+        "SelectionChanged": "PipeDn_Changed"
+      },
+      "TrunnionDn": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "LengthText": {
+        "LostFocus": "Parameter_Changed",
+        "Text": "500"
+      },
+      "WallText": {
+        "LostFocus": "Parameter_Changed"
+      },
+      "EndTypeCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "TrunnionMaterial": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "TrunnionAngle": {
+        "LostFocus": "Parameter_Changed",
+        "Text": "0"
+      },
+      "PadCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed"
+      },
+      "PadThickness": {
+        "LostFocus": "Parameter_Changed",
+        "Text": "5"
+      },
+      "EarPlatePanel": {},
+      "EarPipeDn": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "EarLength": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "EarHeight": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "EarMaterial": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "EarAngle": {
+        "LostFocus": "Parameter_Changed",
+        "Text": "0"
+      },
+      "FixedCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed",
+        "IsChecked": "True"
+      },
+      "UpdateButton": {
+        "Click": "Update_Click"
+      },
+      "AxisOffsetText": {
+        "TextChanged": "AxisOffset_Changed",
+        "Text": "0"
+      },
+      "AxisPositionText": {
+        "Text": "定位基点：尚未点取。"
+      },
+      "PreviewText": {
+        "Text": "尚未点取立管。"
+      },
+      "ConfirmButton": {
+        "Click": "Confirm_Click",
+        "IsEnabled": "False"
+      }
+    },
+    "choices": [],
+    "bindings": [],
+    "businessSha256": "27850c58c1a7a262b7f1afd6e6d52b812ff0a600422bfe18262958677f4cd129"
+  },
+  "ColdRiserGuide/ColdRiserGuidePage.xaml": {
+    "class": "ColdRiserGuidePage",
+    "events": [
+      "Cancel_Click",
+      "Confirm_Click",
+      "Data_Changed",
+      "End_Click",
+      "Kind_Changed",
+      "Pick_Click",
+      "Series_Changed",
+      "Update_Click"
+    ],
+    "named": {
+      "SeriesCombo": {
+        "SelectionChanged": "Series_Changed"
+      },
+      "KindCombo": {
+        "SelectionChanged": "Kind_Changed"
+      },
+      "DnCombo": {
+        "SelectionChanged": "Data_Changed"
+      },
+      "ColdText": {
+        "TextChanged": "Data_Changed",
+        "Text": "50"
+      },
+      "BearingLengthText": {
+        "TextChanged": "Data_Changed",
+        "Text": "300"
+      },
+      "MaterialPanel": {},
+      "MaterialCombo": {
+        "SelectionChanged": "Data_Changed"
+      },
+      "DataText": {},
+      "Type1Info": {
+        "Text": "类型 1：构件 A 按 A22 计算内径 A 选型。L 从管中心至构件末端；默认 300 mm，拉伸范围 300～1000 mm。"
+      },
+      "MeasureText": {
+        "Text": "L = 300 mm；待点取方向"
+      },
+      "ProcessText": {
+        "Text": "类型 1：点取标高 → XY 罗盘定方向 → 拉伸构件 A → 预览 → 确定。"
+      },
+      "UpdateButton": {
+        "Click": "Update_Click"
+      },
+      "PreviewText": {
+        "Text": "尚未点取立管。"
+      },
+      "ConfirmButton": {
+        "Click": "Confirm_Click",
+        "IsEnabled": "False"
+      }
+    },
+    "choices": [],
+    "bindings": [],
+    "businessSha256": "2dc84028c5973a4467ad803e058d241a14f050123a6a5e5f60b2b62f5c67efb8"
+  },
+  "N1Cantilever/N1CantileverPage.xaml": {
+    "class": "N1CantileverPage",
+    "events": [
+      "Cancel_Click",
+      "Confirm_Click",
+      "End_Click",
+      "Parameter_Changed",
+      "Pick_Click",
+      "Type_Changed",
+      "Update_Click"
+    ],
+    "named": {
+      "InstructionText": {},
+      "TypeCombo": {
+        "SelectionChanged": "Type_Changed"
+      },
+      "SubtypeCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "SectionText": {},
+      "EquipmentPanel": {},
+      "EquipmentOdText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "2000"
+      },
+      "PreweldPanel": {},
+      "PreweldText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "200"
+      },
+      "L2Panel": {},
+      "L2Text": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "300"
+      },
+      "ShowPreweldCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed"
+      },
+      "ReverseCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed"
+      },
+      "DimensionsText": {
+        "Text": "请选择悬臂辅助线（L1）。"
+      },
+      "LoadNoteText": {},
+      "UpdateButton": {
+        "Click": "Update_Click"
+      },
+      "PreviewText": {
+        "Text": "尚未点取辅助线。"
+      },
+      "ConfirmButton": {
+        "Click": "Confirm_Click",
+        "IsEnabled": "False"
+      }
+    },
+    "choices": [
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "类型 1：单横担"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "类型 2：横担 + 端部构件 B"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "A"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "B"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "C"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "D"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "E"
+        }
+      }
+    ],
+    "bindings": [],
+    "businessSha256": "b63fe6257d109c04b4ab398caf70bbb61aaac2c86cb0a0558edfa8ff1356d861"
+  },
+  "N2Cantilever/N2CantileverPage.xaml": {
+    "class": "N2CantileverPage",
+    "events": [
+      "Cancel_Click",
+      "Confirm_Click",
+      "End_Click",
+      "Parameter_Changed",
+      "Pick_Click",
+      "Type_Changed",
+      "Update_Click"
+    ],
+    "named": {
+      "InstructionText": {},
+      "TypeCombo": {
+        "SelectionChanged": "Type_Changed"
+      },
+      "SubtypeCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "SectionText": {},
+      "EquipmentPanel": {},
+      "EquipmentOdText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "2000"
+      },
+      "PreweldPanel": {},
+      "PreweldText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "200"
+      },
+      "L2Panel": {},
+      "L2Text": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "400"
+      },
+      "PipePanel": {},
+      "PipeOdText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "200"
+      },
+      "ShoeHeightText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "0"
+      },
+      "OffsetPanel": {},
+      "L3Text": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "150"
+      },
+      "L4Text": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "150"
+      },
+      "ShowPreweldCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed"
+      },
+      "ReverseCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed"
+      },
+      "DimensionsText": {
+        "Text": "请选择设备中心至立管中心辅助线（L）。"
+      },
+      "LoadNoteText": {},
+      "UpdateButton": {
+        "Click": "Update_Click"
+      },
+      "PreviewText": {
+        "Text": "尚未点取辅助线。"
+      },
+      "ConfirmButton": {
+        "Click": "Confirm_Click",
+        "IsEnabled": "False"
+      }
+    },
+    "choices": [
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "类型 1：单构件 B"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "类型 2：内外构件 B"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "A"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "B"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "C"
+        }
+      },
+      {
+        "tag": "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}ComboBoxItem",
+        "attributes": {
+          "Content": "D"
+        }
+      }
+    ],
+    "bindings": [],
+    "businessSha256": "2b2ae612dc37c416c6896a2a79b9a53da79ba6f42e795c2fd2f781e1ba7d248e"
+  },
+  "EquipmentBracket/BracketPage.xaml": {
+    "class": "BracketPage",
+    "events": [
+      "Cancel_Click",
+      "Confirm_Click",
+      "End_Click",
+      "Height_TextChanged",
+      "Parameter_Changed",
+      "Pick_Click",
+      "Subtype_Changed",
+      "Update_Click"
+    ],
+    "named": {
+      "TitleText": {},
+      "InstructionText": {},
+      "TypeCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "SubtypeCombo": {
+        "SelectionChanged": "Subtype_Changed"
+      },
+      "HeightText": {
+        "TextChanged": "Height_TextChanged"
+      },
+      "ReverseCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed"
+      },
+      "KeepLineCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed",
+        "IsChecked": "True"
+      },
+      "SectionText": {},
+      "EPanel": {},
+      "EText": {
+        "Text": "E：点取辅助线后计算（最小 150 mm）。"
+      },
+      "DoublePanel": {},
+      "L2Text": {
+        "TextChanged": "Parameter_Changed"
+      },
+      "L3Text": {
+        "TextChanged": "Parameter_Changed"
+      },
+      "L4Text": {
+        "TextChanged": "Parameter_Changed"
+      },
+      "EquipmentOdText": {
+        "TextChanged": "Parameter_Changed"
+      },
+      "PreweldText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "0"
+      },
+      "ShowPreweldCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed"
+      },
+      "PreviewInstructionText": {},
+      "UpdateButton": {
+        "Click": "Update_Click"
+      },
+      "PreviewText": {
+        "Text": "尚未选择水平辅助线。"
+      },
+      "ConfirmButton": {
+        "Click": "Confirm_Click",
+        "IsEnabled": "False"
+      }
+    },
+    "choices": [],
+    "bindings": [],
+    "businessSha256": "1e72f6dfb8ed51b46b45aec3a148405582e7d230c7ac9f06c26e8bd249cca268"
+  },
+  "D2Cantilever/D2CantileverPage.xaml": {
+    "class": "D2CantileverPage",
+    "events": [
+      "Cancel_Click",
+      "Confirm_Click",
+      "End_Click",
+      "Kind_Changed",
+      "Parameter_Changed",
+      "Pick_Click",
+      "Update_Click"
+    ],
+    "named": {
+      "LineHintText": {
+        "Text": "辅助线起点为生根端，终点为悬臂末端；线长为 L，标高为构件顶面。"
+      },
+      "KindCombo": {
+        "SelectionChanged": "Kind_Changed"
+      },
+      "TypePanel": {},
+      "TypeCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "VariantCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "NameText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "D2"
+      },
+      "BText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "250"
+      },
+      "BHintText": {
+        "Text": "B ≤1000；L−B ≥150 mm"
+      },
+      "ReverseCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed"
+      },
+      "KeepLineCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed",
+        "IsChecked": "True"
+      },
+      "SectionText": {},
+      "PlatePanel": {},
+      "PlateCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed"
+      },
+      "PlateSubtypeCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "PlateOffsetText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "0"
+      },
+      "UpdateButton": {
+        "Click": "Update_Click"
+      },
+      "PreviewText": {
+        "Text": "尚未选择水平辅助线。"
+      },
+      "ConfirmButton": {
+        "Click": "Confirm_Click",
+        "IsEnabled": "False"
+      }
+    },
+    "choices": [],
+    "bindings": [],
+    "businessSha256": "ac8891a81a3f62f98ca40a3fdd9ba3e43daf3f7bb93a0b5793f453570da0f638"
+  },
+  "TriangleBracket/TriangleBracketPage.xaml": {
+    "class": "TriangleBracketPage",
+    "events": [
+      "Cancel_Click",
+      "Confirm_Click",
+      "End_Click",
+      "Kind_Changed",
+      "Parameter_Changed",
+      "Pick_Click",
+      "Update_Click"
+    ],
+    "named": {
+      "KindCombo": {
+        "SelectionChanged": "Kind_Changed"
+      },
+      "VariantCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "TypeCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "L1Text": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "600"
+      },
+      "NameText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "D5"
+      },
+      "ReverseCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed"
+      },
+      "KeepLineCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed",
+        "IsChecked": "True"
+      },
+      "SectionText": {},
+      "PlatePanel": {},
+      "PlateCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed"
+      },
+      "PlateSubtypeCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "PlateOffsetText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "0"
+      },
+      "UpdateButton": {
+        "Click": "Update_Click"
+      },
+      "PreviewText": {
+        "Text": "尚未选择水平辅助线。"
+      },
+      "ConfirmButton": {
+        "Click": "Confirm_Click",
+        "IsEnabled": "False"
+      }
+    },
+    "choices": [],
+    "bindings": [],
+    "businessSha256": "08b78defe2adef2fced52fd5c452fe234b15826f21102dca9744a7fcc81614d2"
+  },
+  "LBracket/LBracketPage.xaml": {
+    "class": "LBracketPage",
+    "events": [
+      "Cancel_Click",
+      "Confirm_Click",
+      "End_Click",
+      "Parameter_Changed",
+      "Pick_Click",
+      "Update_Click"
+    ],
+    "named": {
+      "VariantCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "TypeCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "WidthText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "250"
+      },
+      "NameText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "D7"
+      },
+      "KeepLineCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed",
+        "IsChecked": "True"
+      },
+      "SectionText": {},
+      "LimitText": {},
+      "UpdateButton": {
+        "Click": "Update_Click"
+      },
+      "PreviewText": {
+        "Text": "尚未选择辅助折线。"
+      },
+      "ConfirmButton": {
+        "Click": "Confirm_Click",
+        "IsEnabled": "False"
+      }
+    },
+    "choices": [],
+    "bindings": [],
+    "businessSha256": "b27f7c18a9d9abc675464f2b9ae01681c1e9e4934a9b248189bb516dfb7c22a1"
+  },
+  "PortalFrame/PortalFramePage.xaml": {
+    "class": "PortalFramePage",
+    "events": [
+      "Cancel_Click",
+      "Confirm_Click",
+      "End_Click",
+      "Kind_Changed",
+      "Parameter_Changed",
+      "Pick_Click",
+      "Update_Click"
+    ],
+    "named": {
+      "LineInstruction": {
+        "Text": "选择种类与子项后，点取整组中心竖直辅助线；线长为门架高度 H。"
+      },
+      "KindCombo": {
+        "SelectionChanged": "Kind_Changed"
+      },
+      "VariantCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "TypeCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "SpanLabel": {
+        "Text": "净距 B（mm）"
+      },
+      "SpanText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "500"
+      },
+      "HeadingLabel": {
+        "Text": "平面方向角（度）"
+      },
+      "HeadingText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "0"
+      },
+      "NameText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "D8"
+      },
+      "HorizontalPanel": {
+        "Visibility": "Collapsed"
+      },
+      "WeldCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "L3Text": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "200"
+      },
+      "L4Text": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "200"
+      },
+      "PlatePanel": {
+        "Visibility": "Collapsed"
+      },
+      "PlateCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed"
+      },
+      "PlateSubtypeCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "PlateOffsetText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "0"
+      },
+      "KeepLineCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed",
+        "IsChecked": "True"
+      },
+      "SectionText": {},
+      "PickInstruction": {
+        "Text": "选择竖直辅助线，调整参数后更新预览；确定时才写入支吊架清单。"
+      },
+      "UpdateButton": {
+        "Click": "Update_Click"
+      },
+      "PreviewText": {
+        "Text": "尚未选择竖直辅助线。"
+      },
+      "ConfirmButton": {
+        "Click": "Confirm_Click",
+        "IsEnabled": "False"
+      }
+    },
+    "choices": [],
+    "bindings": [],
+    "businessSha256": "9d4de42474e14c45c6a43ec80d28d0fbafcf7f4b34e3585efe4319eebaf251f5"
+  },
+  "TFrame/TFramePage.xaml": {
+    "class": "TFramePage",
+    "events": [
+      "Cancel_Click",
+      "Confirm_Click",
+      "End_Click",
+      "Kind_Changed",
+      "Parameter_Changed",
+      "Pick_Click",
+      "Stiffener_Changed",
+      "Update_Click"
+    ],
+    "named": {
+      "KindHint": {},
+      "KindCombo": {
+        "SelectionChanged": "Kind_Changed"
+      },
+      "VariantCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "TypeCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "DimensionLabel": {
+        "Text": "横担全长 L（mm）"
+      },
+      "DimensionText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "250"
+      },
+      "HeadingPanel": {},
+      "HeadingText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "0"
+      },
+      "D15Panel": {},
+      "JointCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "StiffenerText": {
+        "TextChanged": "Stiffener_Changed"
+      },
+      "KeepLineCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed",
+        "IsChecked": "True"
+      },
+      "SectionText": {},
+      "LimitText": {},
+      "UpdateButton": {
+        "Click": "Update_Click"
+      },
+      "PreviewText": {
+        "Text": "尚未选择辅助线。"
+      },
+      "ConfirmButton": {
+        "Click": "Confirm_Click",
+        "IsEnabled": "False"
+      }
+    },
+    "choices": [],
+    "bindings": [],
+    "businessSha256": "46dea65917b4c80c7f98ea5f0c917229de5907e1310e44051ad11ff8c3eeed16"
+  },
+  "PadPlate/PadPlatePage.xaml": {
+    "class": "PadPlatePage",
+    "events": [
+      "Cancel_Click",
+      "Confirm_Click",
+      "End_Click",
+      "Kind_Changed",
+      "Parameter_Changed",
+      "Pick_Click",
+      "Update_Click"
+    ],
+    "named": {
+      "KindCombo": {
+        "SelectionChanged": "Kind_Changed"
+      },
+      "KindHint": {},
+      "DnCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "MaterialCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "AlphaText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "120"
+      },
+      "Y2Panel": {},
+      "LengthText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "300"
+      },
+      "ElbowCoveragePanel": {
+        "Visibility": "Collapsed"
+      },
+      "CoverageText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "75"
+      },
+      "ElbowPanel": {
+        "Visibility": "Collapsed"
+      },
+      "AutoMultiplierCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed",
+        "IsChecked": "True"
+      },
+      "MultiplierText": {
+        "TextChanged": "Parameter_Changed",
+        "Text": "1.5"
+      },
+      "VentHoleCheck": {
+        "Checked": "Parameter_Changed",
+        "Unchecked": "Parameter_Changed",
+        "IsChecked": "True"
+      },
+      "UpdateButton": {
+        "Click": "Update_Click"
+      },
+      "PreviewText": {
+        "Text": "尚未点选元素。"
+      },
+      "ConfirmButton": {
+        "Click": "Confirm_Click",
+        "IsEnabled": "False"
+      }
+    },
+    "choices": [],
+    "bindings": [],
+    "businessSha256": "cf5acec5a49b84f928b371494d61a7ad7bfe8564c1a97e3d81ac725484f31e06"
+  },
+  "N8ConnectionPlate/N8Page.xaml": {
+    "class": "N8Page",
+    "events": [
+      "Cancel_Click",
+      "Confirm_Click",
+      "End_Click",
+      "Parameter_Changed",
+      "Pick_Click",
+      "Update_Click"
+    ],
+    "named": {
+      "TypeCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "ModeCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "MountCombo": {
+        "SelectionChanged": "Parameter_Changed"
+      },
+      "HeadingText": {
+        "LostFocus": "Parameter_Changed",
+        "Text": "0"
+      },
+      "SpecText": {},
+      "UpdateButton": {
+        "Click": "Update_Click"
+      },
+      "PreviewText": {
+        "Text": "尚未点取位置。"
+      },
+      "ConfirmButton": {
+        "Click": "Confirm_Click",
+        "IsEnabled": "False"
+      }
+    },
+    "choices": [],
+    "bindings": [],
+    "businessSha256": "2dcd399276573b76133ee45097284a73790530049f5fa5c2a2c0ee77400317ab"
+  }
+}

@@ -1,4 +1,4 @@
-﻿# 首页 v4 离线验证
+# 首页 v4 离线验证
 
 该检查工程链接真实 HomePage XAML、展示代码、现有功能清单及排序器。Bentley 宿主、授权状态与偏好存储使用隔离夹具；不修改真实 home_preferences.json。
 
@@ -13,3 +13,6 @@ dotnet run --project Development/HomeUiCheck/HomeUiCheck.csproj -c Release -- "E
 本机prototype_capture.cjs用独立无界面Edge渲染仓库资料中的v4原型。原型图片中的示例模块、计数和魏字logo不能替代真实功能清单、真实偏好和既有SVG品牌图标。
 
 OPM窗口首次打开、跨页面原生外框恢复、标题拖动和最小化仍需宿主检查；纯WPF渲染不等同宿主实测。
+
+
+当前所有页面的统一规格见 [UI规范-v4](../../Docs/UI规范-v4.md)。文内旧宽度和布局恢复描述为测试夹具/历史阶段，不能据此把新页面改回560宽。

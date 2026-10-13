@@ -11,3 +11,6 @@ dotnet run --project Development/ModelingUiCheck/ModelingUiCheck.csproj -c Relea
 contracts.json 保存改前114e0d9的原具名控件、默认值、状态与事件处理函数。已对照所有原选项、表列与绑定，并核对九页原 xaml.cs 内容不变。实际业务检查另运行 SteelHandrailCheck、SpiralStairCheck、PipeAlignmentCheck/UndoCheck、TankManholeCheck、NozzleCheck、SquareManholeCheck、FireCabinetCheck 和 HoseCabinetCheck。
 
 本检查不代表 OPM 实际点取、预览、取消、确认、模型实体、EC 写入或原生窗口切换已测试；这些仍需宿主试放确认。
+
+
+当前所有页面的统一规格见 [UI规范-v4](../../Docs/UI规范-v4.md)。文内旧宽度和布局恢复描述为测试夹具/历史阶段，不能据此把新页面改回560宽。

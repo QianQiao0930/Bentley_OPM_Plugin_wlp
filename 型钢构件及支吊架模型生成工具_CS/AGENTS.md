@@ -1,5 +1,7 @@
 ﻿# 型钢构件及支吊架模型生成工具：AI 与开发者协作规范
 
+当前UI规范：[Docs/UI规范-v4.md](Docs/UI规范-v4.md)。下方带日期的旧改造记录为历史；当前规格与第9节优先。
+
 2026-10-11：新增 EnableLicensing 编译开关，缺省 true（授权版），false 生成无授权版；只有编译参数生效，无用户配置开关。无授权构建排除激活页面、授权领域/验签/存储/机器标识及公钥，LicenseService 不访问授权文件，全部业务入口开放，隐藏首页激活按钮和作者页授权卡片，不启动到期定时器。Deployment/build_version.ps1 的 Licensed / Unlicensed 输出隔离；默认安装脚本仍只安装授权版。两种 DLL 编译零警告、零错误，138 项授权及双构建检查通过。
 
 
@@ -431,30 +433,20 @@ internal sealed class ExamplePage : UserControl, IWorkspacePage
 - 不要持有已经删除或失效的 COM 元素引用；
 - 从 COM ID 查找原生元素时检查空值和有效性。
 
-## 9. UI 规范
+## 9. UI 规范（当前统一v4）
 
-现有视觉基础位于：
+当前唯一规格来源是 [`Docs/UI规范-v4.md`](Docs/UI规范-v4.md)，视觉参考是仓库资料中的v4原型。后续所有页面继续采用这套规格；文中历史560宽、240×124卡片、12宽滚动条和深色主按钮不再适用。
 
-- `UI/Themes/Theme.xaml`
-- `UI/WorkspaceView.xaml`
-- `UI/HomePage.xaml`
-- `UI/SteelSectionPage.xaml`
-
-新增页面应复用这些控件和颜色，不要为单个页面另建一套主题。
-
-统一要求：
-
-- 首页只展示功能入口，不堆放业务参数；
-- 功能参数只在对应详情页显示；
-- 使用 XAML `Grid`、卡片和编号分区组织表单，禁止依赖绝对坐标拼页面；
-- 状态统一写入 `MainWindow.SetStatus(...)` 的底部固定状态栏；
-- 主操作复用 `Theme.xaml` 中的 `PrimaryButtonStyle` / `SecondaryButtonStyle`；
-- 内容过高时使用 WPF `ScrollViewer`，并复用统一窄滚动条样式；
-- 提供清晰的确认、取消和返回首页行为；
-- 参数变化时更新页内预览，但不要在每次鼠标移动时执行昂贵实体建模；
-- 不在单个页面重新定义与 `Theme.xaml` 冲突的字体、颜色和按钮模板，特殊几何预览绘制除外；
-- 最小窗口尺寸下不得遮挡确认/取消按钮。
-- **界面文案一律中文**：状态栏、MicroStation 提示（`ShowPrompt` / `CommandState.CommandName`）、页内说明、参数表标签都要中文，包括异常消息（它们会经 `SetStatus(ex.Message)` 直接显示给用户）。英文产品名按中文习惯改写（`SmartSolid` → `三维实体`）；`DGN` / `Excel` / `JSON` / `ItemType` / `EC` 这类格式与技术名词保留。`ArgumentNullException("element")` 这类参数名不是界面文案，不受此约束。
+- 首页、9个建模、17个支吊架、2个查询及激活/作者工具页全部400×880 DIP；系统DPI映射由MainWindow统一完成，不自动扩宽。
+- 模块采用PrototypeChrome的32标题栏+63模块头、可滚动参数区、固定操作区、46共享底栏；新页面Tag为prototype-v4。Q1/Q2保留兼容标签和原专用样式。
+- 建模加载ModelingTheme，支吊架加载SupportTheme，查询/工具加载PrototypeTheme；首页加载HomeTheme。不得复制新的基本主题。项目SVG和HomeIcon几何保持。
+- 参数字段34高、卡片圆角6/内边距12/分区头35，长标题允许合理换行；外层滚动条6宽；主按钮蓝色。
+- 状态统一调用MainWindow.SetStatus，10.5字、14行高、最多双行、全文悬停；原错误颜色和消息内容保持。
+- UI改造必须保留原控件名、默认值、选择顺序/Tag、绑定、事件及按钮状态；不改业务xaml.cs、领域/目录/计算/工具/统计/授权/持久化和清理生命周期。
+- 长字段名与勾选项换行，UIElement内容使用对应展示模板；所有表列保留，用横向滚动和最小列宽适配，不能删列。
+- 所有现有点取、结束、更新、滑动、角度、取消、确认入口完整保留；参数变化继续由原逻辑禁用确认。不可为了套原型更改工作流。
+- 改前提交并备份源码/原型/DLL/PDB和校验值；改后对照UI契约、真实XAML布局/分型/四档DPI及相关离线业务回归，编译双版本。离线检查不等同OPM宿主实测。
+- 界面正文、参数名、状态及提示使用中文；DGN/EC/Excel/JSON/标准代号和原型中的辅助英文标签可保留。
 
 ## 10. Registration 与兼容性
 
@@ -704,7 +696,7 @@ bin/Release/net48_full/SteelSectionProbe.dll
 
 首页卡片的数据来自 `Data/Home/HomeFeatureCatalog.cs`（`FeatureDescriptor` 清单，**唯一来源**），顺序由 `Services/Home/HomeFeatureRanker.cs` 计算，分区定义在 `Data/Home/HomeCategories.cs`，相对时间在 `Services/Home/HomeRelativeTime.cs`，偏好存储与使用统计在 `UI/Home/HomePreferences.cs`，卡片视图模型在 `UI/Home/HomeCardItem.cs`，渲染在 `UI/HomePage.xaml(.cs)`。**不要在 `HomePage.xaml` 里再手写卡片** —— 新增功能页只在清单里加一项（含分区与图标键）。
 
-首页结构：顶部标题栏（应用图标 + 标题/副标题 + 搜索框 + 排序下拉 + 重置排序）→「最近使用」→ 建模类 / **HGT21629 支吊架** / 统计与扩展 → 规划中。**首页标题栏由 `HomePage` 自带**，`WorkspaceView` 在首页隐藏自己那层共用标题栏（`SetHeaderVisible(false)`，并把该行 `MinHeight` 归零），功能页仍显示「标题 + 副标题 + 返回首页」。
+首页结构按v4：32标题栏→159品牌/统计头部→131搜索/分类/排序工具区→最近与模块列表→46底栏。HomePage自带首页标题；全部功能页由PrototypeChrome或Q1专用模块头显示，WorkspaceView旧HeaderRow隐藏。
 
 2026-09-28 分区口径：「HGT21629 支吊架」收纳全部支吊架类功能（弯头耳轴、立管耳轴、放置管夹、混凝土锚板、N3/N4/N8）；建模类只保留通用建模（型钢、罐壁人孔、实体管口）。
 
@@ -716,15 +708,15 @@ bin/Release/net48_full/SteelSectionProbe.dll
 - **评分后立即重排**（2026-09-28 用户改的口径，推翻早期的"不立即重排"）：`SetStars_Click` 先就地刷新星标字形，再 `Dispatcher.BeginInvoke(Refresh, DispatcherPriority.Background)` 重建顺序。**不要改成直接 `Refresh()`** —— 此刻还处在 ContextMenu 菜单项的 Click 里，重建 `ItemsSource` 会把菜单的 `PlacementTarget` 从可视树上摘掉；Background 优先级排在"本帧输入处理完（菜单关完）"之后，视觉上仍是点完即变。回到首页时的 `WorkspaceView.ShowHome()` → `Refresh()` 保留作为兜底。
 - 使用统计的**唯一埋点**是 `WorkspaceView.OpenPage(id)`（命令行入口 `STEELPROBE PLACE` 也走它），且**同一次会话内同一功能只记一次**（`SessionCounted`）—— 首页表达的是“多常需要这个功能”，不是“点了多少下按钮”。
 - **分区与归类**：`FeatureDescriptor.Category` 存分区键，键/中文名/显示顺序的唯一来源是 `Data/Home/HomeCategories.cs`；`FeatureDescriptor.Icon` 存图标键，几何在 `HomePage.xaml` 的 `HomeIcon_<key>` 资源里，由 `HomePage.ResolveIcon` 注入 `HomeCardItem.IconGeometry`。新增功能必须同时给分区与图标键，否则 `Development/HomeCheck` 会报错。
-- **搜索与排序**：搜索即时过滤（标题/说明/分区中文名），无匹配显示 `EmptyHint`；排序下拉三档（默认排序 / 最近使用 / 常用优先）都**先按分区分组**，只改变分区内顺序，同值一律回落到排序器名次，避免漂移。搜索期间隐藏「最近使用」。
+- **搜索与排序**：搜索即时过滤并隐藏最近区；默认/频次/最近/名称四个排序按钮与分类、详细/简约切换均按当前HomePage展示代码；原五级评分、≥3置顶、偏好与调用统计保持。
 - ⚠️ **两档显式排序（最近使用 / 常用优先）必须先过 `HomeFeatureRanker.CompareStarTier`**（置顶区 → 星级降序），同级才比最近时间 / 使用频率。少了这一级就会出现"标了 5 星、但『常用优先』时被高频低星功能压到后面"——星标是用户的显式意图，不能被排序模式覆盖。该比较器放在纯计算层就是为了能被 `Development/HomeCheck.CheckStarTierPriority` 断言（含"高频 0 星不得压过低频 5 星"的回归用例）。
 - ⚠️ **星标按钮必须是卡片 Button 的兄弟节点，不能放进卡片内容里**：`FeatureCardTemplate` 的结构是「外层 Grid → 卡片 `Button` + 星标 `Button`（`HorizontalAlignment=Right` / `VerticalAlignment=Bottom` / `Margin=0,0,16,13` 叠在右下角）」。卡片整体是入口按钮，若把星标放进它的内容里，嵌套按钮虽通常能先拿到按下事件，仍会出现"点星标却进了功能页"。兄弟节点与卡片没有父子关系、不共享事件路由，从结构上杜绝；卡片底部留一个 `46×26` 的透明占位 Border 保证时间文字不被星标压住、且卡片纵向预算不变。
 - **最近使用**：只取 `IsReady` 且 `LastUsedUtc` 可解析的功能，按时间降序最多 4 项；相对时间文案由纯计算 `HomeRelativeTime` 生成（`刚刚 / N 分钟前 / N 小时前 / 昨天 / N 天前 / yyyy-MM-dd`）。同一功能会同时出现在「最近使用」与所属分区，因此 `HomePage` 用 `itemsByPageId` 把同 PageId 的多个 `HomeCardItem` 一起刷新（评分时两处同步）。
 - 占位卡（`IsReady = false`）没有 PageId、不参与评分与统计，固定落在「规划中」分区；用独立的 `PlannedCardTemplate`（灰化 + 「即将上线」角标 + 不可点击），可用卡用 `FeatureCardTemplate`，**不要为单个功能另写模板**。
-- **卡片尺寸、分区色与整卡入口**：功能卡模板现在是 **`HomeCardButtonStyle`**，`Width = 240` + `Height = 124` 写死（占位卡 `PlannedCardTemplate` 是 `240 × 84`），`ClipToBounds`，整卡即 `Button`（悬停提亮、按压变实底，不再有独立的「进入」按钮）；嵌套在卡内的星标小按钮会先接管鼠标事件，不会误触发进入。左侧 40×40 图标胶囊按分区着色（建模=钢青蓝、HGT21629 支吊架=青绿、统计与扩展=琥珀），由 `HomeCardItem.Category` 经 `DataTrigger` 分派。标题 1 行（`Height 22`）+ 说明 2 行（`Height 34`），底部一行「时间 / 星标」。内部纵向预算：上下内边距 26 + 内容行 56 + 间距 8 + 星标行 26 = 116 ≤ 124，**改尺寸时要重算这个余量**。**绝不要用 `MinHeight` 或 `Auto` 列宽**：文字换行行数一变卡片就长高，整页跟着变。`ItemsPanel` 用 **`WrapPanel`**（不是 `UniformGrid`）：卡片宽度已写死，放不下就换行，永远不会横向溢出或被裁掉。⚠️ 卡片尺寸若要调整，**只改 `HomeCardButtonStyle` 的这两个值**即可 —— 首页窗口宽度是**运行时实测校准**的（见下条），不需要手工同步。
-- **滚动条统一样式**：`UI/Themes/Theme.xaml` 提供 `AppScrollBarStyle` + 自定义 `ScrollViewer` 模板，把样式显式挂到 `PART_VerticalScrollBar` / `PART_HorizontalScrollBar`，全工程所有页面一致（12 DIP 宽、圆角胶囊滑块、悬停加深）。不用隐式样式——`ScrollViewer` 模板内生成的 `ScrollBar` 不会回查外层合并字典的隐式样式，且必须覆盖系统主题的 `MinWidth/MinHeight`，否则会被夹回系统默认 17 DIP。
-- ⚠️ **首页宽度必须实测校准，不能写死**：`WorkspaceView.ScheduleHomeWidthCheck()`（`ShowHome` 与窗体 `Shown` 各触发一次）用真实可视树量三件事 —— `HomePage.MeasureRowWidth()`（首行两张卡片的外缘宽，含卡片 Margin）、`HomePage.MeasureChromeWidth()`（页面宽 − 列表宽 = 滚动条 + ScrollViewer 内边距）、`ActualWidth − PageHost.ActualWidth`（**实测**页边距，不要读 `Margin` 设定值），相加再加 8 的呼吸余量，回调 `MainWindow.ApplyHomeWidth()` 设置 `ClientSize`。因此**卡片尺寸、字体、Dpi、页边距任何一项变了，首页都会自己算准**，且误差只可能偏宽、不会掉成单列。实测值缓存在 `MainWindow.homeWidthLogical`，后续回首页直接套用（无跳动）。**卡片改为 240 宽后，实测所需宽度 ≈ 552，被下限夹到 560**；`HomeWidthFallback = 560` 与功能页同宽，首帧不再"先宽后窄"跳动。
-- ⚠️ **窗口宽度必须按 DPI 换算，不能直接写进 `ClientSize`**：首页与功能页**同为 560 逻辑宽**（2026-09-28 起卡片收窄到 240 后两列仍放得下），而 `Form.ClientSize` 收的是**设备像素**；本窗体 `AutoScaleMode = Dpi` 又会在高 DPI 下把窗体尺寸再乘一次缩放系数，两者打架就会出现"返回首页后卡片宽度时宽时窄、和刚打开时不一样"。`MainWindow.SetHomeLayout` 统一用 `VisualTreeHelper.GetDpi(ElementHost.Child).DpiScaleX` 换算（150% 缩放下 560 逻辑宽 = 840 设备像素）。新增任何"改窗体尺寸"的代码都要照此办理。
+- **首页卡片**：详细78高、最近/简约47高，两列间距6；单击选中，双击/箭头/Enter进入。星标按钮独立操作，不得误触进入；品牌及17个HomeIcon几何保持。
+- **滚动条统一样式**：当前页面加载HomeTheme中的6 DIP模板，模板内显式使用HomeScrollBarStyle并清零MinWidth/MinHeight；旧Theme的12 DIP模板仅为兼容资源，不作为新增UI规格。
+- **窗口固定尺寸**：所有已注册工作区页400×880 DIP，不再通过卡片测量自动扩大；ApplyHomeWidth只保留兼容接口。
+- **DPI换算**：统一由MainWindow.ToDevicePixels/SetHomeLayout完成；400×880 DIP在150%为600×1320设备像素，不得在各页另设ClientSize或重复缩放。
 - 存储 `%LOCALAPPDATA%\SteelSectionProbe\home_preferences.json` 只存 `PageId → {Stars, TotalUseCount, LastUsedUtc, MonthlyUse}`，**不存顺序**：增删功能、调权重都不需要迁移数据，也不会留下“存了顺序但功能已改名”的脏数据。读写失败一律静默回落（与各页 `LastChoice` 一致），绝不能挡住首页。
 - ⚠️ `HomeFeatureCatalog` 的 PageId 与页面 `PageId` 不一致时，`OpenPage` 会命中“未注册的功能模块”分支 —— 这一支**故意不静默返回**，就是为了让配置漂移可见。
 - 新增检查工程要照例在主 `SteelSupportModeler.csproj` 里加 `Compile Remove`（`Development\HomeCheck\**\*.cs`）。
@@ -985,3 +977,6 @@ Q1 类型1/2为小管在下/上、两管垂直，类型3/4为小管在上/下、
 
 
 2026-10-13 九个建模页UI：改前提交114e0d9。型钢、普通围栏、罐体盘梯、管道标高对齐、罐壁人孔、实体管口、方形人孔、灭火器箱、轻便消防水龙柜九页使用prototype-v4与400×880固定窗口，沿用32标题栏、63网格头、35卡片头、34输入、6外层滚动条和46双行状态底栏。ModelingTheme仅九页加载；蓝色建模图标由PrototypeChrome的展示配色属性实现，原SVG与其他工具页默认紫色不变。参数可滚动，原操作区固定底部；型钢/罐壁人孔/管口的原创建或点取卡从整页滚动移至底部，型钢卡片展示序号按参数→截面参数→创建方式重排。消防生成/统计两页签、所有表列及绑定保留，表列最小显示宽度允许横向滚动而非挤掉内容。九页原xaml.cs、所有Domain/Data/Services/Tools/Infrastructure/App均保持114e0d9内容，原具名控件、默认值、隐藏范围、选项及业务事件已对照；不修改点取、建模、统计、持久化或授权逻辑。ModelingUiCheck使用真实XAML和原截面预览控件，以空回调和隔离数据通过100项布局/固定操作/DPI/消防页签及横向列宽检查，四个查询/授权工具页52项回归通过。围栏、盘梯、管道对齐及模拟Undo、人孔、管口、方形人孔、灭火器箱604项、水龙柜689项原业务离线回归通过。实际OPM交互、模型写入和窗口切换仍须宿主验证。
+
+
+2026-10-13 支吊架全部统一UI：改前提交4a79280，并在仓库迁移备份/UI支吊架改造_20261013_4a79280保存源码ZIP、原型、授权/无授权DLL/PDB与SHA256。新增15份物理XAML改造，N3/N4共用页加现有Q1/Q2一起覆盖17入口；全部固定400×880，参数滚动、操作区固定、类别图标青色，现有SVG与17个HomeIcon几何保持。SupportTheme复用通用控件并保留嵌套TextBlock勾选项；SupportPageTitleConverter只读显示N3/N4标题，业务xaml.cs全部保持基线。SupportUiCheck通过202项布局/分型/固定操作/DPI检查，管夹八面板、立管两组、Q2类型4角度入口、N3/N4标题均验证；原PipeClamp含L7/L8、Q1/Q2 16976项、弯头、G2、立管、E1、N1 120项、N2 199项、N3/N4/N8、D2 4501项、三角/L/门/T/垫板等业务离线检查通过。当前所有UI正式规则集中到Docs/UI规范-v4.md，README、AGENTS第9节及旧首页规则、原型实现说明和UI检查文档同步更新；历史560宽/240×124/12滚动条/深色按钮不再适用。后续所有UI按v4继续，不得改业务工作流或数据。OPM实际操作和原生实体仍需宿主验证。
