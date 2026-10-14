@@ -4,6 +4,10 @@
 
 当前UI规范：[Docs/UI规范-v4.md](Docs/UI规范-v4.md)。下方带日期的旧改造记录为历史；当前规格与第9节优先。
 
+2026-10-14 A1第二轮出图点/状态修复：原生创建和关系已在OPM成功，实际L00含CT_SUPPORT/SUPP_UBOLT@90与IE_TAG，但SUPPORT_POINT为0且STATE空导致IE_EXISTING=1。只修试验PLACE：GetSectionalDataForSupport之后，必需属性检查、STATE=Design、SHOP_FIELD=SHOP、BMECObject.SetDoubleValueFromMM分别写目标轴站位XYZ，最终Serialize后从文档对象重读校验。禁止把DGN UOR直接写入Schema属性或假定存储单位恒为mm。CHECK只读，必须同时通过三维/ISO点各1mm、Design/SHOP及非参数化外形；旧试验件不自动改，需删除后重放。缺属性、空坐标、非有限数值、字段写入/保存丢失明确失败并按原事务回滚。原点真实站位允许零值。不得以这些数据检查代替实际BOM/标注/随动测试，不改工作集Schema或ISO样式。
+
+1816项真实适配器配替身检查覆盖3档UOR×mm/in/m Schema单位×4管向×3开口角、非零标高、三维动而ISO未动、CHECK只读、旧零点/空状态与故障回滚。替身GetSectionalDataForSupport改为零支点以匹配真实反馈，不再伪造自动随动。改前83e5e48及源码/DLL/PDB、第二轮创建/ISO日志与L00/SHP/FLD、SHA256在../迁移备份/A1出图坐标和状态修复_20261014_83e5e48。
+
 2026-10-14 A1宿主首轮反馈：Create/Serialize成功但ID仍mechanical，GetElementRef为空，失败已回滚。原试验遗漏DeferCommits处理；修复复用管道编辑立即提交规则，Place写入范围临时DeferCommits=false，finally恢复，不提交全局DeferedChangeSet；必须用BMECApi.IsPersistentId核验后再读取图形，新增逐阶段日志及实际DLL路径/MVID。旧失败日志未记录DeferCommits，不能据此宣称根因已由宿主复测确认；新425项替身检查模拟延迟提交不落模、成功及八种故障恢复开关，OPM仍须重试。改前d35297b、DLL/源码/原始失败日志在../迁移备份/A1延迟提交修复_20261014_d35297b。
 
 2026-10-14：用户授权仅以A1验证原生支吊架出ISO及随管移动，新增独立Key-in `STEELPROBE A1TEST PLACE [站位mm] [开口角度]` / `CHECK` / `LOG`。原A1页面、普通Cell流程及首页模块数保持；本轮不自动转换旧模型、不改工作集Schema、不自行补偿移动。仅活动模型可写水平裸直PIPE，精确匹配A1目录DN/外径；默认中点。复用A1 Calculator/Builder，借非参数化BMECObject/SetNonParametricElement/Create/Serialize创建UBOLT_GUIDE，RelatedInstance指定父管，写后反查DEVICE_HAS_SUPPORT及1mm初始位置。unsafe桥接集中于OpenPlant/A1NativeSupport/A1NativeGraphics.cs；API引用别名NativeOPM用于区分SDK重复native类型，ElementHandle固定及图形所有权保持到全部序列化结束。

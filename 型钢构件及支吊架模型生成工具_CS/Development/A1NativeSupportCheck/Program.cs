@@ -22,10 +22,12 @@ namespace SteelSectionProbe
             try
             {
                 foreach (double scale in new[] { 1d, 1000d, 10000d })
+                foreach (double isoUnitMm in new[] { 1d, 25.4d, 1000d })
                 foreach (int heading in new[] { 0, 90, 180, 270 })
                 foreach (double angle in new[] { 0d, 90d, 359d })
                 {
                     World.Reset(); Bentley.MstnPlatformNET.Session.Instance.Model.Scale = scale;
+                    World.SupportPointMmPerUnit = isoUnitMm;
                     double theta = heading * Math.PI / 180;
                     World.Pipe.EndX = World.Pipe.StartX + 1000 * Math.Cos(theta);
                     World.Pipe.EndY = World.Pipe.StartY + 1000 * Math.Sin(theta);
@@ -35,17 +37,25 @@ namespace SteelSectionProbe
                     Check(Math.Abs(World.Created.Transform3d.Translation.X / scale - (1000 + 300 * Math.Cos(theta))) < 1e-7, "UOR定位X");
                     Check(Math.Abs(World.Created.Transform3d.Translation.Y / scale - (2000 + 300 * Math.Sin(theta))) < 1e-7, "UOR定位Y");
                     Check(Math.Abs(World.Created.Transform3d.Matrix.X.X - Math.Cos(theta)) < 1e-8, "管轴坐标框架");
+                    Check(World.Created.Instance["STATE"].StringValue == "Design" && World.Created.Instance["SHOP_FIELD"].StringValue == "SHOP", "新设计件进入Shop材料规则");
+                    Check(Math.Abs(World.Created.Instance["SUPPORT_POINT_X"].DoubleValue * isoUnitMm - (1000 + 300 * Math.Cos(theta))) < 1e-7, "ISO X用Schema单位保存而不是UOR");
+                    Check(Math.Abs(World.Created.Instance["SUPPORT_POINT_Y"].DoubleValue * isoUnitMm - (2000 + 300 * Math.Sin(theta))) < 1e-7, "ISO Y单位独立");
+                    Check(Math.Abs(World.Created.GetDoubleValueInMM("SUPPORT_POINT_Z") - 3000) < 1e-7, "ISO Z保留非零标高");
                     var element = World.Find(World.Created.Instance);
                     Check(A1NativeTrialStore.Read(element).SupportInstanceId == record.SupportInstanceId && element.MaterialTag.StartsWith("A1-"), "模型内参数和原材料清单共存");
                     SelectTrial(record); Check(A1NativeTrialAdapter.CheckSelected(Log), "初始关联和位置可读");
                     World.Pipe.StartX += 200; World.Pipe.EndX += 200;
                     Check(!A1NativeTrialAdapter.CheckSelected(Log), "管动夹不动必须报告不通过");
                     var transform = World.Created.Transform3d; transform.Translation.X += 200 * scale; World.Created.Transform3d = transform;
-                    Check(A1NativeTrialAdapter.CheckSelected(Log), "原生已跟随时位置通过");
+                    double oldIsoX = World.Created.Instance["SUPPORT_POINT_X"].DoubleValue;
+                    Check(!A1NativeTrialAdapter.CheckSelected(Log), "三维跟随但ISO支点未跟随必须报告不通过");
+                    Check(World.Created.Instance["SUPPORT_POINT_X"].DoubleValue == oldIsoX, "CHECK只读不暗中补偿ISO支点");
+                    World.Created.SetDoubleValueFromMM("SUPPORT_POINT_X", (1000 + 300 * Math.Cos(theta)) + 200);
+                    Check(A1NativeTrialAdapter.CheckSelected(Log), "三维和ISO同时跟随时位置通过");
                     World.Created.Instance.Parametric = true;
                     Check(!A1NativeTrialAdapter.CheckSelected(Log), "外形被原生参数化替换时报告不通过");
                 }
-                foreach (string stage in new[] { "Create", "Serialize", "Cache", "Statistics", "Metadata", "Relationship", "WrongOrigin", "Parametric" })
+                foreach (string stage in new[] { "Create", "Serialize", "Cache", "Statistics", "Metadata", "Relationship", "WrongOrigin", "Parametric", "IsoPointWrite", "IsoPointDropped", "StateDropped", "MissingIsoProperty" })
                 {
                     World.Reset(); World.Fault = stage; BMECApi.Instance.DeferCommits = true;
                     Reject(() => Place(), "故障明确失败 " + stage);
@@ -57,6 +67,20 @@ namespace SteelSectionProbe
                 var deferred = Place();
                 Check(World.Elements.Count == 2 && BMECApi.Instance.IsPersistentId(deferred.SupportInstanceId), "宿主延迟提交开启时仍创建真实模型实例");
                 Check(BMECApi.Instance.DeferCommits, "成功恢复宿主延迟提交开关");
+                World.Reset(); var stale = Place(); SelectTrial(stale);
+                foreach (string state in new[] { "", "EXISTING", "FOR_DEMOLITION" })
+                { World.Created.Instance["STATE"].StringValue = state; Check(!A1NativeTrialAdapter.CheckSelected(Log), "空白/既有/拆除状态不能通过新设计件检查"); }
+                World.Created.Instance["STATE"].StringValue = "Design";
+                World.Created.Instance["SUPPORT_POINT_X"].DoubleValue = 0;
+                Check(!A1NativeTrialAdapter.CheckSelected(Log), "旧试验零支撑点不能因三维位置正确而通过");
+                World.Created.Instance["SUPPORT_POINT_X"].Clear();
+                Reject(() => A1NativeTrialAdapter.CheckSelected(Log), "缺失坐标明确失败");
+                World.Created.Instance["SUPPORT_POINT_X"].DoubleValue = double.NaN;
+                Reject(() => A1NativeTrialAdapter.CheckSelected(Log), "非有限ISO坐标明确失败");
+                World.Reset(); World.Pipe.StartX = -500; World.Pipe.EndX = 500;
+                World.Pipe.StartY = World.Pipe.EndY = World.Pipe.StartZ = World.Pipe.EndZ = 0;
+                var originTrial = Place(); SelectTrial(originTrial);
+                Check(A1NativeTrialAdapter.CheckSelected(Log) && World.Created.GetDoubleValueInMM("SUPPORT_POINT_X") == 0, "真实站位在原点时允许零支撑点");
                 World.Reset(); World.Fault = "Metadata"; World.FailRollback = true;
                 try { Place(); throw new Exception("回滚错误未暴露"); }
                 catch (InvalidOperationException e) { Check(e.Message.Contains("回滚未完成"), "回滚失败不能谎称已恢复"); }

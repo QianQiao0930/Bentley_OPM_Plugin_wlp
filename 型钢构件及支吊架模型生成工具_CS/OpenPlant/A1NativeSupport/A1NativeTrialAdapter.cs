@@ -130,6 +130,7 @@ namespace SteelSectionProbe
                         log("阶段=读取支吊架业务信息");
                         api.FindAllInformationOnInstance(support.Instance);
                         api.GetSectionalDataForSupport(support.Instance);
+                        WriteIsoData(support, position);
                         if (!new BMECObjectWriter(support).Serialize()) throw new InvalidOperationException("原生支吊架业务数据写入失败。");
                         log("阶段=业务信息已保存；实例=" + support.Instance.InstanceId);
                         cacheKey = api.ObjectCache.Add(support);
@@ -145,7 +146,7 @@ namespace SteelSectionProbe
                 }
                 TransactionManager.CloseCurrentTransaction(true);
                 // Cache now owns the successfully created document object.
-                log("写入完成；三维/EC关联已检查。单线图输出和宿主移动跟随尚待实际操作验证。");
+                log("写入完成；三维/EC关联、ISO支撑点和设计状态已检查。实际单线图和移动跟随仍须操作验证。");
                 return record;
             }
             catch (Exception error)
@@ -189,6 +190,35 @@ namespace SteelSectionProbe
             else property.StringValue = value ?? "";
         }
 
+        private static void RequireProperty(IECInstance instance, string name)
+        {
+            if (!instance.ClassDefinition.Properties(true).Any(item => item.Name == name))
+                throw new InvalidOperationException("当前工作集缺少A1出图必需属性：" + name);
+        }
+
+        private static void WriteIsoData(BMECObject support, A1NativeTrialPosition position)
+        {
+            foreach (string name in new[] { "STATE", "SHOP_FIELD", "SUPPORT_POINT_X", "SUPPORT_POINT_Y", "SUPPORT_POINT_Z" })
+                RequireProperty(support.Instance, name);
+            // Empty STATE maps to IE_EXISTING=1 in the project's ISO schema.
+            support.Instance["STATE"].StringValue = "Design";
+            support.Instance["SHOP_FIELD"].StringValue = "SHOP";
+            // Schema storage units can differ from both millimetres and model UORs.
+            if (!support.SetDoubleValueFromMM("SUPPORT_POINT_X", position.X)
+                || !support.SetDoubleValueFromMM("SUPPORT_POINT_Y", position.Y)
+                || !support.SetDoubleValueFromMM("SUPPORT_POINT_Z", position.Z))
+                throw new InvalidOperationException("A1的ISO支撑点坐标写入失败。");
+        }
+
+        private static double ReadIsoCoordinate(BMECObject support, string name)
+        {
+            RequireProperty(support.Instance, name);
+            if (support.Instance[name].IsNull) throw new InvalidOperationException("A1的ISO支撑点坐标为空：" + name);
+            double value = support.GetDoubleValueInMM(name);
+            A1NativeTrialCalculator.RequireFinite(value);
+            return value;
+        }
+
         internal static bool CheckSelected(Action<string> log)
         {
             if (TransactionManager.IsUndoInProgress) throw new InvalidOperationException("请在撤销/重做完成后检查。");
@@ -210,22 +240,40 @@ namespace SteelSectionProbe
             using (var acquired = PipeAlignment.OpenPlantObjectFactory.Acquire(support.InstanceId, support))
             {
                 if (acquired.Object == null || !acquired.Object.IsValid) throw new InvalidOperationException("无法读取原生支吊架对象。");
+                var current = acquired.Object.Instance;
+                if (current == null || current.InstanceId != record.SupportInstanceId)
+                    throw new InvalidOperationException("重新读取的支吊架对象与试验实例不一致。");
                 double scale = Session.Instance.GetActiveDgnModel().GetModelInfo().UorPerMeter / 1000.0;
                 var origin = acquired.Object.Transform3d.Translation;
                 double dx = origin.X / scale - position.X, dy = origin.Y / scale - position.Y, dz = origin.Z / scale - position.Z;
                 double error = Math.Sqrt(dx * dx + dy * dy + dz * dz);
                 A1NativeTrialCalculator.RequireFinite(error);
+                double isoX = ReadIsoCoordinate(acquired.Object, "SUPPORT_POINT_X"),
+                    isoY = ReadIsoCoordinate(acquired.Object, "SUPPORT_POINT_Y"),
+                    isoZ = ReadIsoCoordinate(acquired.Object, "SUPPORT_POINT_Z");
+                double isoError = Math.Sqrt(Math.Pow(isoX - position.X, 2) + Math.Pow(isoY - position.Y, 2) + Math.Pow(isoZ - position.Z, 2));
+                A1NativeTrialCalculator.RequireFinite(isoError);
+                RequireProperty(current, "STATE"); RequireProperty(current, "SHOP_FIELD");
+                string state = current["STATE"].IsNull ? "" : current["STATE"].StringValue;
+                string shop = current["SHOP_FIELD"].IsNull ? "" : current["SHOP_FIELD"].StringValue;
+                bool design = string.Equals(state, "Design", StringComparison.OrdinalIgnoreCase),
+                    shopMaterial = string.Equals(shop, "SHOP", StringComparison.OrdinalIgnoreCase);
                 bool customGraphics = !acquired.Object.IsParametric;
                 log("关系=通过；原生类型=" + support.ClassDefinition.Name + "；管道=" + record.PipeInstanceId);
-                log("站位=" + record.StationMm.ToString("G17", CultureInfo.InvariantCulture) + " mm；位置误差=" + error.ToString("0.###", CultureInfo.InvariantCulture) + " mm");
+                log("站位=" + record.StationMm.ToString("G17", CultureInfo.InvariantCulture) + " mm；三维位置误差=" + error.ToString("0.###", CultureInfo.InvariantCulture) + " mm");
                 log("管长变化=" + (position.LengthMm - record.OriginalLengthMm).ToString("0.###", CultureInfo.InvariantCulture) + " mm（本轮先验证刚体平移/水平旋转）");
-                log("SUPPORT_POINT原值=" + Text(support, "SUPPORT_POINT_X") + "," + Text(support, "SUPPORT_POINT_Y") + "," + Text(support, "SUPPORT_POINT_Z"));
+                log("SUPPORT_POINT原值=" + Text(current, "SUPPORT_POINT_X") + "," + Text(current, "SUPPORT_POINT_Y") + "," + Text(current, "SUPPORT_POINT_Z"));
+                log("ISO支撑点(mm)=" + isoX.ToString("G17", CultureInfo.InvariantCulture) + "," + isoY.ToString("G17", CultureInfo.InvariantCulture) + "," + isoZ.ToString("G17", CultureInfo.InvariantCulture)
+                    + "；位置误差=" + isoError.ToString("0.###", CultureInfo.InvariantCulture) + " mm；" + (isoError <= 1 ? "通过" : "不通过"));
+                log("出图状态STATE=" + state + "；SHOP_FIELD=" + shop + "；" + (design && shopMaterial ? "通过" : "不通过：试验A1应为Design/SHOP，空状态可能被提取为既有构件。"));
                 log(customGraphics ? "图形类型=自定义非参数化外形（仍须目视核对A1细节）。" : "图形类型=原生参数化外形：A1自定义外形可能已被重生成，请核查。");
-                log(error <= 1 ? "当前位置=通过（1 mm容差）；旋转姿态和三维外形需目视核对。" : "当前位置=不通过：原生跟随未保持试验站位，勿据此宣称已实现跟随。");
-                log("ISO提取=尚未验证；项目样例UBOLT_GUIDE映射为SUPP_UBOLT@90，须以当前活动工作集实际出图为准。");
+                log(error <= 1 ? "三维当前位置=通过（1 mm容差）；旋转姿态和三维外形需目视核对。" : "三维当前位置=不通过：原生跟随未保持试验站位，勿据此宣称已实现跟随。");
+                log("ISO检查结果见上；符号、编号标注和材料表需重新提取实测，CHECK不会修改对象或自动纠正随动。");
                 if (requirePosition && error > 1) throw new InvalidOperationException("原生支吊架初始坐标与目标管轴站位不一致。");
+                if (requirePosition && isoError > 1) throw new InvalidOperationException("ISO支撑点与目标管轴站位不一致。");
+                if (requirePosition && (!design || !shopMaterial)) throw new InvalidOperationException("A1出图状态未能保存为Design/SHOP。");
                 if (requirePosition && !customGraphics) throw new InvalidOperationException("原生组件没有保留自定义A1外形类型。");
-                return error <= 1 && customGraphics;
+                return error <= 1 && isoError <= 1 && design && shopMaterial && customGraphics;
             }
         }
 

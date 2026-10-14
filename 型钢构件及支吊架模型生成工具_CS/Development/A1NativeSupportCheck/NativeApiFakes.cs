@@ -20,6 +20,7 @@ namespace SteelSectionProbe
         internal static string Fault;
         internal static bool FailRollback;
         internal static ulong Next;
+        internal static double SupportPointMmPerUnit;
         internal static void Reset()
         {
             Elements = new Dictionary<ulong, Element>(); Instances = new Dictionary<string, IECInstance>();
@@ -35,6 +36,7 @@ namespace SteelSectionProbe
                 StartX = 1000, StartY = 2000, StartZ = 3000, EndX = 2000, EndY = 2000, EndZ = 3000 };
             BMECApi.Instance.ObjectCache = new BMECObjectCache();
             BMECApi.Instance.DeferCommits = false;
+            SupportPointMmPerUnit = 1;
         }
         internal static Element Find(IECInstance instance) { return Elements.Values.SingleOrDefault(e => e.Instance == instance); }
     }
@@ -78,6 +80,8 @@ namespace Bentley.ECObjects.Instance
     internal sealed class Value
     {
         private object value;
+        public bool IsNull { get { return value == null; } }
+        internal void Clear() { value = null; }
         public string StringValue { get { if (value is double) throw new InvalidOperationException(); return value as string; } set { this.value = value; } }
         public double DoubleValue { get { return value is double ? (double)value : 0; } set { this.value = value; } }
     }
@@ -86,7 +90,8 @@ namespace Bentley.ECObjects.Instance
         public string Name;
         public Definition Type { get { return new Definition { Name = Name == "NOMINAL_DIAMETER" ? "double" : "string" }; } }
         public IEnumerable<Definition> Properties(bool includeBase)
-        { return new[] { "NAME", "DESCRIPTION", "SPECIFICATION", "UBOLT_DIAMETER", "UBOLT_LENGTH", "UBOLT_WIDTH", "NOMINAL_DIAMETER" }.Select(n => new Definition { Name = n }); }
+        { return new[] { "NAME", "DESCRIPTION", "SPECIFICATION", "UBOLT_DIAMETER", "UBOLT_LENGTH", "UBOLT_WIDTH", "NOMINAL_DIAMETER", "STATE", "SHOP_FIELD", "SUPPORT_POINT_X", "SUPPORT_POINT_Y", "SUPPORT_POINT_Z" }
+            .Where(n => SteelSectionProbe.World.Fault != "MissingIsoProperty" || n != "SUPPORT_POINT_X").Select(n => new Definition { Name = n }); }
     }
     internal sealed class IECInstance
     {
@@ -178,12 +183,27 @@ namespace Bentley.OpenPlant.Modeler.Api
         public bool IsValid { get { return !Disposed; } }
         public bool IsParametric { get { return Instance.Parametric; } }
         public DTransform3d Transform3d { get { return Instance.Transform; } set { Instance.Transform = value; } }
+        public bool SetDoubleValueFromMM(string name, double value)
+        {
+            if (SteelSectionProbe.World.Fault == "IsoPointWrite") return false;
+            Instance[name].DoubleValue = value / SteelSectionProbe.World.SupportPointMmPerUnit; return true;
+        }
+        public double GetDoubleValueInMM(string name) { return Instance[name].DoubleValue * SteelSectionProbe.World.SupportPointMmPerUnit; }
         public void Dispose() { Disposed = true; }
     }
     internal sealed class BMECInstanceManager
     { public static BMECInstanceManager Instance = new BMECInstanceManager(); public IECInstance CreateECInstance(string type, bool defaults) { return new IECInstance(type, "mechanical"); } }
     internal sealed class BMECObjectWriter
-    { public BMECObjectWriter(BMECObject support) { } public bool Serialize() { return SteelSectionProbe.World.Fault != "Serialize"; } }
+    {
+        private readonly BMECObject support;
+        public BMECObjectWriter(BMECObject support) { this.support = support; }
+        public bool Serialize()
+        {
+            if (SteelSectionProbe.World.Fault == "IsoPointDropped") support.Instance["SUPPORT_POINT_X"].DoubleValue = 0;
+            if (SteelSectionProbe.World.Fault == "StateDropped") support.Instance["STATE"].Clear();
+            return SteelSectionProbe.World.Fault != "Serialize";
+        }
+    }
     internal sealed class BMECObjectCache
     {
         private BMECObject value;
@@ -199,7 +219,8 @@ namespace Bentley.OpenPlant.Modeler.Api
         public unsafe void* GetElementRef(IECInstance instance) { var element = SteelSectionProbe.World.Find(instance); return element == null ? null : (void*)element.ElementId; }
         public bool IsInstanceModifiable(IECInstance instance) { return true; }
         public IECInstance FindAllInformationOnInstance(IECInstance instance) { return instance; }
-        public void GetSectionalDataForSupport(IECInstance instance) { instance["SUPPORT_POINT_X"].DoubleValue = instance.Transform.Translation.X; instance["SUPPORT_POINT_Y"].DoubleValue = instance.Transform.Translation.Y; instance["SUPPORT_POINT_Z"].DoubleValue = instance.Transform.Translation.Z; }
+        // Real nonparametric UBOLT_GUIDE left these zero; do not fake automatic positioning.
+        public void GetSectionalDataForSupport(IECInstance instance) { instance["SUPPORT_POINT_X"].DoubleValue = 0; instance["SUPPORT_POINT_Y"].DoubleValue = 0; instance["SUPPORT_POINT_Z"].DoubleValue = 0; }
         public List<IECInstance> GetRelatedInstances(IECInstance support, string name, bool forward, bool polymorphic)
         { if (name != "DEVICE_HAS_SUPPORT" || forward) throw new Exception("错误关系方向"); return support.Parent == null ? new List<IECInstance>() : new List<IECInstance> { support.Parent }; }
     }
