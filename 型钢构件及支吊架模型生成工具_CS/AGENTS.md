@@ -4,6 +4,10 @@
 
 当前UI规范：[Docs/UI规范-v4.md](Docs/UI规范-v4.md)。下方带日期的旧改造记录为历史；当前规格与第9节优先。
 
+2026-10-14：用户授权仅以A1验证原生支吊架出ISO及随管移动，新增独立Key-in `STEELPROBE A1TEST PLACE [站位mm] [开口角度]` / `CHECK` / `LOG`。原A1页面、普通Cell流程及首页模块数保持；本轮不自动转换旧模型、不改工作集Schema、不自行补偿移动。仅活动模型可写水平裸直PIPE，精确匹配A1目录DN/外径；默认中点。复用A1 Calculator/Builder，借非参数化BMECObject/SetNonParametricElement/Create/Serialize创建UBOLT_GUIDE，RelatedInstance指定父管，写后反查DEVICE_HAS_SUPPORT及1mm初始位置。unsafe桥接集中于OpenPlant/A1NativeSupport/A1NativeGraphics.cs；API引用别名NativeOPM用于区分SDK重复native类型，ElementHandle固定及图形所有权保持到全部序列化结束。
+
+沿用Statistics.AttachA1Clamp九字段，试验站位与原生身份存单独SteelSectionProbeTrials/A1NativeSupport JSON；CHECK重读父管与原生对象，检测未跟随、错误父关系、复制身份冲突和参数化外形替换。一次创建单独Undo事务，失败回滚，回滚失败明确报错且保留缓存所有权，禁止宣称已恢复。latest.log覆盖保存于LocalAppData/SteelSectionProbe/logs/A1NativeSupport。操作及结果判读见[试验说明](Docs/A1原生关联试验.md)。415项真实适配器/记录存储配API替身检查、原管夹/Home回归通过；双版本SDK编译不能证明OPM Create、自定义外形、ISO或跟随成功，必须按说明宿主试放。改前基线896ffaa及源码/DLL/校验在../迁移备份/A1原生支吊架试验_20261014_896ffaa。
+
 2026-10-14：用户授权原生停靠改造，覆盖历史固定400×880窗口壳。MainWindow仍以Adapter/ElementHost承载WPF，但通过WindowManager.GetForMicroStation().DockPanel注册稳定ID SteelSectionProbe.Workspace，默认右侧，支持左右/浮动/标签/自动隐藏；不得再AttachAsTopLevelForm或使用圆角Region/固定MaximumSize。初始400×720 DIP、最小400×560，尺寸交给Bentley，DPI变更只更新最小尺寸。SetHomeLayout/ApplyHomeWidth保留兼容接口但不改尺寸。
 
 NativePanelLayout仅在工作区接入页面时隐藏Home/Q1自绘32标题行，以及PrototypeChrome内32标题行，将模块父行改Auto；保留63模块头、导航、页内控件和固定操作。源XAML保留用于独立预览，但正式工作区没有双标题/圆角外框。关闭按钮与原生X先OnPanelHidden结束当前点取并保存偏好，再隐藏复用面板；自动隐藏/标签切换不走关闭清理。重开激活当前页并检查授权；Dispose清理全部页面和timer。AddIn.UnloadingEvent先清理再RemoveContent，清理失败UnloadAbort且保留所有权供重试。稳定ID的跨次布局恢复由Bentley管理，禁止自行加载覆盖宿主全局布局。

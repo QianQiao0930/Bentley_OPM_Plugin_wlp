@@ -18,7 +18,7 @@
     <BentleyRoot Condition="'$(BentleyRoot)' == ''">C:\Program Files\Bentley\OpenPlant 2024\OpenPlantModeler</BentleyRoot>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Bentley.OpenPlant.Modeler.Api"><HintPath>$(BentleyRoot)\Assemblies\Bentley.OpenPlant.Modeler.Api.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.OpenPlant.Modeler.Api"><HintPath>$(BentleyRoot)\Assemblies\Bentley.OpenPlant.Modeler.Api.dll</HintPath><Private>false</Private><Aliases>global,NativeOPM</Aliases></Reference>
     <Reference Include="Bentley.OpenPlant.Modeler.Interfaces"><HintPath>$(BentleyRoot)\Assemblies\Bentley.OpenPlant.Modeler.Interfaces.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Bentley.OpenPlantModeler.SDK"><HintPath>$(BentleyRoot)\Assemblies\Bentley.OpenPlantModeler.SDK.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Bentley.Building.Mechanical.Components"><HintPath>$(BentleyRoot)\Assemblies\Bentley.Building.Mechanical.Components.dll</HintPath><Private>false</Private></Reference>
@@ -84,6 +84,7 @@
     <Compile Remove="Development\PadPlateCheck\**\*.cs" />
     <Compile Remove="Development\HomeCheck\**\*.cs" />
     <Compile Remove="Development\DockingCheck\**\*.cs" />
+    <Compile Remove="Development\A1NativeSupportCheck\**\*.cs" />
     <Compile Remove="Development\HomeUiCheck\**\*.cs" />
     <Compile Remove="Development\QSupportUiCheck\**\*.cs" />
     <Compile Remove="Development\ToolPagesUiCheck\**\*.cs" />
