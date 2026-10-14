@@ -1,5 +1,7 @@
 # 支吊架 v4 UI 检查
 
+2026-10-14：用户授权正式管夹原生ISO集成，仅更新PipeClampPage业务源码摘要，所有原控件/默认选项/绑定/事件契约保持；原生写入逻辑集中在会话与NativePipeSupport，不放入页面。当前551项布局/固定操作/分型/DPI检查通过，实际确认流程另由PipeClampIsoCheck验证。
+
 2026-10-14：正式工作区改用Bentley原生停靠。检查工程调用真实NativePanelLayout隐藏重复窗口标题，保留63模块头/固定操作；新增400×560、400×600、520×720、400×1080与四档DPI检查，见[DockingCheck](../DockingCheck/README.md)。下方原400×880尺寸仍为视觉回归基准。
 
 

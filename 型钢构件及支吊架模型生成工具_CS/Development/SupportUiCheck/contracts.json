@@ -257,7 +257,7 @@
       }
     ],
     "bindings": [],
-    "businessSha256": "aa68dd74e1489d7bce55da5a2cb635104e774c45d052bed292edfb332dac8e96"
+    "businessSha256": "463b2069dc29c84451e85e5ed5d0d1759752b165b485d0f84e680e5e9a30aa4a"
   },
   "ElbowTrunnion/ElbowTrunnionPage.xaml": {
     "class": "ElbowTrunnionPage",

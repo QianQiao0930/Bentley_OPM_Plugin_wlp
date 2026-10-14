@@ -589,9 +589,12 @@ namespace SteelSectionProbe
                 }
                 if(selection!=null && !string.IsNullOrEmpty(selection.AxisNote))
                     PreviewText.ToolTip=selection.AxisNote;
+                preview.BindSource(selection);
                 UpdatePositionReadout();
                 ConfirmButton.IsEnabled=true;PreviewUpdateHint.Set(UpdateButton,false);
-                Status("管夹预览已生成；确定后写入支吊架材料清单。",false);
+                Status(selection.IsPipe&&!selection.IsFromReference?
+                    "管夹预览已生成；确定后写入材料清单，并关联管道供轴测图提取。":
+                    "管夹预览已生成；辅助线或参考来源仅写入本地材料清单，不建立轴测图关联。",false);
             }
             catch(Exception ex)
             {
@@ -772,7 +775,7 @@ namespace SteelSectionProbe
                 selection=null;axisOffsetMm=0;UpdatePositionReadout();PreviewUpdateHint.Set(UpdateButton,false); ConfirmButton.IsEnabled=false;
                 ResetAuxiliaryLineOption();
 
-                PreviewText.Text="已确认生成并写入支吊架材料清单。"+(!locating?"点【开始点取】可放置下一处。":
+                PreviewText.Text=(preview.LastConfirmedNative?"已生成原生支吊架并关联管道，可重新提取轴测图。":"已生成普通管夹并写入本地材料清单。")+(!locating?"点【开始点取】可放置下一处。":
                     "点取仍在进行中，可直接点取下一处。");
                 PreviewText.Text += " 写入耗时 "+writeElapsed+"。";
                 Status("管夹已生成；写入耗时 "+writeElapsed+"。",false);

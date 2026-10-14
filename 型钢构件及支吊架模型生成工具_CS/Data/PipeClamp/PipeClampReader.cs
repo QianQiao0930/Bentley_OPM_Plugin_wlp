@@ -35,11 +35,17 @@ namespace SteelSectionProbe
                 IsFromReference=axis.IsFromReference,
                 AxisNote=axis.AxisNote??"",
                 PipeNumber=axis.PipeNumber??"",
+                NativePipeInstanceId=axis.IsPipe && !axis.IsFromReference?snapshot.InstanceId:null,
+                NativeModelToken=axis.IsPipe && !axis.IsFromReference?NativeSupportElements.ActiveModelToken():0,
+                SourceUorPerMm=SessionScale(),
                 NominalMm=Number(snapshot,"NOMINAL_DIAMETER"),
                 OutsideMm=Number(snapshot,"OUTSIDE_DIAMETER"),
                 InsulationMm=Number(snapshot,"INSULATION_THICKNESS")
             };
         }
+
+        private static double SessionScale()
+        { return Bentley.MstnPlatformNET.Session.Instance.GetActiveDgnModel().GetModelInfo().UorPerMeter/1000.0; }
 
         private static double? Number(ComponentSnapshot snapshot,string name)
         {

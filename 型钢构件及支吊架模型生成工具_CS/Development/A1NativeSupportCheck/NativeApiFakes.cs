@@ -21,6 +21,7 @@ namespace SteelSectionProbe
         internal static bool FailRollback;
         internal static ulong Next;
         internal static double SupportPointMmPerUnit;
+        internal static HashSet<Bentley.Interop.MicroStationDGN.TransientElementContainer> Displays;
         internal static void Reset()
         {
             Elements = new Dictionary<ulong, Element>(); Instances = new Dictionary<string, IECInstance>();
@@ -37,16 +38,18 @@ namespace SteelSectionProbe
             BMECApi.Instance.ObjectCache = new BMECObjectCache();
             BMECApi.Instance.DeferCommits = false;
             SupportPointMmPerUnit = 1;
+            Displays = new HashSet<Bentley.Interop.MicroStationDGN.TransientElementContainer>();
+            Pipe.NativePipeInstanceId=Source.InstanceId;Pipe.NativeModelToken=1;Pipe.SourceUorPerMm=1000;
         }
         internal static Element Find(IECInstance instance) { return Elements.Values.SingleOrDefault(e => e.Instance == instance); }
     }
     internal static class LicenseService { internal static bool IsActivated = true; }
     internal static class PipeClampReader { internal static PipeClampSelection Read(ulong id, double x, double y, double z) { return World.Pipe; } }
     internal static class A1ClampBuilder
-    { internal static List<Element> Build(A1ClampPlan plan, DPoint3d origin, DVector3d axis) { return Enumerable.Range(0, 5).Select(i => new Element()).ToList(); } }
-    internal static class Statistics
+    { internal static List<Element> Build(A1ClampPlan plan, DPoint3d origin, DVector3d axis) { return Enumerable.Range(0, 5).Select(i => new Element { Geometry=new[]{origin,new DPoint3d(origin.X+i+1,origin.Y+i+2,origin.Z+i+3)} }).ToList(); } }
+    internal static partial class Statistics
     { internal static void AttachA1Clamp(Element element, A1ClampPlan plan) { if (World.Fault == "Statistics") throw new Exception("统计失败"); element.MaterialTag = plan.AssemblyTag; } }
-    internal static class A1NativeGraphics
+    internal static class NativeSupportGraphics
     {
         internal static void Create(BMECObject support, Element graphics, DTransform3d placement, Action<string> log, Action finish)
         {
@@ -60,7 +63,8 @@ namespace SteelSectionProbe
             if (!BMECApi.Instance.DeferCommits)
             {
                 support.Instance.InstanceId = "trial-" + Guid.NewGuid().ToString("N");
-                var element = new Element { ElementId = World.Next++, Model = Bentley.MstnPlatformNET.Session.Instance.Model, Instance = support.Instance };
+                var element = new Element { ElementId = World.Next++, Model = Bentley.MstnPlatformNET.Session.Instance.Model, Instance = support.Instance,
+                    Geometry=graphics.Geometry.Select(placement.Apply).ToArray(),CellName=graphics.CellName };
                 World.Elements[element.ElementId] = element; World.Instances[support.Instance.InstanceId] = support.Instance;
             }
             if (!new BMECObjectWriter(support).Serialize()) throw new Exception("Serialize失败");
@@ -73,7 +77,12 @@ namespace Bentley.GeometryNET
     internal struct DPoint3d { public double X, Y, Z; public DPoint3d(double x, double y, double z) { X = x; Y = y; Z = z; } public static DPoint3d Zero { get { return new DPoint3d(); } } }
     internal struct DVector3d { public double X, Y, Z; public DVector3d(double x, double y, double z) { X = x; Y = y; Z = z; } }
     internal struct DMatrix3d { public DVector3d X, Y, Z; public static DMatrix3d Identity { get { return FromColumns(new DVector3d(1, 0, 0), new DVector3d(0, 1, 0), new DVector3d(0, 0, 1)); } } public static DMatrix3d FromColumns(DVector3d x, DVector3d y, DVector3d z) { return new DMatrix3d { X = x, Y = y, Z = z }; } }
-    internal struct DTransform3d { public DMatrix3d Matrix; public DPoint3d Translation; public DTransform3d(DMatrix3d rotation) { Matrix = rotation; Translation = new DPoint3d(); } }
+    internal struct DTransform3d
+    {
+        public DMatrix3d Matrix; public DPoint3d Translation;
+        public DTransform3d(DMatrix3d rotation) { Matrix = rotation; Translation = new DPoint3d(); }
+        public DPoint3d Apply(DPoint3d p) { return new DPoint3d(Matrix.X.X*p.X+Matrix.Y.X*p.Y+Matrix.Z.X*p.Z+Translation.X, Matrix.X.Y*p.X+Matrix.Y.Y*p.Y+Matrix.Z.Y*p.Z+Translation.Y, Matrix.X.Z*p.X+Matrix.Y.Z*p.Y+Matrix.Z.Z*p.Z+Translation.Z); }
+    }
 }
 namespace Bentley.ECObjects.Instance
 {
@@ -88,10 +97,11 @@ namespace Bentley.ECObjects.Instance
     internal sealed class Definition
     {
         public string Name;
-        public Definition Type { get { return new Definition { Name = Name == "NOMINAL_DIAMETER" ? "double" : "string" }; } }
+        internal bool NominalString;
+        public Definition Type { get { return new Definition { Name = Name == "NOMINAL_DIAMETER" && !NominalString ? "double" : "string" }; } }
         public IEnumerable<Definition> Properties(bool includeBase)
-        { return new[] { "NAME", "DESCRIPTION", "SPECIFICATION", "UBOLT_DIAMETER", "UBOLT_LENGTH", "UBOLT_WIDTH", "NOMINAL_DIAMETER", "STATE", "SHOP_FIELD", "SUPPORT_POINT_X", "SUPPORT_POINT_Y", "SUPPORT_POINT_Z" }
-            .Where(n => SteelSectionProbe.World.Fault != "MissingIsoProperty" || n != "SUPPORT_POINT_X").Select(n => new Definition { Name = n }); }
+        { return new[] { "NAME", "DEVICE_TYPE_CODE", "DESCRIPTION", "SPECIFICATION", "UBOLT_DIAMETER", "UBOLT_LENGTH", "UBOLT_WIDTH", "NOMINAL_DIAMETER", "STATE", "SHOP_FIELD", "SUPPORT_POINT_X", "SUPPORT_POINT_Y", "SUPPORT_POINT_Z" }
+            .Where(n => SteelSectionProbe.World.Fault != "MissingIsoProperty" || n != "SUPPORT_POINT_X").Select(n => new Definition { Name = n,NominalString=Name=="SUPPORT_LOCATION" }); }
     }
     internal sealed class IECInstance
     {
@@ -110,18 +120,20 @@ namespace Bentley.DgnPlatformNET
     internal enum StatusInt { Success, Error }
     internal class DgnModelRef { public static unsafe void* GetNativeDgnModelRefP(DgnModelRef model, bool allowNull) { return (void*)((DgnModel)model).Handle; } }
     internal sealed class DgnModel : DgnModelRef { public bool Is3d = true; public int Handle = 1; public double Scale = 1000; public ModelInfo GetModelInfo() { return new ModelInfo { UorPerMeter = Scale * 1000 }; } }
+    internal sealed class TransformInfo { public DTransform3d Transform; public TransformInfo(DTransform3d transform){Transform=transform;} }
     internal sealed class ModelInfo { public double UorPerMeter; }
     internal static class TransactionManager
     {
         public static bool IsUndoInProgress, IsActive;
-        private static HashSet<ulong> before;
+        private static Dictionary<ulong,Element> before;
         public static void Activate() { IsActive = true; }
         public static void CloseCurrentTransaction(bool commit) { }
-        public static int CurrentTransactionPosition { get { before = new HashSet<ulong>(SteelSectionProbe.World.Elements.Keys); return 1; } }
+        public static int CurrentTransactionPosition { get { before = new Dictionary<ulong,Element>(SteelSectionProbe.World.Elements); return 1; } }
         public static StatusInt CancelToPosition(int mark, bool restart)
         {
             if (SteelSectionProbe.World.FailRollback) return StatusInt.Error;
-            foreach (ulong id in SteelSectionProbe.World.Elements.Keys.Where(id => !before.Contains(id)).ToArray()) SteelSectionProbe.World.Elements.Remove(id);
+            foreach (ulong id in SteelSectionProbe.World.Elements.Keys.Where(id => !before.ContainsKey(id)).ToArray()) SteelSectionProbe.World.Elements.Remove(id);
+            foreach(var pair in before)SteelSectionProbe.World.Elements[pair.Key]=pair.Value;
             return StatusInt.Success;
         }
     }
@@ -160,14 +172,19 @@ namespace Bentley.DgnPlatformNET.Elements
         internal ItemInstance Metadata;
         internal string MaterialTag;
         internal bool Locked;
+        internal DPoint3d[] Geometry=new DPoint3d[0];
+        internal string CellName;
         public ulong ElementId;
         public bool IsValid { get { return true; } }
         public static Element GetFromElementRef(IntPtr reference) { Element element; SteelSectionProbe.World.Elements.TryGetValue((ulong)reference.ToInt64(), out element); return element; }
         public IntPtr GetNativeDgnModelRef() { return (IntPtr)Model.Handle; }
         public bool IsEffectivelyLocked(bool parents, bool children) { return Locked; }
+        public StatusInt AddToModel(){ ElementId=SteelSectionProbe.World.Next++;Model=Bentley.MstnPlatformNET.Session.Instance.Model;SteelSectionProbe.World.Elements[ElementId]=this;return StatusInt.Success; }
+        public StatusInt DeleteFromModel(){if(SteelSectionProbe.World.Fault=="PreviewDelete")return StatusInt.Error;SteelSectionProbe.World.Elements.Remove(ElementId);return StatusInt.Success;}
+        public int ApplyTransform(TransformInfo transform){if(SteelSectionProbe.World.Fault=="Transform")return 1;Geometry=Geometry.Select(transform.Transform.Apply).ToArray();return 0;}
         public void Dispose() { }
     }
-    internal sealed class CellHeaderElement : Element { public CellHeaderElement(DgnModel model, string name, DPoint3d origin, DMatrix3d orientation, List<Element> elements) { Model = model; } }
+    internal sealed class CellHeaderElement : Element { public CellHeaderElement(DgnModel model, string name, DPoint3d origin, DMatrix3d orientation, IList<Element> elements) { Model = model;CellName=name;Geometry=elements.SelectMany(e=>e.Geometry).ToArray(); } }
 }
 namespace Bentley.MstnPlatformNET
 {
@@ -226,7 +243,7 @@ namespace Bentley.OpenPlant.Modeler.Api
     }
 }
 namespace Bentley.OpenPlantModeler.SDK.Utilities
-{ internal static class DgnUtilities { public static List<IECInstance> GetSelectedInstances() { return SteelSectionProbe.World.Selected; } } }
+{ internal static class DgnUtilities { public static List<IECInstance> GetSelectedInstances() { return SteelSectionProbe.World.Selected; } public static IECInstance GetInstanceByInstanceId(string id){IECInstance instance;SteelSectionProbe.World.Instances.TryGetValue(id,out instance);return instance;} } }
 namespace SteelSectionProbe.PipeAlignment
 {
     internal static class OpenPlantObjectFactory
@@ -235,3 +252,25 @@ namespace SteelSectionProbe.PipeAlignment
         public static Acquired Acquire(string id, IECInstance instance) { return new Acquired { Object = BMECApi.Instance.ObjectCache.FindByInstanceId(id) }; }
     }
 }
+
+namespace Bentley.Interop.MicroStationDGN
+{
+    [Flags] internal enum MsdTransientFlags {Overlay=1,DontIncludeInFit=2}
+    internal enum MsdViewMask {AllViews}
+    internal enum MsdDrawingMode {Normal}
+    internal sealed class TransientElementContainer
+    {
+        public void Reset(){if(SteelSectionProbe.World.Fault=="DisplayClose")throw new InvalidOperationException("暂态清理失败");SteelSectionProbe.World.Displays.Remove(this);}
+    }
+    internal sealed class ModelReference
+    {public Element GetElementByID64(long id){return new Element{Native=SteelSectionProbe.World.Elements[(ulong)id]};}}
+    internal sealed class Element { internal Bentley.DgnPlatformNET.Elements.Element Native; }
+    internal sealed class Application
+    {
+        public ModelReference ActiveModelReference=new ModelReference();
+        public TransientElementContainer CreateTransientElementContainer1(Element element,MsdTransientFlags flags,MsdViewMask views,MsdDrawingMode mode)
+        {if(SteelSectionProbe.World.Fault=="DisplayCreate")throw new InvalidOperationException("暂态创建失败");var display=new TransientElementContainer();SteelSectionProbe.World.Displays.Add(display);return display;}
+    }
+}
+namespace Bentley.MstnPlatformNET.InteropServices
+{internal static class Utilities {public static Bentley.Interop.MicroStationDGN.Application ComApp=new Bentley.Interop.MicroStationDGN.Application();}}

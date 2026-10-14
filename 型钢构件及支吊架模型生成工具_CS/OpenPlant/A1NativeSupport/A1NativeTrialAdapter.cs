@@ -14,10 +14,6 @@ namespace SteelSectionProbe
 {
     internal static class A1NativeTrialAdapter
     {
-        // A failed native rollback may leave a model object without cache ownership.
-        // Keep its wrapper alive until the host closes rather than finalizing it early.
-        private static readonly List<BMECObject> unrecovered = new List<BMECObject>();
-
         internal static IECInstance Selected()
         {
             var selected = DgnUtilities.GetSelectedInstances();
@@ -26,26 +22,8 @@ namespace SteelSectionProbe
             return selected[0];
         }
 
-        internal static unsafe Element ElementOf(IECInstance instance, bool writable)
-        {
-            var api = BMECApi.Instance;
-            var elementRef = api.GetElementRef(instance);
-            if (elementRef == null) throw new InvalidOperationException("业务对象没有有效的图形元素。");
-            var element = Element.GetFromElementRef((IntPtr)elementRef);
-            var active = Session.Instance.GetActiveDgnModel();
-            if (element == null || !element.IsValid || active == null || !active.Is3d
-                || element.GetNativeDgnModelRef() != (IntPtr)DgnModelRef.GetNativeDgnModelRefP(active, false))
-            {
-                element?.Dispose();
-                throw new InvalidOperationException("本次试验仅支持活动三维模型，不支持参考文件。");
-            }
-            if (writable && (element.IsEffectivelyLocked(true, true) || !api.IsInstanceModifiable(instance)))
-            {
-                element.Dispose();
-                throw new InvalidOperationException("所选对象被锁定或不可写。");
-            }
-            return element;
-        }
+        internal static Element ElementOf(IECInstance instance, bool writable)
+        { return NativeSupportElements.Get(instance, writable); }
 
         private static PipeClampSelection Pipe(IECInstance instance)
         {
@@ -102,82 +80,20 @@ namespace SteelSectionProbe
             Set(instance, "UBOLT_DIAMETER", plan.Row.Bolt.ToString(CultureInfo.InvariantCulture));
             Set(instance, "UBOLT_LENGTH", plan.Row.D.ToString(CultureInfo.InvariantCulture));
             Set(instance, "UBOLT_WIDTH", plan.Row.C.ToString(CultureInfo.InvariantCulture));
-            BMECObject support = null;
-            int cacheKey = -1;
-            if (!TransactionManager.IsActive) TransactionManager.Activate();
-            if (!TransactionManager.IsActive) throw new InvalidOperationException("无法启用模型撤销事务。");
-            TransactionManager.CloseCurrentTransaction(true);
-            var mark = TransactionManager.CurrentTransactionPosition;
-            bool deferred = api.DeferCommits;
-            log("写入前DeferCommits=" + deferred + "；本次创建临时使用立即提交，不提交全局待处理集合。");
-            try
-            {
-                // Like pipe editing, native Create/Serialize otherwise only enqueue the object.
-                // In that state a successful return can still leave InstanceId="mechanical".
-                api.DeferCommits = false;
-                support = new BMECObject(instance, true);
-                log("开始：" + record.Tag + "，类型=" + record.NativeClass + "，管道=" + pipeInstance.InstanceId);
-                support.RelatedInstance = pipeInstance;
-                using (var graphics = new CellHeaderElement(Session.Instance.GetActiveDgnModel(), A1ClampCatalog.CellName,
-                    DPoint3d.Zero, DMatrix3d.Identity, A1ClampBuilder.Build(plan, DPoint3d.Zero, new DVector3d(1, 0, 0))))
+            log("开始：" + record.Tag + "，类型=" + record.NativeClass + "，管道=" + pipeInstance.InstanceId);
+            NativePipeSupportWriter.Create(instance, pipeInstance, transform,
+                new[] { position.X, position.Y, position.Z },
+                () => new CellHeaderElement(Session.Instance.GetActiveDgnModel(), A1ClampCatalog.CellName,
+                    DPoint3d.Zero, DMatrix3d.Identity, A1ClampBuilder.Build(plan, DPoint3d.Zero, new DVector3d(1, 0, 0))),
+                (support, element) =>
                 {
-                    A1NativeGraphics.Create(support, graphics, transform, log, () =>
-                    {
-                        record.SupportInstanceId = support.Instance.InstanceId;
-                        log("原生实例=" + record.SupportInstanceId);
-                        if (!api.IsPersistentId(record.SupportInstanceId))
-                            throw new InvalidOperationException("原生创建返回成功，但实例仍未持久化：" + record.SupportInstanceId);
-                        log("阶段=读取支吊架业务信息");
-                        api.FindAllInformationOnInstance(support.Instance);
-                        api.GetSectionalDataForSupport(support.Instance);
-                        WriteIsoData(support, position);
-                        if (!new BMECObjectWriter(support).Serialize()) throw new InvalidOperationException("原生支吊架业务数据写入失败。");
-                        log("阶段=业务信息已保存；实例=" + support.Instance.InstanceId);
-                        cacheKey = api.ObjectCache.Add(support);
-                        if (cacheKey < 0) throw new InvalidOperationException("原生支吊架未能加入文档对象缓存。");
-                        using (var element = ElementOf(support.Instance, true))
-                        {
-                            log("新元素=" + (ulong)element.ElementId);
-                            Statistics.AttachA1Clamp(element, plan);
-                            A1NativeTrialStore.Write(element, record);
-                        }
-                        Check(support.Instance, record, log, true);
-                    });
-                }
-                TransactionManager.CloseCurrentTransaction(true);
-                // Cache now owns the successfully created document object.
-                log("写入完成；三维/EC关联、ISO支撑点和设计状态已检查。实际单线图和移动跟随仍须操作验证。");
-                return record;
-            }
-            catch (Exception error)
-            {
-                StatusInt rollback;
-                try { rollback = TransactionManager.CancelToPosition(mark, false); }
-                catch (Exception rollbackError)
-                {
-                    RetainForRecovery(support, cacheKey, log);
-                    throw new AggregateException("A1试验失败且回滚未完成，请立即检查模型。", error, rollbackError);
-                }
-                if (rollback != StatusInt.Success)
-                {
-                    RetainForRecovery(support, cacheKey, log);
-                    throw new InvalidOperationException("A1试验失败且回滚未完成，请立即检查模型：" + rollback, error);
-                }
-                if (cacheKey >= 0) api.ObjectCache.Remove(cacheKey);
-                if (support != null) support.Dispose();
-                throw new InvalidOperationException("A1试验失败，已回滚本次写入：" + error.Message, error);
-            }
-            finally
-            {
-                api.DeferCommits = deferred;
-                log("已恢复DeferCommits=" + deferred);
-            }
-        }
-
-        private static void RetainForRecovery(BMECObject support, int cacheKey, Action<string> log)
-        {
-            if (support != null && cacheKey < 0) unrecovered.Add(support);
-            log("回滚失败；保留对象所有权，请按上方试验标签/实例/元素ID检查残留对象。");
+                    record.SupportInstanceId = support.Instance.InstanceId;
+                    Statistics.AttachA1Clamp(element, plan);
+                    A1NativeTrialStore.Write(element, record);
+                    Check(support.Instance, record, log, true);
+                }, () => { }, log);
+            log("写入完成；三维/EC关联、ISO支撑点和设计状态已检查。实际单线图和移动跟随仍须操作验证。");
+            return record;
         }
 
         private static void Set(IECInstance instance, string name, string value)
@@ -188,35 +104,6 @@ namespace SteelSectionProbe
             if (string.Equals(definition.Type.Name, "double", StringComparison.OrdinalIgnoreCase))
                 property.DoubleValue = A1NativeTrialCalculator.Parse(value);
             else property.StringValue = value ?? "";
-        }
-
-        private static void RequireProperty(IECInstance instance, string name)
-        {
-            if (!instance.ClassDefinition.Properties(true).Any(item => item.Name == name))
-                throw new InvalidOperationException("当前工作集缺少A1出图必需属性：" + name);
-        }
-
-        private static void WriteIsoData(BMECObject support, A1NativeTrialPosition position)
-        {
-            foreach (string name in new[] { "STATE", "SHOP_FIELD", "SUPPORT_POINT_X", "SUPPORT_POINT_Y", "SUPPORT_POINT_Z" })
-                RequireProperty(support.Instance, name);
-            // Empty STATE maps to IE_EXISTING=1 in the project's ISO schema.
-            support.Instance["STATE"].StringValue = "Design";
-            support.Instance["SHOP_FIELD"].StringValue = "SHOP";
-            // Schema storage units can differ from both millimetres and model UORs.
-            if (!support.SetDoubleValueFromMM("SUPPORT_POINT_X", position.X)
-                || !support.SetDoubleValueFromMM("SUPPORT_POINT_Y", position.Y)
-                || !support.SetDoubleValueFromMM("SUPPORT_POINT_Z", position.Z))
-                throw new InvalidOperationException("A1的ISO支撑点坐标写入失败。");
-        }
-
-        private static double ReadIsoCoordinate(BMECObject support, string name)
-        {
-            RequireProperty(support.Instance, name);
-            if (support.Instance[name].IsNull) throw new InvalidOperationException("A1的ISO支撑点坐标为空：" + name);
-            double value = support.GetDoubleValueInMM(name);
-            A1NativeTrialCalculator.RequireFinite(value);
-            return value;
         }
 
         internal static bool CheckSelected(Action<string> log)
@@ -248,12 +135,12 @@ namespace SteelSectionProbe
                 double dx = origin.X / scale - position.X, dy = origin.Y / scale - position.Y, dz = origin.Z / scale - position.Z;
                 double error = Math.Sqrt(dx * dx + dy * dy + dz * dz);
                 A1NativeTrialCalculator.RequireFinite(error);
-                double isoX = ReadIsoCoordinate(acquired.Object, "SUPPORT_POINT_X"),
-                    isoY = ReadIsoCoordinate(acquired.Object, "SUPPORT_POINT_Y"),
-                    isoZ = ReadIsoCoordinate(acquired.Object, "SUPPORT_POINT_Z");
+                double isoX = NativeSupportData.ReadCoordinate(acquired.Object, "SUPPORT_POINT_X"),
+                    isoY = NativeSupportData.ReadCoordinate(acquired.Object, "SUPPORT_POINT_Y"),
+                    isoZ = NativeSupportData.ReadCoordinate(acquired.Object, "SUPPORT_POINT_Z");
                 double isoError = Math.Sqrt(Math.Pow(isoX - position.X, 2) + Math.Pow(isoY - position.Y, 2) + Math.Pow(isoZ - position.Z, 2));
                 A1NativeTrialCalculator.RequireFinite(isoError);
-                RequireProperty(current, "STATE"); RequireProperty(current, "SHOP_FIELD");
+                NativeSupportData.RequireProperty(current, "STATE"); NativeSupportData.RequireProperty(current, "SHOP_FIELD");
                 string state = current["STATE"].IsNull ? "" : current["STATE"].StringValue;
                 string shop = current["SHOP_FIELD"].IsNull ? "" : current["SHOP_FIELD"].StringValue;
                 bool design = string.Equals(state, "Design", StringComparison.OrdinalIgnoreCase),

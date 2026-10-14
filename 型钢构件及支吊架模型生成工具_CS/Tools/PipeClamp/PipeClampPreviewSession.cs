@@ -1,22 +1,38 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
 using Bentley.DgnPlatformNET;
 using Bentley.DgnPlatformNET.Elements;
 using Bentley.GeometryNET;
 using Bentley.MstnPlatformNET;
+using Bentley.OpenPlant.Modeler.Api;
 
 namespace SteelSectionProbe
 {
     /// <summary>
-    /// 九种管夹共用的预览生命周期：重建时先写入新版预览、成功后再删除旧版；
-    /// 确认时按当前种类写入 <c>PipeSupportComponents</c> ItemType；取消与离开页面都清理未确认元素。
+    /// 九种管夹共用暂态预览生命周期：先显示新版、成功后再释放旧版；
+    /// 确认时真实管道创建原生支吊架，其他来源创建普通Cell，并写原材料契约。
     /// </summary>
     internal sealed class PipeClampPreviewSession
     {
         private Element preview;
+        private PipeClampTransientPreview display;
+        private readonly List<PipeClampTransientPreview> pendingDisplays=new List<PipeClampTransientPreview>();
         private DPoint3d center;
         private DVector3d axis;
         private PipeClampKind kind;
+        private string cellName;
+        private PipeClampSelection sourceBinding;
+        internal bool LastConfirmedNative { get; private set; }
+        internal void BindSource(PipeClampSelection source)
+        {
+            sourceBinding=source==null?null:new PipeClampSelection {
+                ElementId=source.ElementId,IsPipe=source.IsPipe,IsFromReference=source.IsFromReference,
+                NativePipeInstanceId=source.NativePipeInstanceId,NativeModelToken=source.NativeModelToken,SourceUorPerMm=source.SourceUorPerMm,
+                StartX=source.StartX,StartY=source.StartY,StartZ=source.StartZ,EndX=source.EndX,EndY=source.EndY,EndZ=source.EndZ,
+                NominalMm=source.NominalMm,OutsideMm=source.OutsideMm,InsulationMm=source.InsulationMm };
+        }
 
         private A2ClampPlan a2Plan;
         private A22ClampPlan a22Plan;
@@ -72,6 +88,9 @@ namespace SteelSectionProbe
             Replace(E1GuideBuilder.Build(plan),E1GuideCatalog.SupportCode,
                 PipeClampKind.E1Guide);
             e1Plan=plan;
+            double scale=Session.Instance.GetActiveDgnModel().GetModelInfo().UorPerMeter/1000.0;
+            center=new DPoint3d(plan.CenterXmm*scale,plan.CenterYmm*scale,plan.CenterZmm*scale);
+            axis=new DVector3d(plan.PipeX,plan.PipeY,0);
         }
 
         internal void ShowK1(K1LimitPlan plan,DPoint3d center,DVector3d axis)
@@ -108,22 +127,29 @@ namespace SteelSectionProbe
                 throw new InvalidOperationException("管夹实体创建失败（无子元素）。");
             var model=Session.Instance.GetActiveDgnModel();
             var replacement=new CellHeaderElement(model,cellName,DPoint3d.Zero,DMatrix3d.Identity,parts);
-            var status=replacement.AddToModel();
-            if(status!=StatusInt.Success)
-                throw new InvalidOperationException("管夹预览写入失败："+status);
-            try { DeleteOwned(preview); }
+            PipeClampTransientPreview replacementDisplay;
+            try { replacementDisplay=PipeClampTransientPreview.Create(replacement); }
+            catch { replacement.Dispose();throw; }
+            try { ReleaseDisplay(); }
             catch
             {
-                try { DeleteOwned(replacement); }
-                catch { preview=replacement; kind=newKind; ClearPlans(); }
+                try { replacementDisplay.Close(); }
+                catch { pendingDisplays.Add(replacementDisplay); }
+                replacement.Dispose();
                 throw;
             }
+            preview?.Dispose();
             preview=replacement;
+            display=replacementDisplay;
             kind=newKind;
+            this.cellName=cellName;
         }
 
         /// <summary>使用当前已验证计划构建动态原型，不写模型或清单。</summary>
         internal Element CreatePrototype()
+        { return BuildCell("AXIS_PLACEMENT_PREVIEW"); }
+
+        private Element BuildCell(string name)
         {
             if(preview==null)throw new InvalidOperationException("请先成功生成预览。");
             IList<Element> parts;
@@ -140,13 +166,27 @@ namespace SteelSectionProbe
                 case PipeClampKind.L2ColdShoe:parts=T4ShoeBuilder.Build(t4Layout,t4Boolean,center,axis,t4BuildPipe,t4BuildInsulation);break;
                 default:throw new InvalidOperationException("未知的管夹种类。");
             }
-            return new CellHeaderElement(Session.Instance.GetActiveDgnModel(),"AXIS_PLACEMENT_PREVIEW",DPoint3d.Zero,DMatrix3d.Identity,parts);
+            return new CellHeaderElement(Session.Instance.GetActiveDgnModel(),name,DPoint3d.Zero,DMatrix3d.Identity,parts);
         }
 
         internal void Confirm()
         {
+            if(!LicenseService.IsActivated)throw new InvalidOperationException("请先激活软件。");
             if(preview==null) throw new InvalidOperationException("当前没有可确认的管夹预览。");
-            var element=preview;
+            LastConfirmedNative=false;
+            if(NativePipeSupportSource.Eligible(sourceBinding))
+            {
+                ConfirmNative();
+                LastConfirmedNative=true;
+            }
+            else ConfirmOrdinary();
+            preview?.Dispose();
+            preview=null;
+            ClearPlans();
+        }
+
+        private void AttachStatistics(Element element)
+        {
             switch(kind)
             {
                 case PipeClampKind.U3BearingUBolt:
@@ -172,13 +212,134 @@ namespace SteelSectionProbe
                 default:
                     throw new InvalidOperationException("未知的管夹种类。");
             }
-            preview=null;
-            ClearPlans();
+        }
+
+        private static string N(double value) { return value.ToString("0.###",CultureInfo.InvariantCulture); }
+
+        private NativePipeSupportDefinition IsoDefinition()
+        {
+            switch(kind)
+            {
+                case PipeClampKind.A1UBolt:return NativePipeSupportDefinition.Create("A1",a1Plan.Row.Dn,"M"+N(a1Plan.Row.Bolt)+"-ANG"+N(a1Plan.AngleDeg));
+                case PipeClampKind.U3BearingUBolt:return NativePipeSupportDefinition.Create("U3",u3Plan.Clamp.Row.Dn,u3Plan.Subitem+"-"+u3Plan.MaterialCode+"-M"+N(u3Plan.Clamp.Row.Bolt));
+                case PipeClampKind.A2StandardTwoBolt:return NativePipeSupportDefinition.Create("A2",a2Plan.Dn,"B"+N(a2Plan.InsulationMm)+"-M"+N(a2Plan.BoltDiameterMm));
+                case PipeClampKind.A22ColdTwoBolt:
+                case PipeClampKind.A24ColdFourBolt:return NativePipeSupportDefinition.Create(kind==PipeClampKind.A22ColdTwoBolt?"A22":"A24",a22Plan.Dn,"B"+N(a22Plan.ColdThicknessMm)+"-M"+a22Plan.BoltDiameterMm);
+                case PipeClampKind.E1Guide:return NativePipeSupportDefinition.Create("E1",e1Plan.Dn,e1Plan.Item.Key+"-"+e1Plan.Item.ProfileName+"-H"+N(e1Plan.HeightMm));
+                case PipeClampKind.K1Limit:return NativePipeSupportDefinition.Create("K1",k1Plan.Dn,k1Plan.SubitemKey+"-W"+N(k1Plan.ExistingWidthMm));
+                case PipeClampKind.T4Insulated:
+                case PipeClampKind.L2ColdShoe:return NativePipeSupportDefinition.Create(kind==PipeClampKind.T4Insulated?"T4":"L2",t4Layout.Dn,"L"+N(t4Layout.ShoeLengthMm)+"-B"+N(t4Layout.InsulationMm));
+                default:throw new InvalidOperationException("未登记的管夹出图种类。");
+            }
+        }
+
+        private static void Text(Bentley.ECObjects.Instance.IECInstance instance,string name,string value)
+        {
+            NativeSupportData.RequireProperty(instance,name);
+            instance[name].StringValue=value;
+        }
+
+        private void ConfirmNative()
+        {
+            try
+            {
+                NativeSupportLog.Run(log=>
+                {
+                    var definition=IsoDefinition();
+                    log("确认源元素="+sourceBinding.ElementId+"；原生身份="+sourceBinding.NativePipeInstanceId+"；类别="+definition.Code);
+                    double scale=Session.Instance.GetActiveDgnModel().GetModelInfo().UorPerMeter/1000.0;
+                    var point=new[]{center.X/scale,center.Y/scale,center.Z/scale};
+                    var pipe=NativePipeSupportSource.Resolve(sourceBinding,point,definition.Dn);
+                    DTransform3d placement,inverse;
+                    NativePipeSupportSource.Frame(center,axis,out placement,out inverse);
+                    var instance=BMECInstanceManager.Instance.CreateECInstance(NativePipeSupportDefinition.NativeClass,true);
+                    if(instance==null)throw new InvalidOperationException("当前工作集没有SUPPORT_LOCATION类。");
+                    Text(instance,"DEVICE_TYPE_CODE",definition.Label);
+                    Text(instance,"NAME",definition.Label+"-"+Guid.NewGuid().ToString("N").Substring(0,8));
+                    Text(instance,"DESCRIPTION",definition.Description);
+                    Text(instance,"SPECIFICATION",pipe["SPECIFICATION"].StringValue??"");
+                    NativeSupportData.RequireProperty(instance,"NOMINAL_DIAMETER");
+                    var nominal=instance.ClassDefinition.Properties(true).First(p=>p.Name=="NOMINAL_DIAMETER");
+                    if(string.Equals(nominal.Type.Name,"string",StringComparison.OrdinalIgnoreCase))
+                        instance["NOMINAL_DIAMETER"].StringValue=definition.Dn.ToString(CultureInfo.InvariantCulture);
+                    else instance["NOMINAL_DIAMETER"].DoubleValue=pipe["NOMINAL_DIAMETER"].DoubleValue;
+                    log("类别="+definition.Code+"；标注="+definition.Label+"；父管="+pipe.InstanceId);
+                    log("目标位置(mm)="+N(point[0])+","+N(point[1])+","+N(point[2])+"；UOR/mm="+N(scale));
+                    NativePipeSupportWriter.Create(instance,pipe,placement,point,
+                        ()=>LocalGraphics(inverse),
+                        (support,element)=>
+                        {
+                            string tag=support.Instance["NAME"].StringValue;
+                            if(string.IsNullOrEmpty(tag)||!tag.StartsWith(definition.Label+"-",StringComparison.Ordinal))
+                                throw new InvalidOperationException("原生编号未保留管夹类别与规格，请检查工作集命名规则。");
+                            AttachStatistics(element);
+                            NativePipeSupportStore.Write(element,new NativePipeSupportRecord {
+                                Code=definition.Code,Dn=definition.Dn,NativeClass=NativePipeSupportDefinition.NativeClass,
+                                PipeInstanceId=pipe.InstanceId,SupportInstanceId=support.Instance.InstanceId,
+                                IsoTag=tag,Description=definition.Description,Xmm=point[0],Ymm=point[1],Zmm=point[2] });
+                            log("ISO编号="+tag+"；描述="+definition.Description);
+                        },ReleaseDisplay,log);
+                });
+            }
+            catch(Exception error)
+            {
+                try { RestoreDisplay(); }
+                catch(Exception restoreError) { throw new AggregateException("原生确认失败，预览恢复也失败；请取消后重新点取。",error,restoreError); }
+                throw;
+            }
+        }
+
+        private void ConfirmOrdinary()
+        {
+            if(TransactionManager.IsUndoInProgress)throw new InvalidOperationException("撤销/重做期间不能确认。");
+            if(!TransactionManager.IsActive)TransactionManager.Activate();
+            TransactionManager.CloseCurrentTransaction(true);
+            var mark=TransactionManager.CurrentTransactionPosition;
+            try
+            {
+                using(var final=BuildCell(cellName))
+                {
+                    if(final.AddToModel()!=StatusInt.Success)throw new InvalidOperationException("管夹写入失败。");
+                    AttachStatistics(final);
+                    ReleaseDisplay();
+                }
+                TransactionManager.CloseCurrentTransaction(true);
+            }
+            catch(Exception error)
+            {
+                var rollback=TransactionManager.CancelToPosition(mark,false);
+                if(rollback!=StatusInt.Success)throw new InvalidOperationException("管夹确认失败且回滚未完成，请检查模型。",error);
+                try { RestoreDisplay(); }
+                catch(Exception restoreError) { throw new AggregateException("管夹确认失败，预览恢复也失败；请取消后重新点取。",error,restoreError); }
+                throw;
+            }
+        }
+
+        private void RestoreDisplay()
+        {
+            if(display!=null)return;
+            var graphics=BuildCell(cellName);
+            try { display=PipeClampTransientPreview.Create(graphics); }
+            catch { graphics.Dispose();throw; }
+            preview?.Dispose();preview=graphics;
+        }
+
+        private Element LocalGraphics(DTransform3d inverse)
+        {
+            var graphics=BuildCell(cellName);
+            try
+            {
+                if(graphics.ApplyTransform(new TransformInfo(inverse))!=0)
+                    throw new InvalidOperationException("管夹局部几何变换失败。");
+                return graphics;
+            }
+            catch { graphics.Dispose();throw; }
         }
 
         internal void Cancel()
         {
-            DeleteOwned(preview);
+            ReleaseDisplay();
+            preview?.Dispose();
             preview=null;
             ClearPlans();
         }
@@ -187,14 +348,15 @@ namespace SteelSectionProbe
         {
             u3Plan=null;a1Plan=null;a2Plan=null;a22Plan=null;e1Plan=null;k1Plan=null;t4Layout=null;t4Boolean=null;
             t4BuildPipe=false; t4BuildInsulation=false;
+            sourceBinding=null;
         }
 
-        private static void DeleteOwned(Element element)
+        private void ReleaseDisplay()
         {
-            if(element==null || !element.IsValid) return;
-            var status=element.DeleteFromModel();
-            if(status!=StatusInt.Success)
-                throw new InvalidOperationException("删除管夹预览失败："+status);
+            PipeClampTransientPreview.RetryPending();
+            for(int i=pendingDisplays.Count-1;i>=0;i--){pendingDisplays[i].Close();pendingDisplays.RemoveAt(i);}
+            if(display==null)return;
+            display.Close();display=null;
         }
     }
 }

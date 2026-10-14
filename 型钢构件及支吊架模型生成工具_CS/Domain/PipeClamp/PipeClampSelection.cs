@@ -14,6 +14,10 @@ namespace SteelSectionProbe
         internal string AxisNote="";
         internal double? NominalMm,OutsideMm,InsulationMm;
         internal string PipeNumber="";
+        // Native identity and model units captured when picking; never derive these from a reference's temporary line.
+        internal string NativePipeInstanceId;
+        internal long NativeModelToken;
+        internal double SourceUorPerMm;
 
         internal double AxisX { get { return EndX-StartX; } }
         internal double AxisY { get { return EndY-StartY; } }

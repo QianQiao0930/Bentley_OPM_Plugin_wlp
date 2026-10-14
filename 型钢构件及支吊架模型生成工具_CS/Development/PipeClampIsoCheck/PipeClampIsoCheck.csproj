@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+<PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net48</TargetFramework><LangVersion>7.3</LangVersion><AllowUnsafeBlocks>true</AllowUnsafeBlocks><NoWarn>$(NoWarn);0649</NoWarn></PropertyGroup>
+<ItemGroup><Reference Include="System.Web.Extensions"/><Reference Include="System.Web"/></ItemGroup>
+<ItemGroup><Compile Include="../../Domain/ProfileModels.cs" Link="ProfileModels.cs" />
+<Compile Include="../../Data/RuntimeData.cs" Link="RuntimeData.cs" />
+<Compile Include="../../Data/ProfileLookup.cs" Link="ProfileLookup.cs" />
+<Compile Include="../../Domain/E1Guide/E1GuideModels.cs" Link="E1GuideModels.cs" />
+<Compile Include="../../Domain/E1Guide/E1GuideSegment.cs" Link="E1GuideSegment.cs" />
+<Compile Include="../../Data/E1Guide/E1GuideCatalog.cs" Link="E1GuideCatalog.cs" />
+<Compile Include="../../Domain/PipeClamp/PipeClampModels.cs" Link="PipeClampModels.cs" />
+<Compile Include="../../Domain/PipeClamp/U3ClampPlan.cs" Link="U3ClampPlan.cs" />
+<Compile Include="../../Data/PipeClamp/U3ClampCatalog.cs" Link="U3ClampCatalog.cs" />
+<Compile Include="../../Services/PipeClamp/U3ClampCalculator.cs" Link="U3ClampCalculator.cs" />
+<Compile Include="../../Domain/PipeClamp/A1ClampPlan.cs" Link="A1ClampPlan.cs" />
+<Compile Include="../../Domain/PipeClamp/A22ClampPlan.cs" Link="A22ClampPlan.cs" />
+<Compile Include="../../Data/PipeClamp/PipeClampCatalog.cs" Link="PipeClampCatalog.cs" />
+<Compile Include="../../Data/PipeClamp/A1ClampCatalog.cs" Link="A1ClampCatalog.cs" />
+<Compile Include="../../Data/PipeClamp/A2ClampCatalog.cs" Link="A2ClampCatalog.cs" />
+<Compile Include="../../Data/PipeClamp/A22ClampCatalog.cs" Link="A22ClampCatalog.cs" />
+<Compile Include="../../Data/PipeClamp/A24ClampCatalog.cs" Link="A24ClampCatalog.cs" />
+<Compile Include="../../Data/PipeClamp/L2ShoeCatalog.cs" Link="L2ShoeCatalog.cs" />
+<Compile Include="../../Data/PipeClamp/K1LimitCatalog.cs" Link="K1LimitCatalog.cs" />
+<Compile Include="../../Data/PipeClamp/T4ShoeCatalog.cs" Link="T4ShoeCatalog.cs" />
+<Compile Include="../../Services/PipeClamp/A2ClampCalculator.cs" Link="A2ClampCalculator.cs" />
+<Compile Include="../../Services/PipeClamp/A22ClampCalculator.cs" Link="A22ClampCalculator.cs" />
+<Compile Include="../../Services/PipeClamp/L2ShoeCalculator.cs" Link="L2ShoeCalculator.cs" />
+<Compile Include="../../Services/PipeClamp/A1ClampCalculator.cs" Link="A1ClampCalculator.cs" />
+<Compile Include="../../Services/PipeClamp/K1LimitCalculator.cs" Link="K1LimitCalculator.cs" />
+<Compile Include="../../Services/PipeClamp/T4ShoeCalculator.cs" Link="T4ShoeCalculator.cs" />
+<Compile Include="../../Data/ColdRiserGuide/L7GuideCatalog.cs" Link="L7GuideCatalog.cs" />
+<Compile Include="../../Domain/ColdRiserGuide/L7GuidePlan.cs" Link="L7GuidePlan.cs" />
+<Compile Include="../../Services/ColdRiserGuide/L7GuideCalculator.cs" Link="L7GuideCalculator.cs" />
+<Compile Include="../../Domain/N8ConnectionPlate/N8ConnectionPlateModels.cs" Link="N8ConnectionPlateModels.cs" />
+<Compile Include="../../Data/N8ConnectionPlate/N8Catalog.cs" Link="N8Catalog.cs" />
+<Compile Include="../../Domain/G2Anchor/G2AnchorModels.cs" Link="G2AnchorModels.cs" />
+<Compile Include="../../Data/G2Anchor/G2AnchorCatalog.cs" Link="G2AnchorCatalog.cs" />
+<Compile Include="../A1NativeSupportCheck/NativeApiFakes.cs" Link="NativeApiFakes.cs"/>
+<Compile Include="../../Domain/PipeClamp/PipeClampSelection.cs" Link="PipeClampSelection.cs"/>
+<Compile Include="../../Domain/NativePipeSupport/*.cs" Link="Domain/%(Filename)%(Extension)"/>
+<Compile Include="../../OpenPlant/NativePipeSupport/NativeSupportData.cs" Link="NativeSupportData.cs"/>
+<Compile Include="../../OpenPlant/NativePipeSupport/NativeSupportElements.cs" Link="NativeSupportElements.cs"/>
+<Compile Include="../../OpenPlant/NativePipeSupport/NativePipeSupportWriter.cs" Link="NativePipeSupportWriter.cs"/>
+<Compile Include="../../OpenPlant/NativePipeSupport/NativePipeSupportSource.cs" Link="NativePipeSupportSource.cs"/>
+<Compile Include="../../Infrastructure/NativePipeSupport/NativePipeSupportStore.cs" Link="NativePipeSupportStore.cs"/>
+<Compile Include="../../Tools/PipeClamp/PipeClampPreviewSession.cs" Link="PipeClampPreviewSession.cs"/>
+<Compile Include="../../Tools/PipeClamp/PipeClampTransientPreview.cs" Link="PipeClampTransientPreview.cs"/>
+<Compile Include="../../Services/PipeClamp/PipeClampFrame.cs" Link="PipeClampFrame.cs"/>
+</ItemGroup>
+<ItemGroup><EmbeddedResource Include="../../Resources/profiles.bin" LogicalName="SteelSectionProbe.profiles.bin"/></ItemGroup>
+</Project>

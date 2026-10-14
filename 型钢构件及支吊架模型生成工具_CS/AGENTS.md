@@ -4,6 +4,14 @@
 
 当前UI规范：[Docs/UI规范-v4.md](Docs/UI规范-v4.md)。下方带日期的旧改造记录为历史；当前规格与第9节优先。
 
+2026-10-14：用户实测确认A1的ISO位置、编号和Supports材料行成功，并授权将流程沉淀后接入正式“放置管夹”九类别（A1/U3/A2/A22/A24/E1/K1/T4/L2）。共用能力在OpenPlant/NativePipeSupport的Writer/Data/Elements/Graphics/Source，试验命令也改用它；不再在生产路径复制A1事务。正式类别统一SUPPORT_LOCATION支架位置类，经继承的ClassMap(...,"SUPP")使用通用简化符号；该类补充Schema的NOMINAL_DIAMETER为string，须按实际字段类型写。DEVICE_TYPE_CODE/NAME包含类别、DN和关键尺寸，DESCRIPTION用ASCII英文避开当前ISO种子的中文缺字。原中文PipeSupportComponents九字段、Builder几何与统计方法保持，根元素另存SteelSectionProbeNativeSupports/PlacedPipeSupport Version1 JSON身份/坐标记录。详见[接入说明](Docs/原生支吊架与轴测图接入.md)。
+
+PipeClampReader捕获原生实例ID/模型指针标识/UOR比例；会话成功预览后绑定数值快照，确认前重读真实可写活动PIPE、身份/轴段/DN/外径/保温/单位，超轴段定位拒绝。参考物化线和辅助线仅普通Cell/本地清单，页面明确提示无ISO关联；原生失败禁止静默降级。正式确认用当前计划重建世界几何，逆变换为局部后交给共用Writer，避免二次平移旋转；Source.Frame沿管轴建立正交架，支持各Builder原范围，不把试验的水平限制搬到U3立管等类别。Writer临时立即提交、Design/SHOP、按mm写ISO点、唯一DEVICE关系、缓存所有权与持久对象重读检查、独立Undo回滚规则必须保留。
+
+管夹预览改COM暂态显示，替代该模块原持续AddToModel的普通预览：在同一短事务内物化普通Cell→由ID获取COM图形→创建暂态副本→立即删临时Cell，Add/Delete不可跨事务且不写材料。新显示成功才释放旧显示，释放失败保留全部显示所有权供取消重试。正式确认只落最终根，释放预览不改DGN，因此Undo不会复活未管理的普通预览；普通来源确认也在事务中重建Cell/写清单，失败保留预览。方向/滑动/更新/取消/离开和已确认所有权继续遵守原规则。不得从正式持久元素直接Extract非参数化几何。旧模型不自动改、工作集Schema/符号库/ISO样式不改，本轮不增加自动跟随事件监听。
+
+5823项正式九类真实会话/共用Writer/暂态生命周期配API替身、原1816项试验回归、原PipeClamp/E1计算、551项真实XAML布局及控件/事件契约通过。PipeClampPage仅增加源绑定和结果状态文字，UI-only快照仅更新授权的该页业务摘要。替身不验证Bentley扫掠、实际COM暂态复制/显示、SUPPORT_LOCATION双横线样式、九类ISO输出或原生Undo/Redo/移动，必须逐类宿主试放；不能把A1试验成功泛化为全部新集成实测。改前431bf95及源码/DLL/PDB、成功截图和原始ISO证据在../迁移备份/放置管夹原生ISO集成_20261014_431bf95。
+
 2026-10-14 A1第二轮出图点/状态修复：原生创建和关系已在OPM成功，实际L00含CT_SUPPORT/SUPP_UBOLT@90与IE_TAG，但SUPPORT_POINT为0且STATE空导致IE_EXISTING=1。只修试验PLACE：GetSectionalDataForSupport之后，必需属性检查、STATE=Design、SHOP_FIELD=SHOP、BMECObject.SetDoubleValueFromMM分别写目标轴站位XYZ，最终Serialize后从文档对象重读校验。禁止把DGN UOR直接写入Schema属性或假定存储单位恒为mm。CHECK只读，必须同时通过三维/ISO点各1mm、Design/SHOP及非参数化外形；旧试验件不自动改，需删除后重放。缺属性、空坐标、非有限数值、字段写入/保存丢失明确失败并按原事务回滚。原点真实站位允许零值。不得以这些数据检查代替实际BOM/标注/随动测试，不改工作集Schema或ISO样式。
 
 1816项真实适配器配替身检查覆盖3档UOR×mm/in/m Schema单位×4管向×3开口角、非零标高、三维动而ISO未动、CHECK只读、旧零点/空状态与故障回滚。替身GetSectionalDataForSupport改为零支点以匹配真实反馈，不再伪造自动随动。改前83e5e48及源码/DLL/PDB、第二轮创建/ISO日志与L00/SHP/FLD、SHA256在../迁移备份/A1出图坐标和状态修复_20261014_83e5e48。
