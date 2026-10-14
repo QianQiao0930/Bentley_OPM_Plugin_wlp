@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net48</TargetFramework><UseWPF>true</UseWPF><LangVersion>7.3</LangVersion><EnableDefaultPageItems>false</EnableDefaultPageItems></PropertyGroup><ItemGroup>
+﻿<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net48</TargetFramework><UseWPF>true</UseWPF><LangVersion>7.3</LangVersion><EnableDefaultPageItems>false</EnableDefaultPageItems></PropertyGroup><ItemGroup><Compile Include="../../UI/NativePanelLayout.cs" Link="NativePanelLayout.cs"/><Compile Include="../DockingCheck/LayoutChecks.cs" Link="NativePanelLayoutChecks.cs"/>
 <Page Include="../../UI/Q1Support/Q1SupportPage.xaml" Link="UI/Q1Support/Q1SupportPage.xaml"/>
 <Page Include="../../UI/Q1Support/QSupportTheme.xaml" Link="UI/Q1Support/QSupportTheme.xaml"/>
 <Page Include="../../UI/Home/HomeTheme.xaml" Link="UI/Home/HomeTheme.xaml"/>

@@ -1,5 +1,8 @@
 # 十二个建模模块的原型界面检查
 
+2026-10-14：正式工作区改用Bentley原生停靠。检查工程调用真实NativePanelLayout隐藏重复窗口标题，保留63模块头/固定操作；新增400×560、400×600、520×720、400×1080与四档DPI检查，见[DockingCheck](../DockingCheck/README.md)。下方原400×880尺寸仍为视觉回归基准。
+
+
 链接真实十二页XAML、局部ModelingTheme、PrototypeChrome、原ProfilePreviewControl与ProfileModels。原九页事件使用隔离空夹具；新增水箱爬梯、墙面爬梯、磁翻板液位计链接真实页面逻辑及纯Calculator/PreviewSession，用隔离模型API和内存偏好替身验证状态。不运行Bentley原生几何、不写实际模型、授权或用户偏好。
 
 ```powershell

@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net48</TargetFramework><UseWPF>true</UseWPF><UseWindowsForms>true</UseWindowsForms><LangVersion>7.3</LangVersion><EnableDefaultPageItems>false</EnableDefaultPageItems><DefineConstants>$(DefineConstants);ENABLE_LICENSING</DefineConstants></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../UI/MainWindow.cs" Link="MainWindow.cs"/>
+    <Compile Include="../../UI/WorkspaceView.xaml.cs" Link="WorkspaceView.xaml.cs"/>
+    <Compile Include="../../UI/NativePanelLayout.cs" Link="NativePanelLayout.cs"/>
+    <Compile Include="../../App/IWorkspacePage.cs" Link="IWorkspacePage.cs"/>
+    <Compile Include="../../App/SteelSectionAddIn.cs" Link="SteelSectionAddIn.cs"/>
+    <Page Include="../../UI/WorkspaceView.xaml" Link="UI/WorkspaceView.xaml"/>
+    <Page Include="../../UI/Themes/Theme.xaml" Link="UI/Themes/Theme.xaml"/>
+  </ItemGroup>
+</Project>

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Windows;
@@ -20,7 +20,7 @@ namespace SteelSectionProbe
    try
    {
     string project=Path.GetFullPath(args[0]),output=Path.Combine(project,"Development","HomeUiCheck","previews");Directory.CreateDirectory(output);
-    CheckPreferences();HomePreferenceFixture.Seed();var page=new HomePage();
+    CheckPreferences();HomePreferenceFixture.Seed();var page=new HomePage();NativePanelLayout.Apply(page);
     var root=LoadWorkspace(Path.Combine(project,"UI","WorkspaceView.xaml"));
     ((FrameworkElement)root.FindName("HeaderRow")).Visibility=Visibility.Collapsed;((RowDefinition)root.FindName("HeaderRowDef")).MinHeight=0;
     ((ContentControl)root.FindName("PageHost")).Content=page;
@@ -65,7 +65,8 @@ namespace SteelSectionProbe
     Click(page,"FavTab");Arrange(root,400,880);Check(((ItemsControl)page.FindName("SupportList")).Items.Count==1,"星级收藏过滤");
     Click(page,"AllTab");Click(page,"DetailToggle");Click(page,"FrequentSort");Arrange(root,400,880);Check(page.ShowRanks,"频次模式显示排行");Check(Descendants<Border>(((ItemsControl)page.FindName("ModelingList")).ItemContainerGenerator.ContainerFromIndex(0)).First(border=>border.Name=="RankBadge").Visibility==Visibility.Visible,"频次卡片真实排行可见");Save(root,Path.Combine(output,"home-frequency-400-880.png"),400,880);
     Click(page,"NameSort");Arrange(root,400,880);Check(((ComboBox)page.FindName("SortBox")).SelectedIndex==3,"名称排序UI");
-    CheckRecent(page,root,output);
+    CheckRecent(page,root,output);NativePanelLayoutChecks.Verify(root,page,Check);
+    Arrange(root,400,600);Save(root,Path.Combine(output,"home-native-panel-400-600.png"),400,600);Arrange(root,400,880);
     LicenseService.IsActivated=false;page.Refresh();Arrange(root,400,880);Save(root,Path.Combine(output,"home-unactivated-400-880.png"),400,880);
     Check(((Button)page.FindName("ActivationButton")).Content.ToString()=="未激活","授权状态沿用现有服务");
     LicenseService.IsLicensingEnabled=false;page.Refresh();Arrange(root,400,880);Check(((Button)page.FindName("ActivationButton")).Visibility==Visibility.Collapsed,"无授权构建隐藏授权入口");

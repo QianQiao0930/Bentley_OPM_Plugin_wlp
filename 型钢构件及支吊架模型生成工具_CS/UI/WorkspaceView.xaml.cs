@@ -13,6 +13,7 @@ namespace SteelSectionProbe
         private readonly HomePage homePage;
         private IWorkspacePage currentPage;
         private readonly DispatcherTimer licenseTimer;
+        private bool panelHidden;
 
         internal event Action CloseRequested;
         internal SteelSectionPage SteelSections { get; private set; }
@@ -102,6 +103,7 @@ namespace SteelSectionProbe
             if (currentPage != null && !ReferenceEquals(currentPage, page)) currentPage.OnDeactivated();
             currentPage = page;
             PageHost.Content = page.View;
+            NativePanelLayout.Apply(page.View);
             bool prototypePage = id == "q1-small-pipe-support" || Equals(page.View.Tag, "prototype-v4");
             if(MainWindow.Current!=null)MainWindow.Current.SetHomeLayout(false, prototypePage);
             page.OnActivated();
@@ -163,6 +165,7 @@ namespace SteelSectionProbe
             if (currentPage != null) currentPage.OnDeactivated();
             currentPage = null;
             PageHost.Content = homePage;
+            NativePanelLayout.Apply(homePage);
             if(MainWindow.Current!=null)MainWindow.Current.SetHomeLayout(true);
             // 回到首页是唯一的重排时机：评分只就地改显示，卡片不会在用户手下滑走。
             homePage.Refresh();
@@ -253,11 +256,35 @@ namespace SteelSectionProbe
 
         internal void OnWorkspaceClosing()
         {
+            // Keep expiry checks alive if a page refuses cleanup and unloading is aborted.
+            foreach (IWorkspacePage page in pages.Values) page.OnWorkspaceClosing();
             licenseTimer.Stop();
             licenseTimer.Tick -= LicenseTimer_Tick;
-            foreach (IWorkspacePage page in pages.Values) page.OnWorkspaceClosing();
             currentPage = null;
             HomePreferences.Save();
+        }
+
+        internal void OnPanelHidden()
+        {
+            if (panelHidden) return;
+            if (currentPage != null) currentPage.OnDeactivated();
+            HomePreferences.Save();
+            licenseTimer.Stop();
+            panelHidden = true;
+        }
+
+        internal void OnPanelShown()
+        {
+            if (!panelHidden) return;
+            if (currentPage != null)
+            {
+                if (currentPage.PageId != "activation" && currentPage.PageId != "about" && !LicenseService.IsActivated)
+                    ShowActivationPage();
+                else currentPage.OnActivated();
+            }
+            else homePage.Refresh();
+            panelHidden = false;
+            if (LicenseService.IsLicensingEnabled) licenseTimer.Start();
         }
 
         private void HomeEnter_Click(object sender,RoutedEventArgs e){homePage.EnterSelected();}

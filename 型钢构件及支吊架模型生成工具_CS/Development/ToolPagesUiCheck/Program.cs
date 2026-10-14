@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Windows;
@@ -30,15 +30,15 @@ namespace SteelSectionProbe
                 ((DataGrid)stats.FindName("TypeGrid")).ItemsSource=new[]{new StatisticsFixture{SupportType="Q1 大管支撑小管",AssemblyCount=4,AssemblyTags="Q1-1-C-DN100-DN80-500"}};
                 foreach(var pair in new[]{Tuple.Create("component-properties",(UserControl)query),Tuple.Create("line-coordinates",(UserControl)lineCoordinates),Tuple.Create("support-statistics",(UserControl)stats),Tuple.Create("activation",(UserControl)new ActivationPage()),Tuple.Create("about",(UserControl)new AboutPage())})
                 {
-                    var page=pair.Item2;host.Content=page;
+                    var page=pair.Item2;host.Content=page;NativePanelLayout.Apply(page);
                     if(page is ActivationPage activation)activation.OnActivated();
                     ((TextBlock)root.FindName("StatusText")).Text="状态消息支持两行显示：读取当前 DGN 的构件属性与支吊架材料清单，详细内容可悬停查看。";
                     Arrange(root);Check(page.ActualWidth==398,"400外框 "+pair.Item1);Check(host.Margin.Left==0,"原型零外边距 "+pair.Item1);Check(((FrameworkElement)root.FindName("WorkspaceFooter")).ActualHeight==46,"46底栏 "+pair.Item1);
-                    var chrome=Children<PrototypeChrome>(page).Single();Check(chrome.ActualHeight==95,"32+63模块头 "+pair.Item1);
+                    var chrome=Children<PrototypeChrome>(page).Single();Check(chrome.ActualHeight==63,"原生停靠63模块头 "+pair.Item1);
                     var status=(TextBlock)root.FindName("StatusText");Check(status.FontSize==10.5&&status.TextWrapping==TextWrapping.Wrap&&status.MaxHeight==28,"双行小字体 "+pair.Item1);Check(status.ActualHeight==28,"长消息双行 "+pair.Item1);
                     Check(((Button)root.FindName("HomeEnterButton")).Visibility==Visibility.Collapsed,"模块无首页进入按钮 "+pair.Item1);
                     Save(root,Path.Combine(output,pair.Item1+"-400-880.png"));
-                    foreach(double scale in new[]{1d,1.25,1.5,2}){var bmp=new RenderTargetBitmap((int)(400*scale),(int)(880*scale),96*scale,96*scale,PixelFormats.Pbgra32);bmp.Render(root);Check(bmp.PixelHeight==(int)(880*scale),"DPI "+pair.Item1+scale);}
+                    NativePanelLayoutChecks.Verify(root,page,Check);foreach(double scale in new[]{1d,1.25,1.5,2}){var bmp=new RenderTargetBitmap((int)(400*scale),(int)(880*scale),96*scale,96*scale,PixelFormats.Pbgra32);bmp.Render(root);Check(bmp.PixelHeight==(int)(880*scale),"DPI "+pair.Item1+scale);}
                     foreach(var button in Children<Button>(page).Where(b=>b.IsVisible)){var p=button.TranslatePoint(new Point(),root);Check(p.X+button.ActualWidth<=400.1,"按钮右边界 "+pair.Item1+button.Content);}
                     if(page is LineCoordinatesPage)
                     {

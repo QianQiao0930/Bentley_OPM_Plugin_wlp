@@ -4,6 +4,12 @@
 
 当前UI规范：[Docs/UI规范-v4.md](Docs/UI规范-v4.md)。下方带日期的旧改造记录为历史；当前规格与第9节优先。
 
+2026-10-14：用户授权原生停靠改造，覆盖历史固定400×880窗口壳。MainWindow仍以Adapter/ElementHost承载WPF，但通过WindowManager.GetForMicroStation().DockPanel注册稳定ID SteelSectionProbe.Workspace，默认右侧，支持左右/浮动/标签/自动隐藏；不得再AttachAsTopLevelForm或使用圆角Region/固定MaximumSize。初始400×720 DIP、最小400×560，尺寸交给Bentley，DPI变更只更新最小尺寸。SetHomeLayout/ApplyHomeWidth保留兼容接口但不改尺寸。
+
+NativePanelLayout仅在工作区接入页面时隐藏Home/Q1自绘32标题行，以及PrototypeChrome内32标题行，将模块父行改Auto；保留63模块头、导航、页内控件和固定操作。源XAML保留用于独立预览，但正式工作区没有双标题/圆角外框。关闭按钮与原生X先OnPanelHidden结束当前点取并保存偏好，再隐藏复用面板；自动隐藏/标签切换不走关闭清理。重开激活当前页并检查授权；Dispose清理全部页面和timer。AddIn.UnloadingEvent先清理再RemoveContent，清理失败UnloadAbort且保留所有权供重试。稳定ID的跨次布局恢复由Bentley管理，禁止自行加载覆盖宿主全局布局。
+
+改前已提交首页基线48618d5，源码/原型/DLL/PDB及校验备份于../迁移备份/原生停靠改造_20261014。DockingCheck链接真实窗口/工作区/AddIn与窗口API替身；五套真实WPF检查增加变高/DPI覆盖。所有离线检查不能代替OPM实际拖拽、自动隐藏、跨次位置和卸载测试。
+
 2026-10-14 N4槽钢用户修正：子项A/B两侧横担与斜撑必须腹板背靠背、开口朝外，替代旧Python同向截面布置。BracketBuilder中geometric_center槽钢开口沿截面+X；N4负横向侧镜像截面宽轴，正侧保留，beam及brace共用同一方向。N3单架及N4的H型钢C～F原坐标架保留；构件C、中心间距、板中心距/防碰撞、剪切延长与清单不变。EquipmentSupportCheck链接真实Builder与profiles.bin，隔离API记录384组N3/N4、全子项、上下类型、反向、占位与朝向组合，合计6426项回归。OPM原生布尔/扫掠/交互仍需试放；旧模型不自动改，更新未确认预览或重新生成。改前源码/DLL/PDB及用户截图备份于仓库迁移备份/N4槽钢背靠背修正_20261014。
 
 2026-10-14：新增查询分类 line-coordinates（直线坐标修改），当前32可用+1占位，12建模/17支吊架/3查询。用户授权查询分类增加编辑入口，现有构件特性/统计仍只读。Domain/Data/Services/Tools/UI按LineCoordinates分层；通过UorPerMeter/1000显示/编辑模型XYZ毫米值，G17保留往返精度，二维Z=0只读。仅活动模型独立LineElement/MSElementType.Line，不接收LineString、复杂链、块内子线、附件、只读或锁定元素。点取结束再按revision排队读取，不保留Element句柄；Begin幂等，结束恢复捕捉。输入不自动写模型，应用前按模型/ID重读并校验单位/维度及原坐标未被其他操作改变。原生CurvePathEdit仅改几何，ReplaceInModel保留ID/属性；一次替换封成单独TransactionManager事务，失败CancelToPosition，不清Undo缓冲。复用WriteDuration计时，不写支吊架清单。不保存线段坐标至用户偏好；离开/关闭丢弃草稿，撤销/重做失效快照。新页沿用v4和PrototypeTheme。LineCoordinatesCheck验证真实Reader/Editor配API替身；ToolPagesUiCheck链接真实页面/计算/编辑与隔离模型API。首页登记与回归同步；宿主原生写入、坐标属性、样式/EC、捕捉及Undo仍需试用。改前基线319db61及DLL/PDB/原型/校验备份于仓库迁移备份/直线坐标修改_20261014_319db61。
@@ -453,8 +459,8 @@ internal sealed class ExamplePage : UserControl, IWorkspacePage
 
 当前唯一规格来源是 [`Docs/UI规范-v4.md`](Docs/UI规范-v4.md)，视觉参考是仓库资料中的v4原型。后续所有页面继续采用这套规格；文中历史560宽、240×124卡片、12宽滚动条和深色主按钮不再适用。
 
-- 首页、12个建模、17个支吊架、3个查询及激活/作者工具页全部400×880 DIP；系统DPI映射由MainWindow统一完成，不自动扩宽。
-- 模块采用PrototypeChrome的32标题栏+63模块头、可滚动参数区、固定操作区、46共享底栏；新页面Tag为prototype-v4。Q1/Q2保留兼容标签和原专用样式。
+- 首页、12个建模、17个支吊架、3个查询及激活/作者工具页统一接入原生停靠宿主；初始400×720 DIP、最小400×560，宽高由宿主分隔条管理，400×880保留为离线视觉参考尺寸。
+- 模块保留PrototypeChrome的63模块头、可滚动参数区、固定操作区、46共享底栏；32自绘窗口标题由NativePanelLayout在接入工作区时隐藏。新页面Tag为prototype-v4。Q1/Q2保留兼容标签和原专用样式。
 - 建模加载ModelingTheme，支吊架加载SupportTheme，查询/工具加载PrototypeTheme；首页加载HomeTheme。不得复制新的基本主题。项目SVG和HomeIcon几何保持。
 - 参数字段34高、卡片圆角6/内边距12/分区头35，长标题允许合理换行；外层滚动条6宽；主按钮蓝色。
 - 状态统一调用MainWindow.SetStatus，10.5字、14行高、最多双行、全文悬停；原错误颜色和消息内容保持。

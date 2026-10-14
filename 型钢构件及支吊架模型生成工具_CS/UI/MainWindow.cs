@@ -3,43 +3,52 @@ using System.Drawing;
 using System.Windows.Forms;
 using System.Windows.Forms.Integration;
 using Bentley.MstnPlatformNET.WinForms;
+using Bentley.Windowing;
 
 namespace SteelSectionProbe
 {
     /// <summary>
-    /// Thin Bentley/WinForms host.  All visible application UI lives in the
-    /// WPF WorkspaceView; this class only owns the native top-level lifetime.
+    /// Bentley owns the docking frame; ElementHost carries the existing WPF workspace.
     /// </summary>
     internal sealed class MainWindow : Adapter
     {
         private readonly ElementHost elementHost = new ElementHost();
         private readonly WorkspaceView workspace;
 
-        private bool homeShell;
-        private int moduleHeightLogical=720;
+        private const string PanelId = "SteelSectionProbe.Workspace";
+        private WindowContent panel;
+        private bool panelOpen;
+        private bool workspaceDisposed;
         internal static MainWindow Current;
         internal SteelSectionPage SteelSections { get { return workspace.SteelSections; } }
 
         internal static void ShowWindow()
         {
             if (Current == null || Current.IsDisposed) Current = new MainWindow();
-            if (!Current.Visible) Current.Show();
-            Current.Activate();
+            Current.ShowPanel();
+        }
+
+        internal static void UnloadWindow()
+        {
+            MainWindow window = Current;
+            if (window == null || window.IsDisposed) return;
+            // Keep the live owner if preview cleanup fails; the AddIn can refuse unloading.
+            window.ReleaseWorkspace();
+            if (window.panel != null) WindowManager.GetForMicroStation().RemoveContent(window.panel);
+            window.Dispose();
         }
 
         private MainWindow()
         {
             Text = "型钢构件及支吊架模型生成工具";
-            ClientSize = new Size(840, 720);
-            MinimumSize = new Size(560, 560);
-            FormBorderStyle = FormBorderStyle.Sizable;
-            MaximizeBox = false;
-            AutoScaleMode = AutoScaleMode.Dpi;
+            Name = PanelId;
+            TopLevel = false;
+            FormBorderStyle = FormBorderStyle.None;
+            AutoScaleMode = AutoScaleMode.None;
             BackColor = Color.FromArgb(245, 246, 248);
             DoubleBuffered = true;
 
-            AttachAsTopLevelForm(SteelSectionAddIn.Instance, true);
-            NETDockable = false;
+            UseHostSize = true;
 
             workspace = new WorkspaceView();
             workspace.CloseRequested += Close;
@@ -48,28 +57,72 @@ namespace SteelSectionProbe
             elementHost.Child = workspace;
             Controls.Add(elementHost);
 
-            // 构造期还拿不到 WPF 的 DPI 缩放（ElementHost 尚未连上 PresentationSource），
-            // 所以"设计尺寸 → 设备像素"这一步挪到窗口真正显示之后再做一次；
-            // 否则 150% 缩放下首次打开会把首页按 1:1 布局成窄版（卡片只剩一列）。
-            Shown += delegate
-            {
-                int min = ToDevicePixels(400);
-                MinimumSize = new Size(min, min);
-                SetHomeLayout(true);
-                // 首次显示后再按真实可视树校准首页宽度（构造期拿不到 DPI，也还没布局）。
-                workspace.ScheduleHomeWidthCheck();
-            };
-
-            FormClosed += OnFormClosed;
+            MinimumSize = new Size(ToDevicePixels(400), ToDevicePixels(560));
+            Size = new Size(ToDevicePixels(400), ToDevicePixels(720));
         }
 
-        internal void BeginTitleDrag()
+        private void ShowPanel()
         {
-            Capture=false;
-            var message=Message.Create(Handle,0xA1,new IntPtr(2),IntPtr.Zero);
-            WndProc(ref message);
+            if (panel == null)
+            {
+                // Stable identity lets Bentley reuse its saved zone and tab group.
+                // Do not also AttachAsTopLevelForm: that creates a second window owner.
+                panel = WindowManager.GetForMicroStation().DockPanel(this, PanelId, Text,
+                    DockLocation.Right, Size, Size);
+                panel.CanDockVertically = true;
+                panel.CanDockHorizontally = false;
+                panel.CanDockInCenter = true;
+                panel.CanAutoHide = true;
+                panel.Closeable = true;
+                panel.MinimumSize = MinimumSize;
+                panel.ContentCloseQuery += Panel_CloseQuery;
+            }
+            if (!panelOpen)
+            {
+                workspace.OnPanelShown();
+                panelOpen = true;
+            }
+            panel.Show();
+            UpdateMinimumSize();
+            if (panel.Unpinned) panel.AutoHideExpand();
+            panel.Zone.SetFocus();
         }
-        internal void MinimizeFromHome(){WindowState=FormWindowState.Minimized;}
+
+        private void Panel_CloseQuery(object sender, ContentCloseEventArgs e)
+        {
+            ContentCloseAction action = e.UserAction ? ContentCloseAction.Hide : e.CloseAction;
+            e.CloseAction = ContentCloseAction.Disabled;
+            try
+            {
+                if (panelOpen) workspace.OnPanelHidden();
+                panelOpen = false;
+                e.CloseAction = action;
+            }
+            catch (Exception ex)
+            {
+                // A failed preview cleanup must leave its owner available for retry.
+                workspace.SetStatus("关闭前清理失败，请重试：" + ex.Message, true);
+            }
+        }
+
+        public new void Close()
+        {
+            if (panel == null || !panelOpen) return;
+            try
+            {
+                workspace.OnPanelHidden();
+                panel.Hide();
+                panelOpen = false;
+            }
+            catch (Exception ex)
+            {
+                workspace.SetStatus("关闭前清理失败，请重试：" + ex.Message, true);
+            }
+        }
+
+        // Retained for existing page event handlers. Native caption owns these actions.
+        internal void BeginTitleDrag() { }
+        internal void MinimizeFromHome() { if (panel != null) panel.AutoHideUnpin(); }
 
         internal void ShowActivationPage()
         {
@@ -96,47 +149,24 @@ namespace SteelSectionProbe
             workspace.ShowHome();
         }
 
-        /// <summary>首页和已改造的模块/工具页使用400×880 DIP窗口壳；其余模块保留原560 DIP宽与用户调整的高度。</summary>
+        /// <summary>页面切换不能修改 Bentley 停靠区域的尺寸。</summary>
         internal void SetHomeLayout(bool home, bool prototypeModule = false)
         {
-            if(home || prototypeModule)
-            {
-                if(!homeShell){moduleHeightLogical=Math.Max(560,(int)Math.Round(ClientSize.Height/(double)ToDevicePixels(100)*100));}
-                homeShell=true;
-                FormBorderStyle=FormBorderStyle.None;
-                MinimumSize=new Size(ToDevicePixels(400),ToDevicePixels(880));
-                MaximumSize=MinimumSize;
-                ClientSize=MinimumSize;
-                var path=new System.Drawing.Drawing2D.GraphicsPath();
-                int radius=ToDevicePixels(8)*2;
-                path.AddArc(0,0,radius,radius,180,90);path.AddArc(ClientSize.Width-radius,0,radius,radius,270,90);
-                path.AddArc(ClientSize.Width-radius,ClientSize.Height-radius,radius,radius,0,90);path.AddArc(0,ClientSize.Height-radius,radius,radius,90,90);path.CloseFigure();
-                var previous=Region;Region=new Region(path);path.Dispose();previous?.Dispose();
-            }
-            else
-            {
-                homeShell=false;
-                var previous=Region;Region=null;previous?.Dispose();
-                FormBorderStyle=FormBorderStyle.Sizable;
-                MaximumSize=Size.Empty;
-                MinimumSize=new Size(ToDevicePixels(560),ToDevicePixels(560));
-                ClientSize=new Size(ToDevicePixels(560),ToDevicePixels(moduleHeightLogical));
-            }
         }
 
-        /// <summary>保留现有校准调用接口；固定尺寸首页不再随卡片扩大。</summary>
+        /// <summary>保留校准接口；宽度只由 Bentley 分隔条管理。</summary>
         internal bool ApplyHomeWidth(double measuredLogicalWidth)
         {
-            return false; // 原型首页固定400 DIP，不再由卡片测量自动扩大窗口。
+            return false; // Width belongs to Bentley's docking splitter.
         }
 
         /// <summary>逻辑宽度（96 dpi 基准）→ 当前 DPI 的设备像素。取不到 DPI 时按 1:1 处理。</summary>
         private int ToDevicePixels(int logicalWidth)
         {
-            double scale = 1.0;
+            double scale = DeviceDpi / 96.0;
             try
             {
-                if (elementHost.Child != null)
+                if (elementHost.Child != null && System.Windows.PresentationSource.FromVisual(elementHost.Child) != null)
                 {
                     // 全限定名：本文件已有 System.Drawing（Color/Size），不要再 using System.Windows.Media。
                     var dpi = System.Windows.Media.VisualTreeHelper.GetDpi(
@@ -151,17 +181,42 @@ namespace SteelSectionProbe
             return (int)Math.Round(logicalWidth * scale);
         }
 
+        private void UpdateMinimumSize()
+        {
+            var minimum = new Size(ToDevicePixels(400), ToDevicePixels(560));
+            if (MinimumSize != minimum) MinimumSize = minimum;
+            if (panel != null && panel.MinimumSize != minimum) panel.MinimumSize = minimum;
+        }
+
+        protected override void OnDpiChangedAfterParent(EventArgs e)
+        {
+            base.OnDpiChangedAfterParent(e);
+            if (workspace != null) UpdateMinimumSize();
+        }
+
         internal void SetStatus(string message, bool isError)
         {
             workspace.SetStatus(message, isError);
         }
         internal void SetBuildProgress(int percent,string stage,int seconds){workspace.SetBuildProgress(percent,stage,seconds);}
 
-        private void OnFormClosed(object sender, FormClosedEventArgs e)
+        protected override void Dispose(bool disposing)
         {
-            workspace.OnWorkspaceClosing();
-            elementHost.Child = null;
-            Current = null;
+            if (disposing) ReleaseWorkspace();
+            base.Dispose(disposing);
+            if (disposing && ReferenceEquals(Current, this)) Current = null;
+        }
+
+        private void ReleaseWorkspace()
+        {
+            if (!workspaceDisposed && workspace != null)
+            {
+                workspace.OnWorkspaceClosing();
+                workspaceDisposed = true;
+                workspace.CloseRequested -= Close;
+                if (panel != null) panel.ContentCloseQuery -= Panel_CloseQuery;
+                elementHost.Child = null;
+            }
         }
     }
 }

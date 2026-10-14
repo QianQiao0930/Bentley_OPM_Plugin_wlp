@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Windows;
@@ -24,9 +24,9 @@ namespace SteelSectionProbe
                 var pages=new[]{Tuple.Create("steel-sections",(UserControl)new SteelSectionPage()),Tuple.Create("steel-handrail",(UserControl)new HandrailPage()),Tuple.Create("tank-spiral-stair",(UserControl)new SpiralStairPage()),Tuple.Create("tank-ladder",(UserControl)new TankLadderPage()),Tuple.Create("wall-ladder",(UserControl)new WallLadderPage()),Tuple.Create("magnetic-level-gauge",(UserControl)new MagneticGaugePage()),Tuple.Create("pipe-alignment",(UserControl)new PipeAlignmentPage()),Tuple.Create("tank-manhole",(UserControl)new TankManholePage()),Tuple.Create("solid-nozzle",(UserControl)new NozzlePage()),Tuple.Create("square-manhole",(UserControl)new SquareManholePage()),Tuple.Create("fire-cabinet",(UserControl)new FireCabinetPage()),Tuple.Create("hose-cabinet",(UserControl)new HoseCabinetPage())};
                 foreach(var pair in pages)
                 {
-                    var page=pair.Item2;host.Content=page;Arrange(root);Seed(page);Arrange(root);
+                    var page=pair.Item2;host.Content=page;NativePanelLayout.Apply(page);Arrange(root);Seed(page);Arrange(root);
                     Check(page.ActualWidth==398,"400外框 "+pair.Item1);Check(host.Margin.Left==0,"原型外边距 "+pair.Item1);Check(((FrameworkElement)root.FindName("WorkspaceFooter")).ActualHeight==46,"46底栏 "+pair.Item1);
-                    var chrome=Children<PrototypeChrome>(page).Single();Check(chrome.ActualHeight==95,"32+63标题 "+pair.Item1);
+                    var chrome=Children<PrototypeChrome>(page).Single();Check(chrome.ActualHeight==63,"原生停靠63模块头 "+pair.Item1);
                     Save(root,Path.Combine(output,pair.Item1+"-400-880.png"));
                     var confirm=page.FindName("ConfirmButton") as Button;
                     if(confirm!=null){var point=confirm.TranslatePoint(new Point(),root);Check(point.Y+confirm.ActualHeight<=833.1,"确认初始可见 "+pair.Item1);Check(point.X+confirm.ActualWidth<=399.1,"确认右边界 "+pair.Item1);}
@@ -35,7 +35,7 @@ namespace SteelSectionProbe
                     foreach(var button in Children<Button>(page).Where(b=>b.IsVisible&&b.ActualWidth>30)){var pos=button.TranslatePoint(new Point(),root);Check(pos.X+button.ActualWidth<=400.1,"操作按钮不超右边界 "+pair.Item1+button.Content);}
                     var tabs=page.FindName("PageTabs") as TabControl;
                     if(tabs!=null){tabs.SelectedIndex=1;Arrange(root);Check(((DataGrid)page.FindName("SummaryGrid")).Columns.Count==5,"消防全部统计列 "+pair.Item1); Check(((DataGrid)page.FindName("SummaryGrid")).Columns.Sum(c=>c.MinWidth)>((DataGrid)page.FindName("SummaryGrid")).ActualWidth,"统计列保持可读宽度并横向滚动 "+pair.Item1);Save(root,Path.Combine(output,pair.Item1+"-statistics-400-880.png"));tabs.SelectedIndex=0;Arrange(root);}
-                    foreach(double scale in new[]{1d,1.25,1.5,2}){var bmp=new RenderTargetBitmap((int)(400*scale),(int)(880*scale),96*scale,96*scale,PixelFormats.Pbgra32);bmp.Render(root);Check(bmp.PixelHeight==(int)(880*scale),"DPI "+pair.Item1+scale);}
+                    NativePanelLayoutChecks.Verify(root,page,Check);foreach(double scale in new[]{1d,1.25,1.5,2}){var bmp=new RenderTargetBitmap((int)(400*scale),(int)(880*scale),96*scale,96*scale,PixelFormats.Pbgra32);bmp.Render(root);Check(bmp.PixelHeight==(int)(880*scale),"DPI "+pair.Item1+scale);}
                     Console.WriteLine(pair.Item1+": 400x880, original controls and fixed actions rendered.");
                 }
                 TankLadderFixtures.CheckLifecycle((TankLadderPage)pages.First(p=>p.Item1=="tank-ladder").Item2,()=>Arrange(root),Check);

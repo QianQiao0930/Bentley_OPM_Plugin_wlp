@@ -235,7 +235,7 @@
                 </Grid>
             </Grid>
         </Border>
-        <Border Grid.RowSpan="3" Panel.ZIndex="100" Margin="-1" CornerRadius="8" BorderBrush="#C5CFDA" BorderThickness="1" IsHitTestVisible="False">
+        <Border x:Name="WorkspaceFrame" Visibility="Collapsed" Grid.RowSpan="3" Panel.ZIndex="100" Margin="-1" CornerRadius="8" BorderBrush="#C5CFDA" BorderThickness="1" IsHitTestVisible="False">
             <Border.Style>
                 <Style TargetType="Border">
                     <Setter Property="Visibility" Value="Collapsed"/>

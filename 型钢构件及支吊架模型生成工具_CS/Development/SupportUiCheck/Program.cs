@@ -24,9 +24,9 @@ namespace SteelSectionProbe
                 var pages=new[]{Tuple.Create("pipe-clamp",(UserControl)new PipeClampPage()),Tuple.Create("q1-small-pipe-support",(UserControl)new Q1SupportPage()),Tuple.Create("elbow-trunnion",(UserControl)new ElbowTrunnionPage()),Tuple.Create("g2-anchor-plate",(UserControl)new G2AnchorPage()),Tuple.Create("vertical-pipe-support",(UserControl)new VerticalPipeSupportPage()),Tuple.Create("cold-riser-guide",(UserControl)new ColdRiserGuidePage()),Tuple.Create("n1-cantilever",(UserControl)new N1CantileverPage()),Tuple.Create("n2-cantilever",(UserControl)new N2CantileverPage()),Tuple.Create("n3-single-bracket",(UserControl)new BracketPage(false)),Tuple.Create("n4-double-bracket",(UserControl)new BracketPage(true)),Tuple.Create("d2-cantilever",(UserControl)new D2CantileverPage()),Tuple.Create("triangle-bracket",(UserControl)new TriangleBracketPage()),Tuple.Create("l-bracket",(UserControl)new LBracketPage()),Tuple.Create("portal-frame",(UserControl)new PortalFramePage()),Tuple.Create("t-frame",(UserControl)new TFramePage()),Tuple.Create("pad-plate",(UserControl)new PadPlatePage()),Tuple.Create("n8-connection-plate",(UserControl)new N8Page())};
                 foreach(var pair in pages)
                 {
-                    var page=pair.Item2;host.Content=page;Arrange(root);Seed(page);Arrange(root);
+                    var page=pair.Item2;host.Content=page;NativePanelLayout.Apply(page);Arrange(root);Seed(page);Arrange(root);
                     Check(page.ActualWidth==398,"400外框 "+pair.Item1);Check(host.Margin.Left==0,"原型外边距 "+pair.Item1);Check(((FrameworkElement)root.FindName("WorkspaceFooter")).ActualHeight==46,"46底栏 "+pair.Item1);
-                    if(pair.Item1!="q1-small-pipe-support"){var chrome=Children<PrototypeChrome>(page).Single();Check(chrome.ActualHeight==95,"32+63标题 "+pair.Item1);} else Check(((FrameworkElement)page.FindName("ModuleHeader")).ActualHeight==63,"Q1/Q2原模块头");
+                    if(pair.Item1!="q1-small-pipe-support"){var chrome=Children<PrototypeChrome>(page).Single();Check(chrome.ActualHeight==63,"原生停靠63模块头 "+pair.Item1);} else Check(((FrameworkElement)page.FindName("ModuleHeader")).ActualHeight==63,"Q1/Q2原模块头");
                     Save(root,Path.Combine(output,pair.Item1+"-400-880.png"));
                     var confirm=page.FindName("ConfirmButton") as Button;
                     if(confirm!=null){var point=confirm.TranslatePoint(new Point(),root);Check(point.Y+confirm.ActualHeight<=833.1,"确认初始可见 "+pair.Item1);Check(point.X+confirm.ActualWidth<=399.1,"确认右边界 "+pair.Item1);}
@@ -77,7 +77,7 @@ namespace SteelSectionProbe
                             toggle.IsChecked=false;scroll.ScrollToTop();Arrange(root);
                         }
                     }
-                    foreach(double scale in new[]{1d,1.25,1.5,2}){var bmp=new RenderTargetBitmap((int)(400*scale),(int)(880*scale),96*scale,96*scale,PixelFormats.Pbgra32);bmp.Render(root);Check(bmp.PixelHeight==(int)(880*scale),"DPI "+pair.Item1+scale);}
+                    NativePanelLayoutChecks.Verify(root,page,Check);foreach(double scale in new[]{1d,1.25,1.5,2}){var bmp=new RenderTargetBitmap((int)(400*scale),(int)(880*scale),96*scale,96*scale,PixelFormats.Pbgra32);bmp.Render(root);Check(bmp.PixelHeight==(int)(880*scale),"DPI "+pair.Item1+scale);}
                     Console.WriteLine(pair.Item1+": 400x880, original controls and fixed actions rendered.");
                 }
                 host.Content=new UserControl();root.Measure(new Size(560,720));root.Arrange(new Rect(0,0,560,720));root.UpdateLayout();Check(host.Margin==new Thickness(14,4,10,10),"未改支吊架恢复原外边距");Check(((FrameworkElement)root.FindName("WorkspaceFooter")).ActualHeight==36,"未改模块原底栏");

@@ -83,6 +83,7 @@
     <Compile Remove="Development\TFrameCheck\**\*.cs" />
     <Compile Remove="Development\PadPlateCheck\**\*.cs" />
     <Compile Remove="Development\HomeCheck\**\*.cs" />
+    <Compile Remove="Development\DockingCheck\**\*.cs" />
     <Compile Remove="Development\HomeUiCheck\**\*.cs" />
     <Compile Remove="Development\QSupportUiCheck\**\*.cs" />
     <Compile Remove="Development\ToolPagesUiCheck\**\*.cs" />

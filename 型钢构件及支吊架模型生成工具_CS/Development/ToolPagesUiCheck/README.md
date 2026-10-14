@@ -1,5 +1,8 @@
 # 查询、激活、作者页面 UI 检查
 
+2026-10-14：正式工作区改用Bentley原生停靠。检查工程调用真实NativePanelLayout隐藏重复窗口标题，保留63模块头/固定操作；新增400×560、400×600、520×720、400×1080与四档DPI检查，见[DockingCheck](../DockingCheck/README.md)。下方原400×880尺寸仍为视觉回归基准。
+
+
 本工程编译真实五页 XAML、PrototypeChrome 和 PrototypeTheme。作者/激活页直接链接原页面逻辑，授权服务与宿主使用隔离夹具；构件特性/统计页事件使用空夹具。直线坐标修改链接真实页面、Domain/Calculator/Reader/Editor，宿主API及点取派发使用隔离模型替身；不读取真实 DGN、授权文件、用户偏好或发送邮件。
 
 ```powershell

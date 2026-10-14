@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Windows;
@@ -24,7 +24,7 @@ namespace SteelSectionProbe
                 var root = Load(Path.Combine(project, "UI/WorkspaceView.xaml"));
                 ((FrameworkElement)root.FindName("HeaderRow")).Visibility = Visibility.Collapsed;
                 ((RowDefinition)root.FindName("HeaderRowDef")).MinHeight = 0;
-                var page = new Q1SupportPage(); ((ContentControl)root.FindName("PageHost")).Content = page;
+                var page = new Q1SupportPage(); NativePanelLayout.Apply(page); ((ContentControl)root.FindName("PageHost")).Content = page;
                 Arrange(root);
                 Check(page.ActualWidth == 398, "固定400外框");
                 Check(((FrameworkElement)page.FindName("ModuleHeader")).ActualHeight == 63, "原型63模块头");
@@ -52,7 +52,7 @@ namespace SteelSectionProbe
                 Check(((FrameworkElement)page.FindName("Q2Panel")).Visibility == Visibility.Visible, "Q2附加选型");
                 Check(((ComboBox)page.FindName("BearingCombo")).ActualWidth > 300, "窄版完整选型宽度");
                 scroll.ScrollToTop(); Arrange(root); Save(root, Path.Combine(output, "q2-type4-400-880.png"));
-                foreach (double dpi in new[] { 1d, 1.25, 1.5, 2 })
+                NativePanelLayoutChecks.Verify(root,page,Check);foreach (double dpi in new[] { 1d, 1.25, 1.5, 2 })
                 {
                     Arrange(root); var confirm = (Button)page.FindName("ConfirmButton"); var pos = confirm.TranslatePoint(new Point(), root);
                     Check(pos.Y + confirm.ActualHeight < 833, "确认不被底栏遮挡 " + dpi);
