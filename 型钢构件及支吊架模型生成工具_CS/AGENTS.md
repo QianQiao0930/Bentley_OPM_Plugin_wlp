@@ -445,7 +445,7 @@ internal sealed class ExamplePage : UserControl, IWorkspacePage
 
 当前唯一规格来源是 [`Docs/UI规范-v4.md`](Docs/UI规范-v4.md)，视觉参考是仓库资料中的v4原型。后续所有页面继续采用这套规格；文中历史560宽、240×124卡片、12宽滚动条和深色主按钮不再适用。
 
-- 首页、10个建模、17个支吊架、2个查询及激活/作者工具页全部400×880 DIP；系统DPI映射由MainWindow统一完成，不自动扩宽。
+- 首页、12个建模、17个支吊架、2个查询及激活/作者工具页全部400×880 DIP；系统DPI映射由MainWindow统一完成，不自动扩宽。
 - 模块采用PrototypeChrome的32标题栏+63模块头、可滚动参数区、固定操作区、46共享底栏；新页面Tag为prototype-v4。Q1/Q2保留兼容标签和原专用样式。
 - 建模加载ModelingTheme，支吊架加载SupportTheme，查询/工具加载PrototypeTheme；首页加载HomeTheme。不得复制新的基本主题。项目SVG和HomeIcon几何保持。
 - 参数字段34高、卡片圆角6/内边距12/分区头35，长标题允许合理换行；外层滚动条6宽；主按钮蓝色。
@@ -1046,3 +1046,27 @@ MIN.H与MIN.L2的A～F数值390/480/390/480/500/590保持，分别为对应N8外
 页面使用v4的400x880、ModelingTheme、参数滚动及固定操作区，PageLastInput记忆五项。工具Begin幂等并恢复AccuSnap；点取回调只排队坐标，用revision阻止取消/结束/退出后的旧回调。参数变化Invalidate、确认失效与黑点；更新成功才清除。TankLadderPreviewSession保持全部未确认元素所有权，旧删除/新回收失败不丢所有权，可重试清理；确认解除所有权。时间复用WriteDuration格式，不另开进度窗口。以后增加模型文字必须走ModelTextFactory。
 
 改前备份在迁移备份/水箱爬梯CSharp_20261013。AST白名单生成12组原Python布局参考，1208项纯计算/真实会话(API替身)回归通过；首页回归通过，ModelingUiCheck链接真实爬梯Page/Calculator/PreviewSession与隔离模型API，十页121项布局/状态/DPI检查通过，含延迟回调取消和重复关闭。授权/无授权Release零警告零错误；编译及替身不代表OPM实际扫掠/相并、单位、AccuSnap和Undo实测，宿主仍须试放。
+
+### 墙面爬梯 C# 迁移（2026-10-14）
+
+用户要求先提交再迁移，基线7367cca；源码ZIP、原Python、v4原型、授权DLL/PDB及无授权DLL与SHA256备份于迁移备份/墙面爬梯CSharp_20261014_7367cca。新增wall-ladder，Domain/Data/Services/Tools/UI分层，无运行时Python；HomeFeatureCatalog/WorkspaceView同时注册，当前30可用+1占位，11建模/17支吊架/2查询。磁翻板液位计仍未迁移。
+
+竖直辅助线为墙面和爬梯中心投影；低端是地面，高端是平台，水平偏差≤5mm，反向取低端。参考附件逐级GetTransformToParent后换算活动UOR/mm，只读原线。立柱75×12/16/20分别对应线高≤4500/5500/6000，中间拉结不改变选型跨度；延长1200不设横担。默认梯宽中心距400、距墙220、首横担400、中间支架1500、方向0°(+X)、护笼开；通过PageLastInput保存。φ24横担长W+立柱厚+20，最高中心H−50；支架75×10配100×100×10墙板，复用目录L75x75x10/outer_corner的真实圆角，取代原Python两矩形L但保留外形基准。
+
+用户明确全部圆弧须用真实曲线扫掠：墙面爬梯禁止以多段线、短块、弦线近似圆弧，包括任何失败回退。普通护笼10段和顶部倒L组合8段的整条CurveVector均含两段R355真圆弧，使用TryCircularArcFromStartMiddleEnd/CreateArc和BodyFromSweep整体扫掠；只可反向真实路径和换参考方向重试，失败显示构件阶段，不允许假成功。立柱截面/角钢圆角也保留真曲线。护笼50×5，环中心吸附踏步−37，环间距≤1500，顶环顶H+1200；外圈按真实弧长均布11根30×5竖杆。
+
+Builder只返回离线WALL_LADDER/WALL_LADDER_CAGE普通Cell，关闭护笼返回一个Cell。PreviewSession集中写入完整组，第二块写入失败回收第一块；任何删除失败仍保留未确认所有权，确认要求整组有效且解除所有权。参数失效、更新黑点、右键/结束/取消/离开/关闭、revision队列保护及AccuSnap幂等恢复沿用现有规则。不写PipeSupportComponents；未来文字按ModelTextFactory。
+
+护笼120<W<830且距墙>105防端头退化/交叉；W/距墙≤5000、支架间距≤6000、最大500构件是建模保护而非标准。16组原Python布局参考、12372项真实Calculator/Builder API记录/预览会话检查、十一页144项布局/DPI/真实爬梯页面状态及首页检查通过。双版本Release零警告零错误，正常/备用DLL同步。离线API替身只记录调用，不证明内核实体；OPM顶部空间扫掠、截面方向、参考坐标、捕捉、预览/确认与Undo仍须宿主试放。
+
+### 磁翻板液位计 C# 迁移（2026-10-14）
+
+新增magnetic-level-gauge，Domain/Data/Services/Tools/UI/MagneticGauge分层，首页及WorkspaceView同时注册；当前31可用+1占位，12建模/17支吊架/2查询。替代上方“磁翻板未迁移”的历史状态。原Python不修改，C#运行时不读取或启动Python。原Python/README、原DLL/PDB、v4原型及SHA256备份在迁移备份/磁翻板CSharp_20261014。
+
+L1=350～6000，默认1400；原点是下接口标高的筒体轴心，0°接管−X/显示面−Y，绕Z旋转。完整保留原layout构件尺寸/顺序/四种RGB：φ60筒体、上下法兰及螺栓、两侧同向接管和截止阀、真圆环手轮及轮辐、显示框、翻片、刻度、卡箍和排污阀；不擅改成制造规格、不注册智能仪表。翻片偶数2*max(10,ceil(L1/24))，50%红白分界；刻度10mm，50mm长线，无数字。默认365构件/118翻片/141刻度。
+
+圆柱及板件复用SolidPrimitiveFactory，手轮CreateDgnTorusPipe完整真圆环（圆截面沿真圆路径扫掠），禁止折线/分段块回退。所有子构件离线，单位UOR/mm只在Builder转换；单Cell名称MAGNETIC_LEVEL_GAUGE_L1_...，整台预览写入，不散写，不进PipeSupportComponents。原版无模型文字，保持无数字刻度；今后文字强制ModelTextFactory及模型文字规范，不能受全局绘图比例影响。
+
+原Python直接放置改为C#统一的预览/更新/确认。PageLastInput保存L1/角度；Begin幂等、恢复原捕捉/定位，active实例守卫和revision阻止取消/退出后的旧回调。参数失效与更新黑点，失败留旧块且禁止确认；确认解除所有权，关闭/Reset/取消仅删未确认，删除失败保留所有权可重试。模块不更改既有正式模型。
+
+11组AST白名单Python参考、67447项真实Calculator/Builder(API记录替身)/预览所有权检查通过，十二页166项布局/DPI/实际页面状态及HomeCheck/模型文字守卫通过。授权/无授权Release零警告零错误，正常/备用DLL同步。API替身与编译不代表OPM原生圆环、颜色、单位、实际交互和Undo实测，宿主需试放。

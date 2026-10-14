@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net48</TargetFramework><LangVersion>7.3</LangVersion></PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System.Web.Extensions"/>
+    <Compile Include="../../Domain/WallLadder/*.cs" Link="Domain/%(Filename)%(Extension)"/>
+    <Compile Include="../../Data/WallLadder/WallLadderCatalog.cs" Link="WallLadderCatalog.cs"/>
+    <Compile Include="../../Services/WallLadder/WallLadderCalculator.cs" Link="WallLadderCalculator.cs"/>
+    <Compile Include="../../Services/WallLadder/WallLadderBuilder.cs" Link="WallLadderBuilder.cs"/>
+    <Compile Include="../../Tools/WallLadder/WallLadderPreviewSession.cs" Link="WallLadderPreviewSession.cs"/>
+    <Compile Include="../../Domain/ProfileModels.cs" Link="ProfileModels.cs"/>
+    <Compile Include="../../Data/RuntimeData.cs" Link="RuntimeData.cs"/>
+    <Compile Include="../../Data/ProfileLookup.cs" Link="ProfileLookup.cs"/>
+    <EmbeddedResource Include="../../Resources/profiles.bin" LogicalName="SteelSectionProbe.profiles.bin"/>
+    <None Update="python_reference.json" CopyToOutputDirectory="PreserveNewest"/>
+  </ItemGroup>
+</Project>

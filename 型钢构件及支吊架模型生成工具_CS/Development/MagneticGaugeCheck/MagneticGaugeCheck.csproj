@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net48</TargetFramework><LangVersion>7.3</LangVersion></PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System.Web.Extensions"/>
+    <Compile Include="../../Domain/MagneticGauge/*.cs" Link="Domain/%(Filename)%(Extension)"/>
+    <Compile Include="../../Data/MagneticGauge/*.cs" Link="Data/%(Filename)%(Extension)"/>
+    <Compile Include="../../Services/MagneticGauge/*.cs" Link="Services/%(Filename)%(Extension)"/>
+    <Compile Include="../../Tools/MagneticGauge/MagneticGaugePreviewSession.cs" Link="MagneticGaugePreviewSession.cs"/>
+    <None Update="python_reference.json" CopyToOutputDirectory="PreserveNewest"/>
+  </ItemGroup>
+</Project>

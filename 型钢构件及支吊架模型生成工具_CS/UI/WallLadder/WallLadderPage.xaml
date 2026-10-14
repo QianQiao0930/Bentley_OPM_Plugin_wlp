@@ -1,0 +1,67 @@
+<UserControl xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:proto="clr-namespace:SteelSectionProbe" x:Class="SteelSectionProbe.WallLadderPage" x:ClassModifier="internal" Background="#F4F7FA" Tag="prototype-v4">
+    <UserControl.Resources>
+        <ResourceDictionary><ResourceDictionary.MergedDictionaries>
+            <ResourceDictionary Source="../Prototype/ModelingTheme.xaml"/>
+        </ResourceDictionary.MergedDictionaries></ResourceDictionary>
+    </UserControl.Resources>
+    <Grid>
+        <Grid.RowDefinitions><RowDefinition Height="95"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <proto:PrototypeChrome Title="墙面爬梯" Code="WL" Caption="HOME / 建模 / 墙面基准 · 真实圆弧护笼" Icon="M6,2 V22 M18,2 V22 M6,6 H18 M6,11 H18 M6,16 H18 M6,21 H18" Accent="#1F6FEB" IconBackground="#EAF2FF" IconBorder="#D3E2FF"/>
+        <Grid Grid.Row="1" Margin="16,12,10,12">
+            <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel>
+                    <Border Style="{StaticResource CardStyle}" Padding="0">
+                        <StackPanel>
+                            <Border MinHeight="35" BorderBrush="#E8EDF2" BorderThickness="0,0,0,1" Padding="12,8"><TextBlock Text="01 / 尺寸与布置" Style="{StaticResource SectionTitleStyle}" Margin="0"/></Border>
+                            <StackPanel Margin="12">
+                                <TextBlock Text="点取一条竖直线：表示墙面与爬梯中心投影。低端为地面，高端为平台；线高不超过6000 mm。" Margin="0,0,0,10"/>
+                                <TextBlock Text="攀爬高度（由辅助线读取）" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                <TextBlock x:Name="HeightText" Text="尚未选择竖直线"/>
+                                <TextBlock Text="立柱中心距 / 梯宽（mm）" FontWeight="SemiBold" Margin="0,10,0,5"/>
+                                <TextBox x:Name="WidthText" Text="400" TextChanged="Parameter_Changed" Style="{StaticResource ModelInput}"/>
+                                <TextBlock Text="立柱中心距墙（mm）" FontWeight="SemiBold" Margin="0,10,0,5"/>
+                                <TextBox x:Name="StandoffText" Text="220" TextChanged="Parameter_Changed" Style="{StaticResource ModelInput}"/>
+                                <TextBlock Text="最低横担离地（mm）" FontWeight="SemiBold" Margin="0,10,0,5"/>
+                                <TextBox x:Name="FirstRungText" Text="400" TextChanged="Parameter_Changed" Style="{StaticResource ModelInput}"/>
+                                <TextBlock Text="中间支架间距（mm）" FontWeight="SemiBold" Margin="0,10,0,5"/>
+                                <TextBox x:Name="BracketSpacingText" Text="1500" TextChanged="Parameter_Changed" Style="{StaticResource ModelInput}"/>
+                                <TextBlock Text="出梯方向角（°）" FontWeight="SemiBold" Margin="0,10,0,5"/>
+                                <TextBox x:Name="HeadingText" Text="0" TextChanged="Parameter_Changed" Style="{StaticResource ModelInput}"/>
+                                <CheckBox x:Name="CageCheck" Content="生成防护笼及顶部倒L拉结" IsChecked="True" Checked="Parameter_Changed" Unchecked="Parameter_Changed" Margin="0,12,0,0" Style="{StaticResource ModelCheck}"/>
+                                <TextBlock Text="0°向 +X，90°向 +Y。爬梯与护笼分别封装为普通模型块；原辅助线保持。" Margin="0,8,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource CardStyle}" Padding="0">
+                        <StackPanel>
+                            <Border MinHeight="35" BorderBrush="#E8EDF2" BorderThickness="0,0,0,1" Padding="12,8"><TextBlock Text="02 / 构件与当前结果" Style="{StaticResource SectionTitleStyle}" Margin="0"/></Border>
+                            <StackPanel Margin="12">
+                                <TextBlock Text="立柱75×12/16/20；横担φ24，两端外伸10；75×10角钢拉结配100×100×10墙板。护笼环50×5，圆头R355，环间11根30×5竖杆。"/>
+                                <TextBlock x:Name="SpecificationText" Margin="0,10,0,0"/>
+                                <TextBlock Text="立柱与护笼高出平台1200 mm，延长段不设踏步。圆弧使用真实曲线扫掠；若失败会显示具体构件错误。" Margin="0,10,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+            <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,10,0,0" Padding="12">
+                <StackPanel>
+                    <TextBlock Text="点取后预览；修改参数后更新预览，再确认生成。" Margin="0,0,0,8"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <Button Content="开始点取" Click="Pick_Click" Style="{StaticResource PrimaryButtonStyle}" Height="32" Margin="0"/>
+                        <Button Grid.Column="2" Content="结束点取" Click="End_Click" Style="{StaticResource SecondaryButtonStyle}" Height="32" Margin="0"/>
+                        <Button Grid.Column="4" x:Name="UpdateButton" Content="更新预览" Click="Update_Click" Style="{StaticResource SecondaryButtonStyle}" Height="32" Margin="0"/>
+                    </Grid>
+                    <TextBlock x:Name="PreviewText" Text="尚未选择竖直辅助线。" Margin="0,8,0,10" MaxHeight="42" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text,RelativeSource={RelativeSource Self}}"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <Button Content="取消预览" Click="Cancel_Click" Style="{StaticResource SecondaryButtonStyle}" Height="36" Margin="0"/>
+                        <Button Grid.Column="2" x:Name="ConfirmButton" Content="确定生成" Click="Confirm_Click" IsEnabled="False" Style="{StaticResource PrimaryButtonStyle}" Height="36" Margin="0"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

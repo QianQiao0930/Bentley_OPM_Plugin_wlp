@@ -1,0 +1,47 @@
+<UserControl xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:proto="clr-namespace:SteelSectionProbe" x:Class="SteelSectionProbe.MagneticGaugePage" x:ClassModifier="internal" Background="#F4F7FA" Tag="prototype-v4">
+    <UserControl.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="../Prototype/ModelingTheme.xaml"/></ResourceDictionary.MergedDictionaries></ResourceDictionary></UserControl.Resources>
+    <Grid>
+        <Grid.RowDefinitions><RowDefinition Height="95"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <proto:PrototypeChrome Title="磁翻板液位计" Code="MLG" Caption="HOME / 建模 / 仪表外观 · 下接口轴心定位" Icon="M8,2 V22 M16,2 V22 M8,6 H16 M8,10 H16 M8,14 H16 M8,18 H16 M3,5 H8 M3,19 H8" Accent="#1F6FEB" IconBackground="#EAF2FF" IconBorder="#D3E2FF"/>
+        <Grid Grid.Row="1" Margin="16,12,10,12">
+            <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel>
+                    <Border Style="{StaticResource CardStyle}" Padding="0"><StackPanel>
+                        <Border MinHeight="35" BorderBrush="#E8EDF2" BorderThickness="0,0,0,1" Padding="12,8"><TextBlock Text="01 / 接口与方向" Style="{StaticResource SectionTitleStyle}" Margin="0"/></Border>
+                        <StackPanel Margin="12">
+                            <TextBlock Text="点取下接口标高处的筒体轴心。仪表竖直向上，L1控制上下接口中心距。" Margin="0,0,0,10"/>
+                            <TextBlock Text="上下接口中心距 L1（mm）" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                            <TextBox x:Name="SpacingText" Text="1400" TextChanged="Parameter_Changed" Style="{StaticResource ModelInput}"/>
+                            <TextBlock Text="绕竖轴旋转角（°）" FontWeight="SemiBold" Margin="0,10,0,5"/>
+                            <TextBox x:Name="HeadingText" Text="0" TextChanged="Parameter_Changed" Style="{StaticResource ModelInput}"/>
+                            <TextBlock Text="L1范围350～6000 mm；0°时接管朝 −X，显示面朝 −Y。可保持点取状态，确认后继续放置下一台。" Margin="0,10,0,0"/>
+                        </StackPanel>
+                    </StackPanel></Border>
+                    <Border Style="{StaticResource CardStyle}" Padding="0"><StackPanel>
+                        <Border MinHeight="35" BorderBrush="#E8EDF2" BorderThickness="0,0,0,1" Padding="12,8"><TextBlock Text="02 / 模型与当前结果" Style="{StaticResource SectionTitleStyle}" Margin="0"/></Border>
+                        <StackPanel Margin="12">
+                            <TextBlock Text="筒体φ60，含端盖法兰和螺栓、两组接管及截止阀、环形手轮、显示框、红白翻片、刻度条、安装卡箍和底部排污阀。"/>
+                            <TextBlock x:Name="SpecificationText" Margin="0,10,0,0"/>
+                            <TextBlock Text="红白分界固定在50%量程；刻度不带数字。保留原版外观简化，不建浮子、通孔和螺纹。尺寸为原工具的展示尺寸。" Margin="0,10,0,0"/>
+                            <TextBlock Text="整台封装为普通模型块，可整体移动、旋转和删除。" Margin="0,10,0,0"/>
+                        </StackPanel>
+                    </StackPanel></Border>
+                </StackPanel>
+            </ScrollViewer>
+            <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,10,0,0" Padding="12"><StackPanel>
+                <TextBlock Text="点取后预览；修改参数后更新预览，再确认生成。" Margin="0,0,0,8"/>
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                    <Button Content="开始点取" Click="Pick_Click" Style="{StaticResource PrimaryButtonStyle}" Height="32" Margin="0"/>
+                    <Button Grid.Column="2" Content="结束点取" Click="End_Click" Style="{StaticResource SecondaryButtonStyle}" Height="32" Margin="0"/>
+                    <Button Grid.Column="4" x:Name="UpdateButton" Content="更新预览" Click="Update_Click" Style="{StaticResource SecondaryButtonStyle}" Height="32" Margin="0"/>
+                </Grid>
+                <TextBlock x:Name="PreviewText" Text="尚未点取下接口筒体轴心。" Margin="0,8,0,10" MaxHeight="42" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text,RelativeSource={RelativeSource Self}}"/>
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                    <Button Content="取消预览" Click="Cancel_Click" Style="{StaticResource SecondaryButtonStyle}" Height="36" Margin="0"/>
+                    <Button Grid.Column="2" x:Name="ConfirmButton" Content="确定生成" Click="Confirm_Click" IsEnabled="False" Style="{StaticResource PrimaryButtonStyle}" Height="36" Margin="0"/>
+                </Grid>
+            </StackPanel></Border>
+        </Grid>
+    </Grid>
+</UserControl>

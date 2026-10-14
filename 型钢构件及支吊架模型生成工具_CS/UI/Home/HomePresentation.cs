@@ -9,6 +9,8 @@
             {
                 case "steel-sections":return "STL";case "steel-handrail":return "RAIL";
                 case "tank-spiral-stair":return "STAIR";case "component-properties":return "EC";
+                case "tank-ladder":return "TL";case "wall-ladder":return "WL";
+                case "magnetic-level-gauge":return "MLG";
                 case "pipe-alignment":return "ALIGN";case "elbow-trunnion":return "F2/F4/F5";
                 case "support-statistics":return "MTO";case "tank-manhole":return "MH";
                 case "solid-nozzle":return "NZ";case "square-manhole":return "SMH";

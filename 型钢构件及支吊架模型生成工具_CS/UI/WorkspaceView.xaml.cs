@@ -35,6 +35,8 @@ namespace SteelSectionProbe
             RegisterPage(new HandrailPage());
             RegisterPage(new SpiralStairPage());
             RegisterPage(new TankLadderPage());
+            RegisterPage(new WallLadderPage());
+            RegisterPage(new MagneticGaugePage());
             RegisterPage(new PipeAlignmentPage());
             RegisterPage(new ComponentPropertiesPage());
             RegisterPage(new ElbowTrunnionPage());
