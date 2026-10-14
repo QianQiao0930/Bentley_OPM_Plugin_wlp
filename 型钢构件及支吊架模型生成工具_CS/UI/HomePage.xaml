@@ -555,6 +555,21 @@
         </Border>
         <ScrollViewer x:Name="HomeScroll" Grid.Row="3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0">
             <StackPanel Margin="16,0,10,14">
+                <StackPanel x:Name="SortedSection" Margin="0,14,0,0" Visibility="Collapsed">
+                    <Button Tag="SortedList" Click="Section_Click" Style="{StaticResource HomeButton}" Height="16" BorderThickness="0" Background="Transparent" Padding="0" HorizontalContentAlignment="Stretch" Margin="0,0,0,8">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="最近使用" Style="{StaticResource HomeSectionTitleStyle}"/>
+                            <TextBlock x:Name="SortedCountText" Grid.Column="1" Margin="8,0,0,0" Style="{StaticResource HomeSectionCountStyle}"/>
+                            <Path Grid.Column="2" Data="M0,0 L200,0" Stretch="Fill" Stroke="#DDE3EA" StrokeDashArray="4 3" Height="1" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                        </Grid>
+                    </Button>
+                    <ItemsControl x:Name="SortedList" Style="{StaticResource HomeLists}" ItemTemplate="{StaticResource FeatureCardTemplate}"/>
+                </StackPanel>
                 <StackPanel x:Name="RecentSection" Margin="0,14,0,0">
                     <Button Tag="RecentList" Click="Section_Click" Style="{StaticResource HomeButton}" Height="16" BorderThickness="0" Background="Transparent" Padding="0" HorizontalContentAlignment="Stretch" Margin="0,0,0,8">
                         <Grid>

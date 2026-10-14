@@ -7,10 +7,10 @@ using System.Web.Script.Serialization;
 namespace SteelSectionProbe
 {
     /// <summary>
-    /// 首页偏好的跨会话存储：星标 + 使用次数，
+    /// 首页偏好的跨会话存储：星标、使用次数与界面选择，
     /// 落盘 <c>%LOCALAPPDATA%\SteelSectionProbe\home_preferences.json</c>（与各页 LastChoice 同一目录）。
     /// <para>
-    /// <b>只存"PageId → 记录"，不存顺序</b>：顺序每次由 <see cref="HomeFeatureRanker"/> 算出来，
+    /// <b>存"PageId → 记录"与显示选项，不存模块排列</b>：顺序每次由 <see cref="HomeFeatureRanker"/> 算出来，
     /// 因此增删功能不需要迁移数据，也不会留下"存了顺序但功能已改名"的脏数据。
     /// 未知的 PageId（旧版本遗留）加载后原样保留但不会被渲染。
     /// </para>
@@ -22,6 +22,23 @@ namespace SteelSectionProbe
         {
             public int Version = 1;
             public Dictionary<string, HomePreferenceRecord> Features = new Dictionary<string, HomePreferenceRecord>();
+            public ViewPreferences View = new ViewPreferences();
+        }
+
+        internal sealed class ViewPreferences
+        {
+            public bool Compact;
+            public int SortMode;
+            public string CategoryTab = "all";
+            public bool PinStars = true;
+
+            internal void Normalize()
+            {
+                if (SortMode < 0 || SortMode > 3) SortMode = 0;
+                if (CategoryTab != "all" && CategoryTab != "fav"
+                    && CategoryTab != HomeCategories.Modeling && CategoryTab != HomeCategories.Support
+                    && CategoryTab != HomeCategories.Stats) CategoryTab = "all";
+            }
         }
 
         private static Store cache;
@@ -32,8 +49,12 @@ namespace SteelSectionProbe
         {
             get
             {
+#if HOME_UI_CHECK
+                return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "isolated-home_preferences.json");
+#else
                 return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                     "SteelSectionProbe", "home_preferences.json");
+#endif
             }
         }
 
@@ -56,6 +77,8 @@ namespace SteelSectionProbe
                 Store store = new JavaScriptSerializer().Deserialize<Store>(json);
                 if (store == null) return new Store();
                 if (store.Features == null) store.Features = new Dictionary<string, HomePreferenceRecord>();
+                if (store.View == null) store.View = new ViewPreferences();
+                store.View.Normalize();
                 foreach (KeyValuePair<string, HomePreferenceRecord> item in store.Features)
                 {
                     if (item.Value == null) continue;
@@ -69,6 +92,23 @@ namespace SteelSectionProbe
                 // 记不住就记不住，绝不能因此挡住首页。
                 return new Store();
             }
+        }
+
+        internal static ViewPreferences ReadView()
+        {
+            ViewPreferences view = Data.View;
+            return new ViewPreferences { Compact = view.Compact, SortMode = view.SortMode,
+                CategoryTab = view.CategoryTab, PinStars = view.PinStars };
+        }
+
+        internal static void SaveView(bool compact, int sortMode, string categoryTab, bool pinStars)
+        {
+            var view = new ViewPreferences { Compact = compact, SortMode = sortMode,
+                CategoryTab = categoryTab, PinStars = pinStars };
+            view.Normalize();
+            Data.View = view;
+            dirty = true;
+            Save();
         }
 
         /// <summary>写盘。仅在有改动时真正写文件，且用"临时文件 + 原子替换"避免半写损坏。</summary>
@@ -176,7 +216,7 @@ namespace SteelSectionProbe
         /// <summary>清空全部星标与使用统计，首页恢复出厂顺序。</summary>
         internal static void Reset()
         {
-            cache = new Store();
+            Data.Features.Clear();
             dirty = true;
             Save();
         }

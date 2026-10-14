@@ -8,6 +8,10 @@
 
 2026-10-14：新增查询分类 line-coordinates（直线坐标修改），当前32可用+1占位，12建模/17支吊架/3查询。用户授权查询分类增加编辑入口，现有构件特性/统计仍只读。Domain/Data/Services/Tools/UI按LineCoordinates分层；通过UorPerMeter/1000显示/编辑模型XYZ毫米值，G17保留往返精度，二维Z=0只读。仅活动模型独立LineElement/MSElementType.Line，不接收LineString、复杂链、块内子线、附件、只读或锁定元素。点取结束再按revision排队读取，不保留Element句柄；Begin幂等，结束恢复捕捉。输入不自动写模型，应用前按模型/ID重读并校验单位/维度及原坐标未被其他操作改变。原生CurvePathEdit仅改几何，ReplaceInModel保留ID/属性；一次替换封成单独TransactionManager事务，失败CancelToPosition，不清Undo缓冲。复用WriteDuration计时，不写支吊架清单。不保存线段坐标至用户偏好；离开/关闭丢弃草稿，撤销/重做失效快照。新页沿用v4和PrototypeTheme。LineCoordinatesCheck验证真实Reader/Editor配API替身；ToolPagesUiCheck链接真实页面/计算/编辑与隔离模型API。首页登记与回归同步；宿主原生写入、坐标属性、样式/EC、捕捉及Undo仍需试用。改前基线319db61及DLL/PDB/原型/校验备份于仓库迁移备份/直线坐标修改_20261014_319db61。
 
+2026-10-14：用户授权首页选择记忆与最近混排功能修复，允许改HomePage展示逻辑和HomePreferences持久化，不适用纯外观改造的源码冻结。HomePreferences.Store新增View（Compact/SortMode/CategoryTab/PinStars），仍兼容原Version=1及Features，未知模块记录保留，不存具体模块排列；缺失/空/非法View安全回落。界面切换立即保存，初始化先恢复再启用事件。重置星标/统计保留View；重置筛选保存新选择。
+
+最近排序使用独立SortedList，跨全部可用模块混排，每项仅一次，隐藏分类及最近四项快捷区；显式分类/收藏和搜索继续过滤。星标置顶规则保持，关闭时按最近时间；默认/频次/名称沿用分类。SortedList必须参与卡片密度、选择导航与尺寸测量。HomeUiCheck链接真实存储，通过仅该检查工程定义的HOME_UI_CHECK把文件隔离在测试输出目录；不得在正式构建定义该符号。63项真实WPF/存储检查与HomeCheck通过；OPM窗口重开未实测。基线319db61，改前备份在../迁移备份/首页记忆和最近混排_20261014_319db61。悬停预览按用户要求暂缓。
+
 2026-10-11：新增 EnableLicensing 编译开关，缺省 true（授权版），false 生成无授权版；只有编译参数生效，无用户配置开关。无授权构建排除激活页面、授权领域/验签/存储/机器标识及公钥，LicenseService 不访问授权文件，全部业务入口开放，隐藏首页激活按钮和作者页授权卡片，不启动到期定时器。Deployment/build_version.ps1 的 Licensed / Unlicensed 输出隔离；默认安装脚本仍只安装授权版。两种 DLL 编译零警告、零错误，138 项授权及双构建检查通过。
 
 

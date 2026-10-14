@@ -10,7 +10,7 @@ using System.Windows.Threading;
 namespace SteelSectionProbe
 {
     /// <summary>
-    /// 首页：把 <see cref="HomeFeatureCatalog"/> 的入口按"最近使用 + 分类分区"渲染成卡片。
+    /// 首页：通常按分类分区显示；最近排序将所有可用入口合并为一个列表。
     /// <para>
     /// 排序输入（星标 + 使用次数 + 最近进入时间）来自 <see cref="HomePreferences"/>；
     /// 本页只负责"显示、过滤、排序与改星标"，不承载任何业务参数。
@@ -24,7 +24,7 @@ namespace SteelSectionProbe
         /// <summary>状态栏消息请求（由 WorkspaceView 接到统一状态栏）。</summary>
         internal event Action<string, bool> StatusRequested;
 
-        /// <summary>排序下拉的三档，见 <see cref="HomePage"/> 注释。</summary>
+        /// <summary>排序下拉的四档；整数值同时用于界面偏好，保持兼容。</summary>
         private enum SortMode { Default, RecentlyUsed, Frequent, Name }
 
         /// <summary>"最近使用"最多显示的卡片数。</summary>
@@ -53,8 +53,15 @@ namespace SteelSectionProbe
         internal HomePage()
         {
             InitializeComponent();
-            cardLists = new ItemsControl[] { RecentList, ModelingList, SupportList, StatsList, PlannedList };
-            SortBox.SelectedIndex = 0;
+            cardLists = new ItemsControl[] { RecentList, SortedList, ModelingList, SupportList, StatsList, PlannedList };
+            HomePreferences.ViewPreferences view = HomePreferences.ReadView();
+            compact = view.Compact;
+            sortMode = (SortMode)view.SortMode;
+            categoryTab = view.CategoryTab;
+            pin = view.PinStars;
+            SortBox.SelectedIndex = (int)sortMode;
+            ShowRanks = sortMode == SortMode.Frequent;
+            SyncViewControls();
             ready = true;
             Refresh();
         }
@@ -81,7 +88,8 @@ namespace SteelSectionProbe
 
             // ---- 最近使用（仅无搜索词时显示；按最近进入时间降序，最多 RecentLimit 张） ----
             var recent = new List<HomeEntry>();
-            if (searchText.Length == 0&&categoryTab=="all")
+            bool globalRecent = sortMode == SortMode.RecentlyUsed;
+            if (!globalRecent && searchText.Length == 0&&categoryTab=="all")
             {
                 foreach (HomeEntry entry in ranked)
                 {
@@ -121,9 +129,20 @@ namespace SteelSectionProbe
             counts[HomeCategories.Planned] = PlannedCountText;
 
             int shown = 0;
+            var sorted = new List<HomeEntry>();
+            if (globalRecent)
+            {
+                foreach (HomeEntry entry in filtered)
+                    if (entry.Feature.IsReady) sorted.Add(entry);
+                SortGroup(sorted, rankOf);
+            }
+            SortedList.ItemsSource = BuildItems(sorted, utcNow, true);
+            SetSection(SortedSection, sorted.Count);
+            SortedCountText.Text = sorted.Count + " 项";
+            shown += sorted.Count;
             foreach (HomeCategories.Definition section in HomeCategories.Sections())
             {
-                List<HomeEntry> group = GroupOf(filtered, section.Key);
+                List<HomeEntry> group = globalRecent ? new List<HomeEntry>() : GroupOf(filtered, section.Key);
                 SortGroup(group, rankOf);
                 List<HomeCardItem> items = BuildItems(group, utcNow, false);
                 lists[section.Key].ItemsSource = items;
@@ -325,7 +344,7 @@ namespace SteelSectionProbe
                 case 3: sortMode=SortMode.Name;break;
                 default: sortMode = SortMode.Default; break;
             }
-            ShowRanks=sortMode==SortMode.Frequent;Refresh();
+            ShowRanks=sortMode==SortMode.Frequent;SyncViewControls();SaveView();Refresh();
         }
 
         private void Card_Click(object sender, RoutedEventArgs e)
@@ -471,7 +490,7 @@ namespace SteelSectionProbe
         private void Tab_Click(object sender,RoutedEventArgs e)
         {
             categoryTab=((FrameworkElement)sender).Tag.ToString();
-            foreach(var tab in new[]{AllTab,ModelTab,SupportTab,StatsTab,FavTab})tab.IsChecked=tab.Tag.ToString()==categoryTab;
+            SyncViewControls();SaveView();
             Refresh();HomeScroll.ScrollToTop();
         }
         private void Sort_Click(object sender,RoutedEventArgs e)
@@ -479,15 +498,27 @@ namespace SteelSectionProbe
             var button=(ToggleButton)sender;int index=int.Parse(button.Tag.ToString());SortBox.SelectedIndex=index;
             foreach(var tab in new[]{DefaultSort,RecentSort,FrequentSort,NameSort})tab.IsChecked=tab.Tag.ToString()==index.ToString();
         }
-        private void Pin_Click(object sender,RoutedEventArgs e){pin=PinToggle.IsChecked==true;Refresh();}
+        private void Pin_Click(object sender,RoutedEventArgs e){pin=PinToggle.IsChecked==true;SaveView();Refresh();}
         private void View_Click(object sender,RoutedEventArgs e)
         {
             compact=((FrameworkElement)sender).Tag.ToString()=="compact";
-            DetailToggle.IsChecked=!compact;CompactToggle.IsChecked=compact;ApplyCardView();
+            SyncViewControls();SaveView();ApplyCardView();
+        }
+        private void SaveView()
+        { HomePreferences.SaveView(compact, (int)sortMode, categoryTab, pin); }
+
+        private void SyncViewControls()
+        {
+            DetailToggle.IsChecked = !compact; CompactToggle.IsChecked = compact;
+            PinToggle.IsChecked = pin;
+            foreach (var tab in new[] { AllTab, ModelTab, SupportTab, StatsTab, FavTab })
+                tab.IsChecked = tab.Tag.ToString() == categoryTab;
+            foreach (var tab in new[] { DefaultSort, RecentSort, FrequentSort, NameSort })
+                tab.IsChecked = tab.Tag.ToString() == ((int)sortMode).ToString(CultureInfo.InvariantCulture);
         }
         private void ApplyCardView()
         {
-            foreach(var list in new[]{ModelingList,SupportList,StatsList,PlannedList})
+            foreach(var list in new[]{SortedList,ModelingList,SupportList,StatsList,PlannedList})
             {
                 list.ItemTemplate=(DataTemplate)FindResource(compact?"CompactCardTemplate":"FeatureCardTemplate");
                 list.ItemsPanel=(ItemsPanelTemplate)FindResource(compact?"HomeTwoColumns":"HomeSingleColumn");
@@ -499,7 +530,7 @@ namespace SteelSectionProbe
             SearchBox.Clear();categoryTab="all";AllTab.IsChecked=true;
             foreach(var tab in new[]{ModelTab,SupportTab,StatsTab,FavTab})tab.IsChecked=false;
             pin=true;PinToggle.IsChecked=true;SortBox.SelectedIndex=0;
-            DefaultSort.IsChecked=true;RecentSort.IsChecked=FrequentSort.IsChecked=NameSort.IsChecked=false;Refresh();
+            SyncViewControls();SaveView();Refresh();
         }
         private void Section_Click(object sender,RoutedEventArgs e)
         {var list=FindName(((FrameworkElement)sender).Tag.ToString()) as ItemsControl;if(list!=null)list.Visibility=list.Visibility==Visibility.Visible?Visibility.Collapsed:Visibility.Visible;}

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Windows;
@@ -20,7 +20,7 @@ namespace SteelSectionProbe
    try
    {
     string project=Path.GetFullPath(args[0]),output=Path.Combine(project,"Development","HomeUiCheck","previews");Directory.CreateDirectory(output);
-    HomePreferences.Seed();var page=new HomePage();
+    CheckPreferences();HomePreferenceFixture.Seed();var page=new HomePage();
     var root=LoadWorkspace(Path.Combine(project,"UI","WorkspaceView.xaml"));
     ((FrameworkElement)root.FindName("HeaderRow")).Visibility=Visibility.Collapsed;((RowDefinition)root.FindName("HeaderRowDef")).MinHeight=0;
     ((ContentControl)root.FindName("PageHost")).Content=page;
@@ -52,6 +52,7 @@ namespace SteelSectionProbe
     Check(((ItemsControl)page.FindName("SupportList")).Items.Count==1,"按编号搜索");Save(root,Path.Combine(output,"home-search-400-880.png"),400,880);search.Clear();
     Click(page,"CompactToggle");Arrange(root,400,880);Save(root,Path.Combine(output,"home-compact-400-880.png"),400,880);
     Check(((ToggleButton)page.FindName("CompactToggle")).IsChecked==true,"简约模式状态");
+    HomePreferenceFixture.Reload();Check(((ToggleButton)new HomePage().FindName("CompactToggle")).IsChecked==true,"重新加载磁盘偏好恢复简约模式");
     Click(page,"SupportTab");Arrange(root,400,880);Check(((FrameworkElement)page.FindName("ModelingSection")).Visibility==Visibility.Collapsed,"分类过滤");
     Save(root,Path.Combine(output,"home-support-400-880.png"),400,880);
     Click(page,"StatsTab");Arrange(root,400,880);
@@ -64,6 +65,7 @@ namespace SteelSectionProbe
     Click(page,"FavTab");Arrange(root,400,880);Check(((ItemsControl)page.FindName("SupportList")).Items.Count==1,"星级收藏过滤");
     Click(page,"AllTab");Click(page,"DetailToggle");Click(page,"FrequentSort");Arrange(root,400,880);Check(page.ShowRanks,"频次模式显示排行");Check(Descendants<Border>(((ItemsControl)page.FindName("ModelingList")).ItemContainerGenerator.ContainerFromIndex(0)).First(border=>border.Name=="RankBadge").Visibility==Visibility.Visible,"频次卡片真实排行可见");Save(root,Path.Combine(output,"home-frequency-400-880.png"),400,880);
     Click(page,"NameSort");Arrange(root,400,880);Check(((ComboBox)page.FindName("SortBox")).SelectedIndex==3,"名称排序UI");
+    CheckRecent(page,root,output);
     LicenseService.IsActivated=false;page.Refresh();Arrange(root,400,880);Save(root,Path.Combine(output,"home-unactivated-400-880.png"),400,880);
     Check(((Button)page.FindName("ActivationButton")).Content.ToString()=="未激活","授权状态沿用现有服务");
     LicenseService.IsLicensingEnabled=false;page.Refresh();Arrange(root,400,880);Check(((Button)page.FindName("ActivationButton")).Visibility==Visibility.Collapsed,"无授权构建隐藏授权入口");
@@ -81,6 +83,48 @@ namespace SteelSectionProbe
     Check(((Button)root.FindName("HomeEnterButton")).Visibility==Visibility.Collapsed,"模块页隐藏首页进入按钮");
     Console.WriteLine("首页v4："+checks+"项真实WPF布局/展示交互检查通过；400×880，1/1.25/1.5/2倍DPI。 "+output);return 0;
    }catch(Exception ex){Console.Error.WriteLine(ex);return 1;}
+  }
+  private static void CheckPreferences()
+  {
+   Check(HomePreferences.FilePath.StartsWith(AppDomain.CurrentDomain.BaseDirectory,StringComparison.OrdinalIgnoreCase),"偏好检查必须使用隔离路径");
+   HomePreferenceFixture.Write("{\"Version\":1,\"Features\":{\"legacy-module\":{\"Stars\":4,\"TotalUseCount\":17}}}");
+   Check(!HomePreferences.ReadView().Compact&&HomePreferences.ReadView().PinStars,"旧偏好缺省正常模式和星标置顶");
+   HomePreferences.SaveView(true,1,HomeCategories.Support,false);HomePreferenceFixture.Reload();
+   var view=HomePreferences.ReadView();Check(view.Compact&&view.SortMode==1&&view.CategoryTab==HomeCategories.Support&&!view.PinStars,"四项选择真实写盘重载");
+   Check(HomePreferences.RecordFor("legacy-module").Stars==4&&HomePreferences.RecordFor("legacy-module").TotalUseCount==17,"保存界面选择保留旧模块星标和统计");
+   HomePreferences.Reset();HomePreferenceFixture.Reload();Check(HomePreferences.ReadView().Compact&&HomePreferences.RecordFor("legacy-module")==null,"重置统计保留显示模式");
+   HomePreferenceFixture.Write("{\"View\":{\"Compact\":true,\"SortMode\":99,\"CategoryTab\":\"obsolete\"},\"Features\":null}");
+   view=HomePreferences.ReadView();Check(view.Compact&&view.SortMode==0&&view.CategoryTab=="all"&&view.PinStars,"非法排序和分类回落，缺省置顶开启");
+   foreach(string json in new[]{"{\"View\":null}","null","broken json"})
+   {HomePreferenceFixture.Write(json);view=HomePreferences.ReadView();Check(!view.Compact&&view.SortMode==0&&view.CategoryTab=="all"&&view.PinStars,"空或损坏偏好容错 "+json);}
+  }
+  private static void CheckRecent(HomePage page,FrameworkElement root,string output)
+  {
+   Click(page,"RecentSort");Arrange(root,400,880);
+   var list=(ItemsControl)page.FindName("SortedList");
+   Check(list.Items.Count==32,"最近列表包含全部可用模块");
+   Check(list.Items.Cast<HomeCardItem>().Select(item=>item.PageId).Distinct().Count()==32,"最近列表每模块仅出现一次");
+   foreach(string name in new[]{"RecentSection","ModelingSection","SupportSection","StatsSection","PlannedSection"})
+    Check(((FrameworkElement)page.FindName(name)).Visibility==Visibility.Collapsed,"最近模式隐藏旧分区 "+name);
+   var ids=list.Items.Cast<HomeCardItem>().Select(item=>item.PageId).ToArray();
+   Check(Array.IndexOf(ids,"component-properties")<Array.IndexOf(ids,"tank-manhole")&&Array.IndexOf(ids,"tank-manhole")<Array.IndexOf(ids,"q1-small-pipe-support"),"查询、建模、支吊架按时间交叉排列");
+   Check(ids[0]=="pipe-clamp","全局最近保留星标置顶规则");
+   var pin=(ToggleButton)page.FindName("PinToggle");pin.IsChecked=false;Click(page,"PinToggle");
+   HomePreferences.RecordFor("tank-manhole").LastUsedUtc=DateTime.UtcNow.ToString("o");page.Refresh();Arrange(root,400,880);
+   Check(((HomeCardItem)list.Items[0]).PageId=="tank-manhole","关闭置顶后严格按最近时间排列");
+   Click(page,"CompactToggle");Arrange(root,400,880);
+   Check(list.ItemTemplate==page.FindResource("CompactCardTemplate"),"全局列表支持简约模式");
+   Save(root,Path.Combine(output,"home-recent-compact-400-880.png"),400,880);
+   Click(page,"SupportTab");Arrange(root,400,880);Check(list.Items.Count==17,"全局最近尊重显式分类筛选");
+   HomePreferenceFixture.Reload();var restored=new HomePage();
+   Check(((ToggleButton)restored.FindName("CompactToggle")).IsChecked==true&&((ToggleButton)restored.FindName("RecentSort")).IsChecked==true&&((ToggleButton)restored.FindName("SupportTab")).IsChecked==true&&((ToggleButton)restored.FindName("PinToggle")).IsChecked==false,"重新创建页面恢复所有开关");
+   Click(page,"AllTab");var search=(TextBox)page.FindName("SearchBox");search.Text="Q2";Arrange(root,400,880);Check(list.Items.Count==1,"全局最近支持编号搜索");search.Clear();
+   Click(page,"DetailToggle");Arrange(root,400,880);Save(root,Path.Combine(output,"home-recent-detail-400-880.png"),400,880);
+   var card=Descendants<Button>(list.ItemContainerGenerator.ContainerFromIndex(0)).First(button=>button.Name=="CardFace");card.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+   string requested=null;page.FeatureRequested+=id=>requested=id;page.EnterSelected();Check(requested==((HomeCardItem)list.Items[0]).PageId,"全局列表仍可选择进入");
+   var reset=Descendants<Button>(page).First(button=>button.ToolTip!=null&&button.ToolTip.ToString().StartsWith("重置筛选与排序"));reset.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));Arrange(root,400,880);
+   HomePreferenceFixture.Reload();restored=new HomePage();Check(((ToggleButton)restored.FindName("AllTab")).IsChecked==true&&((ToggleButton)restored.FindName("DefaultSort")).IsChecked==true&&((ToggleButton)restored.FindName("PinToggle")).IsChecked==true,"重置筛选后保存默认选择");
+   Check(((FrameworkElement)page.FindName("SortedSection")).Visibility==Visibility.Collapsed&&((ItemsControl)page.FindName("ModelingList")).Items.Count==12,"切回默认恢复分类");
   }
   private static bool homeIconUnchanged(string project)
   {var doc=XDocument.Load(Path.Combine(project,"UI","HomePage.xaml"));return doc.Descendants().Any(e=>e.Name.LocalName=="PathGeometry"&&e.Attributes().Any(a=>a.Name.LocalName=="Key"&&a.Value=="HomeIcon_app")&&e.Attribute("FillRule").Value=="EvenOdd");}
