@@ -6,7 +6,7 @@ namespace SteelSectionProbe
 {
     internal enum G2MountFace {Wall,FloorTop,CeilingBottom}
     internal sealed class PipeClampSelection
-    { internal double AxisX,AxisY,AxisZ; internal bool IsPipe; }
+    { internal double AxisX,AxisY,AxisZ,StartX,StartY,StartZ,EndX,EndY,EndZ; internal bool IsPipe; }
 }
 internal static class Program
 {
@@ -254,6 +254,7 @@ internal static class Program
         catch(InvalidOperationException){rejected=true;}
         Check(rejected,"horizontal axis");
         CheckBraceCuts();
+        ChannelOrientationChecks.Run(Check);
         Console.WriteLine("N3/N4/N8 checks passed: "+checks+".");
     }
 }

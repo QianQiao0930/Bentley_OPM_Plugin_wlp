@@ -3,4 +3,12 @@
 <Page Include="../../UI/Q1Support/QSupportTheme.xaml" Link="UI/Q1Support/QSupportTheme.xaml"/><Page Include="../../UI/Home/HomeTheme.xaml" Link="UI/Home/HomeTheme.xaml"/><Page Include="../../UI/Themes/Theme.xaml" Link="UI/Themes/Theme.xaml"/>
 <Page Include="../../UI/ComponentProperties/ComponentPropertiesPage.xaml" Link="UI/ComponentProperties/ComponentPropertiesPage.xaml"/><Page Include="../../UI/SupportStatistics/SupportStatisticsPage.xaml" Link="UI/SupportStatistics/SupportStatisticsPage.xaml"/><Page Include="../../UI/Licensing/ActivationPage.xaml" Link="UI/Licensing/ActivationPage.xaml"/><Page Include="../../UI/About/AboutPage.xaml" Link="UI/About/AboutPage.xaml"/>
 <Compile Include="../../UI/Prototype/PrototypeChrome.xaml.cs" Link="PrototypeChrome.xaml.cs"/><Compile Include="../../UI/Licensing/ActivationPage.xaml.cs" Link="ActivationPage.xaml.cs"/><Compile Include="../../UI/About/AboutPage.xaml.cs" Link="AboutPage.xaml.cs"/>
+<Page Include="../../UI/LineCoordinates/LineCoordinatesPage.xaml" Link="UI/LineCoordinates/LineCoordinatesPage.xaml"/>
+<Compile Include="../../UI/LineCoordinates/LineCoordinatesPage.xaml.cs" Link="LineCoordinatesPage.xaml.cs"/>
+<Compile Include="../../Domain/LineCoordinates/LineCoordinates.cs" Link="LineCoordinates.cs"/>
+<Compile Include="../../Services/LineCoordinates/*.cs" Link="%(Filename)%(Extension)"/>
+<Compile Include="../../Data/LineCoordinates/LineCoordinateReader.cs" Link="LineCoordinateReader.cs"/>
+<Compile Include="../../Data/LocatedElement.cs" Link="LocatedElement.cs"/>
+<Compile Include="../../Services/WriteDuration.cs" Link="WriteDuration.cs"/>
+<Compile Include="../LineCoordinatesCheck/NativeApiFakes.cs" Link="LineCoordinateNativeApiFakes.cs"/>
 </ItemGroup></Project>

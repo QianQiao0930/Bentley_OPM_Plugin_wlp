@@ -53,8 +53,13 @@ namespace SteelSectionProbe
                 double offset=plan.Double?(side==0?-plan.L2/2:plan.L2/2):0;
                 double beamStart=plan.Double?0:plan.PlateThickness;
                 double beamZ=plan.BeamCenterZMm;
+                // 槽钢 geometric_center 轮廓开口沿截面 +X。N4 左侧镜像宽轴，
+                // 使子项 A/B 的两根横担及两根斜撑腹板背靠背、开口朝外。
+                // N3 单架及 N4 的 H 型钢保持原截面坐标架。
+                var sectionWidthAxis=plan.Double&&channel&&side==0?
+                    new DVector3d(-f.Tx,-f.Ty,0):f.T;
                 var beamBody=SteelMemberFactory.AlongAxisBody(Profile(plan.SectionA),
-                    f.P(beamStart,offset,beamZ),f.Scale,f.T,f.Z,f.R,plan.BeamLength);
+                    f.P(beamStart,offset,beamZ),f.Scale,sectionWidthAxis,f.Z,f.R,plan.BeamLength);
                 beamBodies.Add(beamBody);
                 // The brace ends at the contact face of the beam. Its centreline is
                 // tilted 45 degrees in the radial/vertical plane.
@@ -69,7 +74,7 @@ namespace SteelSectionProbe
                 double overrun=BracketCalculator.BraceCutOverrunMm(braceHeight,vr,vz);
                 var braceBody=SteelMemberFactory.AlongAxisBody(braceProfile,
                     f.P(braceR0-overrun*vr/vl,offset,braceZ0-overrun*vz/vl),
-                    f.Scale,f.T,normal,along,vl+2*overrun);
+                    f.Scale,sectionWidthAxis,normal,along,vl+2*overrun);
                 double big=Math.Max(2000,plan.L+plan.BeamLength+plan.H+100);
                 // Match Python N3/N4: trim the extended brace at the equipment
                 // face and at the underside/topside of the crossbeam.

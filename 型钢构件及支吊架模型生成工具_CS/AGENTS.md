@@ -4,6 +4,10 @@
 
 当前UI规范：[Docs/UI规范-v4.md](Docs/UI规范-v4.md)。下方带日期的旧改造记录为历史；当前规格与第9节优先。
 
+2026-10-14 N4槽钢用户修正：子项A/B两侧横担与斜撑必须腹板背靠背、开口朝外，替代旧Python同向截面布置。BracketBuilder中geometric_center槽钢开口沿截面+X；N4负横向侧镜像截面宽轴，正侧保留，beam及brace共用同一方向。N3单架及N4的H型钢C～F原坐标架保留；构件C、中心间距、板中心距/防碰撞、剪切延长与清单不变。EquipmentSupportCheck链接真实Builder与profiles.bin，隔离API记录384组N3/N4、全子项、上下类型、反向、占位与朝向组合，合计6426项回归。OPM原生布尔/扫掠/交互仍需试放；旧模型不自动改，更新未确认预览或重新生成。改前源码/DLL/PDB及用户截图备份于仓库迁移备份/N4槽钢背靠背修正_20261014。
+
+2026-10-14：新增查询分类 line-coordinates（直线坐标修改），当前32可用+1占位，12建模/17支吊架/3查询。用户授权查询分类增加编辑入口，现有构件特性/统计仍只读。Domain/Data/Services/Tools/UI按LineCoordinates分层；通过UorPerMeter/1000显示/编辑模型XYZ毫米值，G17保留往返精度，二维Z=0只读。仅活动模型独立LineElement/MSElementType.Line，不接收LineString、复杂链、块内子线、附件、只读或锁定元素。点取结束再按revision排队读取，不保留Element句柄；Begin幂等，结束恢复捕捉。输入不自动写模型，应用前按模型/ID重读并校验单位/维度及原坐标未被其他操作改变。原生CurvePathEdit仅改几何，ReplaceInModel保留ID/属性；一次替换封成单独TransactionManager事务，失败CancelToPosition，不清Undo缓冲。复用WriteDuration计时，不写支吊架清单。不保存线段坐标至用户偏好；离开/关闭丢弃草稿，撤销/重做失效快照。新页沿用v4和PrototypeTheme。LineCoordinatesCheck验证真实Reader/Editor配API替身；ToolPagesUiCheck链接真实页面/计算/编辑与隔离模型API。首页登记与回归同步；宿主原生写入、坐标属性、样式/EC、捕捉及Undo仍需试用。改前基线319db61及DLL/PDB/原型/校验备份于仓库迁移备份/直线坐标修改_20261014_319db61。
+
 2026-10-11：新增 EnableLicensing 编译开关，缺省 true（授权版），false 生成无授权版；只有编译参数生效，无用户配置开关。无授权构建排除激活页面、授权领域/验签/存储/机器标识及公钥，LicenseService 不访问授权文件，全部业务入口开放，隐藏首页激活按钮和作者页授权卡片，不启动到期定时器。Deployment/build_version.ps1 的 Licensed / Unlicensed 输出隔离；默认安装脚本仍只安装授权版。两种 DLL 编译零警告、零错误，138 项授权及双构建检查通过。
 
 
@@ -445,7 +449,7 @@ internal sealed class ExamplePage : UserControl, IWorkspacePage
 
 当前唯一规格来源是 [`Docs/UI规范-v4.md`](Docs/UI规范-v4.md)，视觉参考是仓库资料中的v4原型。后续所有页面继续采用这套规格；文中历史560宽、240×124卡片、12宽滚动条和深色主按钮不再适用。
 
-- 首页、12个建模、17个支吊架、2个查询及激活/作者工具页全部400×880 DIP；系统DPI映射由MainWindow统一完成，不自动扩宽。
+- 首页、12个建模、17个支吊架、3个查询及激活/作者工具页全部400×880 DIP；系统DPI映射由MainWindow统一完成，不自动扩宽。
 - 模块采用PrototypeChrome的32标题栏+63模块头、可滚动参数区、固定操作区、46共享底栏；新页面Tag为prototype-v4。Q1/Q2保留兼容标签和原专用样式。
 - 建模加载ModelingTheme，支吊架加载SupportTheme，查询/工具加载PrototypeTheme；首页加载HomeTheme。不得复制新的基本主题。项目SVG和HomeIcon几何保持。
 - 参数字段34高、卡片圆角6/内边距12/分区头35，长标题允许合理换行；外层滚动条6宽；主按钮蓝色。

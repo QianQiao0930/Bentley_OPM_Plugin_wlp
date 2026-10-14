@@ -6,6 +6,7 @@
     <Compile Include="../../Domain/EquipmentBracket/BracketModels.cs" Link="BracketModels.cs" />
     <Compile Include="../../Data/EquipmentBracket/BracketCatalog.cs" Link="BracketCatalog.cs" />
     <Compile Include="../../Services/EquipmentBracket/BracketCalculator.cs" Link="BracketCalculator.cs" />
+    <Compile Include="../../Services/EquipmentBracket/BracketBuilder.cs" Link="BracketBuilder.cs" />
     <Compile Include="../../UI/EquipmentBracket/BracketLastChoice.cs" Link="BracketLastChoice.cs" />
     <Reference Include="System.Web.Extensions" />
     <Compile Include="../../Domain/ProfileModels.cs" Link="ProfileModels.cs" />

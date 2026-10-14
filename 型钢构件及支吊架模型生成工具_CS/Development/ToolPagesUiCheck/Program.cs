@@ -26,8 +26,9 @@ namespace SteelSectionProbe
                 ((TextBox)query.FindName("SelectionText")).Text="管道 P-1001 · DN100 · PIPE";
                 var results=(DataGrid)query.FindName("ResultItems");results.ItemsSource=new[]{new PropertyFixture{Label="公称直径",Value="DN100"},new PropertyFixture{Label="管道号",Value="P-1001"},new PropertyFixture{Label="构件类型",Value="PIPE"},new PropertyFixture{Label="几何信息",Value="这是用于检查长属性自动换行的示例文本，不读取用户模型。"}};
                 var stats=new SupportStatisticsPage();((TextBlock)stats.FindName("TotalText")).Text="12 套";((TextBlock)stats.FindName("CountText")).Text="整组12条 · 构件48条 · 材料8项";((TextBlock)stats.FindName("FileText")).Text="示例文件.dgn · 读取时间：展示夹具";
+                var lineCoordinates=LineCoordinateUiChecks.Run(Check);
                 ((DataGrid)stats.FindName("TypeGrid")).ItemsSource=new[]{new StatisticsFixture{SupportType="Q1 大管支撑小管",AssemblyCount=4,AssemblyTags="Q1-1-C-DN100-DN80-500"}};
-                foreach(var pair in new[]{Tuple.Create("component-properties",(UserControl)query),Tuple.Create("support-statistics",(UserControl)stats),Tuple.Create("activation",(UserControl)new ActivationPage()),Tuple.Create("about",(UserControl)new AboutPage())})
+                foreach(var pair in new[]{Tuple.Create("component-properties",(UserControl)query),Tuple.Create("line-coordinates",(UserControl)lineCoordinates),Tuple.Create("support-statistics",(UserControl)stats),Tuple.Create("activation",(UserControl)new ActivationPage()),Tuple.Create("about",(UserControl)new AboutPage())})
                 {
                     var page=pair.Item2;host.Content=page;
                     if(page is ActivationPage activation)activation.OnActivated();
@@ -39,7 +40,15 @@ namespace SteelSectionProbe
                     Save(root,Path.Combine(output,pair.Item1+"-400-880.png"));
                     foreach(double scale in new[]{1d,1.25,1.5,2}){var bmp=new RenderTargetBitmap((int)(400*scale),(int)(880*scale),96*scale,96*scale,PixelFormats.Pbgra32);bmp.Render(root);Check(bmp.PixelHeight==(int)(880*scale),"DPI "+pair.Item1+scale);}
                     foreach(var button in Children<Button>(page).Where(b=>b.IsVisible)){var p=button.TranslatePoint(new Point(),root);Check(p.X+button.ActualWidth<=400.1,"按钮右边界 "+pair.Item1+button.Content);}
+                    if(page is LineCoordinatesPage)
+                    {
+                        var operation=(FrameworkElement)page.FindName("OperationCard");var before=operation.TranslatePoint(new Point(),root);
+                        ((ScrollViewer)page.FindName("ParameterScroll")).ScrollToEnd();Arrange(root);
+                        Check(operation.TranslatePoint(new Point(),root)==before,"直线坐标操作区不随参数滚动");
+                        foreach(var box in Children<TextBox>(page).Where(b=>b.Name.EndsWith("Text")&&b.Name!="SelectionText"))Check(box.ActualHeight>=34&&box.ActualWidth>200,"坐标输入高度/宽度 "+box.Name);
+                    }
                 }
+                lineCoordinates.OnWorkspaceClosing();
                 Check(results.Columns.Count==2,"查询结果全部列保留");Check(((DataGrid)stats.FindName("SupportGrid")).Columns.Count==6,"支吊架全部列保留");Check(((DataGrid)stats.FindName("MaterialGrid")).Columns.Count==6,"材料全部列保留");
                 var act=new ActivationPage();host.Content=act;act.OnActivated();act.FindName("ActivationCodeText");var input=(TextBox)act.FindName("ActivationCodeText");input.Text="无效展示输入";act.OnDeactivated();Check(input.Text=="","真实页面离开清理授权输入");
                 LicenseService.IsLicensingEnabled=false;var unlicensed=new AboutPage();host.Content=unlicensed;Arrange(root);Check(((FrameworkElement)unlicensed.FindName("LicensingCard")).Visibility==Visibility.Collapsed,"无授权版作者页隐藏授权卡片");Save(root,Path.Combine(output,"about-unlicensed-400-880.png"));

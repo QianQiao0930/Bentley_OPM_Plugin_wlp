@@ -19,8 +19,9 @@ namespace SteelSectionProbe
     internal sealed class MainWindow
     {
         internal static MainWindow Current=new MainWindow(); internal bool Returned;
+        internal string Status; internal bool Error;
         internal void ShowHome(){Returned=true;} internal void ShowActivationPage(){} internal void ShowAboutPage(){}
-        internal void BeginTitleDrag(){} internal void MinimizeFromHome(){} internal void Close(){} internal void SetStatus(string text,bool error){}
+        internal void BeginTitleDrag(){} internal void MinimizeFromHome(){} internal void Close(){} internal void SetStatus(string text,bool error){Status=text;Error=error;}
     }
     // 查询页使用展示夹具，业务读取与导出另由真实纯计算回归及源码不变检查覆盖。
     internal partial class ComponentPropertiesPage : UserControl

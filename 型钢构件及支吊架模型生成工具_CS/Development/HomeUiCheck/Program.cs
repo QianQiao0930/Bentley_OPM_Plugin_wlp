@@ -27,7 +27,7 @@ namespace SteelSectionProbe
     page.SelectionChanged+=selected=>((Button)root.FindName("HomeEnterButton")).IsEnabled=selected;
     page.StatusRequested+=(text,error)=>((TextBlock)root.FindName("StatusText")).Text=text;
     Arrange(root,400,880);
-    Check(((TextBlock)page.FindName("TotalText")).Text=="28","真实模块数量");
+    Check(((TextBlock)page.FindName("TotalText")).Text=="32","真实模块数量");
     Check(((FrameworkElement)page.FindName("HeaderBand")).ActualHeight==159,"原型头部159");
     Check(((FrameworkElement)page.FindName("ToolbarBand")).ActualHeight==131,"原型工具栏131");
     Check(((FrameworkElement)page.FindName("HomeStatsBand")).ActualHeight==47,"原型统计带47");
@@ -54,6 +54,13 @@ namespace SteelSectionProbe
     Check(((ToggleButton)page.FindName("CompactToggle")).IsChecked==true,"简约模式状态");
     Click(page,"SupportTab");Arrange(root,400,880);Check(((FrameworkElement)page.FindName("ModelingSection")).Visibility==Visibility.Collapsed,"分类过滤");
     Save(root,Path.Combine(output,"home-support-400-880.png"),400,880);
+    Click(page,"StatsTab");Arrange(root,400,880);
+    var queryList=(ItemsControl)page.FindName("StatsList");
+    Check(queryList.Items.Count==3,"查询分类包含三个入口");
+    search.Text="直线坐标";Arrange(root,400,880);Check(queryList.Items.Count==1,"直线坐标模块可搜索");
+    Descendant<Button>(queryList.ItemContainerGenerator.ContainerFromIndex(0)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+    requested=null;page.EnterSelected();Check(requested=="line-coordinates","直线坐标导航PageId");
+    Save(root,Path.Combine(output,"home-line-coordinates-400-880.png"),400,880);search.Clear();
     Click(page,"FavTab");Arrange(root,400,880);Check(((ItemsControl)page.FindName("SupportList")).Items.Count==1,"星级收藏过滤");
     Click(page,"AllTab");Click(page,"DetailToggle");Click(page,"FrequentSort");Arrange(root,400,880);Check(page.ShowRanks,"频次模式显示排行");Check(Descendants<Border>(((ItemsControl)page.FindName("ModelingList")).ItemContainerGenerator.ContainerFromIndex(0)).First(border=>border.Name=="RankBadge").Visibility==Visibility.Visible,"频次卡片真实排行可见");Save(root,Path.Combine(output,"home-frequency-400-880.png"),400,880);
     Click(page,"NameSort");Arrange(root,400,880);Check(((ComboBox)page.FindName("SortBox")).SelectedIndex==3,"名称排序UI");

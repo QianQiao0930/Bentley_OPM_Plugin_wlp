@@ -35,6 +35,8 @@
                     "接口中心距、筒体法兰、阀门手轮和红白翻片外观模型。", 19, HomeCategories.Modeling, "nozzle"),
                 new FeatureDescriptor("component-properties", "构件特性查询",
                     "点取构件，查看 EC 属性与几何特性。", 20, HomeCategories.Stats, "inspect"),
+                new FeatureDescriptor("line-coordinates", "直线坐标修改",
+                    "点取独立直线段，读取并修改两端 XYZ 坐标。", 21, HomeCategories.Stats, "inspect"),
                 new FeatureDescriptor("pipe-alignment", "管道标高对齐",
                     "管底、中心或管顶对齐；连通随动及立管伸缩。", 25, HomeCategories.Modeling, "riser"),
                 new FeatureDescriptor("elbow-trunnion", "弯头耳轴",

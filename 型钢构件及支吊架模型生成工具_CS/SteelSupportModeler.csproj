@@ -64,6 +64,7 @@
     <Compile Remove="Development\TankLadderCheck\**\*.cs" />
     <Compile Remove="Development\WallLadderCheck\**\*.cs" />
     <Compile Remove="Development\MagneticGaugeCheck\**\*.cs" />
+    <Compile Remove="Development\LineCoordinatesCheck\**\*.cs" />
     <Compile Remove="Development\E1GuideCheck\**\*.cs" />
     <Compile Remove="Development\G2AnchorCheck\**\*.cs" />
     <Compile Remove="Development\PipeClampCheck\**\*.cs" />
