@@ -33,6 +33,8 @@ namespace SteelSectionProbe
             }
             var log = new StringBuilder();
             log.AppendLine(DateTimeOffset.Now.ToString("o") + " A1TEST " + arguments);
+            var assembly = typeof(A1NativeTrialCommands).Assembly;
+            log.AppendLine("DLL=" + assembly.Location + "；模块标识=" + assembly.ManifestModule.ModuleVersionId);
             bool failed = false;
             try
             {

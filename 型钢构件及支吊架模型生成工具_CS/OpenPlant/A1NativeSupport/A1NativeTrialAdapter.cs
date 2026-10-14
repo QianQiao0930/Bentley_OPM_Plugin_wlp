@@ -108,21 +108,30 @@ namespace SteelSectionProbe
             if (!TransactionManager.IsActive) throw new InvalidOperationException("无法启用模型撤销事务。");
             TransactionManager.CloseCurrentTransaction(true);
             var mark = TransactionManager.CurrentTransactionPosition;
+            bool deferred = api.DeferCommits;
+            log("写入前DeferCommits=" + deferred + "；本次创建临时使用立即提交，不提交全局待处理集合。");
             try
             {
+                // Like pipe editing, native Create/Serialize otherwise only enqueue the object.
+                // In that state a successful return can still leave InstanceId="mechanical".
+                api.DeferCommits = false;
                 support = new BMECObject(instance, true);
                 log("开始：" + record.Tag + "，类型=" + record.NativeClass + "，管道=" + pipeInstance.InstanceId);
                 support.RelatedInstance = pipeInstance;
                 using (var graphics = new CellHeaderElement(Session.Instance.GetActiveDgnModel(), A1ClampCatalog.CellName,
                     DPoint3d.Zero, DMatrix3d.Identity, A1ClampBuilder.Build(plan, DPoint3d.Zero, new DVector3d(1, 0, 0))))
                 {
-                    A1NativeGraphics.Create(support, graphics, transform, () =>
+                    A1NativeGraphics.Create(support, graphics, transform, log, () =>
                     {
                         record.SupportInstanceId = support.Instance.InstanceId;
                         log("原生实例=" + record.SupportInstanceId);
+                        if (!api.IsPersistentId(record.SupportInstanceId))
+                            throw new InvalidOperationException("原生创建返回成功，但实例仍未持久化：" + record.SupportInstanceId);
+                        log("阶段=读取支吊架业务信息");
                         api.FindAllInformationOnInstance(support.Instance);
                         api.GetSectionalDataForSupport(support.Instance);
                         if (!new BMECObjectWriter(support).Serialize()) throw new InvalidOperationException("原生支吊架业务数据写入失败。");
+                        log("阶段=业务信息已保存；实例=" + support.Instance.InstanceId);
                         cacheKey = api.ObjectCache.Add(support);
                         if (cacheKey < 0) throw new InvalidOperationException("原生支吊架未能加入文档对象缓存。");
                         using (var element = ElementOf(support.Instance, true))
@@ -156,6 +165,11 @@ namespace SteelSectionProbe
                 if (cacheKey >= 0) api.ObjectCache.Remove(cacheKey);
                 if (support != null) support.Dispose();
                 throw new InvalidOperationException("A1试验失败，已回滚本次写入：" + error.Message, error);
+            }
+            finally
+            {
+                api.DeferCommits = deferred;
+                log("已恢复DeferCommits=" + deferred);
             }
         }
 

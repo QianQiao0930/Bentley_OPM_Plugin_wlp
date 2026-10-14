@@ -47,11 +47,16 @@ namespace SteelSectionProbe
                 }
                 foreach (string stage in new[] { "Create", "Serialize", "Cache", "Statistics", "Metadata", "Relationship", "WrongOrigin", "Parametric" })
                 {
-                    World.Reset(); World.Fault = stage;
+                    World.Reset(); World.Fault = stage; BMECApi.Instance.DeferCommits = true;
                     Reject(() => Place(), "故障明确失败 " + stage);
                     Check(World.Elements.Count == 1 && World.Elements.ContainsKey(1), "失败回收新元素且保留原管 " + stage);
                     Check(World.Created == null || World.Created.Disposed, "失败释放本次对象 " + stage);
+                    Check(BMECApi.Instance.DeferCommits, "失败恢复宿主延迟提交开关 " + stage);
                 }
+                World.Reset(); BMECApi.Instance.DeferCommits = true;
+                var deferred = Place();
+                Check(World.Elements.Count == 2 && BMECApi.Instance.IsPersistentId(deferred.SupportInstanceId), "宿主延迟提交开启时仍创建真实模型实例");
+                Check(BMECApi.Instance.DeferCommits, "成功恢复宿主延迟提交开关");
                 World.Reset(); World.Fault = "Metadata"; World.FailRollback = true;
                 try { Place(); throw new Exception("回滚错误未暴露"); }
                 catch (InvalidOperationException e) { Check(e.Message.Contains("回滚未完成"), "回滚失败不能谎称已恢复"); }

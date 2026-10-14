@@ -4,6 +4,8 @@
 
 当前UI规范：[Docs/UI规范-v4.md](Docs/UI规范-v4.md)。下方带日期的旧改造记录为历史；当前规格与第9节优先。
 
+2026-10-14 A1宿主首轮反馈：Create/Serialize成功但ID仍mechanical，GetElementRef为空，失败已回滚。原试验遗漏DeferCommits处理；修复复用管道编辑立即提交规则，Place写入范围临时DeferCommits=false，finally恢复，不提交全局DeferedChangeSet；必须用BMECApi.IsPersistentId核验后再读取图形，新增逐阶段日志及实际DLL路径/MVID。旧失败日志未记录DeferCommits，不能据此宣称根因已由宿主复测确认；新425项替身检查模拟延迟提交不落模、成功及八种故障恢复开关，OPM仍须重试。改前d35297b、DLL/源码/原始失败日志在../迁移备份/A1延迟提交修复_20261014_d35297b。
+
 2026-10-14：用户授权仅以A1验证原生支吊架出ISO及随管移动，新增独立Key-in `STEELPROBE A1TEST PLACE [站位mm] [开口角度]` / `CHECK` / `LOG`。原A1页面、普通Cell流程及首页模块数保持；本轮不自动转换旧模型、不改工作集Schema、不自行补偿移动。仅活动模型可写水平裸直PIPE，精确匹配A1目录DN/外径；默认中点。复用A1 Calculator/Builder，借非参数化BMECObject/SetNonParametricElement/Create/Serialize创建UBOLT_GUIDE，RelatedInstance指定父管，写后反查DEVICE_HAS_SUPPORT及1mm初始位置。unsafe桥接集中于OpenPlant/A1NativeSupport/A1NativeGraphics.cs；API引用别名NativeOPM用于区分SDK重复native类型，ElementHandle固定及图形所有权保持到全部序列化结束。
 
 沿用Statistics.AttachA1Clamp九字段，试验站位与原生身份存单独SteelSectionProbeTrials/A1NativeSupport JSON；CHECK重读父管与原生对象，检测未跟随、错误父关系、复制身份冲突和参数化外形替换。一次创建单独Undo事务，失败回滚，回滚失败明确报错且保留缓存所有权，禁止宣称已恢复。latest.log覆盖保存于LocalAppData/SteelSectionProbe/logs/A1NativeSupport。操作及结果判读见[试验说明](Docs/A1原生关联试验.md)。415项真实适配器/记录存储配API替身检查、原管夹/Home回归通过；双版本SDK编译不能证明OPM Create、自定义外形、ISO或跟随成功，必须按说明宿主试放。改前基线896ffaa及源码/DLL/校验在../迁移备份/A1原生支吊架试验_20261014_896ffaa。

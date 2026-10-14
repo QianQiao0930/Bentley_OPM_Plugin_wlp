@@ -34,6 +34,7 @@ namespace SteelSectionProbe
             Pipe = new PipeClampSelection { ElementId = 1, IsPipe = true, NominalMm = 100, OutsideMm = 114.3,
                 StartX = 1000, StartY = 2000, StartZ = 3000, EndX = 2000, EndY = 2000, EndZ = 3000 };
             BMECApi.Instance.ObjectCache = new BMECObjectCache();
+            BMECApi.Instance.DeferCommits = false;
         }
         internal static Element Find(IECInstance instance) { return Elements.Values.SingleOrDefault(e => e.Instance == instance); }
     }
@@ -45,7 +46,7 @@ namespace SteelSectionProbe
     { internal static void AttachA1Clamp(Element element, A1ClampPlan plan) { if (World.Fault == "Statistics") throw new Exception("统计失败"); element.MaterialTag = plan.AssemblyTag; } }
     internal static class A1NativeGraphics
     {
-        internal static void Create(BMECObject support, Element graphics, DTransform3d placement, Action finish)
+        internal static void Create(BMECObject support, Element graphics, DTransform3d placement, Action<string> log, Action finish)
         {
             World.Created = support;
             if (World.Fault == "Create") throw new Exception("Create失败");
@@ -53,8 +54,13 @@ namespace SteelSectionProbe
             if (World.Fault == "WrongOrigin") support.Transform3d = new DTransform3d(placement.Matrix) { Translation = new DPoint3d(placement.Translation.X + 10000, placement.Translation.Y, placement.Translation.Z) };
             support.Instance.Parametric = World.Fault == "Parametric";
             support.Instance.Parent = World.Fault == "Relationship" ? null : support.RelatedInstance;
-            var element = new Element { ElementId = World.Next++, Model = Bentley.MstnPlatformNET.Session.Instance.Model, Instance = support.Instance };
-            World.Elements[element.ElementId] = element; World.Instances[support.Instance.InstanceId] = support.Instance;
+            // Native Create may succeed while only enqueuing when the host defers commits.
+            if (!BMECApi.Instance.DeferCommits)
+            {
+                support.Instance.InstanceId = "trial-" + Guid.NewGuid().ToString("N");
+                var element = new Element { ElementId = World.Next++, Model = Bentley.MstnPlatformNET.Session.Instance.Model, Instance = support.Instance };
+                World.Elements[element.ElementId] = element; World.Instances[support.Instance.InstanceId] = support.Instance;
+            }
             if (!new BMECObjectWriter(support).Serialize()) throw new Exception("Serialize失败");
             finish();
         }
@@ -175,7 +181,7 @@ namespace Bentley.OpenPlant.Modeler.Api
         public void Dispose() { Disposed = true; }
     }
     internal sealed class BMECInstanceManager
-    { public static BMECInstanceManager Instance = new BMECInstanceManager(); public IECInstance CreateECInstance(string type, bool defaults) { return new IECInstance(type, "trial-" + Guid.NewGuid().ToString("N")); } }
+    { public static BMECInstanceManager Instance = new BMECInstanceManager(); public IECInstance CreateECInstance(string type, bool defaults) { return new IECInstance(type, "mechanical"); } }
     internal sealed class BMECObjectWriter
     { public BMECObjectWriter(BMECObject support) { } public bool Serialize() { return SteelSectionProbe.World.Fault != "Serialize"; } }
     internal sealed class BMECObjectCache
@@ -188,6 +194,8 @@ namespace Bentley.OpenPlant.Modeler.Api
     internal sealed class BMECApi
     {
         public static BMECApi Instance = new BMECApi(); public BMECObjectCache ObjectCache = new BMECObjectCache();
+        public bool DeferCommits;
+        public bool IsPersistentId(string id) { return id != null && id.StartsWith("trial-"); }
         public unsafe void* GetElementRef(IECInstance instance) { var element = SteelSectionProbe.World.Find(instance); return element == null ? null : (void*)element.ElementId; }
         public bool IsInstanceModifiable(IECInstance instance) { return true; }
         public IECInstance FindAllInformationOnInstance(IECInstance instance) { return instance; }
