@@ -220,15 +220,15 @@ namespace SteelSectionProbe
         {
             switch(kind)
             {
-                case PipeClampKind.A1UBolt:return NativePipeSupportDefinition.Create("A1",a1Plan.Row.Dn,"M"+N(a1Plan.Row.Bolt)+"-ANG"+N(a1Plan.AngleDeg));
-                case PipeClampKind.U3BearingUBolt:return NativePipeSupportDefinition.Create("U3",u3Plan.Clamp.Row.Dn,u3Plan.Subitem+"-"+u3Plan.MaterialCode+"-M"+N(u3Plan.Clamp.Row.Bolt));
-                case PipeClampKind.A2StandardTwoBolt:return NativePipeSupportDefinition.Create("A2",a2Plan.Dn,"B"+N(a2Plan.InsulationMm)+"-M"+N(a2Plan.BoltDiameterMm));
+                case PipeClampKind.A1UBolt:return NativePipeSupportDefinition.Create("A1",a1Plan.Row.Dn,a1Plan.AssemblyTag,"M"+N(a1Plan.Row.Bolt)+"-ANG"+N(a1Plan.AngleDeg));
+                case PipeClampKind.U3BearingUBolt:return NativePipeSupportDefinition.Create("U3",u3Plan.Clamp.Row.Dn,u3Plan.Number,u3Plan.Subitem+"-"+u3Plan.MaterialCode+"-M"+N(u3Plan.Clamp.Row.Bolt));
+                case PipeClampKind.A2StandardTwoBolt:return NativePipeSupportDefinition.Create("A2",a2Plan.Dn,a2Plan.AssemblyTag,"B"+N(a2Plan.InsulationMm)+"-M"+N(a2Plan.BoltDiameterMm));
                 case PipeClampKind.A22ColdTwoBolt:
-                case PipeClampKind.A24ColdFourBolt:return NativePipeSupportDefinition.Create(kind==PipeClampKind.A22ColdTwoBolt?"A22":"A24",a22Plan.Dn,"B"+N(a22Plan.ColdThicknessMm)+"-M"+a22Plan.BoltDiameterMm);
-                case PipeClampKind.E1Guide:return NativePipeSupportDefinition.Create("E1",e1Plan.Dn,e1Plan.Item.Key+"-"+e1Plan.Item.ProfileName+"-H"+N(e1Plan.HeightMm));
-                case PipeClampKind.K1Limit:return NativePipeSupportDefinition.Create("K1",k1Plan.Dn,k1Plan.SubitemKey+"-W"+N(k1Plan.ExistingWidthMm));
+                case PipeClampKind.A24ColdFourBolt:return NativePipeSupportDefinition.Create(kind==PipeClampKind.A22ColdTwoBolt?"A22":"A24",a22Plan.Dn,a22Plan.Number,"B"+N(a22Plan.ColdThicknessMm)+"-M"+a22Plan.BoltDiameterMm);
+                case PipeClampKind.E1Guide:return NativePipeSupportDefinition.Create("E1",e1Plan.Dn,e1Plan.Number,e1Plan.Item.Key+"-"+e1Plan.Item.ProfileName+"-H"+N(e1Plan.HeightMm));
+                case PipeClampKind.K1Limit:return NativePipeSupportDefinition.Create("K1",k1Plan.Dn,k1Plan.Number,k1Plan.SubitemKey+"-W"+N(k1Plan.ExistingWidthMm));
                 case PipeClampKind.T4Insulated:
-                case PipeClampKind.L2ColdShoe:return NativePipeSupportDefinition.Create(kind==PipeClampKind.T4Insulated?"T4":"L2",t4Layout.Dn,"L"+N(t4Layout.ShoeLengthMm)+"-B"+N(t4Layout.InsulationMm));
+                case PipeClampKind.L2ColdShoe:return NativePipeSupportDefinition.Create(kind==PipeClampKind.T4Insulated?"T4":"L2",t4Layout.Dn,t4Layout.Number,"L"+N(t4Layout.ShoeLengthMm)+"-B"+N(t4Layout.InsulationMm));
                 default:throw new InvalidOperationException("未登记的管夹出图种类。");
             }
         }
@@ -254,8 +254,9 @@ namespace SteelSectionProbe
                     NativePipeSupportSource.Frame(center,axis,out placement,out inverse);
                     var instance=BMECInstanceManager.Instance.CreateECInstance(NativePipeSupportDefinition.NativeClass,true);
                     if(instance==null)throw new InvalidOperationException("当前工作集没有SUPPORT_LOCATION类。");
-                    Text(instance,"DEVICE_TYPE_CODE",definition.Label);
-                    Text(instance,"NAME",definition.Label+"-"+Guid.NewGuid().ToString("N").Substring(0,8));
+                    Text(instance,"DEVICE_TYPE_CODE",NativePipeSupportDefinition.DeviceTypeCode);
+                    Text(instance,"NAME",NativePipeSupportDefinition.DeviceTypeCode+"-"+Guid.NewGuid().ToString("N"));
+                    Text(instance,"ALIAS",definition.Label);
                     Text(instance,"DESCRIPTION",definition.Description);
                     Text(instance,"SPECIFICATION",pipe["SPECIFICATION"].StringValue??"");
                     NativeSupportData.RequireProperty(instance,"NOMINAL_DIAMETER");
@@ -269,16 +270,16 @@ namespace SteelSectionProbe
                         ()=>LocalGraphics(inverse),
                         (support,element)=>
                         {
-                            string tag=support.Instance["NAME"].StringValue;
-                            if(string.IsNullOrEmpty(tag)||!tag.StartsWith(definition.Label+"-",StringComparison.Ordinal))
-                                throw new InvalidOperationException("原生编号未保留管夹类别与规格，请检查工作集命名规则。");
+                            ValidateIsoTag(support,definition.Label);
+                            string tag=support.Instance["ALIAS"].StringValue;
                             AttachStatistics(element);
                             NativePipeSupportStore.Write(element,new NativePipeSupportRecord {
                                 Code=definition.Code,Dn=definition.Dn,NativeClass=NativePipeSupportDefinition.NativeClass,
                                 PipeInstanceId=pipe.InstanceId,SupportInstanceId=support.Instance.InstanceId,
-                                IsoTag=tag,Description=definition.Description,Xmm=point[0],Ymm=point[1],Zmm=point[2] });
-                            log("ISO编号="+tag+"；描述="+definition.Description);
-                        },ReleaseDisplay,log);
+                                IsoTag=tag,NativeName=support.Instance["NAME"].StringValue,Description=definition.Description,Xmm=point[0],Ymm=point[1],Zmm=point[2] });
+                            log("ISO引注="+tag+"；原生实例编号="+support.Instance["NAME"].StringValue+"；描述="+definition.Description);
+                            log("ISO提取要求：SUPPORT_LOCATION中SSPPC对象的IE_TAG读取ALIAS，见部署脚本Install-PipeClampIsoTag.ps1。");
+                        },ReleaseDisplay,log,support=>ValidateIsoTag(support,definition.Label));
                 });
             }
             catch(Exception error)
@@ -287,6 +288,13 @@ namespace SteelSectionProbe
                 catch(Exception restoreError) { throw new AggregateException("原生确认失败，预览恢复也失败；请取消后重新点取。",error,restoreError); }
                 throw;
             }
+        }
+
+        private static void ValidateIsoTag(BMECObject support,string expected)
+        {
+            if(support.Instance["DEVICE_TYPE_CODE"].StringValue!=NativePipeSupportDefinition.DeviceTypeCode ||
+                !string.Equals(support.Instance["ALIAS"].StringValue,expected,StringComparison.Ordinal))
+                throw new InvalidOperationException("管架引注编号未正确保存，已拒绝本次写入。");
         }
 
         private void ConfirmOrdinary()

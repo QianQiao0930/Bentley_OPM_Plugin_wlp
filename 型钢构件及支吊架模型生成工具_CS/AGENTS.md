@@ -4,6 +4,12 @@
 
 当前UI规范：[Docs/UI规范-v4.md](Docs/UI规范-v4.md)。下方带日期的旧改造记录为历史；当前规格与第9节优先。
 
+2026-10-14 引注按原管架编号：用户要求九类标注只显示原材料AssemblyTag（E1示例E1-B-107），替代下方旧“类别/DN/规格+自动编号”规则。NativePipeSupportDefinition.Label取原计划AssemblyTag/Number，详细ASCII规格仅留Description，不截断/重编码显示编号，单件空号或控制字符/$拒绝。SUPPORT.NAME为计算业务键，不拿重复规格编号覆盖原生身份；DEVICE_TYPE_CODE=SSPPC、ALIAS=原编号、NAME仍由原生命名。JSON Version1保留IsoTag并可选新增NativeName。共用Writer末尾可选validateReadback在持久对象校验后调用；正式会话检查标记及ALIAS，丢失回滚，原A1TEST不受影响。
+
+此次用户引注修改需要工作集部署映射，覆盖下方上一轮“不改Schema”的范围限制。Deployment/Install-PipeClampIsoTag.ps1仅在SUPPORT_LOCATION添加当前基类BOM_LABELS副本，IE_TAG仅SSPPC对象取ALIAS，否则保留原表达式；不动其他类、符号、style.xml。实际写前字节备份和SHA256，默认只读预览、重复幂等，已有类级项目映射冲突拒绝覆盖。部署后须重启OPM，新放/重提ISO；其他工作集也需部署，旧件无标记不迁移。脚本UTF8 BOM保证Windows PowerShell5.1正确解码。6484项九类真实会话配替身、16项XML部署及1816项A1回归；宿主ISO表达式/单件新引注仍须验证。基线085db60和源码/DLL/PDB/用户截图/日志/工作集备份在../迁移备份/管夹引注按管架编号_20261014_085db60。
+
+组合多行本轮仅沉淀方案，不加组合UI或自动分组：单组合根/单站位/有序子件编号与数量，ISO用$分行，一图符一引线一框，材料避免根与子件重复。圈码①②③字体以及TAG/NOTE框的实际多行与行距需在当前样式验证；官方示例及后续接口见Docs/原生支吊架与轴测图接入.md。
+
 2026-10-14：用户实测确认A1的ISO位置、编号和Supports材料行成功，并授权将流程沉淀后接入正式“放置管夹”九类别（A1/U3/A2/A22/A24/E1/K1/T4/L2）。共用能力在OpenPlant/NativePipeSupport的Writer/Data/Elements/Graphics/Source，试验命令也改用它；不再在生产路径复制A1事务。正式类别统一SUPPORT_LOCATION支架位置类，经继承的ClassMap(...,"SUPP")使用通用简化符号；该类补充Schema的NOMINAL_DIAMETER为string，须按实际字段类型写。DEVICE_TYPE_CODE/NAME包含类别、DN和关键尺寸，DESCRIPTION用ASCII英文避开当前ISO种子的中文缺字。原中文PipeSupportComponents九字段、Builder几何与统计方法保持，根元素另存SteelSectionProbeNativeSupports/PlacedPipeSupport Version1 JSON身份/坐标记录。详见[接入说明](Docs/原生支吊架与轴测图接入.md)。
 
 PipeClampReader捕获原生实例ID/模型指针标识/UOR比例；会话成功预览后绑定数值快照，确认前重读真实可写活动PIPE、身份/轴段/DN/外径/保温/单位，超轴段定位拒绝。参考物化线和辅助线仅普通Cell/本地清单，页面明确提示无ISO关联；原生失败禁止静默降级。正式确认用当前计划重建世界几何，逆变换为局部后交给共用Writer，避免二次平移旋转；Source.Frame沿管轴建立正交架，支持各Builder原范围，不把试验的水平限制搬到U3立管等类别。Writer临时立即提交、Design/SHOP、按mm写ISO点、唯一DEVICE关系、缓存所有权与持久对象重读检查、独立Undo回滚规则必须保留。

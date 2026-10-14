@@ -16,7 +16,7 @@ namespace SteelSectionProbe
 
         internal static void Create(IECInstance instance, IECInstance pipe, DTransform3d placement,
             double[] pointMm, Func<Element> graphicsFactory, Action<BMECObject, Element> attach,
-            Action complete, Action<string> log)
+            Action complete, Action<string> log, Action<BMECObject> validateReadback = null)
         {
             if (!LicenseService.IsActivated) throw new InvalidOperationException("请先激活软件。");
             if (TransactionManager.IsUndoInProgress) throw new InvalidOperationException("正在撤销/重做，请稍后再试。");
@@ -61,6 +61,7 @@ namespace SteelSectionProbe
                             if (readback.Object == null || !readback.Object.IsValid) throw new InvalidOperationException("无法重读原生支吊架。");
                             if (readback.Object.Instance.InstanceId != support.Instance.InstanceId) throw new InvalidOperationException("重读的原生支吊架身份不一致。");
                             NativeSupportData.Validate(readback.Object, pipe.InstanceId, pointMm, scale, log);
+                            validateReadback?.Invoke(readback.Object);
                         }
                         complete();
                     });

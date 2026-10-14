@@ -22,13 +22,13 @@ namespace SteelSectionProbe
     internal static partial class Statistics
     {
         private static void Attach(Element e,string code){if(World.Fault=="Statistics")throw new InvalidOperationException("统计失败");e.MaterialTag=code;}
-        internal static void AttachU3Clamp(Element e,U3ClampPlan p){Attach(e,"U3");}
-        internal static void AttachA2Clamp(Element e,A2ClampPlan p){Attach(e,"A2");}
-        internal static void AttachA22Clamp(Element e,A22ClampPlan p){Attach(e,"A22");}
-        internal static void AttachA24Clamp(Element e,A22ClampPlan p){Attach(e,"A24");}
-        internal static void AttachE1Guide(Element e,E1GuidePlan p){Attach(e,"E1");}
-        internal static void AttachK1Limit(Element e,K1LimitPlan p){Attach(e,"K1");}
-        internal static void AttachT4Shoe(Element e,T4ShoeLayout p,T4ShoeBooleanLayout b,bool pipe,bool ins){Attach(e,"T4:"+pipe+":"+ins);}
-        internal static void AttachL2Shoe(Element e,T4ShoeLayout p,T4ShoeBooleanLayout b,bool pipe,bool ins){Attach(e,"L2:"+pipe+":"+ins);}
+        internal static void AttachU3Clamp(Element e,U3ClampPlan p){Attach(e,p.Number);}
+        internal static void AttachA2Clamp(Element e,A2ClampPlan p){Attach(e,p.AssemblyTag);}
+        internal static void AttachA22Clamp(Element e,A22ClampPlan p){Attach(e,p.Number);}
+        internal static void AttachA24Clamp(Element e,A22ClampPlan p){Attach(e,p.Number);}
+        internal static void AttachE1Guide(Element e,E1GuidePlan p){Attach(e,p.Number);}
+        internal static void AttachK1Limit(Element e,K1LimitPlan p){Attach(e,p.Number);}
+        internal static void AttachT4Shoe(Element e,T4ShoeLayout p,T4ShoeBooleanLayout b,bool pipe,bool ins){Attach(e,p.Number);}
+        internal static void AttachL2Shoe(Element e,T4ShoeLayout p,T4ShoeBooleanLayout b,bool pipe,bool ins){Attach(e,p.Number);}
     }
 }

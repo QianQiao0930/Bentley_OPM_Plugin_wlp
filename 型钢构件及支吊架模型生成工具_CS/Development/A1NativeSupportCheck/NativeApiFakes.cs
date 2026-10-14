@@ -100,7 +100,7 @@ namespace Bentley.ECObjects.Instance
         internal bool NominalString;
         public Definition Type { get { return new Definition { Name = Name == "NOMINAL_DIAMETER" && !NominalString ? "double" : "string" }; } }
         public IEnumerable<Definition> Properties(bool includeBase)
-        { return new[] { "NAME", "DEVICE_TYPE_CODE", "DESCRIPTION", "SPECIFICATION", "UBOLT_DIAMETER", "UBOLT_LENGTH", "UBOLT_WIDTH", "NOMINAL_DIAMETER", "STATE", "SHOP_FIELD", "SUPPORT_POINT_X", "SUPPORT_POINT_Y", "SUPPORT_POINT_Z" }
+          { return new[] { "NAME", "DEVICE_TYPE_CODE", "NUMBER", "ALIAS", "DESCRIPTION", "SPECIFICATION", "UBOLT_DIAMETER", "UBOLT_LENGTH", "UBOLT_WIDTH", "NOMINAL_DIAMETER", "STATE", "SHOP_FIELD", "SUPPORT_POINT_X", "SUPPORT_POINT_Y", "SUPPORT_POINT_Z" }
             .Where(n => SteelSectionProbe.World.Fault != "MissingIsoProperty" || n != "SUPPORT_POINT_X").Select(n => new Definition { Name = n,NominalString=Name=="SUPPORT_LOCATION" }); }
     }
     internal sealed class IECInstance
@@ -216,9 +216,20 @@ namespace Bentley.OpenPlant.Modeler.Api
         public BMECObjectWriter(BMECObject support) { this.support = support; }
         public bool Serialize()
         {
+            // Match the active SUPPORT.NAME expression instead of letting a handwritten NAME appear stable.
+            if (support.Instance.ClassDefinition.Name == "SUPPORT_LOCATION")
+                support.Instance["NAME"].StringValue = support.Instance["DEVICE_TYPE_CODE"].StringValue + "-" + WorldNumber(support);
+            if (SteelSectionProbe.World.Fault == "AliasDropped") support.Instance["ALIAS"].Clear();
+            if (SteelSectionProbe.World.Fault == "MarkerDropped") support.Instance["DEVICE_TYPE_CODE"].StringValue = "SP";
             if (SteelSectionProbe.World.Fault == "IsoPointDropped") support.Instance["SUPPORT_POINT_X"].DoubleValue = 0;
             if (SteelSectionProbe.World.Fault == "StateDropped") support.Instance["STATE"].Clear();
             return SteelSectionProbe.World.Fault != "Serialize";
+        }
+        private static string WorldNumber(BMECObject support)
+        {
+            var number = support.Instance["NUMBER"];
+            if(number.IsNull) number.StringValue = SteelSectionProbe.World.Next.ToString("0000");
+            return number.StringValue;
         }
     }
     internal sealed class BMECObjectCache
@@ -249,7 +260,11 @@ namespace SteelSectionProbe.PipeAlignment
     internal static class OpenPlantObjectFactory
     {
         internal sealed class Acquired : IDisposable { public BMECObject Object; public void Dispose() { } }
-        public static Acquired Acquire(string id, IECInstance instance) { return new Acquired { Object = BMECApi.Instance.ObjectCache.FindByInstanceId(id) }; }
+        public static Acquired Acquire(string id, IECInstance instance) {
+            var found=BMECApi.Instance.ObjectCache.FindByInstanceId(id);
+            if(SteelSectionProbe.World.Fault=="ReadbackAliasDropped"&&found!=null)found.Instance["ALIAS"].Clear();
+            return new Acquired { Object = found };
+        }
     }
 }
 
