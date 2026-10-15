@@ -59,7 +59,10 @@ namespace SteelSectionProbe
                 throw new InvalidOperationException("端点坐标必须是有限数值。");
         }
 
-        // 保留往返精度，避免只修改一个字段时舍入其余五个坐标。
+        // 保留往返精度，避免只修改一个字段时舍入其余五个坐标（往返/测试用）。
         internal static string Format(double value) { return value.ToString("G17", CultureInfo.CurrentCulture); }
+
+        // 界面显示：毫米坐标只显示 2 位小数；未编辑字段在应用时仍沿用精确值（见页面）。
+        internal static string Display(double value) { return value.ToString("0.##", CultureInfo.CurrentCulture); }
     }
 }

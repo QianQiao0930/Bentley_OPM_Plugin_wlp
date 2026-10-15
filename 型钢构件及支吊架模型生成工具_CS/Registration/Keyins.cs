@@ -2,8 +2,6 @@ namespace SteelSectionProbe
 {
     public static class Keyins
     {
-        public static void A1Test(string args) { A1NativeTrialCommands.Run(args); }
-
         public static void Show(string args)
         {
             MainWindow.ShowWindow();

@@ -56,7 +56,7 @@ namespace SteelSectionProbe
             var located = Setup(true);
             Click(page, "PickButton"); Click(page, "PickButton"); check(LineCoordinateLocateTool.Installs == 1, "重复开始点取幂等");
             LineCoordinateLocateTool.Pick(located); Flush(page);
-            check(Get<TextBox>(page, "StartXText").Text == LineCoordinateCalculator.Format(1000.0001234567), "点取完整精度");
+            check(Get<TextBox>(page, "StartXText").Text == LineCoordinateCalculator.Display(1000.0001234567), "点取显示2位小数");
             check(!Get<Button>(page, "StopButton").IsEnabled && !Get<Button>(page, "ApplyButton").IsEnabled, "点取后自动结束/原值禁应用");
             Get<TextBox>(page, "EndZText").Text = "6500.25";
             check(Get<Button>(page, "ApplyButton").IsEnabled, "编辑有效值启用应用");
@@ -90,7 +90,7 @@ namespace SteelSectionProbe
             Click(page, "AlignVerticalStartButton");
             check(Get<TextBox>(page, "EndXText").Text == Get<TextBox>(page, "StartXText").Text
                 && Get<TextBox>(page, "EndYText").Text == Get<TextBox>(page, "StartYText").Text
-                && Get<TextBox>(page, "EndZText").Text == "6000" && Get<TextBox>(page, "StartXText").Text == "1000.0001234567", "按起点对齐竖直线填充");
+                && Get<TextBox>(page, "EndZText").Text == "6000" && Get<TextBox>(page, "StartXText").Text == LineCoordinateCalculator.Display(1000.0001234567), "按起点对齐竖直线填充");
             Click(page, "ApplyButton");
             check(Math.Abs(Session.Instance.Active.Lines[42].Path[0].Segment.End.X - 1000000.1234567) < 1e-6
                 && Session.Instance.Active.Lines[42].Path[0].Segment.End.Y == -2000000
@@ -116,7 +116,7 @@ namespace SteelSectionProbe
             Get<TextBox>(page, "StartZText").Text = "2000"; Get<TextBox>(page, "EndZText").Text = "2000";
             Click(page, "AlignPipeButton"); LineCoordinatePipeTool.Pick(located); Flush(page);
             check(Get<TextBox>(page, "StartZText").Text == "4899" && Get<TextBox>(page, "EndZText").Text == "4899"
-                && Get<TextBox>(page, "StartXText").Text == "1000.0001234567" && !MainWindow.Current.Error, "水平线贴管底标高，X/Y 保持");
+                && Get<TextBox>(page, "StartXText").Text == LineCoordinateCalculator.Display(1000.0001234567) && !MainWindow.Current.Error, "水平线贴管底标高，X/Y 保持");
             Click(page, "ReloadButton");
             Click(page, "AlignVerticalStartButton");
             Click(page, "AlignPipeButton"); LineCoordinatePipeTool.Pick(located); Flush(page);

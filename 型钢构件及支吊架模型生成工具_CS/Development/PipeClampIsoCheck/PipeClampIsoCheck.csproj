@@ -35,8 +35,6 @@
 <Compile Include="../../Data/N8ConnectionPlate/N8Catalog.cs" Link="N8Catalog.cs" />
 <Compile Include="../../Domain/G2Anchor/G2AnchorModels.cs" Link="G2AnchorModels.cs" />
 <Compile Include="../../Data/G2Anchor/G2AnchorCatalog.cs" Link="G2AnchorCatalog.cs" />
-<Compile Include="../A1NativeSupportCheck/NativeApiFakes.cs" Link="NativeApiFakes.cs"/>
-<Compile Include="../A1NativeSupportCheck/ParametricSetupFakes.cs" Link="ParametricSetupFakes.cs"/>
 <Compile Include="../../Services/NativePipeSupport/NativePipeSupportRecipeCodec.cs" Link="NativePipeSupportRecipeCodec.cs"/>
 <Compile Include="../../OpenPlant/NativePipeSupport/NativePipeSupportRecipeGraphics.cs" Link="NativePipeSupportRecipeGraphics.cs"/>
 <Compile Include="../../OpenPlant/NativePipeSupport/NativePipeSupportComponentSetup.cs" Link="NativePipeSupportComponentSetup.cs"/>

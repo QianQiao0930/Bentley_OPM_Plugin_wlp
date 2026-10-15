@@ -12,6 +12,9 @@ namespace SteelSectionProbe
         private LineCoordinateSelection selection;
         private bool active, loading;
         private int revision;
+        // 界面只显示 2 位小数；未编辑字段在应用时沿用这里的精确值，避免整段坐标被舍入。
+        private readonly double[] exactField = new double[6];
+        private readonly string[] shownField = new string[6];
         public string PageId { get { return "line-coordinates"; } }
         public string PageTitle { get { return "直线坐标修改"; } }
         public string PageSubtitle { get { return "点取直线并修改两端 XYZ 坐标"; } }
@@ -183,12 +186,7 @@ namespace SteelSectionProbe
                 SelectionText.Text = "元素 " + value.ElementId.ToString(CultureInfo.InvariantCulture) + " · " + (value.Is3d ? "三维直线" : "二维直线（Z=0）");
                 StartFields.IsEnabled = EndFields.IsEnabled = true;
                 StartZText.IsReadOnly = EndZText.IsReadOnly = !value.Is3d;
-                StartXText.Text = LineCoordinateCalculator.Format(value.Coordinates.Start.X);
-                StartYText.Text = LineCoordinateCalculator.Format(value.Coordinates.Start.Y);
-                StartZText.Text = LineCoordinateCalculator.Format(value.Coordinates.Start.Z);
-                EndXText.Text = LineCoordinateCalculator.Format(value.Coordinates.End.X);
-                EndYText.Text = LineCoordinateCalculator.Format(value.Coordinates.End.Y);
-                EndZText.Text = LineCoordinateCalculator.Format(value.Coordinates.End.Z);
+                FillFields(value.Coordinates);
                 ReloadButton.IsEnabled = true;
             }
             finally { loading = false; }
@@ -202,6 +200,7 @@ namespace SteelSectionProbe
                 SelectionText.Text = "尚未点取直线";
                 StartFields.IsEnabled = EndFields.IsEnabled = false;
                 StartXText.Text = StartYText.Text = StartZText.Text = EndXText.Text = EndYText.Text = EndZText.Text = "";
+                for (int i = 0; i < shownField.Length; i++) { exactField[i] = 0; shownField[i] = null; }
                 ReloadButton.IsEnabled = ApplyButton.IsEnabled = StopButton.IsEnabled = false;
                 LengthText.Text = "线段长度：—";
                 EditStateText.Text = "点取后可编辑；点击应用修改才会写入原线段。";
@@ -214,21 +213,36 @@ namespace SteelSectionProbe
             loading = true;
             try
             {
-                StartXText.Text = LineCoordinateCalculator.Format(coordinates.Start.X);
-                StartYText.Text = LineCoordinateCalculator.Format(coordinates.Start.Y);
-                StartZText.Text = LineCoordinateCalculator.Format(coordinates.Start.Z);
-                EndXText.Text = LineCoordinateCalculator.Format(coordinates.End.X);
-                EndYText.Text = LineCoordinateCalculator.Format(coordinates.End.Y);
-                EndZText.Text = LineCoordinateCalculator.Format(coordinates.End.Z);
+                FillFields(coordinates);
             }
             finally { loading = false; }
             RefreshInput();
         }
+        // 显示 2 位小数；字段文本与显示值一致视为未改动，沿用精确值，避免只改一项时舍入其余五项。
+        private void FillFields(LineCoordinates coordinates)
+        {
+            SetField(0, StartXText, coordinates.Start.X);
+            SetField(1, StartYText, coordinates.Start.Y);
+            SetField(2, StartZText, coordinates.Start.Z);
+            SetField(3, EndXText, coordinates.End.X);
+            SetField(4, EndYText, coordinates.End.Y);
+            SetField(5, EndZText, coordinates.End.Z);
+        }
+        private void SetField(int index, TextBox box, double value)
+        {
+            exactField[index] = value;
+            shownField[index] = LineCoordinateCalculator.Display(value);
+            box.Text = shownField[index];
+        }
+        private double FieldValue(int index, TextBox box, string label)
+        {
+            return box.Text == shownField[index] ? exactField[index] : LineCoordinateCalculator.Parse(box.Text, label);
+        }
         private LineCoordinates ReadInput()
         {
-            return new LineCoordinates(new LineCoordinatePoint(
-                LineCoordinateCalculator.Parse(StartXText.Text, "起点 X"), LineCoordinateCalculator.Parse(StartYText.Text, "起点 Y"), LineCoordinateCalculator.Parse(StartZText.Text, "起点 Z")),
-                new LineCoordinatePoint(LineCoordinateCalculator.Parse(EndXText.Text, "终点 X"), LineCoordinateCalculator.Parse(EndYText.Text, "终点 Y"), LineCoordinateCalculator.Parse(EndZText.Text, "终点 Z")));
+            return new LineCoordinates(
+                new LineCoordinatePoint(FieldValue(0, StartXText, "起点 X"), FieldValue(1, StartYText, "起点 Y"), FieldValue(2, StartZText, "起点 Z")),
+                new LineCoordinatePoint(FieldValue(3, EndXText, "终点 X"), FieldValue(4, EndYText, "终点 Y"), FieldValue(5, EndZText, "终点 Z")));
         }
         private void Coordinate_Changed(object sender, TextChangedEventArgs e) { if (!loading && ApplyButton != null) RefreshInput(); }
         private void RefreshInput()

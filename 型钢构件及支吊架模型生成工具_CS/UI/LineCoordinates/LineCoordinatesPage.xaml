@@ -58,16 +58,18 @@
                         <StackPanel>
                             <Border Height="35" BorderBrush="#E8EDF2" BorderThickness="0,0,0,1" Padding="12,0"><TextBlock Text="04 /  快速对齐" Style="{StaticResource SectionTitleStyle}" Margin="0" VerticalAlignment="Center"/></Border>
                             <StackPanel Margin="12">
-                                <TextBlock Text="对齐只按下方方式重新填写两端坐标，点击“应用修改”后才写回线段。" FontSize="11" Foreground="#5B6B7B" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                <TextBlock Text="快速对齐只重新填写两端坐标（草稿），点击“应用修改”后才写回线段。" FontSize="11" Foreground="#5B6B7B" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                <TextBlock Text="竖直线 · 把两端 X/Y 对齐（Z 各自保持）" FontSize="11" Foreground="#33475B" TextWrapping="Wrap" Margin="0,0,0,4"/>
                                 <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/></Grid.ColumnDefinitions>
-                                    <Button x:Name="AlignVerticalStartButton" Content="按起点对齐竖直线" Style="{StaticResource SecondaryButtonStyle}" Click="AlignVerticalStart_Click" Margin="0" ToolTip="终点 X/Y 改为起点 X/Y，终点 Z 保持。"/>
-                                    <Button x:Name="AlignVerticalEndButton" Grid.Column="2" Content="按终点对齐竖直线" Style="{StaticResource SecondaryButtonStyle}" Click="AlignVerticalEnd_Click" Margin="0" ToolTip="起点 X/Y 改为终点 X/Y，起点 Z 保持。"/>
+                                    <Button x:Name="AlignVerticalStartButton" Content="终点贴起点" Style="{StaticResource SecondaryButtonStyle}" Click="AlignVerticalStart_Click" Margin="0" ToolTip="以起点为准：终点 X/Y 改为起点 X/Y，终点 Z 保持。"/>
+                                    <Button x:Name="AlignVerticalEndButton" Grid.Column="2" Content="起点贴终点" Style="{StaticResource SecondaryButtonStyle}" Click="AlignVerticalEnd_Click" Margin="0" ToolTip="以终点为准：起点 X/Y 改为终点 X/Y，起点 Z 保持。"/>
                                 </Grid>
-                                <Grid Margin="0,6,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/></Grid.ColumnDefinitions>
-                                    <Button x:Name="AlignHorizontalStartButton" Content="按起点对齐水平线" Style="{StaticResource SecondaryButtonStyle}" Click="AlignHorizontalStart_Click" Margin="0" ToolTip="终点 Z 改为起点 Z，X/Y 保持。"/>
-                                    <Button x:Name="AlignHorizontalEndButton" Grid.Column="2" Content="按终点对齐水平线" Style="{StaticResource SecondaryButtonStyle}" Click="AlignHorizontalEnd_Click" Margin="0" ToolTip="起点 Z 改为终点 Z，X/Y 保持。"/>
+                                <TextBlock Text="水平线 · 把两端 Z 对齐（X/Y 保持）" FontSize="11" Foreground="#33475B" TextWrapping="Wrap" Margin="0,8,0,4"/>
+                                <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                    <Button x:Name="AlignHorizontalStartButton" Content="终点贴起点" Style="{StaticResource SecondaryButtonStyle}" Click="AlignHorizontalStart_Click" Margin="0" ToolTip="以起点为准：终点 Z 改为起点 Z，X/Y 保持。"/>
+                                    <Button x:Name="AlignHorizontalEndButton" Grid.Column="2" Content="起点贴终点" Style="{StaticResource SecondaryButtonStyle}" Click="AlignHorizontalEnd_Click" Margin="0" ToolTip="以终点为准：起点 Z 改为终点 Z，X/Y 保持。"/>
                                 </Grid>
-                                <Button x:Name="AlignPipeButton" Content="对齐到管道…" Style="{StaticResource SecondaryButtonStyle}" Click="AlignPipe_Click" Margin="0,6,0,0" ToolTip="点选一根活动模型管道：水平线两端 Z 改为管底标高（向下取整）；竖直线两端 XY 移到点取位置、终点 Z 改为管底标高（向下取整）。"/>
+                                <Button x:Name="AlignPipeButton" Content="贴合到管道底标高…" Style="{StaticResource SecondaryButtonStyle}" Click="AlignPipe_Click" Margin="0,8,0,0" ToolTip="点选一根活动模型管道：水平线两端 Z 改为管底标高（向下取整）；竖直线两端 XY 移到点取位置、终点 Z 改为管底标高（向下取整）。"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>

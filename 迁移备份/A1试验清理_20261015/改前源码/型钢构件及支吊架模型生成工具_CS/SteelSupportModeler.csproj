@@ -1,0 +1,123 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <OutputType>Library</OutputType>
+    <PlatformTarget>x64</PlatformTarget>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <LangVersion>7.3</LangVersion>
+    <AssemblyName>SteelSectionProbe</AssemblyName>
+    <RootNamespace>SteelSectionProbe</RootNamespace>
+    <UseWPF>true</UseWPF>
+    <!-- 默认分发授权版；只有开发端编译参数才能关闭授权。 -->
+    <EnableLicensing Condition="'$(EnableLicensing)' == ''">true</EnableLicensing>
+    <DefineConstants Condition="'$(EnableLicensing)' == 'true'">$(DefineConstants);ENABLE_LICENSING</DefineConstants>
+    <OutDir Condition="'$(EnableLicensing)' == 'false' and '$(OutDir)' == ''">bin\$(Configuration)\Unlicensed\</OutDir>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <UseWindowsForms>true</UseWindowsForms>
+    <BentleyRoot Condition="'$(BentleyRoot)' == '' and Exists('D:\Program Files\Bentley\OpenPlant 2024\OpenPlantModeler\Bentley.DgnPlatformNET.dll')">D:\Program Files\Bentley\OpenPlant 2024\OpenPlantModeler</BentleyRoot>
+    <BentleyRoot Condition="'$(BentleyRoot)' == ''">C:\Program Files\Bentley\OpenPlant 2024\OpenPlantModeler</BentleyRoot>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Bentley.OpenPlant.Modeler.Api"><HintPath>$(BentleyRoot)\Assemblies\Bentley.OpenPlant.Modeler.Api.dll</HintPath><Private>false</Private><Aliases>global,NativeOPM</Aliases></Reference>
+    <Reference Include="Bentley.OpenPlant.Modeler.Interfaces"><HintPath>$(BentleyRoot)\Assemblies\Bentley.OpenPlant.Modeler.Interfaces.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.OpenPlantModeler.SDK"><HintPath>$(BentleyRoot)\Assemblies\Bentley.OpenPlantModeler.SDK.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.Building.Mechanical.Components"><HintPath>$(BentleyRoot)\Assemblies\Bentley.Building.Mechanical.Components.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.Building.Mechanical.ComponentLibrary"><HintPath>$(BentleyRoot)\Assemblies\Bentley.Building.Mechanical.ComponentLibrary.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.ApplicationFramework.Interfaces"><HintPath>$(BentleyRoot)\Assemblies\Bentley.ApplicationFramework.Interfaces.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.ApplicationFramework.PropertyContainerManager"><HintPath>$(BentleyRoot)\Assemblies\Bentley.ApplicationFramework.PropertyContainerManager.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.Plant.OpenPlantFramework.Differencing.Transformations"><HintPath>$(BentleyRoot)\Assemblies\Bentley.Plant.OpenPlantFramework.Differencing.Transformations.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="ustation"><HintPath>$(BentleyRoot)\ustation.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.Interop.MicroStationDGN"><HintPath>$(BentleyRoot)\Assemblies\Bentley.Interop.MicroStationDGN.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="bentley.microstation.interfaces.1.0"><HintPath>$(BentleyRoot)\Assemblies\bentley.microstation.interfaces.1.0.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.GeometryNET"><HintPath>$(BentleyRoot)\Bentley.GeometryNET.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.GeometryNET.Structs"><HintPath>$(BentleyRoot)\Bentley.GeometryNET.Structs.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.DgnPlatformNET"><HintPath>$(BentleyRoot)\Bentley.DgnPlatformNET.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.DgnDisplayNet"><HintPath>$(BentleyRoot)\Bentley.DgnDisplayNet.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="bentley.microstation"><HintPath>$(BentleyRoot)\Assemblies\bentley.microstation.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.Windowing"><HintPath>$(BentleyRoot)\Assemblies\ECFramework\Bentley.Windowing.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.General.1.0"><HintPath>$(BentleyRoot)\Assemblies\ECFramework\Bentley.General.1.0.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.ECObjects3"><HintPath>$(BentleyRoot)\Assemblies\ECFramework\Bentley.ECObjects3.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.EC.Persistence3"><HintPath>$(BentleyRoot)\Assemblies\ECFramework\Bentley.EC.Persistence3.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.Platform"><HintPath>$(BentleyRoot)\Assemblies\ECFramework\Bentley.Platform.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
+    <Reference Include="System.Web" />
+    <Reference Include="System.Web.Extensions" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="WindowsFormsIntegration" />
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="System.Xaml" />
+  </ItemGroup>
+  <ItemGroup><EmbeddedResource Include="Registration\commands.xml" LogicalName="CommandTable.xml" /></ItemGroup>
+  <ItemGroup><EmbeddedResource Include="Resources\fire_extinguisher_recipes.json" LogicalName="SteelSectionProbe.fire_extinguisher_recipes.json" /></ItemGroup>
+  <ItemGroup><EmbeddedResource Include="Resources\profiles.bin" LogicalName="SteelSectionProbe.profiles.bin" /></ItemGroup>
+  <ItemGroup><EmbeddedResource Include="Resources\nozzle_flange_data.json" LogicalName="SteelSectionProbe.nozzle_flange_data.json" /></ItemGroup>
+  <ItemGroup><Compile Remove="Development\ComponentPropertiesCheck\**\*.cs" />
+    <Compile Remove="Development\ElbowTrunnionCheck\**\*.cs" />
+    <Compile Remove="Development\SupportStatisticsCheck\**\*.cs" />
+    <Compile Remove="Development\TankManholeCheck\**\*.cs" />
+    <Compile Remove="Development\NozzleCheck\**\*.cs" />
+    <Compile Remove="Development\SquareManholeCheck\**\*.cs" />
+    <Compile Remove="Development\TankLadderCheck\**\*.cs" />
+    <Compile Remove="Development\WallLadderCheck\**\*.cs" />
+    <Compile Remove="Development\MagneticGaugeCheck\**\*.cs" />
+    <Compile Remove="Development\LineCoordinatesCheck\**\*.cs" />
+    <Compile Remove="Development\E1GuideCheck\**\*.cs" />
+    <Compile Remove="Development\G2AnchorCheck\**\*.cs" />
+    <Compile Remove="Development\PipeClampCheck\**\*.cs" />
+    <Compile Remove="Development\Q1SupportCheck\**\*.cs" />
+    <Compile Remove="Development\VerticalPipeSupportCheck\**\*.cs" />
+    <Compile Remove="Development\N1CantileverCheck\**\*.cs" />
+    <Compile Remove="Development\N2CantileverCheck\**\*.cs" />
+    <Compile Remove="Development\AxisPlacementCheck\**\*.cs" />
+    <Compile Remove="Development\WriteDurationCheck\**\*.cs" />
+    <Compile Remove="Development\D2CantileverCheck\**\*.cs" />
+    <Compile Remove="Development\FireCabinetCheck\**\*.cs" />
+    <Compile Remove="Development\EquipmentSupportCheck\**\*.cs" />
+    <Compile Remove="Development\TriangleBracketCheck\**\*.cs" />
+    <Compile Remove="Development\LBracketCheck\**\*.cs" />
+    <Compile Remove="Development\PortalFrameCheck\**\*.cs" />
+    <Compile Remove="Development\TFrameCheck\**\*.cs" />
+    <Compile Remove="Development\SupportBindingCheck\**\*.cs" />
+    <Compile Remove="Development\PadPlateCheck\**\*.cs" />
+    <Compile Remove="Development\HomeCheck\**\*.cs" />
+    <Compile Remove="Development\DockingCheck\**\*.cs" />
+    <Compile Remove="Development\A1NativeSupportCheck\**\*.cs" />
+    <Compile Remove="Development\PipeClampIsoCheck\**\*.cs" />
+    <Compile Remove="Development\HomeUiCheck\**\*.cs" />
+    <Compile Remove="Development\QSupportUiCheck\**\*.cs" />
+    <Compile Remove="Development\ToolPagesUiCheck\**\*.cs" />
+    <Compile Remove="Development\ModelingUiCheck\**\*.cs" />
+    <Compile Remove="Development\SupportUiCheck\**\*.cs" />
+    <Compile Remove="Development\SteelHandrailCheck\**\*.cs" />
+    <Compile Remove="Development\SpiralStairCheck\**\*.cs" />
+    <Compile Remove="Development\PipeAlignmentCheck\**\*.cs" />
+    <Compile Remove="Development\PipeAlignmentUndoCheck\**\*.cs" />
+    <Compile Remove="Development\SteelSectionCheck\**\*.cs" /></ItemGroup>
+  <ItemGroup><Compile Remove="Development/HoseCabinetCheck/**/*.cs" /></ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources/license_public_key.xml" LogicalName="SteelSectionProbe.license_public_key.xml" Condition="'$(EnableLicensing)' == 'true'" />
+    <Compile Remove="Development/LicenseIssuer/**/*.cs" />
+    <Compile Remove="Development/LicenseCheck/**/*.cs" />
+    <Compile Remove="Development/LicenseUiCheck/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup><Page Remove="Development/LicenseCheck/**/*.xaml" /></ItemGroup>
+  <ItemGroup Condition="'$(EnableLicensing)' == 'false'">
+    <Compile Remove="Domain/Licensing/**/*.cs" />
+    <Compile Remove="Services/Licensing/**/*.cs" />
+    <Compile Remove="Infrastructure/Licensing/ActivationStore.cs;Infrastructure/Licensing/MachineIdentity.cs" />
+    <Compile Remove="UI/Licensing/**/*.cs" />
+    <Page Remove="UI/Licensing/**/*.xaml" />
+  </ItemGroup>
+  <Target Name="ValidateLicensingOption" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(EnableLicensing)' != 'true' and '$(EnableLicensing)' != 'false'"
+           Text="EnableLicensing 只允许 true 或 false。默认 true 为授权版。" />
+    <Message Importance="high" Text="授权编译开关 EnableLicensing=$(EnableLicensing)" />
+  </Target>
+</Project>
+
+

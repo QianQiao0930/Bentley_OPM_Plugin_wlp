@@ -1,6 +1,6 @@
 ﻿# Offline XML checks for stock trunnion parametric + IE_TAG installer.
 $ErrorActionPreference='Stop'
-$installer=Join-Path $PSScriptRoot '../../Deployment/Install-TrunnionStockParametric.ps1'
+$installer=Join-Path $PSScriptRoot '../../Deployment/Install-NativeSupportEditing.ps1'
 $testBase=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot 'obj'))
 $tempRoot=Join-Path $testBase ('SteelProbe-TrunnionStock-'+[Guid]::NewGuid().ToString('N'))
 [void][IO.Directory]::CreateDirectory($tempRoot)
@@ -43,10 +43,10 @@ for($i=0;$i -lt $names.Count;$i++) {
  [IO.File]::WriteAllText($path,$xml)
  $original[$path]=[IO.File]::ReadAllBytes($path)
 }
-& $installer -SchemaDirectory $tempRoot | Out-Null
+& $installer -SchemaDirectory $tempRoot -Features Trunnion | Out-Null
 foreach($path in $original.Keys){Check ([Convert]::ToBase64String([IO.File]::ReadAllBytes($path)) -eq [Convert]::ToBase64String($original[$path])) 'dry run changed schema'}
-Reject {& $installer -SchemaDirectory $tempRoot -Apply} 'no backup accepted'
-& $installer -SchemaDirectory $tempRoot -BackupDirectory $backup -Apply | Out-Null
+Reject {& $installer -SchemaDirectory $tempRoot -Features Trunnion -Apply} 'no backup accepted'
+& $installer -SchemaDirectory $tempRoot -Features Trunnion -BackupDirectory $backup -Apply | Out-Null
 foreach($typeName in @('SINGLE_PIPE_TRUNNION','DOUBLE_PIPE_TRUNNION','SIMPLE_ELBOW_SUPPORT')) {
  $doc=New-Object System.Xml.XmlDocument; $doc.Load((Join-Path $tempRoot 'OpenPlant_3D.01.08.ecschema.xml')); $ns=LoadNs $doc
  Check ($doc.DocumentElement.SelectSingleNode('ec:ECClass[@typeName="'+$typeName+'"]/ec:ECProperty[@propertyName="SSP_RECIPE"]',$ns) -ne $null) "missing recipe $typeName"
@@ -61,13 +61,13 @@ foreach($typeName in @('SINGLE_PIPE_TRUNNION','DOUBLE_PIPE_TRUNNION','SIMPLE_ELB
 }
 $baseFile=Join-Path $tempRoot 'OpenPlant_3D.01.08.ecschema.xml'
 $hash=(Get-FileHash -LiteralPath $baseFile).Hash
-& $installer -SchemaDirectory $tempRoot -BackupDirectory $backup -Apply | Out-Null
+& $installer -SchemaDirectory $tempRoot -Features Trunnion -BackupDirectory $backup -Apply | Out-Null
 Check ((Get-FileHash -LiteralPath $baseFile).Hash -eq $hash) 'reinstall changed base schema'
 $conflict=Join-Path $tempRoot 'OpenPlant_3D_Supplemental_Modeling.01.08.ecschema.xml'
 $text=[IO.File]::ReadAllText($conflict).Replace('NativePipeSupportComponent','ProjectCustomComponent')
 [IO.File]::WriteAllText($conflict,$text)
 $conflictHash=(Get-FileHash -LiteralPath $conflict).Hash
-Reject {& $installer -SchemaDirectory $tempRoot -BackupDirectory $backup -Apply} 'overwrote conflict'
+Reject {& $installer -SchemaDirectory $tempRoot -Features Trunnion -BackupDirectory $backup -Apply} 'overwrote conflict'
 Check ((Get-FileHash -LiteralPath $conflict).Hash -eq $conflictHash) 'conflict file changed'
 $resolvedTemp=[IO.Path]::GetFullPath($tempRoot)
 if(-not $resolvedTemp.StartsWith($testBase+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)){throw 'Cleanup escaped workspace'}

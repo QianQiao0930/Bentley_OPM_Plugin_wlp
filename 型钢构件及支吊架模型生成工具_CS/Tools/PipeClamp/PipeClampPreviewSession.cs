@@ -275,7 +275,7 @@ namespace SteelSectionProbe
                     NativePipeSupportSource.Frame(center,axis,out placement,out inverse);
                     string recipe = NativeRecipe(definition.Code, scale);
                     var instance=BMECInstanceManager.Instance.CreateECInstance(NativePipeSupportDefinition.NativeClass,true);
-                    if(instance==null)throw new InvalidOperationException("当前工作集没有正式管夹原生组件类，请先安装Install-PipeClampNativeEditing.ps1并重启OPM。");
+                    if(instance==null)throw new InvalidOperationException("当前工作集没有正式管夹原生组件类，请先运行 Deployment\\Install-NativeSupportEditing.ps1 安装并重启 OPM。");
                     Text(instance,"SSP_RECIPE",recipe);
                     Text(instance,"DEVICE_TYPE_CODE",NativePipeSupportDefinition.DeviceTypeCode);
                     Text(instance,"NAME",NativePipeSupportDefinition.DeviceTypeCode+"-"+Guid.NewGuid().ToString("N"));
