@@ -1,6 +1,6 @@
 # Bentley_OPM_Plugin_wlp
 
-为 **Bentley OpenPlant Modeler（OPM）** 开发的插件集合。多数目录是运行在 Bentley Power Platform Python 环境中的脚本；另有**两个独立的 C# AddIn**：`型钢构件及支吊架模型生成工具`（建模）与 `管道对齐`（改已有管道标高）。
+为 **Bentley OpenPlant Modeler（OPM）** 开发的插件集合。多数目录是运行在 Bentley Power Platform Python 环境中的脚本；另有一个独立的 C# AddIn：`型钢构件及支吊架模型生成工具`（建模 + 管道标高对齐等，工程 `型钢构件及支吊架模型生成工具_CS`）。
 
 > 这些插件绝大多数是**几何建模**工具，生成的是活动 OPM 模型中的 SmartSolid 图元（`管道信息查询` 是例外，它是只读查询工具，不生成几何）。若需注册为带 Class / Tag / 规格属性的 OpenPlant 智能组件，还需结合项目使用的 OPM 类库、EC Schema 和目录规范。
 
@@ -27,7 +27,7 @@
 | `轻便消防水龙柜` | 按图集 15S202 第 53 页创建轻便消防水龙柜（1200×550×160）：直角柜体、隔板、卷盘、DN25 给水管（接出柜体）、阀门、喷枪与柜门，灭火器型号/数量由用户输入；通过 ItemType 记录《主要器材表》8 项器材与灭火器并导出 JSON / Excel 清单 |
 | `竖直弯头耳轴` | 参数化竖直弯头耳轴：A/B/C 型底板、空心/实心耳轴、鞍口布尔运算、通气孔 |
 | `罐壁人孔` | 罐壁（筒体）人孔：筒节 + 法兰 + 盖板 + 螺栓 + 把手，可选铰链或 R220 吊杆（图 BN-DS-A 4） |
-| `管道对齐` | **独立 C# AddIn**（`PipeAlign`，.NET Framework 4.8）：按一根**基准管**的标高把一批**目标管**的管底 / 管中心 / 管顶对齐，支持管道外表面 / 保温层外表面两种表面模式；`PIPEALIGN` 打开非模态窗口，`PIPEALIGN BOTTOM\|CENTER\|TOP` 指定模式，`PIPEALIGN DEBUG [DUMP]` 只读转储。V1 按 Safe Mode 只动**无连接的水平直管**，连接校验 + 移动后几何复核 + 一次 Undo 撤消整批。见目录内 README 与 AGENTS.md |
+| `管道对齐` | 已并入 C# 工程：按一根**基准管**的标高把一批**目标管**的管底 / 管中心 / 管顶对齐，支持管道外表面 / 保温层外表面两种表面模式、连通组整体移动与锁 Z（水平管随动、立管伸缩、远端固定）。独立 `PipeAlign` AddIn 已删除（2026-10-15），功能在 `型钢构件及支吊架模型生成工具_CS` 的「管道标高对齐」模块内；本目录仅保留需求与评估文档 |
 
 ## 环境要求
 
@@ -64,7 +64,7 @@ C# AddIn 的使用方式不同（不经过 Python Editor）：把编译输出目
 - `竖直弯头耳轴`：见 `竖直弯头耳轴/README.md`。
 - `罐壁人孔`：见 `罐壁人孔/README.md`（吊杆直径表、图 BN-DS-A 4 尺寸对应关系、铰链 / 吊杆两种连接形式、几何自检）。
 - `型钢构件及支吊架模型生成工具_CS`：见下方「C# AddIn」一节。
-- `管道对齐`：见 [`管道对齐/PipeAlign_CS/README.md`](管道对齐/PipeAlign_CS/README.md)（`PIPEALIGN` 命令族、基准管 / 目标管两阶段点取、管底 / 管中心 / 管顶、管道外表面 / 保温层外表面、Safe Mode 连接校验、移动能力运行时自证、一次 Undo；需求来源是 [`管道对齐/管道对齐插件开发指南.md`](管道对齐/管道对齐插件开发指南.md)）。接续开发前必读 [`管道对齐/PipeAlign_CS/AGENTS.md`](管道对齐/PipeAlign_CS/AGENTS.md)。
+- `管道对齐`：功能已并入 `型钢构件及支吊架模型生成工具_CS` 的「管道标高对齐」模块（连通组整体移动、锁 Z 随动、乙字弯头平移、自动预览），独立 `PipeAlign` AddIn 已删除；本目录保留需求来源 [`管道对齐/管道对齐插件开发指南.md`](管道对齐/管道对齐插件开发指南.md) 与过程文档，见 [`管道对齐/README.md`](管道对齐/README.md)。
 
 ## C# AddIn：型钢构件及支吊架模型生成工具
 
@@ -75,7 +75,7 @@ C# AddIn 的使用方式不同（不经过 Python Editor）：把编译输出目
 - 加载：`MDL LOAD SteelSectionProbe`，然后 `STEELPROBE SHOW`（或 `STEELPROBE PLACE` 直达截面放置）
 - 说明：[`型钢构件及支吊架模型生成工具_CS/README.md`](型钢构件及支吊架模型生成工具_CS/README.md)；接续开发前必读 [`型钢构件及支吊架模型生成工具_CS/AGENTS.md`](型钢构件及支吊架模型生成工具_CS/AGENTS.md)
 
-功能以「可扩展的功能首页 + 独立功能页」组织，进入 `STEELPROBE SHOW` 后从首页选择，**除下列两个命令外没有额外的 Key-in**。首页当前为 **25 个可用模块 + 1 个占位卡**，唯一来源是 [`Data/Home/HomeFeatureCatalog.cs`](型钢构件及支吊架模型生成工具_CS/Data/Home/HomeFeatureCatalog.cs)，由 `Development/HomeCheck` 断言。其中**「管道标高对齐」也集成在本工程内**（后台按原逻辑复制进各层 `PipeAlignment/`）；它和独立的 [`管道对齐/PipeAlign_CS`](管道对齐/PipeAlign_CS/README.md) 工程共用配置与日志，**不要同时启动两个版本点取**。
+功能以「可扩展的功能首页 + 独立功能页」组织，进入 `STEELPROBE SHOW` 后从首页选择，**除下列两个命令外没有额外的 Key-in**。首页当前为 **33 个可用模块 + 1 个占位卡**，唯一来源是 [`Data/Home/HomeFeatureCatalog.cs`](型钢构件及支吊架模型生成工具_CS/Data/Home/HomeFeatureCatalog.cs)，由 `Development/HomeCheck` 断言。其中**「管道标高对齐」也集成在本工程内**（各层 `PipeAlignment/`，自 2026-10-15 起为本功能的唯一实现；原独立 `PipeAlign` AddIn 已删除）。
 
 ### 已实现 / 未实现 / 待实测
 
@@ -117,36 +117,23 @@ C# 版与原 Python 版共用同一个 `PipeSupportComponents` ItemType 库和**
 
 可编辑的规格源在本 C# 工程内 [`型钢构件及支吊架模型生成工具_CS/Development/profile_catalog/`](型钢构件及支吊架模型生成工具_CS/Development/profile_catalog/)；改动后需运行 `python -B Development/export_profiles.py` 重新生成 [`Resources/profiles.bin`](型钢构件及支吊架模型生成工具_CS/Resources/profiles.bin) 再编译。**只改 `.py` 不会影响已编译的 DLL**，也不要在运行时依赖 Python。
 
-## C# AddIn：管道对齐（PipeAlign）
+## 管道标高对齐（已并入上面的 C# AddIn）
 
-第二个独立 C# 工程：OpenPlant Modeler 2024 AddIn，用于把已有管道的标高对齐到一根基准管。**不启动 Python，也不依赖另一个 C# 工程**。
+管道标高对齐不再是独立 AddIn：原 `PipeAlign` 工程（`管道对齐/PipeAlign_CS`）已于 2026-10-15 删除，功能由 `型钢构件及支吊架模型生成工具_CS` 内的「管道标高对齐」模块承载。历史设计要点与在线验证状态见 [`管道对齐/README.md`](管道对齐/README.md) 与需求文档 [`管道对齐插件开发指南.md`](管道对齐/管道对齐插件开发指南.md)。
 
-- 工程：[`管道对齐/PipeAlign_CS/PipeAlign.csproj`](管道对齐/PipeAlign_CS/PipeAlign.csproj)（程序集名 `PipeAlign`）
-- 编译：`dotnet build PipeAlign.csproj -c Release`（默认 Bentley 根目录 `D:\Program Files\Bentley\OpenPlant 2024\OpenPlantModeler`，可用 `/p:BentleyRoot=` 覆盖）
-- 加载：把 `bin\Release\net48` 加入 `MS_ADDINPATH` → `MDL LOAD PipeAlign` → `PIPEALIGN`
-- 说明：[`管道对齐/PipeAlign_CS/README.md`](管道对齐/PipeAlign_CS/README.md)；接续开发前必读 [`管道对齐/PipeAlign_CS/AGENTS.md`](管道对齐/PipeAlign_CS/AGENTS.md)
-
-命令族：`PIPEALIGN`（打开窗口）/ `PIPEALIGN BOTTOM|CENTER|TOP` / `PIPEALIGN DEBUG [DUMP]`（只读检查）/ `PIPEALIGN OPTIONS`（把运行参数写回配置）。
-
-### 设计要点（为什么它和一般的"改标高"脚本不一样）
+设计上的关键约束（大工程实现继续遵守）：
 
 - **以 OpenPlant 对象为主**：识别 `PIPE` 类走 `OpenPlant*` schema，不用 DGN 图元类型；中心线取自元素几何，**不用包围盒当工程标高**（包围盒只在曲线与显示几何都拿不到时兜底，且必定带警告）。
 - **不用没被证实的单位改模型**：OpenPlant 几何接口的坐标单位没有官方保证，猜错会把管道挪到几百米之外。插件在**读取阶段**用该元素自己的几何探测单位（长度比值 + 端点标高两处吻合才算证实），探测不通过就**拒绝移动并说明原因**。
 - **移动后可复核、失败即停**：每次调用修改接口之后都用独立几何通道复核标高；复核不过就回退并降级到下一级；三级都不过记为失败并立即停止后续修改。DGN 图形变换（会让数据与图形不一致）默认关闭。
-- **Safe Mode**：只处理水平直管；目标管只要连到"本批不会一起移动的对象"（含基准管、设备管口、弯头）就被跳过并给出中文原因；斜管、参考文件元素、只读与锁定对象一律拒绝。
+- **Safe Mode / 组策略**：单管模式只处理水平直管；连通组整体平移；锁 Z 模式水平段随动、立管伸缩、远端固定，含乙字弯头平移。目标管连到本批之外的对象（基准管、设备管口、弯头）会被跳过并给出中文原因；斜管、参考文件元素、只读与锁定对象一律拒绝。
 - **一次 Apply = 一次 Undo**；Apply 前会重新读取全部管道以防选择与应用之间模型被改动。
-
-### 验证状态（重要）
-
-已离线验证：`dotnet build -c Release` **0 错误 0 警告**；纯计算层（标高算法、单位标定、校验与计划、Safe Mode 拓扑过滤）由 [`管道对齐/Development/PipeAlignCheck`](管道对齐/Development/PipeAlignCheck/) 断言，覆盖开发指南 §34 算例与 T01～T20；用到的 Bentley API 签名均以只读元数据（[`管道对齐/Development/ApiDump`](管道对齐/Development/ApiDump/)）确认，C# 可消费性用 [`管道对齐/Development/ApiProbe`](管道对齐/Development/ApiProbe/) 编译验证。
-
-**仍待在 OPM 2024 中用真实 DGN 实测**：命令加载与窗口、`PIPEALIGN DEBUG` 的识别结果、**移动能力探测是否通过**、**移动是否真的生效并被复核通过**（以及哪一级生效）、一次 Undo 是否撤消整批、连接关系读取、参考文件只读提示、预览线与轴测图 / Connectivity Check 的一致性。逐项判据见 [`管道对齐/PipeAlign_CS/README.md`](管道对齐/PipeAlign_CS/README.md) 第 9 节。
 
 ## 排错
 
 部分脚本在 Bentley 几何内核返回错误时会向各自目录写入 `*_debug_log.txt`，排查时请查看对应日志。
 
-C# AddIn 的排错日志在 `%LOCALAPPDATA%\<程序集名>\`：型钢 / 支吊架工程是 `statistics_trace.log`，管道对齐工程是 `PipeAlign_debug_log.txt`（含逐根管的几何、EC、单位标定、移动能力探测与逐级尝试记录）。
+C# AddIn 的排错日志在 `%LOCALAPPDATA%\SteelSectionProbe\`：`statistics_trace.log` 与各项功能日志（含管道标高对齐的逐根管几何、EC、单位标定、移动能力探测与逐级尝试记录）。
 
 ## License
 
