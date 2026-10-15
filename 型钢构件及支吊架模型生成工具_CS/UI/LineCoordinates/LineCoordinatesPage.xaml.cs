@@ -25,6 +25,8 @@ namespace SteelSectionProbe
             active = true; revision++;
             LineCoordinateLocateTool.Picked += OnPicked;
             LineCoordinateLocateTool.Ended += OnEnded;
+            LineCoordinatePipeTool.Picked += OnPipePicked;
+            LineCoordinatePipeTool.Ended += OnEnded;
             TransactionManager.OnUndoRedoFinished += UndoFinished;
             ClearSelection();
         }
@@ -34,8 +36,11 @@ namespace SteelSectionProbe
             active = false; revision++;
             LineCoordinateLocateTool.Picked -= OnPicked;
             LineCoordinateLocateTool.Ended -= OnEnded;
+            LineCoordinatePipeTool.Picked -= OnPipePicked;
+            LineCoordinatePipeTool.Ended -= OnEnded;
             TransactionManager.OnUndoRedoFinished -= UndoFinished;
             LineCoordinateLocateTool.End();
+            LineCoordinatePipeTool.End();
             ClearSelection();
         }
         public void OnWorkspaceClosing() { OnDeactivated(); }
@@ -46,6 +51,7 @@ namespace SteelSectionProbe
             {
                 if (!active) return;
                 if (Session.Instance.GetActiveDgnModel() == null) throw new InvalidOperationException("请先打开 DGN 模型。");
+                if (LineCoordinatePipeTool.IsActive) LineCoordinatePipeTool.End();
                 if (!LineCoordinateLocateTool.IsActive) { revision++; ClearSelection(); }
                 LineCoordinateLocateTool.Begin(); StopButton.IsEnabled = true;
                 SetStatus("请选择活动模型中的一条独立直线段。", false);
@@ -54,7 +60,7 @@ namespace SteelSectionProbe
         }
         private void Stop_Click(object sender, RoutedEventArgs e)
         {
-            revision++; LineCoordinateLocateTool.End(); StopButton.IsEnabled = false;
+            revision++; LineCoordinateLocateTool.End(); LineCoordinatePipeTool.End(); StopButton.IsEnabled = false;
             SetStatus("已结束点取。", false);
         }
         private void OnEnded() { revision++; StopButton.IsEnabled = false; }
@@ -67,10 +73,75 @@ namespace SteelSectionProbe
             Dispatcher.BeginInvoke(new Action(delegate
             {
                 if (!active || request != revision) return;
-                try { Display(LineCoordinateReader.Read(located)); SetStatus("已读取两端坐标，编辑后点击“应用修改”。", false); }
+                try { Display(LineCoordinateReader.Read(located)); SetStatus("已读取两端坐标，编辑后点击“应用修改”。也可以用“快速对齐”按钮填充坐标。", false); }
                 catch (Exception ex) { ClearSelection(); SetStatus("读取直线失败：" + ex.Message, true); }
             }));
         }
+
+        private void OnPipePicked(LocatedElement located)
+        {
+            if (!active || located == null || selection == null) return;
+            int request = ++revision;
+            // 保留已点取的直线草稿；只按当前填写值推演目标坐标并重新填写。
+            Dispatcher.BeginInvoke(new Action(delegate
+            {
+                if (!active || request != revision) return;
+                try
+                {
+                    var draft = ReadInput();
+                    var pipe = LineCoordinatePipeReader.Read(located);
+                    string summary;
+                    var target = LinePipeAlign.ToPipe(draft, pipe, selection.Is3d, out summary);
+                    FillDraft(target);
+                    SetStatus(summary + (string.IsNullOrEmpty(pipe.PipeNumber) ? "" : "（管道 " + pipe.PipeNumber + "）"), false);
+                }
+                catch (Exception ex) { SetStatus("对齐到管道失败：" + ex.Message, true); }
+            }));
+        }
+
+        private void AlignVerticalStart_Click(object sender, RoutedEventArgs e) { OrthoAlign(true, true); }
+        private void AlignVerticalEnd_Click(object sender, RoutedEventArgs e) { OrthoAlign(false, true); }
+        private void AlignHorizontalStart_Click(object sender, RoutedEventArgs e) { OrthoAlign(true, false); }
+        private void AlignHorizontalEnd_Click(object sender, RoutedEventArgs e) { OrthoAlign(false, false); }
+
+        private void OrthoAlign(bool anchorStart, bool vertical)
+        {
+            if (!active || selection == null) { SetStatus("请先点取直线，再使用快速对齐。", true); return; }
+            try
+            {
+                string summary;
+                if (vertical)
+                {
+                    var aligned = LinePipeAlign.AlignVertical(ReadInput(), anchorStart);
+                    FillDraft(aligned);
+                    summary = anchorStart ? "已按起点对齐竖直线：终点 X/Y 与起点一致，终点 Z 保持。"
+                        : "已按终点对齐竖直线：起点 X/Y 与终点一致，起点 Z 保持。";
+                }
+                else
+                {
+                    var aligned = LinePipeAlign.AlignHorizontal(ReadInput(), anchorStart);
+                    FillDraft(aligned);
+                    summary = anchorStart ? "已按起点对齐水平线：终点 Z 与起点一致，X/Y 保持。"
+                        : "已按终点对齐水平线：起点 Z 与终点一致，X/Y 保持。";
+                }
+                SetStatus(summary, false);
+            }
+            catch (Exception ex) { SetStatus("对齐失败：" + ex.Message, true); }
+        }
+
+        private void AlignPipe_Click(object sender, RoutedEventArgs e)
+        {
+            if (!active || selection == null) { SetStatus("请先点取直线，再对齐到管道。", true); return; }
+            try
+            {
+                if (Session.Instance.GetActiveDgnModel() == null) throw new InvalidOperationException("请先打开 DGN 模型。");
+                if (LineCoordinateLocateTool.IsActive) LineCoordinateLocateTool.End();
+                LineCoordinatePipeTool.Begin(); StopButton.IsEnabled = true;
+                SetStatus("请选择一根活动模型中的 OpenPlant 管道；水平线将贴管底标高，竖直线将移到点取位置下方。", false);
+            }
+            catch (Exception ex) { SetStatus("无法开始点取管道：" + ex.Message, true); }
+        }
+
         private void Reload_Click(object sender, RoutedEventArgs e)
         {
             if (!active || selection == null) return;
@@ -136,6 +207,22 @@ namespace SteelSectionProbe
                 EditStateText.Text = "点取后可编辑；点击应用修改才会写入原线段。";
             }
             finally { loading = false; }
+        }
+        // 快速对齐/管道对齐推演出的目标坐标：只重新填充六个草稿框，不触碰模型。
+        private void FillDraft(LineCoordinates coordinates)
+        {
+            loading = true;
+            try
+            {
+                StartXText.Text = LineCoordinateCalculator.Format(coordinates.Start.X);
+                StartYText.Text = LineCoordinateCalculator.Format(coordinates.Start.Y);
+                StartZText.Text = LineCoordinateCalculator.Format(coordinates.Start.Z);
+                EndXText.Text = LineCoordinateCalculator.Format(coordinates.End.X);
+                EndYText.Text = LineCoordinateCalculator.Format(coordinates.End.Y);
+                EndZText.Text = LineCoordinateCalculator.Format(coordinates.End.Z);
+            }
+            finally { loading = false; }
+            RefreshInput();
         }
         private LineCoordinates ReadInput()
         {

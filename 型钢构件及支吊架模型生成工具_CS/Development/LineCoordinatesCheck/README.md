@@ -4,7 +4,7 @@
 dotnet run --project Development/LineCoordinatesCheck/LineCoordinatesCheck.csproj -c Release
 ```
 
-71 项检查链接真实 Domain、Calculator、Reader、Editor 与 LocatedElement；NativeApiFakes 隔离模型与事务，不加载 Bentley 或访问用户 DGN。检查六轴坐标及 UOR/毫米往返、G17 精度、未编辑轴保留原UOR、二维限制、有限数值和非零长度、只读/锁定/参考/子元素拒绝、模型与单位变化、外部编辑冲突、保留 ID 和附加属性、单次写入的事务边界、几何/写入/回读失败回退。
+93 项检查链接真实 Domain、Calculator、LinePipeAlign、Reader、Editor 与 LocatedElement；NativeApiFakes 隔离模型与事务，不加载 Bentley 或访问用户 DGN。检查六轴坐标及 UOR/毫米往返、G17 精度、未编辑轴保留原UOR、二维限制、有限数值和非零长度、只读/锁定/参考/子元素拒绝、模型与单位变化、外部编辑冲突、保留 ID 和附加属性、单次写入的事务边界、几何/写入/回读失败回退；另含快速对齐纯计算：四个正交规整的锚点规则、方向容差（分量≤线长×1e-6）边界、管底标高（轴线低端−外径/2）、水平线贴 Floor(管底)、竖直线移到点取位置且终点贴管底、斜线/立管/缺外径/二维/零长/无效点取拒绝。
 
 页面状态、延迟回调、草稿不自动写入、撤销失效、四档 DPI 与固定操作区由 `Development/ToolPagesUiCheck` 验证；首页入口及分类由 HomeCheck/HomeUiCheck 验证。
 

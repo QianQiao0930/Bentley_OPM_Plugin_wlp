@@ -2,6 +2,40 @@
 
 当前版本：V1.0.0（程序集/文件版本1.0.0.0；唯一来源App/AssemblyInfo.cs，首页及作者页自动读取）。
 
+2026-10-15直线坐标快速对齐：直线坐标修改页起点/终点改一行两列，标题中「起点」「终点」15号加粗#1F6FEB突出；新增“04 快速对齐”卡四个正交按钮（按起点/终点对齐竖直线：另一端XY贴合锚点端、各自Z保持；按起点/终点对齐水平线：另一端Z贴合锚点端）与“对齐到管道”。按钮只按规则**重新填写两端草稿坐标**、不写模型，写回仍走应用修改的完整校验/独立Undo/耗时状态；快速对齐工具与直线点取互斥，离开/关闭/撤销规则不变。对齐到管道：新增Tools层LineCoordinatePipeTool（活动模型管道定位，OnPostLocate拒绝参考/附件，ev.Point写入LocatedElement.Click），Data层LineCoordinatePipeReader复用管道对齐模块PipeElementReader的EC读取（只读轴线/外径/管号，probe与日志传空，不探测连接与移动能力），管线Or外径读不到明确拒绝不猜。Services层LinePipeAlign纯计算：水平/竖直判据为分量≤线长×1e-6；水平线+水平管→两端Z=Floor(轴线低端标高−外径/2)（底标高不含保温，提示注明）；竖直线→两端XY=点取位置（毫米）、终点Z=同式取整、起点Z保持；零长、斜线、二维、点取坐标非有限、水平线遇立管均拒绝并给中文原因。Domain新增LinePipeSurvey。LineCoordinatesCheck扩展至93项、ToolPagesUiCheck直线页扩展（199项总数）通过；授权/无授权Release 0警告0错误。ev.Point坐标系、真实管道EC读取与写入随动仍需OPM实测；管道底标高口径若需含保温需另行授权修改。改前源码备份在迁移备份/直线坐标快速对齐_20261015。
+
+2026-10-15组合绑定换行：轴测NOTE模板为$(IE_TAG)，ALIAS里单个$紧挨(2)会被当成属性删掉，编号粘成一行。组合引注改用$$分行，与样式R=$(BRADIUS)$$(BANGLE)相同。已保存绑定须重新保存后再出图。用户确认整体功能及ISO多行框良好，截图圈码变问号、承重钢构未进ISO材料表。当前序号改ASCII(1)/(2)，旧Version1绑定重新保存即可换码。用户明确共架由最大公称管径管道计材料，其余只引用编号；同架允许多管夹引用，不重复建钢构。新增OpenPlant/SupportBinding/SupportBindingMaterials，沿用工作集ADDITIONAL_MATERIAL/CT_ADDITEM及SDK NoteExample已核对的Create→BMECApi.AddNoteToComponent→Serialize；每真实钢构一条附加材料，单独BomMaterial标记记录模型/钢构ID、材料类型/编号、OwnerSupportInstanceId、ParentInstanceId、OwnerDn、NoteInstanceId。主表归属按真实父管DN选最大，核对管夹计划DN/父管关系，同DN保留原归属，首次按持久ID；改绑转移、末引用移除删材料。不同钢构同编号仍各一套，不以规格编号去重。原管夹描述、编号、父管、配方和PipeSupportComponents不改。
+
+保存绑定时ALIAS/绑定/附加材料归属同一事务；创建/删除/缓存所有权跟踪，失败回滚刷新/回收，回滚失败保留所有权并明确报错。仅删除身份和图形匹配的本插件附加材料，不改用户其他NOTE。新增“同步本模型组合材料”，重算全部已保存引用并清理孤立材料（含删除管夹/钢构后）；无自动事件监听，未保存草稿不参与。实际附加材料BOM/分类、单次计量、管道移动后位置、Undo/Redo/重开仍待宿主新版本验证，不能将旧多行引注成功扩大为新BOM已实测。改前源码ZIP、DLL/PDB、只读元数据探针及校验在迁移备份/绑定材料与ASCII编号_20261015。此条替代下方第一版“不增加ISO材料”的范围说明。
+
+2026-10-15新增支吊架组合绑定support-binding：首页支吊架分类第18入口，总33可用+1占位。Domain/Data/Services/Infrastructure/Tools/UI独立分层，点选本插件正式原生管夹/耳轴，再连续点选活动模型承重钢构Assembly；显式有序引用，不自动合组或随动。独立SteelSectionProbeSupportBindings/SupportBinding固定String字段Payload/BaseTag/CombinedTag，版本1记录目标原生实例ID、原单件编号及子项持久模型ID/元素ID/Assembly类型/编号快照。ALIAS按①②③与字面$编码，IE_TAG复用已有映射；原PlacedPipeSupport.IsoTag、材料AssemblyTag、配方/父管/位置保持。禁止把组合串写回原单件编号或复制承重材料。共架允许多管夹引用，材料按原根仅统计一次，列入引注不代表进入ISO BOM。
+
+支持排序/移除/解除全部/重新读取放弃草稿/主动核对更新编号；保存前重读目标快照与各成员，拒绝删除/改号/跨模型/锁定等。最多19个成员为圈码保护。Editor借API文档对象，禁止游离写回或释放缓存对象；ALIAS+附加项同一独立Undo事务、临时立即提交/finally恢复、精确持久读回，失败回滚刷新缓存、恢复失败明确报错。点取幂等及AccuSnap恢复、Dispatcher/revision防过期回调，离开/关闭/Undo丢弃草稿。新页沿用SupportTheme/PrototypeChrome/v4及固定操作区，不适用历史UI-only业务冻结。说明与宿主验收见Docs/支吊架组合绑定.md；API替身和编译不能代替实际ISO/原生Serialize/Undo/重开验收。改前源码ZIP、DLL/PDB与SHA256在仓库迁移备份/支吊架组合绑定_20261015。
+
+2026-10-15耳轴落自带类并恢复操作柄：F6/F10→SINGLE_PIPE_TRUNNION、F7→DOUBLE_PIPE_TRUNNION、F2/F2-HE/F4/F5→SIMPLE_ELBOW_SUPPORT；参数化 NativePipeSupportComponent+SSP_RECIPE，立管开滑动/旋转柄，弯头关柄仍随动。Install-TrunnionNativeEditing→Install-TrunnionStockParametric 给三类加 SSP_RECIPE、Modeling CREATION_ATTRIBUTE→本插件、IE_TAG=ALIAS，保留 ClassMap/SUPP_TRUNNION|SUPP_ELBOW。立管 PlacementFrame 对齐自带 SinglePipeTrunnion：X=管轴，−Z=方位伸出（旋转柄/LENGTH 沿 Z，勿把 Z 设成管轴）。点串保持(−X,+Z)。Setup 无配方只跳过不弹 FATAL，PrepareGraphics 仍要求配方。仅换 DLL 不够，须重装 Schema 并新放；旧无配方件删除后重放。说明见 Docs/耳轴原生编辑与随动.md。
+
+2026-10-15原生管夹颜色修复：用户反馈正式件全部变蓝，核对SDK确认Supports.SetTypeAndSymbology除Edge分类外还调用BaseGeometry.SetSymbologyForElementTypes→GetModelSymbology/SetElementListSymbology，覆盖原Builder分件外观。正式/A1组件删除此调用，共用NativeParametricSupportGraphics仅对实体及方向标记设置三维bmdGraphicsTypeEdge，保留结构钢RGB127/163/124、紧固件和参考体原外观；父管/端口、操作长度、方向标记、Transform及ISO同步保持。禁止用全局Support样式或修改共享工厂默认色解决；无需Schema修改，不批量改旧件颜色。10318项正式与1952项A1离线回归通过，授权/无授权Release均0警告0错误；DLL核对确认两回调无统一样式调用且共用桥接保留分类。宿主新放、编辑重生成后的颜色/操作柄/随动仍需复测，旧件未重生成可能仍蓝。改前源码/DLL/PDB/日志在../迁移备份/管夹原生颜色修复_20261015。
+
+颜色修复版已在用户确认保存关闭OPM后部署至C盘实际mdlapps，DLL/PDB与已验证授权产物SHA256一致；MVID=e673daa7-9018-4f2f-ad97-5c82e6f7b733，DLL SHA256=946F553263A493000E6E23B640F6F24B12E595099C0E1B2A24BEBDE12E38CD3A。此次未改Schema，收据见上述备份目录mdlapps-deployment.json。下方f2719cdf为修色前版本。
+
+2026-10-15正式管夹原生编辑/随动：用户确认A1初始化修复版实测正常，授权核对日志并沉淀到正式放置管夹。最新A1日志MVID b565a3e8-beef-45c1-9eec-45e1f6a3d9d7，Create=0、父管/初始三维与ISO各0mm、Design/SHOP，后续几何回调成功无异常；未取得移动后CHECK/ISO/Undo/重开的完整证据。正式九类统一用独立SSP_PIPE_CLAMP继承SUPPORT_LOCATION，原生Support handler/PipeSupportPlacementTool与公开NativePipeSupportComponent。不得覆盖自带类或把A1实测扩大为其他八类宿主通过。
+
+完整计划与初始毫米坐标架存SSP_RECIPE Version1，白名单Codec仅处理11种领域配方/计划类型的实例字段（含内部字段/嵌套数组），限制长度/递归/数组并拒绝非有限值、缺版本/坐标、混配与未知字段/CLR类型。配方冻结原几何参数，RecipeGraphics用原九类Builder在保存架重建并转局部，当前原生Transform负责编辑位置与姿态；不追写初始配方坐标，不重复写模型/统计。材料/编号/参考体开关及E1方向保持，单根Attach仍在确认事务中。持久对象重读校验参数化类、SSPPC/ALIAS、原始配方全文及三维/ISO点；正式记录Version1可选RecipeVersion=1。
+
+共用NativeParametricSupportGraphics由已验证A1桥接提取而来，负责离线Element→独立克隆ElementHolder、原生方向标记和当前ISO点的UOR换算；A1试验复用它。组件Setup在构造阶段仅解析自身配方，PrepareGraphics才SetPipeDiameter/SetSupportLength，保留初始化弹窗修复。正式日志NativePipeSupport/latest.log及component-latest.log覆盖保存。原预览暂态/授权/源复核/独立Undo/立即提交/缓存所有权/失败回滚规则保持；无补偿移动监听。辅助线与参考来源仍普通Cell，旧Cell/旧非参数化原生件不自动迁移。
+
+Install-PipeClampNativeEditing.ps1经共用Install-NativeSupportSchema按PipeClamp模式，仅向基础/Modeling/Isoextractor各新增SSP_PIPE_CLAMP和SSP_RECIPE/string，类级IE_TAG取ALIAS；旧A1安装入口按A1Trial模式复用核心。默认预览、关OPM后Apply、先备份SHA256、冲突拒绝、重复幂等、部分失败回滚。10318项正式九类真实会话/Codec/几何分派/Setup/API替身检查、1952项A1、30项A1+31项正式Schema及16项原引注检查通过；Builder替身不证明实际实体/操作柄/随动/ISO/Undo，正式件仍须逐类宿主试放。当前规范Docs/正式管夹原生编辑与随动.md优先于下方旧非参数化历史。改前完整工作区源码ZIP（包含A1尚未提交的实测版）、DLL/PDB与成功日志备份在../迁移备份/正式管夹原生编辑随动_20261015。
+
+正式版已按用户保存关闭OPM后的授权部署至C盘CINF_F1263AA；三份Schema原1363/631/243节点逐项结构一致，仅各新增正式类，重复预览返回已安装。C盘SDK授权/无授权Release均0警告0错误；常规/备用DLL及PDB一致，宿主mdlapps授权副本已同步校验。正式MVID=f2719cdf-3542-4fb9-a72e-ae2145fa0b52，SHA256=CC5C3AD638FF223CAE40425233ACF31A81E34DC97507E7E00175BA392850BDC3；收据在上述备份目录。D盘工作集副本未修改。
+
+2026-10-15 A1宿主反馈与初始化修复：用户确认NATIVE试验件虽弹FATAL ERROR，实际可放置，原生旋转/移动操作柄及随管移动均正常。截图栈为BMECObject.Init→A1NativeParametricComponent.Setup；组件日志证明后续Create3DElements成功。原Setup在BMECObject构造时强制SetPipeDiameter，但Writer尚未有机会绑定RelatedInstance，因而过早报错。仅将父管/端口初始化及SetSupportLength移至Create3DElements调用的PrepareGraphics；Setup只验证自身DN/角度，不吞参数错误，真正生成几何仍严格要求父管。组件按partial拆出真实Setup供离线测试链接，API替身模拟构造期间先Setup、绑定后再生成几何。1952项A1检查（新增10项真实初始化阶段检查）及6516项正式管夹回归须通过；修复弹窗的新版仍需宿主复测，不能把原版本三维随动成功扩大为ISO随动/Undo/重开均成功。schema无需再改；改前源码/DLL/PDB、用户操作后的日志保存在../迁移备份/A1初始化弹窗修复_20261015。实际加载路径日志为C盘OPM/mdlapps/SteelSectionProbe.dll，后续更新需同步该授权版副本，不能只替换工程bin目录。
+
+2026-10-15：用户实测正式自定义管夹不随管移动，并授权仅在A1验证原生移动/旋转操作柄及随动。独立Key-in `STEELPROBE A1TEST NATIVE [站位mm] [开口角度]` 使用新类SSP_A1_NATIVE_TEST（继承SUPPORT_LOCATION），公开A1NativeParametricComponent继承SDK Supports，按原生SetPipeDiameter初始化父管/端口、SetSupportLength设置操作长度，沿用Support handler/PipeSupportPlacementTool与原A1 Calculator/Builder。最终对象按参数化组件创建，OPM请求几何时重建自定义A1并同步ISO点；临时BMECObject仅桥接离线Element为克隆ElementHolder，不Create/Serialize，保留其原生句柄所有权。正式九类及旧PLACE非参数化试验保持；不增加自动补偿事件。
+
+CHECK仍比较创建时站位以判断随动，新增CHECKEDIT只读比较当前管轴段投影/组件X轴/ISO点/Design/SHOP与类参数，不将手动改站位当成随动。JSON Version1可选NativeEditing兼容旧记录。Installer仅在目标基础/Modeling/Isoextractor各加隔离试验类，预览/备份SHA256/冲突拒绝/幂等/部分失败回滚；仅允许宿主进程已退出时Apply（排除Windows仍保留的已退出进程记录）。C盘CINF_F1263AA已部署：保留原1362/630/242个节点，仅各新增一类；备份收据在../迁移备份/A1原生操作柄验证_20261015_9ae5ac5/schema-backup。用户授权结束已保存且无窗口的39876/55460两个残留进程后完成安装。
+
+1942项真实试验适配器配API替身、6516项正式管夹回归、30项隔离Schema及16项原引注部署检查通过；C盘真实SDK授权/无授权Release均零警告零错误，常规/备用DLL及PDB已同步校验。替身不执行原生几何、操作柄、自动随动或Undo；必须按Docs/A1原生编辑与随动验证.md在OPM中试放，不能声称已验证成功。日志latest.log/组件回调component-latest.log位于LocalAppData/SteelSectionProbe/logs/A1NativeSupport。基线9ae5ac5及原源码/DLL/PDB/SHA256已备份。
+
 当前UI规范：[Docs/UI规范-v4.md](Docs/UI规范-v4.md)。下方带日期的旧改造记录为历史；当前规格与第9节优先。
 
 2026-10-15：用户仅授权A1/A2编号调整。Domain/PipeClamp/PipeClampNumbering统一生成A1/A2-DN{管径}-{材料代码}，默认C1，去首尾空白/转大写，仅非空ASCII字母数字；A1移除编号中的螺杆/角度，A2补类型/材料，S放材料段不另追加后缀。A1Calculator新增可选材料参数，A2Parameters新增MaterialCode，计划保存规范代码。几何、实体材质/隔离层、其他类别外层编号保持，原Statistics与ALIAS映射自动采用新AssemblyTag；不改Schema、不迁移旧件。
@@ -799,6 +833,8 @@ bin/Release/net48_full/SteelSectionProbe.dll
 G5/G6 及复用此地脚的 G4，现场灌浆梯台采用方体减四侧楔体。OPM 的 `Create.BodyFromLoft` 对此处两张方形截面返回 `Error`，不要重新改回无回退的放样调用。
 
 ## 32. D12 / G4 / D15 T 型架
+
+2026-10-15 G4 底板中心修正：BuildVertical 的立杆沿 PostVOffsetMm 定位，地脚整组须使用同一局部 v 偏移转换后的世界毫米 XY，地面 Z 保持辅助线低端。底板/锚栓/螺母/灌浆继续共用 PortalFrameBuilder.BuildGround；角钢中心为 geometric_center 外接正方形中心，不是角点或截面重心。不要再直接传辅助线原点 f.X/f.Y。7 子项×8 方位×3 单位×2 线向共336组真实Builder/API记录替身检查及原T架回归通过；OPM实体仍需试放，旧件重新生成。改前源码、DLL/PDB及SHA256在仓库迁移备份/G4底板中心修正_20261015。
 
 首页只有 `t-frame` 一个入口，页面顶部选择 D12、G4、D15。D12/G4 点取竖直辅助线，D15 点取水平辅助线。D12 支持正 T / 倒 T，G4 为地面生根正 T，D15 支持对称 / 偏心与接点焊接形式。D15 筋板尺寸只进入编号，不生成筋板实体。型钢来自 `profiles.bin`，G4 地脚几何复用 `PortalFrameBuilder.BuildGround`。确认预览时由 `Statistics.AttachTFrame` 一次写入固定的组合代号与构件角色 ItemType，不使用哈希或尺寸作为类型名。纯计算检查在 `Development/TFrameCheck/`。
 

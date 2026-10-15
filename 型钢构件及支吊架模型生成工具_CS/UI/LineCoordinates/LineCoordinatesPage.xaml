@@ -27,28 +27,48 @@
                             </StackPanel>
                         </StackPanel>
                     </Border>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource CardStyle}" Padding="0">
+                            <StackPanel>
+                                <Border Height="35" BorderBrush="#E8EDF2" BorderThickness="0,0,0,1" Padding="12,0"><TextBlock Style="{StaticResource SectionTitleStyle}" Margin="0" VerticalAlignment="Center"><Run Text="02 /  " FontSize="11" Foreground="#5B6B7B"/><Run Text="起点" FontSize="15" FontWeight="Bold" Foreground="#1F6FEB"/><Run Text=" 坐标" FontWeight="Bold"/></TextBlock></Border>
+                                <Grid x:Name="StartFields" Margin="12,4,12,12" IsEnabled="False">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="30"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                    <TextBlock Text="X" Style="{StaticResource FieldLabelStyle}"/><TextBox x:Name="StartXText" Grid.Column="1" TextChanged="Coordinate_Changed"/>
+                                    <TextBlock Text="Y" Grid.Row="1" Style="{StaticResource FieldLabelStyle}"/><TextBox x:Name="StartYText" Grid.Row="1" Grid.Column="1" Margin="0,8,0,0" TextChanged="Coordinate_Changed"/>
+                                    <TextBlock Text="Z" Grid.Row="2" Style="{StaticResource FieldLabelStyle}"/><TextBox x:Name="StartZText" Grid.Row="2" Grid.Column="1" Margin="0,8,0,0" TextChanged="Coordinate_Changed"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="2" Style="{StaticResource CardStyle}" Padding="0">
+                            <StackPanel>
+                                <Border Height="35" BorderBrush="#E8EDF2" BorderThickness="0,0,0,1" Padding="12,0"><TextBlock Style="{StaticResource SectionTitleStyle}" Margin="0" VerticalAlignment="Center"><Run Text="03 /  " FontSize="11" Foreground="#5B6B7B"/><Run Text="终点" FontSize="15" FontWeight="Bold" Foreground="#1F6FEB"/><Run Text=" 坐标" FontWeight="Bold"/></TextBlock></Border>
+                                <Grid x:Name="EndFields" Margin="12,4,12,12" IsEnabled="False">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="30"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                    <TextBlock Text="X" Style="{StaticResource FieldLabelStyle}"/><TextBox x:Name="EndXText" Grid.Column="1" TextChanged="Coordinate_Changed"/>
+                                    <TextBlock Text="Y" Grid.Row="1" Style="{StaticResource FieldLabelStyle}"/><TextBox x:Name="EndYText" Grid.Row="1" Grid.Column="1" Margin="0,8,0,0" TextChanged="Coordinate_Changed"/>
+                                    <TextBlock Text="Z" Grid.Row="2" Style="{StaticResource FieldLabelStyle}"/><TextBox x:Name="EndZText" Grid.Row="2" Grid.Column="1" Margin="0,8,0,0" TextChanged="Coordinate_Changed"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
                     <Border Style="{StaticResource CardStyle}" Padding="0">
                         <StackPanel>
-                            <Border Height="35" BorderBrush="#E8EDF2" BorderThickness="0,0,0,1" Padding="12,0"><TextBlock Text="02 /  起点坐标" Style="{StaticResource SectionTitleStyle}" Margin="0" VerticalAlignment="Center"/></Border>
-                            <Grid x:Name="StartFields" Margin="12" IsEnabled="False">
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="30"/><ColumnDefinition/></Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                                <TextBlock Text="X" Style="{StaticResource FieldLabelStyle}"/><TextBox x:Name="StartXText" Grid.Column="1" TextChanged="Coordinate_Changed"/>
-                                <TextBlock Text="Y" Grid.Row="1" Style="{StaticResource FieldLabelStyle}"/><TextBox x:Name="StartYText" Grid.Row="1" Grid.Column="1" Margin="0,8,0,0" TextChanged="Coordinate_Changed"/>
-                                <TextBlock Text="Z" Grid.Row="2" Style="{StaticResource FieldLabelStyle}"/><TextBox x:Name="StartZText" Grid.Row="2" Grid.Column="1" Margin="0,8,0,0" TextChanged="Coordinate_Changed"/>
-                            </Grid>
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource CardStyle}" Padding="0">
-                        <StackPanel>
-                            <Border Height="35" BorderBrush="#E8EDF2" BorderThickness="0,0,0,1" Padding="12,0"><TextBlock Text="03 /  终点坐标" Style="{StaticResource SectionTitleStyle}" Margin="0" VerticalAlignment="Center"/></Border>
-                            <Grid x:Name="EndFields" Margin="12" IsEnabled="False">
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="30"/><ColumnDefinition/></Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                                <TextBlock Text="X" Style="{StaticResource FieldLabelStyle}"/><TextBox x:Name="EndXText" Grid.Column="1" TextChanged="Coordinate_Changed"/>
-                                <TextBlock Text="Y" Grid.Row="1" Style="{StaticResource FieldLabelStyle}"/><TextBox x:Name="EndYText" Grid.Row="1" Grid.Column="1" Margin="0,8,0,0" TextChanged="Coordinate_Changed"/>
-                                <TextBlock Text="Z" Grid.Row="2" Style="{StaticResource FieldLabelStyle}"/><TextBox x:Name="EndZText" Grid.Row="2" Grid.Column="1" Margin="0,8,0,0" TextChanged="Coordinate_Changed"/>
-                            </Grid>
+                            <Border Height="35" BorderBrush="#E8EDF2" BorderThickness="0,0,0,1" Padding="12,0"><TextBlock Text="04 /  快速对齐" Style="{StaticResource SectionTitleStyle}" Margin="0" VerticalAlignment="Center"/></Border>
+                            <StackPanel Margin="12">
+                                <TextBlock Text="对齐只按下方方式重新填写两端坐标，点击“应用修改”后才写回线段。" FontSize="11" Foreground="#5B6B7B" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                    <Button x:Name="AlignVerticalStartButton" Content="按起点对齐竖直线" Style="{StaticResource SecondaryButtonStyle}" Click="AlignVerticalStart_Click" Margin="0" ToolTip="终点 X/Y 改为起点 X/Y，终点 Z 保持。"/>
+                                    <Button x:Name="AlignVerticalEndButton" Grid.Column="2" Content="按终点对齐竖直线" Style="{StaticResource SecondaryButtonStyle}" Click="AlignVerticalEnd_Click" Margin="0" ToolTip="起点 X/Y 改为终点 X/Y，起点 Z 保持。"/>
+                                </Grid>
+                                <Grid Margin="0,6,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                    <Button x:Name="AlignHorizontalStartButton" Content="按起点对齐水平线" Style="{StaticResource SecondaryButtonStyle}" Click="AlignHorizontalStart_Click" Margin="0" ToolTip="终点 Z 改为起点 Z，X/Y 保持。"/>
+                                    <Button x:Name="AlignHorizontalEndButton" Grid.Column="2" Content="按终点对齐水平线" Style="{StaticResource SecondaryButtonStyle}" Click="AlignHorizontalEnd_Click" Margin="0" ToolTip="起点 Z 改为终点 Z，X/Y 保持。"/>
+                                </Grid>
+                                <Button x:Name="AlignPipeButton" Content="对齐到管道…" Style="{StaticResource SecondaryButtonStyle}" Click="AlignPipe_Click" Margin="0,6,0,0" ToolTip="点选一根活动模型管道：水平线两端 Z 改为管底标高（向下取整）；竖直线两端 XY 移到点取位置、终点 Z 改为管底标高（向下取整）。"/>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
                 </StackPanel>
@@ -61,7 +81,7 @@
                         <Button x:Name="ReloadButton" Content="重新读取" Style="{StaticResource SecondaryButtonStyle}" Click="Reload_Click" IsEnabled="False" Margin="0"/>
                         <Button x:Name="ApplyButton" Grid.Column="2" Content="应用修改" Style="{StaticResource PrimaryButtonStyle}" Click="Apply_Click" IsEnabled="False" Margin="0"/>
                     </Grid>
-                    <TextBlock Text="应用后可使用 OPM 撤销/重做。暂不支持折线。" TextWrapping="Wrap" FontSize="10.5" Foreground="#5B6B7B" Margin="0,8,0,0"/>
+                    <TextBlock Text="应用后可使用 OPM 撤销/重做。暂不支持折线；快速对齐只填充坐标。" TextWrapping="Wrap" FontSize="10.5" Foreground="#5B6B7B" Margin="0,8,0,0"/>
                 </StackPanel>
             </Border>
         </Grid>
