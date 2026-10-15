@@ -6,10 +6,11 @@ namespace SteelSectionProbe
     internal static class A1ClampCalculator
     {
         internal static A1ClampPlan Calculate(int fallbackDn,bool isPipe,double? nominal,
-            double angleDeg,string pipeNumber)
+            double angleDeg,string pipeNumber,string materialCode=PipeClampNumbering.DefaultMaterialCode)
         {
             int dn=isPipe?A1ClampCatalog.MatchDn(nominal)??fallbackDn:fallbackDn;
             var row=A1ClampCatalog.Require(dn);
+            string material=PipeClampNumbering.NormalizeMaterialCode(materialCode);
             if(double.IsNaN(angleDeg)||double.IsInfinity(angleDeg))
                 throw new InvalidOperationException("开口角度无效。");
             double angle=((angleDeg%360)+360)%360;
@@ -25,7 +26,7 @@ namespace SteelSectionProbe
                 Row=row,AngleDeg=angle,NutHeightMm=nutHeight,NutAcrossFlatsMm=row.Bolt*1.5,
                 NutCenterMm=center,NutLow1Mm=low1,NutLow2Mm=center,
                 BoltLengthMm=length,PipeNumber=pipeNumber??"",
-                AssemblyTag="A1-DN"+f+"-"+bolt+"-"+angle.ToString("0.#",CultureInfo.InvariantCulture)+"°",
+                MaterialCode=material,AssemblyTag=PipeClampNumbering.Build("A1",dn,material),
                 AssemblySpecification="U型螺栓 "+bolt+"（DN"+f+" / "+row.Nps+"）：两腿中心距 C="+row.C+
                     "、管中心→腿端 D="+row.D+"、直腿段 "+row.D+
                     "、弯弧包管净空 "+((row.B-row.OutsideMm)/2).ToString("0.0",CultureInfo.InvariantCulture)+" mm",

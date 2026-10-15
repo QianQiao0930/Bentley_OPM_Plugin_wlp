@@ -1,5 +1,7 @@
 # 管夹正式模块原生ISO集成检查
 
+2026-10-15：当前6516项，新增A1/A2三种材料代码×普通/原生来源，验证编号、原材料AssemblyTag及ALIAS/IsoTag一致，A2通过真实参数对象传递代码；链接真实PipeClampLastChoice.Data，检查旧JSON缺材料字段默认C1、两代码独立序列化往返及其他类别值保留，不读写实际偏好文件。下方6484项为上一轮基线。
+
 运行 `dotnet run --project Development/PipeClampIsoCheck/PipeClampIsoCheck.csproj -c Release`。
 
 链接真实PipeClampPreviewSession、PipeClampTransientPreview、共用原生Writer/Data/Elements/Source、JSON记录存储、定义与原领域/目录/计算。原生图形桥、COM、模型、事务和各Builder/Statistics采用隔离替身；真实SDK签名及unsafe桥由主工程编译检查。共用API替身位于A1NativeSupportCheck/NativeApiFakes.cs，其他九类Builder与材料替身在ExtraFakes.cs。

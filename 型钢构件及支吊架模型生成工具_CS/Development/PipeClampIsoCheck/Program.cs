@@ -12,7 +12,7 @@ namespace SteelSectionProbe
         private static int checks;
         private static void Check(bool pass,string name){checks++;if(!pass)throw new Exception(name);}
         private static void Reject(Action action,string name){bool failed=false;try{action();}catch{failed=true;}Check(failed,name);}
-        private static PipeClampPreviewSession Preview(PipeClampKind kind,bool native=true,double scale=1000,int direction=0,bool reset=true)
+        private static PipeClampPreviewSession Preview(PipeClampKind kind,bool native=true,double scale=1000,int direction=0,bool reset=true,string material="C1")
         {
             if(reset)World.Reset();
             int originalRoots=World.Elements.Count;
@@ -25,14 +25,14 @@ namespace SteelSectionProbe
             var p=new DPoint3d(World.Pipe.StartX+600*axis.X,World.Pipe.StartY+600*axis.Y,World.Pipe.StartZ+600*axis.Z);
             var c=new DPoint3d(p.X*scale,p.Y*scale,p.Z*scale);
             var session=new PipeClampPreviewSession();
-            var a1=A1ClampCalculator.Calculate(100,true,100,45,"PIPE-X");
+            var a1=A1ClampCalculator.Calculate(100,true,100,45,"PIPE-X",material);
             var ring=new A22ClampPlan{Dn=100,ColdThicknessMm=40,BoltDiameterMm=12,Number="CUSTOM",Specification="CUSTOM"};
             var shoe=new T4ShoeLayout{Dn=100,ShoeLengthMm=300,InsulationMm=80,Number="CUSTOM"};
             switch(kind)
             {
                 case PipeClampKind.A1UBolt:session.ShowA1(a1,c,axis);break;
                 case PipeClampKind.U3BearingUBolt:session.ShowU3(new U3ClampPlan{Clamp=a1,Subitem="G",MaterialCode="C1",Number="U3-X"},c,axis);break;
-                case PipeClampKind.A2StandardTwoBolt:session.ShowA2(A2ClampCalculator.Calculate(100,20),c,axis);break;
+                case PipeClampKind.A2StandardTwoBolt:session.ShowA2(A2ClampCalculator.Calculate(new A2ClampParameters{MaterialCode=material},true,100,20),c,axis);break;
                 case PipeClampKind.A22ColdTwoBolt:session.ShowA22(ring,c,axis);break;
                 case PipeClampKind.A24ColdFourBolt:session.ShowA24(ring,c,axis);break;
                 case PipeClampKind.E1Guide:session.ShowE1(new E1GuidePlan{Dn=100,Item=new E1GuideItem{Key="B",ProfileName="L50x5"},HeightMm=107,CenterXmm=p.X,CenterYmm=p.Y,CenterZmm=p.Z,PipeX=axis.X,PipeY=axis.Y,Number="E1-B-107"});break;
@@ -63,6 +63,25 @@ namespace SteelSectionProbe
                 Reject(()=>NativePipeSupportDefinition.Create("A1",0,"X",""),"非法DN不生成标注");
                 foreach(var invalid in new[]{null,""," ","X\nY","X\rY","X$Y"})
                     Reject(()=>NativePipeSupportDefinition.Create("E1",100,invalid,""),"空编号与意外ISO控制符拒绝");
+                var serializer=new JavaScriptSerializer();
+                var oldPreferences=serializer.Deserialize<PipeClampLastChoice.Data>("{\"A1DnIndex\":2,\"A2Insulation\":\"20\",\"T4Name\":\"OLD\"}");
+                Check(oldPreferences.A1MaterialCode=="C1"&&oldPreferences.A2MaterialCode=="C1"&&oldPreferences.T4Name=="OLD","旧偏好默认材料C1并保留其他类别");
+                oldPreferences.A1MaterialCode="S";oldPreferences.A2MaterialCode="A2";
+                var preferences=serializer.Deserialize<PipeClampLastChoice.Data>(serializer.Serialize(oldPreferences));
+                Check(preferences.A1MaterialCode=="S"&&preferences.A2MaterialCode=="A2","A1/A2材料代码可独立持久化");
+                foreach(var namedKind in new[]{PipeClampKind.A1UBolt,PipeClampKind.A2StandardTwoBolt})
+                foreach(var material in new[]{"C1"," s ","a2"})
+                foreach(bool native in new[]{true,false})
+                {
+                    var named=Preview(namedKind,native,material:material);named.Confirm();
+                    string expected=PipeClampCatalog.Type(namedKind).Code+"-DN100-"+material.Trim().ToUpperInvariant();
+                    var root=World.Elements.Values.Single(e=>e.ElementId!=1);
+                    Check(root.MaterialTag==expected,"A1/A2普通/原生清单采用新编号 "+namedKind);
+                    if(native) {
+                        var record=serializer.Deserialize<NativePipeSupportRecord>(root.Metadata["Payload"].StringValue);
+                        Check(World.Created.Instance["ALIAS"].StringValue==expected&&record.IsoTag==expected,"新编号原样传入ISO引注记录");
+                    }
+                }
                 foreach(var kind in PipeClampCatalog.All.Select(t=>t.Kind))
                 foreach(double scale in new[]{1d,1000d,10000d})
                 foreach(double schemaUnit in new[]{1d,25.4d,1000d})

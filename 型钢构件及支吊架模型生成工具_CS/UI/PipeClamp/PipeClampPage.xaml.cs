@@ -73,6 +73,8 @@ namespace SteelSectionProbe
             KindCombo.SelectedIndex=Clamp(last.KindIndex,0,PipeClampCatalog.All.Length-1);
             A1DnCombo.SelectedIndex=Clamp(last.A1DnIndex,0,A1ClampCatalog.All.Length-1);
             A2DnCombo.SelectedIndex=Clamp(last.A2DnIndex,0,A2ClampCatalog.All.Length-1);
+            A1MaterialCodeText.Text=string.IsNullOrWhiteSpace(last.A1MaterialCode)?PipeClampNumbering.DefaultMaterialCode:last.A1MaterialCode;
+            A2MaterialCodeText.Text=string.IsNullOrWhiteSpace(last.A2MaterialCode)?PipeClampNumbering.DefaultMaterialCode:last.A2MaterialCode;
             A22DnCombo.SelectedIndex=Clamp(last.A22DnIndex,0,E1GuideCatalog.Dns.Length-1);
             A24DnCombo.SelectedIndex=Clamp(last.A24DnIndex,0,E1GuideCatalog.Dns.Length-1);
             E1DnCombo.SelectedIndex=Clamp(last.E1DnIndex,0,E1GuideCatalog.Dns.Length-1);
@@ -200,12 +202,15 @@ namespace SteelSectionProbe
                         U3SpecText.Text=U3Parameters(0).Specification;
                         break;
                     case PipeClampKind.A1UBolt:
-                        A1SpecText.Text="当前规格：DN"+A1Parameters(0).Row.Dn;
+                    {
+                        var plan=A1Parameters(0);
+                        A1SpecText.Text="当前规格：DN"+plan.Row.Dn+" · 编号 "+plan.AssemblyTag;
                         break;
+                    }
                     case PipeClampKind.A2StandardTwoBolt:
                     {
                         var plan=A2ClampCalculator.Calculate(A2Parameters(),isPipe,nominal,insulation);
-                        A2SpecText.Text=CompactSpecification(plan.Dn,"保温",plan.InsulationMm);
+                        A2SpecText.Text=CompactSpecification(plan.Dn,"保温",plan.InsulationMm)+" · 编号 "+plan.AssemblyTag;
                         break;
                     }
                     case PipeClampKind.A22ColdTwoBolt:
@@ -282,13 +287,13 @@ namespace SteelSectionProbe
         {return A1ClampCalculator.Calculate(A1ClampCatalog.All[Clamp(A1DnCombo.SelectedIndex,0,
             A1ClampCatalog.All.Length-1)].Dn,selection!=null&&selection.IsPipe,
             selection==null?null:selection.NominalMm,angle,
-            selection==null?"":selection.PipeNumber);}
+            selection==null?"":selection.PipeNumber,A1MaterialCodeText.Text);}
         private A2ClampParameters A2Parameters()
         {
             return new A2ClampParameters {
                 FallbackDn=A2ClampCatalog.All[Clamp(A2DnCombo.SelectedIndex,0,
                     A2ClampCatalog.All.Length-1)].Dn,
-                FallbackInsulationMm=Number(A2InsulationText.Text,"保温厚度") };
+                FallbackInsulationMm=Number(A2InsulationText.Text,"保温厚度"),MaterialCode=A2MaterialCodeText.Text };
         }
         private A22ClampParameters A22Parameters()
         {
@@ -378,6 +383,7 @@ namespace SteelSectionProbe
                     KindIndex=Math.Max(0,KindCombo.SelectedIndex),
                     A1DnIndex=Math.Max(0,A1DnCombo.SelectedIndex),
                     A2DnIndex=Math.Max(0,A2DnCombo.SelectedIndex),
+                    A1MaterialCode=A1MaterialCodeText.Text,A2MaterialCode=A2MaterialCodeText.Text,
                     A22DnIndex=Math.Max(0,A22DnCombo.SelectedIndex),
                     A24DnIndex=Math.Max(0,A24DnCombo.SelectedIndex),
                     E1DnIndex=Math.Max(0,E1DnCombo.SelectedIndex),

@@ -24,15 +24,16 @@ namespace SteelSectionProbe
             int? matched=isPipe?A2ClampCatalog.MatchDn(nominalMm):null;
             int dn=matched.HasValue?matched.Value:parameters.FallbackDn;
             double insulation=insulationMm.HasValue?insulationMm.Value:parameters.FallbackInsulationMm;
-            return Calculate(dn,insulation);
+            return Calculate(dn,insulation,parameters.MaterialCode);
         }
 
         /// <summary>按表 1 管径与保温厚度解析尺寸（保温层存在时按外径放大内孔）。</summary>
-        internal static A2ClampPlan Calculate(int dn,double insulationMm)
+        internal static A2ClampPlan Calculate(int dn,double insulationMm,string materialCode=PipeClampNumbering.DefaultMaterialCode)
         {
             if(double.IsNaN(insulationMm) || double.IsInfinity(insulationMm) || insulationMm<0.0)
                 throw new InvalidOperationException("保温厚度必须是大于等于 0 的数字（mm）。");
             var row=A2ClampCatalog.Require(dn);
+            string material=PipeClampNumbering.NormalizeMaterialCode(materialCode);
             double a=row.A,b=row.B,c=row.C,d=row.D;
             if(A2ClampCatalog.AccommodateInsulation && insulationMm>0.0)
             {
@@ -63,7 +64,7 @@ namespace SteelSectionProbe
                 CylinderDiameterMm=cylinderDiameter,CylinderRadiusMm=cylinderDiameter/2.0,
                 BoxLengthMm=boxLength,BoxWidthMm=boxWidth,HoleRadiusMm=holeRadius,
                 BoltCount=2,
-                AssemblyTag="DN"+dn.ToString(CultureInfo.InvariantCulture),
+                MaterialCode=material,AssemblyTag=PipeClampNumbering.Build("A2",dn,material),
                 AssemblySpecification=bodySpecification,
                 BodySpecification=bodySpecification,
                 BoltSpecification=row.Bolt,

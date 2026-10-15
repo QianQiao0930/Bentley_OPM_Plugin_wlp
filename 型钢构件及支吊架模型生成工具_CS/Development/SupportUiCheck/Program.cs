@@ -39,6 +39,16 @@ namespace SteelSectionProbe
                     foreach(string variant in variants)
                     {
                         ShowPanels(page,variants,variant);Arrange(root);if(confirm!=null){var cp=confirm.TranslatePoint(new Point(),root);Check(cp.Y+confirm.ActualHeight<=833.1,"分型确认可见 "+variant);}
+                        if(variant=="A1Panel"||variant=="A2Panel")
+                        {
+                            string code=variant=="A1Panel"?"A1":"A2";
+                            var material=(TextBox)page.FindName(code+"MaterialCodeText");
+                            Check(material.Text=="C1"&&material.Visibility==Visibility.Visible&&((FrameworkElement)page.FindName(variant)).Visibility==Visibility.Visible,"材料代码默认C1且所属面板展开 "+code);
+                            Check(Math.Abs(material.ActualHeight-34)<.1&&material.ActualWidth>100,"材料输入沿用34高表单");
+                            var position=material.TranslatePoint(new Point(),root);
+                            Check(position.X>=0&&position.X+material.ActualWidth<=400,"材料输入不超窄面板边界");
+                            NativePanelLayoutChecks.Verify(root,page,Check);
+                        }
                         if(variant=="U3Panel")
                         {
                             var kind=(ComboBox)page.FindName("KindCombo");kind.Items.Clear();kind.Items.Add("U3 带承重块的U形螺栓（1/2″~6″）");kind.SelectedIndex=0;Arrange(root);
@@ -115,6 +125,8 @@ namespace SteelSectionProbe
             }
             if(page is PipeClampPage)
             {
+                ((TextBlock)page.FindName("A1SpecText")).Text="当前规格：DN100 · 编号 A1-DN100-C1";
+                ((TextBlock)page.FindName("A2SpecText")).Text="DN100 · 保温0 mm · 编号 A2-DN100-C1";
                 ((ComboBox)page.FindName("U3ItemCombo")).Items.Clear();((ComboBox)page.FindName("U3ItemCombo")).Items.Add("G · 承重/导向 · 两螺母一边一个");((ComboBox)page.FindName("U3ItemCombo")).SelectedIndex=0;
                 ((ComboBox)page.FindName("U3MaterialCombo")).Items.Clear();((ComboBox)page.FindName("U3MaterialCombo")).Items.Add("S1 · 不锈钢管 / EPDM · ≤120°C");((ComboBox)page.FindName("U3MaterialCombo")).SelectedIndex=0;
                 foreach(string n in new[]{"U3SteelText","U3TopText","U3WallText","U3RubberText"})((TextBox)page.FindName(n)).Text=n=="U3SteelText"?"10":n=="U3TopText"?"25":n=="U3WallText"?"6":"3";

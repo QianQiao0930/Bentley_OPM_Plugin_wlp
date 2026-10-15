@@ -179,7 +179,15 @@ namespace SteelSectionProbe
             Equal(plan.Row.C,132,"A1 DN100 两腿中心距");
             Near(plan.NutCenterMm,86.075,.001,"A1 螺母中心");
             Near(plan.NutLow1Mm,76.475,.001,"A1 第一螺母底");
-            Equal(plan.AssemblyTag,"A1-DN100-M12-0°","A1 编号");
+            Equal(plan.AssemblyTag,"A1-DN100-C1","A1 编号");
+            var stainless=A1ClampCalculator.Calculate(50,true,100,180,"P-1"," s ");
+            Equal(stainless.AssemblyTag,"A1-DN100-S","A1材料代码去空白并转大写");
+            Equal(stainless.MaterialCode,"S","A1保存规范材料代码");
+            Near(stainless.AngleDeg,180,.001,"开口角仍控制几何");
+            Near(stainless.BoltLengthMm,plan.BoltLengthMm,.001,"材料编号不改螺杆长度");
+            Equal(A1ClampCalculator.Calculate(50,true,100,90,"P-1").AssemblyTag,plan.AssemblyTag,"开口角不再进入A1编号");
+            foreach(var invalid in new[]{null,""," ","C-1","C$1","材料","C1\nS"})
+                Reject(()=>A1ClampCalculator.Calculate(100,false,null,0,"",invalid),"A1非法材料代码拒绝");
             Check(plan.PipeNumber=="P-1","A1 管道号");
             Equal(A1ClampCalculator.Calculate(50,false,100,370,"").Row.Dn,50,
                 "普通辅助线使用面板 DN");
@@ -287,7 +295,14 @@ namespace SteelSectionProbe
             Equal(plan.BoxLengthMm,233,"长方体长 A+2D+2t");
             Equal(plan.BoxWidthMm,36,"长方体宽 C+2t");
             Equal(plan.HoleRadiusMm,9,"螺栓孔半径 (16+2)/2");
-            Equal(plan.AssemblyTag,"DN100","编号");
+            Equal(plan.AssemblyTag,"A2-DN100-C1","A2完整编号");
+            var stainless=A2ClampCalculator.Calculate(new A2ClampParameters{FallbackDn=50,MaterialCode=" s "},true,100,0);
+            Equal(stainless.AssemblyTag,"A2-DN100-S","A2管道分支使用输入材料代码，不另追加S");
+            Equal(stainless.MaterialCode,"S","A2保存规范材料代码");
+            Near(stainless.CylinderDiameterMm,plan.CylinderDiameterMm,.001,"A2材料编号不改实体外径");
+            Equal(A2ClampCalculator.Calculate(new A2ClampParameters{FallbackDn=100,MaterialCode="a2"},false,null,null).AssemblyTag,"A2-DN100-A2","A2辅助线分支保留其他材料代码");
+            foreach(var invalid in new[]{null,""," ","C-1","C$1","材料","C1\nS"})
+                Reject(()=>A2ClampCalculator.Calculate(100,0,invalid),"A2非法材料代码拒绝");
             Equal(plan.BoltCount,2,"螺栓套数");
             Equal(plan.BodySpecification,"DN100（4\"，A=117，C=20，t=8，w=50）","整组规格");
 

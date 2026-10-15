@@ -48,6 +48,8 @@
                                 <TextBlock Text="A1 点取后需调整开口方向，左键锁定。" Foreground="Black" TextWrapping="Wrap" Margin="0,0,0,8"/>
                                 <TextBlock Text="公称直径（读不到管道 DN 时使用）" Foreground="Black" Margin="0,0,0,5" FontWeight="SemiBold"/>
                                 <ComboBox x:Name="A1DnCombo" SelectionChanged="Parameter_Changed" Style="{StaticResource ModelCombo}"/>
+                                <TextBlock Text="材料代码（编号用）" Margin="0,9,0,5" FontWeight="SemiBold"/>
+                                <TextBox x:Name="A1MaterialCodeText" Text="C1" LostFocus="Parameter_Changed" Style="{StaticResource ModelInput}" ToolTip="按图集填写材料代码；只用于编号，不改变实体材质。"/>
                                 <TextBlock x:Name="A1SpecText" Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" Margin="0,12,0,0"/>
                             </StackPanel>
                         </StackPanel>
@@ -95,6 +97,8 @@
                                         <TextBox x:Name="A2InsulationText" Text="0" LostFocus="Parameter_Changed" Style="{StaticResource ModelInput}"/>
                                     </StackPanel>
                                 </Grid>
+                                <TextBlock Text="材料代码（编号用）" Margin="0,9,0,5" FontWeight="SemiBold"/>
+                                <TextBox x:Name="A2MaterialCodeText" Text="C1" LostFocus="Parameter_Changed" Style="{StaticResource ModelInput}" ToolTip="按图集填写材料代码；不锈钢管道填写S。只改变编号，隔离层另行配置。"/>
                                 <TextBlock x:Name="A2SpecText" Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" Margin="0,12,0,0"/>
                             </StackPanel>
                         </StackPanel>

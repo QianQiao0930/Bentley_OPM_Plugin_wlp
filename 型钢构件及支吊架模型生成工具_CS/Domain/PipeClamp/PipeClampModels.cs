@@ -13,6 +13,7 @@ namespace SteelSectionProbe
         internal int FallbackDn=A2ClampCatalog.FallbackDn;
         /// <summary>读不到管道保温厚度时使用的保温厚度。</summary>
         internal double FallbackInsulationMm;
+        internal string MaterialCode=PipeClampNumbering.DefaultMaterialCode;
     }
 
     /// <summary>A2 解析后的全部毫米尺寸与清单规格。</summary>
@@ -37,7 +38,7 @@ namespace SteelSectionProbe
         internal double HoleRadiusMm;
 
         internal int BoltCount;
-        internal string AssemblyTag,AssemblySpecification;
+        internal string AssemblyTag,AssemblySpecification,MaterialCode;
         internal string BodySpecification,BoltSpecification;
         internal string CellName;
     }

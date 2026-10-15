@@ -4,6 +4,10 @@
 
 当前UI规范：[Docs/UI规范-v4.md](Docs/UI规范-v4.md)。下方带日期的旧改造记录为历史；当前规格与第9节优先。
 
+2026-10-15：用户仅授权A1/A2编号调整。Domain/PipeClamp/PipeClampNumbering统一生成A1/A2-DN{管径}-{材料代码}，默认C1，去首尾空白/转大写，仅非空ASCII字母数字；A1移除编号中的螺杆/角度，A2补类型/材料，S放材料段不另追加后缀。A1Calculator新增可选材料参数，A2Parameters新增MaterialCode，计划保存规范代码。几何、实体材质/隔离层、其他类别外层编号保持，原Statistics与ALIAS映射自动采用新AssemblyTag；不改Schema、不迁移旧件。
+
+PipeClampPage的A1/A2参数卡各新增MaterialCodeText，沿用ModelInput/LostFocus→Parameter_Changed原预览更新流程，规格行显示编号；PipeClampLastChoice独立记忆两代码，旧数据缺字段默认C1。这是授权业务修改，UI契约仅更新该页业务SHA并增两字段，保留原控件/事件。6516项会话/编号/清单/ALIAS/旧偏好默认与JSON往返、原管夹回归、1816项A1试验及16976项Q1/Q2通过；597项真实XAML布局/DPI检查新增A1/A2输入边界与停靠尺寸，业务事件使用空夹具；宿主输入联动/重开记忆/ISO尚未实测。双版本零警告零错误。基线67884d9及源码/原型/DLL/PDB校验在../迁移备份/A1A2编号材料代码_20261015_67884d9。
+
 2026-10-14 引注按原管架编号：用户要求九类标注只显示原材料AssemblyTag（E1示例E1-B-107），替代下方旧“类别/DN/规格+自动编号”规则。NativePipeSupportDefinition.Label取原计划AssemblyTag/Number，详细ASCII规格仅留Description，不截断/重编码显示编号，单件空号或控制字符/$拒绝。SUPPORT.NAME为计算业务键，不拿重复规格编号覆盖原生身份；DEVICE_TYPE_CODE=SSPPC、ALIAS=原编号、NAME仍由原生命名。JSON Version1保留IsoTag并可选新增NativeName。共用Writer末尾可选validateReadback在持久对象校验后调用；正式会话检查标记及ALIAS，丢失回滚，原A1TEST不受影响。
 
 此次用户引注修改需要工作集部署映射，覆盖下方上一轮“不改Schema”的范围限制。Deployment/Install-PipeClampIsoTag.ps1仅在SUPPORT_LOCATION添加当前基类BOM_LABELS副本，IE_TAG仅SSPPC对象取ALIAS，否则保留原表达式；不动其他类、符号、style.xml。实际写前字节备份和SHA256，默认只读预览、重复幂等，已有类级项目映射冲突拒绝覆盖。部署后须重启OPM，新放/重提ISO；其他工作集也需部署，旧件无标记不迁移。脚本UTF8 BOM保证Windows PowerShell5.1正确解码。6484项九类真实会话配替身、16项XML部署及1816项A1回归；宿主ISO表达式/单件新引注仍须验证。基线085db60和源码/DLL/PDB/用户截图/日志/工作集备份在../迁移备份/管夹引注按管架编号_20261014_085db60。

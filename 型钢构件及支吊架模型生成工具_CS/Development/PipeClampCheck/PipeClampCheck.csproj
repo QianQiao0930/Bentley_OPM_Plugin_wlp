@@ -24,6 +24,7 @@
     <Compile Include="../../Services/PipeClamp/A2ClampCalculator.cs" Link="A2ClampCalculator.cs" />
     <Compile Include="../../Services/PipeClamp/A22ClampCalculator.cs" Link="A22ClampCalculator.cs" />
     <Compile Include="../../Services/PipeClamp/L2ShoeCalculator.cs" Link="L2ShoeCalculator.cs" />
+    <Compile Include="../../Domain/PipeClamp/PipeClampNumbering.cs" Link="PipeClampNumbering.cs"/>
     <Compile Include="../../Services/PipeClamp/A1ClampCalculator.cs" Link="A1ClampCalculator.cs" />
     <Compile Include="../../Services/PipeClamp/K1LimitCalculator.cs" Link="K1LimitCalculator.cs" />
     <Compile Include="../../Services/PipeClamp/T4ShoeCalculator.cs" Link="T4ShoeCalculator.cs" />

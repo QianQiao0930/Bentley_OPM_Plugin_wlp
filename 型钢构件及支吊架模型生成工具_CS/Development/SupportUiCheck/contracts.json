@@ -168,6 +168,18 @@
       "ConfirmButton": {
         "Click": "Confirm_Click",
         "IsEnabled": "False"
+      },
+      "A1MaterialCodeText": {
+        "Text": "C1",
+        "LostFocus": "Parameter_Changed",
+        "Style": "{StaticResource ModelInput}",
+        "ToolTip": "按图集填写材料代码；只用于编号，不改变实体材质。"
+      },
+      "A2MaterialCodeText": {
+        "Text": "C1",
+        "LostFocus": "Parameter_Changed",
+        "Style": "{StaticResource ModelInput}",
+        "ToolTip": "按图集填写材料代码；不锈钢管道填写S。只改变编号，隔离层另行配置。"
       }
     },
     "choices": [
@@ -257,7 +269,7 @@
       }
     ],
     "bindings": [],
-    "businessSha256": "463b2069dc29c84451e85e5ed5d0d1759752b165b485d0f84e680e5e9a30aa4a"
+    "businessSha256": "700e040456b1b461beeb5f4c4c32311d9ca3ec57b9164074a2a09aef3ca482c1"
   },
   "ElbowTrunnion/ElbowTrunnionPage.xaml": {
     "class": "ElbowTrunnionPage",

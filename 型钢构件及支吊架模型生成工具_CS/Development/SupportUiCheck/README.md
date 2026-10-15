@@ -1,5 +1,7 @@
 # 支吊架 v4 UI 检查
 
+2026-10-15：A1/A2新增材料代码输入，默认C1，沿用34高ModelInput。597项检查增加两参数卡的字段默认/宽度边界，以及四种停靠尺寸和四档DPI；实际渲染已查看。契约仅增A1MaterialCodeText/A2MaterialCodeText和授权页面业务SHA，原控件/事件不放宽。这里仍使用空业务回调；编号、清单、ALIAS及偏好序列化由PipeClampCheck/PipeClampIsoCheck验证，宿主联动需实测。
+
 2026-10-14：用户授权正式管夹原生ISO集成，仅更新PipeClampPage业务源码摘要，所有原控件/默认选项/绑定/事件契约保持；原生写入逻辑集中在会话与NativePipeSupport，不放入页面。当前551项布局/固定操作/分型/DPI检查通过，实际确认流程另由PipeClampIsoCheck验证。
 
 2026-10-14：正式工作区改用Bentley原生停靠。检查工程调用真实NativePanelLayout隐藏重复窗口标题，保留63模块头/固定操作；新增400×560、400×600、520×720、400×1080与四档DPI检查，见[DockingCheck](../DockingCheck/README.md)。下方原400×880尺寸仍为视觉回归基准。

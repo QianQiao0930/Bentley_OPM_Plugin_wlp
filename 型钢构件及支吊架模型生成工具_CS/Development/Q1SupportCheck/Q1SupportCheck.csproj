@@ -6,6 +6,7 @@
   <Compile Include="../../Data/ProfileLookup.cs" Link="ProfileLookup.cs"/>
   <Compile Include="../../Domain/PipeClamp/A1ClampPlan.cs" Link="A1ClampPlan.cs"/>
   <Compile Include="../../Data/PipeClamp/A1ClampCatalog.cs" Link="A1ClampCatalog.cs"/>
+  <Compile Include="../../Domain/PipeClamp/PipeClampNumbering.cs" Link="PipeClampNumbering.cs"/>
   <Compile Include="../../Services/PipeClamp/A1ClampCalculator.cs" Link="A1ClampCalculator.cs"/>
   <Compile Include="../../Domain/Q1Support/Q1SupportPlan.cs" Link="Q1SupportPlan.cs"/>
   <Compile Include="../../Data/Q1Support/Q1SupportCatalog.cs" Link="Q1SupportCatalog.cs"/>

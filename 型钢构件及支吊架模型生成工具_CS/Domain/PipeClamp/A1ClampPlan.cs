@@ -4,7 +4,7 @@
     {
         internal A1ClampRow Row;
         internal double AngleDeg,NutHeightMm,NutAcrossFlatsMm,NutCenterMm,NutLow1Mm,NutLow2Mm;
-        internal string PipeNumber,AssemblyTag,AssemblySpecification,BoltSpecification,NutSpecification;
+        internal string PipeNumber,AssemblyTag,AssemblySpecification,BoltSpecification,NutSpecification,MaterialCode;
         internal double BoltLengthMm;
         /// <summary>组合支架可按安装面缩短直腿；null 保留 A1 标准 D。</summary>
         internal double? StraightLegMm;

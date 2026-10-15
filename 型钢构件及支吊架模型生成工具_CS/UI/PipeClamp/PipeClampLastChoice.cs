@@ -13,6 +13,7 @@ namespace SteelSectionProbe
             public int U3DnIndex,U3ItemIndex,U3MaterialIndex;
             public string U3Steel="10",U3Top="25",U3Rubber="3",U3Wall="6";
             public int A1DnIndex,A2DnIndex,E1DnIndex,E1ItemIndex,K1DnIndex,K1SubitemIndex,T4DnIndex;
+            public string A1MaterialCode="C1",A2MaterialCode="C1";
             public int A22DnIndex=9;
             public string A22Cold="50",A22Name="A22";
             public int A24DnIndex=9;
