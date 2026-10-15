@@ -26,6 +26,7 @@ namespace SteelSectionProbe
         {Replace(Prototype(p,center,axis));q2Plan=p;plan=null;}
         private void Replace(Element replacement)
         {
+            SupportModelLevel.Use(replacement);
             var status=replacement.AddToModel();
             if(status!=StatusInt.Success)throw new InvalidOperationException("支架预览写入失败："+status);
             owned.Add(replacement);

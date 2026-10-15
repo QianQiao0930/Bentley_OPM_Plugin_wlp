@@ -1,0 +1,32 @@
+[
+  {
+    "Algorithm": "SHA256",
+    "Hash": "946F553263A493000E6E23B640F6F24B12E595099C0E1B2A24BEBDE12E38CD3A",
+    "Path": "E:\\CODE\\Bentley_Plugin\\Bentley_OPM_Plugin_wlp\\型钢构件及支吊架模型生成工具_CS\\bin\\Release\\net48\\SteelSectionProbe.dll"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "F255E337FA8F1943F882DAA525DD1EE660868774D48E5074E3AF834012230D57",
+    "Path": "E:\\CODE\\Bentley_Plugin\\Bentley_OPM_Plugin_wlp\\型钢构件及支吊架模型生成工具_CS\\bin\\Release\\net48\\SteelSectionProbe.pdb"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "946F553263A493000E6E23B640F6F24B12E595099C0E1B2A24BEBDE12E38CD3A",
+    "Path": "E:\\CODE\\Bentley_Plugin\\Bentley_OPM_Plugin_wlp\\型钢构件及支吊架模型生成工具_CS\\bin\\Release\\net48_full\\SteelSectionProbe.dll"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "F255E337FA8F1943F882DAA525DD1EE660868774D48E5074E3AF834012230D57",
+    "Path": "E:\\CODE\\Bentley_Plugin\\Bentley_OPM_Plugin_wlp\\型钢构件及支吊架模型生成工具_CS\\bin\\Release\\net48_full\\SteelSectionProbe.pdb"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "49E78F0C471523EBF0E8EA77D9FD27191999642CD2DB1581CB463EA5A81BAEF7",
+    "Path": "E:\\CODE\\Bentley_Plugin\\Bentley_OPM_Plugin_wlp\\型钢构件及支吊架模型生成工具_CS\\bin\\Release\\Unlicensed\\SteelSectionProbe.dll"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "D539F4D9AC518DDEFB1CA40B35E18E2E0406DA5F32FB935A59F7CA639AD52002",
+    "Path": "E:\\CODE\\Bentley_Plugin\\Bentley_OPM_Plugin_wlp\\型钢构件及支吊架模型生成工具_CS\\bin\\Release\\Unlicensed\\SteelSectionProbe.pdb"
+  }
+]

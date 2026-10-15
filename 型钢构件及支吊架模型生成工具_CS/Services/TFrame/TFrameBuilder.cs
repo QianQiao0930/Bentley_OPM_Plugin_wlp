@@ -67,7 +67,11 @@ namespace SteelSectionProbe
                 angle?f.V(0,-1,0):f.V(0,1,0),
                 angle?f.V(0,0,-1):f.V(0,0,1),f.V(1,0,0),plan.L2Mm,SupportSteelAppearance.Color));
             if(v.Ground!=null)
-                result.AddRange(PortalFrameBuilder.BuildGround(v.Ground,f.X,f.Y,f.Z,f.Scale));
+            {
+                // 地脚整组对齐立杆 geometric_center；角钢为贴合横担已沿局部 v 偏移。
+                result.AddRange(PortalFrameBuilder.BuildGround(v.Ground,
+                    f.X+plan.PostVOffsetMm*f.Vx,f.Y+plan.PostVOffsetMm*f.Vy,f.Z,f.Scale));
+            }
         }
         private static void BuildHorizontal(List<Element> result,TFramePlan plan,Frame f)
         {

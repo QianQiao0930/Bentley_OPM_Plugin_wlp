@@ -1,0 +1,15 @@
+E:\CODE\Bentley_Plugin\Bentley_OPM_Plugin_wlp\迁移备份\绑定材料与ASCII编号_20261015\probe\bin\Release\net10.0\Probe.exe
+E:\CODE\Bentley_Plugin\Bentley_OPM_Plugin_wlp\迁移备份\绑定材料与ASCII编号_20261015\probe\bin\Release\net10.0\Probe.deps.json
+E:\CODE\Bentley_Plugin\Bentley_OPM_Plugin_wlp\迁移备份\绑定材料与ASCII编号_20261015\probe\bin\Release\net10.0\Probe.runtimeconfig.json
+E:\CODE\Bentley_Plugin\Bentley_OPM_Plugin_wlp\迁移备份\绑定材料与ASCII编号_20261015\probe\bin\Release\net10.0\Probe.dll
+E:\CODE\Bentley_Plugin\Bentley_OPM_Plugin_wlp\迁移备份\绑定材料与ASCII编号_20261015\probe\bin\Release\net10.0\Probe.pdb
+E:\CODE\Bentley_Plugin\Bentley_OPM_Plugin_wlp\迁移备份\绑定材料与ASCII编号_20261015\probe\obj\Release\net10.0\Probe.GeneratedMSBuildEditorConfig.editorconfig
+E:\CODE\Bentley_Plugin\Bentley_OPM_Plugin_wlp\迁移备份\绑定材料与ASCII编号_20261015\probe\obj\Release\net10.0\Probe.AssemblyInfoInputs.cache
+E:\CODE\Bentley_Plugin\Bentley_OPM_Plugin_wlp\迁移备份\绑定材料与ASCII编号_20261015\probe\obj\Release\net10.0\Probe.AssemblyInfo.cs
+E:\CODE\Bentley_Plugin\Bentley_OPM_Plugin_wlp\迁移备份\绑定材料与ASCII编号_20261015\probe\obj\Release\net10.0\Probe.csproj.CoreCompileInputs.cache
+E:\CODE\Bentley_Plugin\Bentley_OPM_Plugin_wlp\迁移备份\绑定材料与ASCII编号_20261015\probe\obj\Release\net10.0\Probe.sourcelink.json
+E:\CODE\Bentley_Plugin\Bentley_OPM_Plugin_wlp\迁移备份\绑定材料与ASCII编号_20261015\probe\obj\Release\net10.0\Probe.dll
+E:\CODE\Bentley_Plugin\Bentley_OPM_Plugin_wlp\迁移备份\绑定材料与ASCII编号_20261015\probe\obj\Release\net10.0\refint\Probe.dll
+E:\CODE\Bentley_Plugin\Bentley_OPM_Plugin_wlp\迁移备份\绑定材料与ASCII编号_20261015\probe\obj\Release\net10.0\Probe.pdb
+E:\CODE\Bentley_Plugin\Bentley_OPM_Plugin_wlp\迁移备份\绑定材料与ASCII编号_20261015\probe\obj\Release\net10.0\Probe.genruntimeconfig.cache
+E:\CODE\Bentley_Plugin\Bentley_OPM_Plugin_wlp\迁移备份\绑定材料与ASCII编号_20261015\probe\obj\Release\net10.0\ref\Probe.dll

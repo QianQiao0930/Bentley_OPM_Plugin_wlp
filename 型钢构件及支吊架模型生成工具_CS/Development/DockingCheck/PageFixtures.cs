@@ -10,6 +10,7 @@ namespace SteelSectionProbe {
  internal sealed class PipeAlignmentPage : TestPage { internal PipeAlignmentPage() : base("pipe-alignment") { } }
  internal sealed class ComponentPropertiesPage : TestPage { internal ComponentPropertiesPage() : base("component-properties") { } }
  internal sealed class LineCoordinatesPage : TestPage { internal LineCoordinatesPage() : base("line-coordinates") { } }
+ internal sealed class SupportBindingPage : TestPage { internal SupportBindingPage() : base("support-binding") { } }
  internal sealed class ElbowTrunnionPage : TestPage { internal ElbowTrunnionPage() : base("elbow-trunnion") { } }
  internal sealed class SupportStatisticsPage : TestPage { internal SupportStatisticsPage() : base("support-statistics") { } }
  internal sealed class TankManholePage : TestPage { internal TankManholePage() : base("tank-manhole") { } }

@@ -17,6 +17,7 @@ namespace SteelSectionProbe
             Drain();
             var replacement=new CellHeaderElement(Session.Instance.GetActiveDgnModel(),N1CantileverCatalog.CellName,
                 DPoint3d.Zero,DMatrix3d.Identity,N1CantileverBuilder.Build(next,frame));
+            SupportModelLevel.Use(replacement);
             var status=replacement.AddToModel();
             if(status!=StatusInt.Success)throw new InvalidOperationException("N1 预览写入失败："+status);
             try{Delete(preview);}

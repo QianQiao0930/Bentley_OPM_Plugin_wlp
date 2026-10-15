@@ -55,6 +55,8 @@
                     "P380 细节卷盘、DN25 接口和器材统计导出。", 67, HomeCategories.Modeling, "puzzle"),
                 new FeatureDescriptor("pipe-clamp", "放置管夹",
                     "A1、U3、A2、A22、A24、E1、K1、T4、L2 管夹与管托。", 70, HomeCategories.Support, "clamp"),
+                new FeatureDescriptor("support-binding", "支吊架组合绑定",
+                    "关联管夹、耳轴与承重支架，生成多行ISO引注。", 72, HomeCategories.Support, "link"),
                 new FeatureDescriptor("q1-small-pipe-support", "大管支撑小管",
                     "Q1/Q2 大管用角钢支撑小管，竖向/横向布置及立管承重块。", 71, HomeCategories.Support, "clamp"),
                 new FeatureDescriptor("vertical-pipe-support", "立管耳轴",

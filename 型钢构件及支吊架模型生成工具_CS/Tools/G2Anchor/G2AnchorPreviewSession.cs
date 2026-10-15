@@ -26,6 +26,7 @@ namespace SteelSectionProbe
             var model=Session.Instance.GetActiveDgnModel();
             var replacement=new CellHeaderElement(model,G2AnchorCatalog.CellName,
                 DPoint3d.Zero,DMatrix3d.Identity,parts);
+            SupportModelLevel.Use(replacement);
             var status=replacement.AddToModel();
             if(status!=StatusInt.Success)
                 throw new InvalidOperationException("G2 锚板预览写入失败："+status);

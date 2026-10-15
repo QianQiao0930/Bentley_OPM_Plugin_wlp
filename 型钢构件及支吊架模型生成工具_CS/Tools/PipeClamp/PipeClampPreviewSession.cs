@@ -216,6 +216,27 @@ namespace SteelSectionProbe
 
         private static string N(double value) { return value.ToString("0.###",CultureInfo.InvariantCulture); }
 
+        private string NativeRecipe(string code, double scale)
+        {
+            var recipe = new NativePipeSupportRecipe { Code = code, CellName = cellName,
+                CenterMm = new[] { center.X / scale, center.Y / scale, center.Z / scale },
+                Axis = new[] { axis.X, axis.Y, axis.Z } };
+            switch (kind)
+            {
+                case PipeClampKind.A1UBolt: recipe.A1 = a1Plan; break;
+                case PipeClampKind.U3BearingUBolt: recipe.U3 = u3Plan; break;
+                case PipeClampKind.A2StandardTwoBolt: recipe.A2 = a2Plan; break;
+                case PipeClampKind.A22ColdTwoBolt: case PipeClampKind.A24ColdFourBolt: recipe.A22 = a22Plan; break;
+                case PipeClampKind.E1Guide: recipe.E1 = e1Plan; break;
+                case PipeClampKind.K1Limit: recipe.K1 = k1Plan; break;
+                case PipeClampKind.T4Insulated: case PipeClampKind.L2ColdShoe:
+                    recipe.Shoe = t4Layout; recipe.Boolean = t4Boolean;
+                    recipe.BuildPipe = t4BuildPipe; recipe.BuildInsulation = t4BuildInsulation; break;
+                default: throw new InvalidOperationException("未登记的原生管夹建模配方。");
+            }
+            return NativePipeSupportRecipeCodec.Encode(recipe);
+        }
+
         private NativePipeSupportDefinition IsoDefinition()
         {
             switch(kind)
@@ -252,8 +273,10 @@ namespace SteelSectionProbe
                     var pipe=NativePipeSupportSource.Resolve(sourceBinding,point,definition.Dn);
                     DTransform3d placement,inverse;
                     NativePipeSupportSource.Frame(center,axis,out placement,out inverse);
+                    string recipe = NativeRecipe(definition.Code, scale);
                     var instance=BMECInstanceManager.Instance.CreateECInstance(NativePipeSupportDefinition.NativeClass,true);
-                    if(instance==null)throw new InvalidOperationException("当前工作集没有SUPPORT_LOCATION类。");
+                    if(instance==null)throw new InvalidOperationException("当前工作集没有正式管夹原生组件类，请先安装Install-PipeClampNativeEditing.ps1并重启OPM。");
+                    Text(instance,"SSP_RECIPE",recipe);
                     Text(instance,"DEVICE_TYPE_CODE",NativePipeSupportDefinition.DeviceTypeCode);
                     Text(instance,"NAME",NativePipeSupportDefinition.DeviceTypeCode+"-"+Guid.NewGuid().ToString("N"));
                     Text(instance,"ALIAS",definition.Label);
@@ -267,19 +290,20 @@ namespace SteelSectionProbe
                     log("类别="+definition.Code+"；标注="+definition.Label+"；父管="+pipe.InstanceId);
                     log("目标位置(mm)="+N(point[0])+","+N(point[1])+","+N(point[2])+"；UOR/mm="+N(scale));
                     NativePipeSupportWriter.Create(instance,pipe,placement,point,
-                        ()=>LocalGraphics(inverse),
+                        null,
                         (support,element)=>
                         {
-                            ValidateIsoTag(support,definition.Label);
+                            ValidateNativeComponent(support,definition.Label,recipe);
                             string tag=support.Instance["ALIAS"].StringValue;
                             AttachStatistics(element);
                             NativePipeSupportStore.Write(element,new NativePipeSupportRecord {
                                 Code=definition.Code,Dn=definition.Dn,NativeClass=NativePipeSupportDefinition.NativeClass,
                                 PipeInstanceId=pipe.InstanceId,SupportInstanceId=support.Instance.InstanceId,
-                                IsoTag=tag,NativeName=support.Instance["NAME"].StringValue,Description=definition.Description,Xmm=point[0],Ymm=point[1],Zmm=point[2] });
+                                IsoTag=tag,NativeName=support.Instance["NAME"].StringValue,Description=definition.Description,
+                                RecipeVersion=1,Xmm=point[0],Ymm=point[1],Zmm=point[2] });
                             log("ISO引注="+tag+"；原生实例编号="+support.Instance["NAME"].StringValue+"；描述="+definition.Description);
-                            log("ISO提取要求：SUPPORT_LOCATION中SSPPC对象的IE_TAG读取ALIAS，见部署脚本Install-PipeClampIsoTag.ps1。");
-                        },ReleaseDisplay,log,support=>ValidateIsoTag(support,definition.Label));
+                            log("原生组件及完整配方已保存；ISO引注由SSP_PIPE_CLAMP限定读取ALIAS。");
+                        },ReleaseDisplay,log,support=>ValidateNativeComponent(support,definition.Label,recipe),parametric:true);
                 });
             }
             catch(Exception error)
@@ -290,11 +314,13 @@ namespace SteelSectionProbe
             }
         }
 
-        private static void ValidateIsoTag(BMECObject support,string expected)
+        private static void ValidateNativeComponent(BMECObject support,string expected,string recipe)
         {
-            if(support.Instance["DEVICE_TYPE_CODE"].StringValue!=NativePipeSupportDefinition.DeviceTypeCode ||
-                !string.Equals(support.Instance["ALIAS"].StringValue,expected,StringComparison.Ordinal))
-                throw new InvalidOperationException("管架引注编号未正确保存，已拒绝本次写入。");
+            if(!support.IsParametric || support.Instance.ClassDefinition.Name!=NativePipeSupportDefinition.NativeClass
+                || support.Instance["DEVICE_TYPE_CODE"].StringValue!=NativePipeSupportDefinition.DeviceTypeCode
+                || !string.Equals(support.Instance["ALIAS"].StringValue,expected,StringComparison.Ordinal)
+                || !string.Equals(support.Instance["SSP_RECIPE"].StringValue,recipe,StringComparison.Ordinal))
+                throw new InvalidOperationException("管架原生组件、引注编号或建模配方未正确保存，已拒绝本次写入。");
         }
 
         private void ConfirmOrdinary()
@@ -307,6 +333,7 @@ namespace SteelSectionProbe
             {
                 using(var final=BuildCell(cellName))
                 {
+                    SupportModelLevel.Use(final);
                     if(final.AddToModel()!=StatusInt.Success)throw new InvalidOperationException("管夹写入失败。");
                     AttachStatistics(final);
                     ReleaseDisplay();
@@ -330,18 +357,6 @@ namespace SteelSectionProbe
             try { display=PipeClampTransientPreview.Create(graphics); }
             catch { graphics.Dispose();throw; }
             preview?.Dispose();preview=graphics;
-        }
-
-        private Element LocalGraphics(DTransform3d inverse)
-        {
-            var graphics=BuildCell(cellName);
-            try
-            {
-                if(graphics.ApplyTransform(new TransformInfo(inverse))!=0)
-                    throw new InvalidOperationException("管夹局部几何变换失败。");
-                return graphics;
-            }
-            catch { graphics.Dispose();throw; }
         }
 
         internal void Cancel()

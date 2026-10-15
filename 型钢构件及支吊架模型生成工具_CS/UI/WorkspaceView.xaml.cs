@@ -41,6 +41,7 @@ namespace SteelSectionProbe
             RegisterPage(new PipeAlignmentPage());
             RegisterPage(new ComponentPropertiesPage());
             RegisterPage(new LineCoordinatesPage());
+            RegisterPage(new SupportBindingPage());
             RegisterPage(new ElbowTrunnionPage());
             RegisterPage(new SupportStatisticsPage());
             RegisterPage(new TankManholePage());

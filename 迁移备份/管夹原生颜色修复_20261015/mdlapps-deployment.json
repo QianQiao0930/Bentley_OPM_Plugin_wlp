@@ -1,0 +1,18 @@
+{
+  "DeployedAt": "2026-10-15T11:28:21.9760706+08:00",
+  "Fix": "保留原Builder分件外观，仅设置原生三维Edge分类",
+  "MVID": "e673daa7-9018-4f2f-ad97-5c82e6f7b733",
+  "SchemaChanged": false,
+  "Files": [
+    {
+      "Algorithm": "SHA256",
+      "Hash": "946F553263A493000E6E23B640F6F24B12E595099C0E1B2A24BEBDE12E38CD3A",
+      "Path": "C:\\Program Files\\Bentley\\OpenPlant 2024\\OpenPlantModeler\\mdlapps\\SteelSectionProbe.dll"
+    },
+    {
+      "Algorithm": "SHA256",
+      "Hash": "F255E337FA8F1943F882DAA525DD1EE660868774D48E5074E3AF834012230D57",
+      "Path": "C:\\Program Files\\Bentley\\OpenPlant 2024\\OpenPlantModeler\\mdlapps\\SteelSectionProbe.pdb"
+    }
+  ]
+}

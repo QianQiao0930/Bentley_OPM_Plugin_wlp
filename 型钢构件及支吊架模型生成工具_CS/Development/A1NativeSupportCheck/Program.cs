@@ -21,6 +21,26 @@ namespace SteelSectionProbe
         {
             try
             {
+                var setupValues = new ParametricSetupValues { Source = new IECInstance("SSP_A1_NATIVE_TEST", "mechanical") };
+                setupValues.Source["SSP_A1_DN"].IntValue = 100;
+                setupValues.Source["SSP_A1_OPENING"].DoubleValue = 90;
+                var script = new A1NativeParametricComponent { BMECObject = setupValues };
+                script.Setup();
+                Check(script.HostCalls == 0 && script.LengthCalls == 0, "真实Setup在构造期不访问尚未绑定的父管或写长度");
+                Check(script.PlanForCheck.Row.Dn == 100 && script.PlanForCheck.AngleDeg == 90, "构造期仍验证自身A1参数");
+                script.Setup(); Check(script.HostCalls == 0, "重复Setup不提前初始化父管");
+                Reject(() => script.PrepareGraphics(), "真正生成几何时仍拒绝缺失父管");
+                Check(script.HostCalls == 1 && script.LengthCalls == 0, "缺父管不写支架长度");
+                setupValues.ParentReady = true; script.PrepareGraphics();
+                Check(script.HostCalls == 2 && script.LengthCalls == 1 && script.SupportLength == 115, "绑定后保留原生父管端口初始化及支架长度");
+                setupValues.Source["SSP_A1_DN"].IntValue = 200; script.PrepareGraphics();
+                Check(script.PlanForCheck.Row.Dn == 200 && script.SupportLength == 180, "后续原生重生成仍重读参数");
+                int hostCalls = script.HostCalls;
+                setupValues.Source["SSP_A1_DN"].IntValue = 999;
+                Reject(() => script.Setup(), "无效DN不被构造期延迟策略吞掉");
+                Check(script.HostCalls == hostCalls && A1NativeParametricComponent.SetupFailures.Count > 0, "参数失败记录日志且不访问父管");
+                setupValues.Source["SSP_A1_DN"].IntValue = 100; setupValues.Source["SSP_A1_OPENING"].DoubleValue = double.NaN;
+                Reject(() => script.Setup(), "非法开口角仍明确拒绝");
                 foreach (double scale in new[] { 1d, 1000d, 10000d })
                 foreach (double isoUnitMm in new[] { 1d, 25.4d, 1000d })
                 foreach (int heading in new[] { 0, 90, 180, 270 })
@@ -104,6 +124,39 @@ namespace SteelSectionProbe
                 World.Reset(); var copied = Place(); SelectTrial(copied); World.Created.Instance.InstanceId = "copied"; Reject(() => A1NativeTrialAdapter.CheckSelected(Log), "复制件标识冲突不可通过");
                 World.Reset(); var undo = Place(); SelectTrial(undo); World.Elements.Remove(World.Find(World.Created.Instance).ElementId); Reject(() => A1NativeTrialAdapter.CheckSelected(Log), "撤销删除后不能使用旧对象");
                 foreach (string text in new[] { "NaN", "Infinity", "a", "1,2", "" }) Reject(() => A1NativeTrialCalculator.Parse(text), "非法命令参数 " + text);
+                foreach (double scale in new[] { 1d, 1000d, 10000d })
+                foreach (double isoUnit in new[] { 1d, 25.4d, 1000d })
+                {
+                    World.Reset(); Bentley.MstnPlatformNET.Session.Instance.Model.Scale = scale; World.SupportPointMmPerUnit = isoUnit;
+                    BMECApi.Instance.DeferCommits = true;
+                    var native = A1NativeTrialAdapter.Place(300, 90, Log, true); SelectTrial(native);
+                    Check(native.NativeEditing && native.NativeClass == "SSP_A1_NATIVE_TEST", "新试验使用隔离的原生组件类");
+                    Check(World.Created.IsParametric && BMECApi.Instance.DeferCommits, "原生试验保留参数化入口并恢复宿主提交开关");
+                    Check(A1NativeTrialAdapter.CheckSelected(Log), "新组件初始位置/类型/参数及ISO检查");
+                    Check(A1NativeTrialAdapter.CheckSelected(Log, true), "编辑模式初始轴上定位及ISO检查");
+                    Check(A1NativeTrialStore.Read(World.Find(World.Created.Instance)).NativeEditing, "新JSON记录模式往返");
+                    var transform = World.Created.Transform3d; transform.Translation.X += 50 * scale; World.Created.Transform3d = transform;
+                    Check(!A1NativeTrialAdapter.CheckSelected(Log, true), "操作柄移动后ISO点未更新不能通过");
+                    double staleIso = World.Created.GetDoubleValueInMM("SUPPORT_POINT_X");
+                    Check(staleIso == 1300, "CHECKEDIT不修补ISO点");
+                    World.Created.SetDoubleValueFromMM("SUPPORT_POINT_X", 1350);
+                    Check(A1NativeTrialAdapter.CheckSelected(Log, true), "沿轴移动后用当前轴上位置校验");
+                    Check(!A1NativeTrialAdapter.CheckSelected(Log), "编辑检查通过不等于原站位随动通过");
+                    transform.Translation.Y += 2 * scale; World.Created.Transform3d = transform;
+                    World.Created.SetDoubleValueFromMM("SUPPORT_POINT_Y", 2002);
+                    Check(!A1NativeTrialAdapter.CheckSelected(Log, true), "脱离管轴即使三维ISO同步也拒绝");
+                    transform.Translation.Y -= 2 * scale; transform.Matrix = DMatrix3d.FromColumns(new DVector3d(0, 1, 0),new DVector3d(-1,0,0),new DVector3d(0,0,1));
+                    World.Created.Transform3d = transform; World.Created.SetDoubleValueFromMM("SUPPORT_POINT_Y", 2000);
+                    Check(!A1NativeTrialAdapter.CheckSelected(Log, true), "组件管轴方向错误不能通过");
+                }
+                foreach (string fault in new[] { "Create", "Serialize", "Cache", "Statistics", "Metadata", "Relationship", "Parametric", "IsoPointWrite", "IsoPointDropped", "StateDropped", "MissingIsoProperty", "AliasDropped", "MarkerDropped" })
+                {
+                    World.Reset(); World.Fault = fault; BMECApi.Instance.DeferCommits = true;
+                    Reject(() => A1NativeTrialAdapter.Place(null, 0, Log, true), "新组件故障拒绝 " + fault);
+                    Check(World.Elements.Count == 1 && BMECApi.Instance.DeferCommits, "新组件失败回滚并恢复提交开关 " + fault);
+                }
+                World.Reset(); var legacy = Place(); SelectTrial(legacy);
+                Reject(() => A1NativeTrialAdapter.CheckSelected(Log, true), "不对旧试验件使用CHECKEDIT");
                 Console.WriteLine("PASS: " + checks + " A1站位/单位/真实试验适配器/API替身/失败回滚检查；不证明OPM原生Create、单线图和跟随已实测。");
                 return 0;
             }

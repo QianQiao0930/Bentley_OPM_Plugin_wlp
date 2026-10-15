@@ -102,11 +102,11 @@ namespace SteelSectionProbe
                 ready.Add(feature);
             }
 
-            Equal(ready.Count, 32, "可用功能数");
+            Equal(ready.Count, 33, "可用功能数");
             Equal(placeholders, 1, "规划中占位卡数");
             Equal(Order(HomeFeatureRanker.Rank(all, new Dictionary<string, HomePreferenceRecord>(), Now)),
                 "steel-sections,steel-handrail,tank-spiral-stair,tank-ladder,wall-ladder,magnetic-level-gauge,component-properties,line-coordinates,pipe-alignment,elbow-trunnion,support-statistics,tank-manhole,square-manhole,solid-nozzle,fire-cabinet,hose-cabinet," +
-                "pipe-clamp,q1-small-pipe-support,vertical-pipe-support,cold-riser-guide,g2-anchor-plate,n1-cantilever,n2-cantilever,n3-single-bracket,n4-double-bracket,d2-cantilever,triangle-bracket,l-bracket,portal-frame,t-frame,pad-plate,n8-connection-plate,",
+                "pipe-clamp,q1-small-pipe-support,support-binding,vertical-pipe-support,cold-riser-guide,g2-anchor-plate,n1-cantilever,n2-cantilever,n3-single-bracket,n4-double-bracket,d2-cantilever,triangle-bracket,l-bracket,portal-frame,t-frame,pad-plate,n8-connection-plate,",
                 "清单出厂顺序");
         }
 
@@ -155,6 +155,7 @@ namespace SteelSectionProbe
             Equal(byId["elbow-trunnion"], HomeCategories.Support, "弯头耳轴分区");
             Equal(byId["vertical-pipe-support"], HomeCategories.Support, "立管耳轴分区");
             Equal(byId["pipe-clamp"], HomeCategories.Support, "放置管夹分区");
+            Equal(byId["support-binding"], HomeCategories.Support, "组合绑定分区");
             Equal(byId["q1-small-pipe-support"], HomeCategories.Support, "大管支撑小管分区");
             Equal(byId["g2-anchor-plate"], HomeCategories.Support, "混凝土锚板分区");
             Equal(byId["n1-cantilever"], HomeCategories.Support, "N1 分区");
@@ -203,7 +204,7 @@ namespace SteelSectionProbe
         {
             List<HomeEntry> entries = HomeFeatureRanker.Rank(HomeFeatureCatalog.All(),
                 new Dictionary<string, HomePreferenceRecord>(), Now);
-            Equal(entries.Count, 33, "冷启动条目数");
+            Equal(entries.Count, 34, "冷启动条目数");
             Equal(PinnedOrder(entries), "", "冷启动不应有置顶项");
             for (int i = 1; i < entries.Count; i++)
             {

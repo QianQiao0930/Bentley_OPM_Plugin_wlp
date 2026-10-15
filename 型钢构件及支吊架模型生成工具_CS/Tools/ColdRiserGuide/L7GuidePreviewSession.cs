@@ -17,6 +17,7 @@ namespace SteelSectionProbe
             var parts=L7GuideBuilder.Build(next,center,axis);
             var replacement=new CellHeaderElement(model,L7GuideCatalog.CellName(next),
                 DPoint3d.Zero,DMatrix3d.Identity,parts);
+            SupportModelLevel.Use(replacement);
             var status=replacement.AddToModel();
             if(status!=StatusInt.Success) throw new InvalidOperationException("导向架预览写入失败："+status);
             try {Delete(preview);}

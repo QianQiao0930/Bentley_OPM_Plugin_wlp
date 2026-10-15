@@ -17,6 +17,7 @@ namespace SteelSectionProbe
             Drain();
             var replacement=new CellHeaderElement(Session.Instance.GetActiveDgnModel(),D2CantileverCatalog.CellNameFor(next.Parameters.Kind),
                 DPoint3d.Zero,DMatrix3d.Identity,D2CantileverBuilder.Build(next,line));
+            SupportModelLevel.Use(replacement);
             var status=replacement.AddToModel();
             if(status!=StatusInt.Success)throw new InvalidOperationException("悬臂架预览写入失败："+status);
             try{Delete(preview);}

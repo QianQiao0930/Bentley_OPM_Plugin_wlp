@@ -3,7 +3,7 @@
   <!--
     管道标高对齐插件 · 纯计算层离线自检工程（开发指南 §38 的 T01～T20 验收用例）。
 
-    本工程**只链接** PipeAlign_CS 的纯计算层源码，不引用任何 Bentley 程序集，
+    本工程**只链接**本工程 PipeAlignment 分层的纯计算层源码，不引用任何 Bentley 程序集，
     因此可以脱离 OpenPlant Modeler 直接 `dotnet run`。链接方式用 <Compile Include>
     （不复制文件），保证自检跑的就是插件本体那一份源码。
 

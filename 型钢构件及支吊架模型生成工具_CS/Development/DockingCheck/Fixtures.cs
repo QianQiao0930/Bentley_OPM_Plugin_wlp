@@ -40,6 +40,8 @@ namespace Bentley.Windowing
         internal bool Visible;
         internal int Expands;
         public bool CanDockVertically, CanDockHorizontally, CanDockInCenter, CanAutoHide, Closeable;
+        public Forms.FormBorderStyle FormBorderStyle;
+        public Forms.Form FloatingHostForm { get; set; }
         public Size MinimumSize;
         public bool Unpinned;
         public FakeZone Zone = new FakeZone();

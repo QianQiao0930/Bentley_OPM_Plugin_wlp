@@ -24,6 +24,7 @@ namespace SteelSectionProbe
                 Check((string)manager.Id == "SteelSectionProbe.Workspace", "稳定面板标识");
                 Check(window.UseHostSize && !window.TopLevel, "由宿主管理尺寸与窗口层级");
                 Check(panel.CanDockVertically && !panel.CanDockHorizontally && panel.CanDockInCenter && panel.CanAutoHide, "左右/标签/自动隐藏能力");
+                Check(panel.FormBorderStyle == System.Windows.Forms.FormBorderStyle.Sizable, "浮动窗口保留可拖动边框");
                 Check(window.MaximumSize.IsEmpty && window.Region == null && window.MinimumSize.Height < 880, "没有固定880高度及圆角裁切");
                 window.ShowSteelSectionsPage();
                 var page = TestPage.All["steel-sections"];

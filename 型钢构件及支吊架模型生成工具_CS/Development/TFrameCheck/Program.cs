@@ -17,6 +17,58 @@ namespace SteelSectionProbe
         private static string Error(Action action)
         {try{action();}catch(InvalidOperationException ex){return ex.Message;}
             throw new Exception("应返回参数超限错误");}
+        private static int CheckGroundCenters()
+        {
+            int cases=0;
+            foreach(char key in TFrameCatalog.Variants("G4"))
+            foreach(double heading in new[]{0d,30,45,90,135,180,270,-30})
+            foreach(double scale in new[]{1d,1000,10000})
+            foreach(bool reversed in new[]{false,true})
+            {
+                var plan=Plan("G4",key,500,250);
+                plan.Parameters.HeadingDegrees=heading;
+                const double x=1234.5,y=-678.25,z=321;
+                var line=new PipeClampSelection{StartX=x,EndX=x,StartY=y,EndY=y,
+                    StartZ=reversed?z+500:z,EndZ=reversed?z:z+500,
+                    AxisZ=reversed?-1:1};
+                Bentley.MstnPlatformNET.Session.Instance.Model.UorPerMeter=scale*1000;
+                var elements=TFrameBuilder.Build(plan,line);
+                Check(elements.Count==3,"G4 两根型钢与一组地脚");
+                var post=(RecordedMember)elements[0];
+                var ground=elements[2].Origin;
+                Check(post.Mode.Id=="geometric_center","立杆使用外廓中心基准");
+                // 从真实目录轮廓和 Builder 的截面方向重建外廓，独立验证板中心。
+                double minX=double.PositiveInfinity,maxX=double.NegativeInfinity;
+                double minY=double.PositiveInfinity,maxY=double.NegativeInfinity;
+                foreach(var segment in post.Mode.Segments)
+                foreach(var point in new[]{new[]{segment.X0,segment.Y0},new[]{segment.X1,segment.Y1}})
+                {
+                    double px=point[0],py=point[1];
+                    minX=Math.Min(minX,px);maxX=Math.Max(maxX,px);
+                    minY=Math.Min(minY,py);maxY=Math.Max(maxY,py);
+                }
+                string label="G4 "+key+" / "+heading+"° / "+scale+" UOR/mm / "+reversed;
+                double cx=(minX+maxX)/2,cy=(minY+maxY)/2;
+                Close(ground.X/scale,post.Origin.X/scale+cx*post.XAxis.X+cy*post.YAxis.X,
+                    label+" 板与立杆外廓 X 中心");
+                Close(ground.Y/scale,post.Origin.Y/scale+cx*post.XAxis.Y+cy*post.YAxis.Y,
+                    label+" 板与立杆外廓 Y 中心");
+                Close(ground.Z/scale,z,label+" 地面标高");
+                Close(post.Origin.Z/scale-ground.Z/scale,plan.GroundLiftMm,label+" 立杆贴板顶");
+                double offset=plan.Variant.FamilyA=="equal_angle"?plan.Variant.DepthA:0;
+                Close(ground.X/scale,x-offset*Math.Sin(heading*Math.PI/180),label+" X 偏移");
+                Close(ground.Y/scale,y+offset*Math.Cos(heading*Math.PI/180),label+" Y 偏移");
+                cases++;
+            }
+            foreach(string kind in new[]{"D12","D15"})
+            {
+                var line=kind=="D12"?new PipeClampSelection{EndZ=500,AxisZ=1}:
+                    new PipeClampSelection{EndX=250,AxisX=1};
+                Check(TFrameBuilder.Build(Plan(kind,'A',250,200),line).Count==2,
+                    kind+" 仍只有型钢，不生成地脚");
+            }
+            return cases;
+        }
         private static void Main()
         {
             var names=new HashSet<string>();
@@ -87,7 +139,9 @@ namespace SteelSectionProbe
             string hError=Error(()=>Plan("D12",'A',1100,250));
             Check(hError.Contains("H 当前 1100 mm")&&hError.Contains("标准上限 1000 mm"),
                 "D12 H 超限显示当前值与上限");
-            Console.WriteLine("TFrameCheck: D12/G4/D15 规格、尺寸、荷载、编号、截面朝向、上限提示和固定附加项名通过。");
+            int groundCases=CheckGroundCenters();
+            Console.WriteLine("TFrameCheck: D12/G4/D15 原回归及 "+groundCases+
+                " 组真实 Builder 地脚中心检查通过（7 子项 × 8 方位 × 3 单位 × 2 线向）。");
         }
     }
 }

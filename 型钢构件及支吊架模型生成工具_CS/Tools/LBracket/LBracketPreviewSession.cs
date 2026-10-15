@@ -16,6 +16,7 @@ namespace SteelSectionProbe
             var parts=LBracketBuilder.Build(next);
             var replacement=new CellHeaderElement(Session.Instance.GetActiveDgnModel(),
                 LBracketCatalog.CellName,DPoint3d.Zero,DMatrix3d.Identity,parts);
+            SupportModelLevel.Use(replacement);
             var status=replacement.AddToModel();
             if(status!=StatusInt.Success)throw new InvalidOperationException("D7 预览写入失败："+status);
             try{Delete(preview);}catch{Delete(replacement);throw;}

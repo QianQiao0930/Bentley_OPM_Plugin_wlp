@@ -97,7 +97,14 @@ namespace SteelSectionProbe
             if (string.IsNullOrWhiteSpace(pipeNumber))
                 pipeNumber=snapshot.AllProperties.FirstOrDefault(v=>v.Key.StartsWith("OpenPlant",StringComparison.OrdinalIgnoreCase)
                     && v.Key.EndsWith(".LINENUMBER",StringComparison.OrdinalIgnoreCase)).Value;
+            string parentId;
+            snapshot.InstanceIdsByClass.TryGetValue(classKey,out parentId);
             return new ElbowTrunnionSelection { ElementId=id,ClassName=classKey,
+                IsFromReference=modelRef!=null && !ReferenceEquals(model,Session.Instance.GetActiveDgnModel()),
+                IsNativePipingElbow=!duct,
+                NativeParentInstanceId=parentId,
+                NativeModelToken=NativeSupportElements.ActiveModelToken(),
+                SourceUorPerMm=Session.Instance.GetActiveDgnModel().GetModelInfo().UorPerMeter/1000.0,
                 MainDn=mainDn,MainSizeLabel=mainLabel,MainDnNote=dnNote,
                 OutsideDiameterMm=outside,Frame=frame,
                 PipeNumber=pipeNumber };

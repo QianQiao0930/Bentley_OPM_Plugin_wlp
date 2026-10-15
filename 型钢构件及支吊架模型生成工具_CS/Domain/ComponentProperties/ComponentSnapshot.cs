@@ -10,6 +10,7 @@ namespace SteelSectionProbe
         internal string InstanceId;
         internal readonly Dictionary<string, string> Properties = new Dictionary<string, string>();
         internal readonly List<KeyValuePair<string, string>> AllProperties = new List<KeyValuePair<string, string>>();
+        internal readonly Dictionary<string, string> InstanceIdsByClass = new Dictionary<string, string>();
         internal double? StartX, StartY, StartZ, EndX, EndY, EndZ;
         internal double? LengthMm, CenterXmm, CenterYmm, CenterZMm;
         internal double? RangeXmm, RangeYmm, RangeZmm;

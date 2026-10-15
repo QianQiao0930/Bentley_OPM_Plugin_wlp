@@ -1,0 +1,30 @@
+[
+  {
+    "Path": "E:\\CODE\\Bentley_Plugin\\Bentley_OPM_Plugin_wlp\\迁移备份\\支吊架组合绑定_20261015\\before-source.zip",
+    "Hash": "00DE5E943E8C909E2C413E122D5E5C724B054B736290B25A0BA8AB46006FB741"
+  },
+  {
+    "Path": "E:\\CODE\\Bentley_Plugin\\Bentley_OPM_Plugin_wlp\\迁移备份\\支吊架组合绑定_20261015\\net48\\SteelSectionProbe.dll",
+    "Hash": "DD325D47311A9325FA78A25F292E00846063E7DBBACE1B70906ABEB4684904D6"
+  },
+  {
+    "Path": "E:\\CODE\\Bentley_Plugin\\Bentley_OPM_Plugin_wlp\\迁移备份\\支吊架组合绑定_20261015\\net48\\SteelSectionProbe.pdb",
+    "Hash": "470A4D6A2F58200C7DE8102183DF89D650C75A238CD549D75F498B0126CFEE3A"
+  },
+  {
+    "Path": "E:\\CODE\\Bentley_Plugin\\Bentley_OPM_Plugin_wlp\\迁移备份\\支吊架组合绑定_20261015\\net48_full\\SteelSectionProbe.dll",
+    "Hash": "DD325D47311A9325FA78A25F292E00846063E7DBBACE1B70906ABEB4684904D6"
+  },
+  {
+    "Path": "E:\\CODE\\Bentley_Plugin\\Bentley_OPM_Plugin_wlp\\迁移备份\\支吊架组合绑定_20261015\\net48_full\\SteelSectionProbe.pdb",
+    "Hash": "470A4D6A2F58200C7DE8102183DF89D650C75A238CD549D75F498B0126CFEE3A"
+  },
+  {
+    "Path": "E:\\CODE\\Bentley_Plugin\\Bentley_OPM_Plugin_wlp\\迁移备份\\支吊架组合绑定_20261015\\Unlicensed\\SteelSectionProbe.dll",
+    "Hash": "CDCE82E140D1EC7C5983E99D7B41001B0AD44D5B2223D900253DCEC6D66CA42D"
+  },
+  {
+    "Path": "E:\\CODE\\Bentley_Plugin\\Bentley_OPM_Plugin_wlp\\迁移备份\\支吊架组合绑定_20261015\\Unlicensed\\SteelSectionProbe.pdb",
+    "Hash": "8E8DD9729E3FCAA88937AFC97810DE16BC4680251B6E2B8084657F548577D7F6"
+  }
+]

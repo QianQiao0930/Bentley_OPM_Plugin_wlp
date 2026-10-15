@@ -7,7 +7,7 @@ using Bentley.OpenPlant.Modeler.Api;
 
 namespace SteelSectionProbe
 {
-    internal static class Program
+    internal static partial class Program
     {
         private static int checks;
         private static void Check(bool pass,string name){checks++;if(!pass)throw new Exception(name);}
@@ -92,7 +92,7 @@ namespace SteelSectionProbe
                     session.Confirm();
                     Check(session.LastConfirmedNative&&!session.HasPreview,"九类别确认释放所有权 "+kind);
                     Check(World.Elements.Count==2&&World.Displays.Count==0,"只留下父管和一个原生根，无重复预览");
-                    Check(World.Created.Instance.ClassDefinition.Name=="SUPPORT_LOCATION","使用原生支架位置通用符号类");
+                    Check(World.Created.Instance.ClassDefinition.Name=="SSP_PIPE_CLAMP"&&World.Created.IsParametric,"使用正式参数化原生组件类");
                     string code=PipeClampCatalog.Type(kind).Code;
                     Check(World.Created.Instance["NAME"].StringValue.StartsWith("SSPPC-"),"原生实例保留独立自动编号");
                     Check(World.Created.Instance["DESCRIPTION"].StringValue.All(ch=>ch>=32&&ch<=126),"ISO描述无中文缺字");
@@ -100,6 +100,25 @@ namespace SteelSectionProbe
                     var element=World.Find(World.Created.Instance);
                     SameGeometry(expected,element.Geometry);
                     var record=new JavaScriptSerializer().Deserialize<NativePipeSupportRecord>(element.Metadata["Payload"].StringValue);
+                    string json=World.Created.Instance["SSP_RECIPE"].StringValue;
+                    var recipe=NativePipeSupportRecipeCodec.Decode(json);
+                    Check(recipe.Code==code&&recipe.Dn==100&&record.RecipeVersion==1,"持久配方类别/DN/版本正确");
+                    Check(NativePipeSupportRecipeCodec.Encode(recipe)==json,"完整计划含内部字段往返无损 "+kind);
+                    var script=new NativePipeSupportComponent { BMECObject=new ParametricSetupValues { Source=World.Created.Instance } };
+                    script.Setup();Check(script.HostCalls==0&&script.LengthCalls==0,"正式组件构造Setup不提前要求父管");
+                    Reject(()=>script.PrepareGraphics(),"正式组件几何阶段仍拒绝缺失父管");
+                    script.BMECObject.ParentReady=true;script.PrepareGraphics();
+                    Check(script.HostCalls==2&&script.LengthCalls==1,"正式组件绑定后初始化端口与操作长度");
+                    using(var local=NativePipeSupportRecipeGraphics.BuildLocal(script.RecipeForCheck))
+                    {
+                        var edited=World.Created.Transform3d;
+                        edited.Translation.X+=12*scale;edited.Translation.Z-=35*scale;
+                        var moved=local.Geometry.Select(edited.Apply).ToArray();
+                        Check(moved.Length==expected.Length,"原生重生成保留所有子图形");
+                        for(int i=0;i<moved.Length;i++)
+                            Check(Math.Abs(moved[i].X-expected[i].X-12*scale)<1e-5&&Math.Abs(moved[i].Y-expected[i].Y)<1e-5&&Math.Abs(moved[i].Z-expected[i].Z+35*scale)<1e-5,"配方重建服从当前变换且无二次平移");
+                    }
+                    Check(World.Elements.Count==2&&element.MaterialTag==World.Created.Instance["ALIAS"].StringValue,"重生成不另写模型或重复材料记录");
                     Check(record.Code==code&&record.PipeInstanceId==World.Source.InstanceId&&record.SupportInstanceId==World.Created.Instance.InstanceId,"根元素保存可追溯记录");
                     Check(!string.IsNullOrEmpty(element.MaterialTag)&&element.CellName==PipeClampCatalog.Type(kind).CellName,"原材料清单及Cell名称保持");
                     Check(World.Created.Instance["ALIAS"].StringValue==element.MaterialTag&&record.IsoTag==element.MaterialTag,"引注严格等于原材料AssemblyTag，不追加编号");
@@ -117,7 +136,7 @@ namespace SteelSectionProbe
                     session.Cancel();Check(World.Elements.Count==2,"取消不删普通确认件");
                     session=Preview(kind);World.Pipe.IsFromReference=true;session.BindSource(World.Pipe);session.Confirm();
                     Check(!session.LastConfirmedNative&&World.Created==null,"参考来源不伪造活动管关联 "+kind);
-                    foreach(string fault in new[]{"Create","Serialize","Cache","Statistics","Metadata","Relationship","WrongOrigin","Parametric","IsoPointWrite","IsoPointDropped","StateDropped","Transform","DisplayClose","AliasDropped","MarkerDropped","ReadbackAliasDropped"})
+                    foreach(string fault in new[]{"Create","Serialize","Cache","Statistics","Metadata","Relationship","WrongOrigin","Parametric","IsoPointWrite","IsoPointDropped","StateDropped","Transform","DisplayClose","AliasDropped","MarkerDropped","ReadbackAliasDropped","RecipeDropped","ReadbackRecipeDropped"})
                     {
                         session=Preview(kind);World.Fault=fault;BMECApi.Instance.DeferCommits=true;
                         Reject(session.Confirm,"确认失败明确抛错 "+kind+"/"+fault);
@@ -151,7 +170,27 @@ namespace SteelSectionProbe
                 Check(World.Elements.Count==3&&first.InstanceId!=World.Created.Instance.InstanceId,"同编号的两个支架保留独立原生身份");
                 Check(first["NAME"].StringValue!=World.Created.Instance["NAME"].StringValue&&
                     first["ALIAS"].StringValue=="E1-B-107"&&World.Created.Instance["ALIAS"].StringValue=="E1-B-107","同规格重复放置不污染显示编号");
-                Console.WriteLine("PASS: "+checks+" 九类管夹真实会话/共用原生写入/暂态生命周期/单位/关联/失败与撤销检查（API替身，不代替OPM出图实测）。");return 0;
+                var validSession=Preview(PipeClampKind.A1UBolt);validSession.Confirm();
+                string validJson=World.Created.Instance["SSP_RECIPE"].StringValue;
+                Reject(()=>NativePipeSupportRecipeCodec.Decode(validJson.Replace("\"Version\":1","\"Version\":2")),"未知配方版本拒绝");
+                Reject(()=>NativePipeSupportRecipeCodec.Decode(validJson.Replace("\"Version\":1,","")),"配方缺版本拒绝");
+                Reject(()=>NativePipeSupportRecipeCodec.Decode("{\"__type\":\"System.IO.FileInfo\","+validJson.Substring(1)),"外部CLR类型提示拒绝");
+                Reject(()=>NativePipeSupportRecipeCodec.Decode("{\"Unknown\":1,"+validJson.Substring(1)),"配方未知字段拒绝");
+                Reject(()=>NativePipeSupportRecipeCodec.Decode(validJson.Replace("\"Code\":\"A1\"","\"Code\":\"UNKNOWN\"")),"未知配方类别拒绝");
+                Reject(()=>NativePipeSupportRecipeCodec.Decode("null"),"空配方拒绝");
+                Reject(()=>NativePipeSupportRecipeCodec.Decode(new string('X',131073)),"超长配方拒绝");
+                var badRecipe=NativePipeSupportRecipeCodec.Decode(validJson);badRecipe.CenterMm=new[]{0d,1d};
+                Reject(()=>NativePipeSupportRecipeCodec.Encode(badRecipe),"坐标缺失拒绝");
+                badRecipe=NativePipeSupportRecipeCodec.Decode(validJson);badRecipe.Axis=new[]{0d,0d,0d};
+                Reject(()=>NativePipeSupportRecipeCodec.Encode(badRecipe),"零管轴拒绝");
+                badRecipe=NativePipeSupportRecipeCodec.Decode(validJson);badRecipe.A1.Row.OutsideMm=double.NaN;
+                Reject(()=>NativePipeSupportRecipeCodec.Encode(badRecipe),"嵌套尺寸非有限拒绝");
+                badRecipe=NativePipeSupportRecipeCodec.Decode(validJson);badRecipe.K1=new K1LimitPlan{Dn=100};
+                Reject(()=>NativePipeSupportRecipeCodec.Encode(badRecipe),"混入其他类别计划拒绝");
+                badRecipe=NativePipeSupportRecipeCodec.Decode(validJson);badRecipe.A1=null;
+                Reject(()=>NativePipeSupportRecipeCodec.Encode(badRecipe),"当前类别缺计划拒绝");
+                CheckTrunnions();
+                Console.WriteLine("PASS: "+checks+" 管夹及耳轴真实会话/共用原生写入/暂态生命周期/单位/关联/失败与撤销检查（API替身，不代替OPM出图实测）。");return 0;
             }
             catch(Exception e){Console.Error.WriteLine(e);return 1;}
         }

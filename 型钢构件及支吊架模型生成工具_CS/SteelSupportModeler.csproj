@@ -22,6 +22,7 @@
     <Reference Include="Bentley.OpenPlant.Modeler.Interfaces"><HintPath>$(BentleyRoot)\Assemblies\Bentley.OpenPlant.Modeler.Interfaces.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Bentley.OpenPlantModeler.SDK"><HintPath>$(BentleyRoot)\Assemblies\Bentley.OpenPlantModeler.SDK.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Bentley.Building.Mechanical.Components"><HintPath>$(BentleyRoot)\Assemblies\Bentley.Building.Mechanical.Components.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.Building.Mechanical.ComponentLibrary"><HintPath>$(BentleyRoot)\Assemblies\Bentley.Building.Mechanical.ComponentLibrary.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Bentley.ApplicationFramework.Interfaces"><HintPath>$(BentleyRoot)\Assemblies\Bentley.ApplicationFramework.Interfaces.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Bentley.ApplicationFramework.PropertyContainerManager"><HintPath>$(BentleyRoot)\Assemblies\Bentley.ApplicationFramework.PropertyContainerManager.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Bentley.Plant.OpenPlantFramework.Differencing.Transformations"><HintPath>$(BentleyRoot)\Assemblies\Bentley.Plant.OpenPlantFramework.Differencing.Transformations.dll</HintPath><Private>false</Private></Reference>
@@ -81,6 +82,7 @@
     <Compile Remove="Development\LBracketCheck\**\*.cs" />
     <Compile Remove="Development\PortalFrameCheck\**\*.cs" />
     <Compile Remove="Development\TFrameCheck\**\*.cs" />
+    <Compile Remove="Development\SupportBindingCheck\**\*.cs" />
     <Compile Remove="Development\PadPlateCheck\**\*.cs" />
     <Compile Remove="Development\HomeCheck\**\*.cs" />
     <Compile Remove="Development\DockingCheck\**\*.cs" />

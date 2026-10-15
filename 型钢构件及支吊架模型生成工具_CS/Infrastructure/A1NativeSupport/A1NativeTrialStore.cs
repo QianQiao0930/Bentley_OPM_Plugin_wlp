@@ -37,7 +37,8 @@ namespace SteelSectionProbe
             var instance = new CustomItemHost(element, false).GetCustomItem(Library, Type);
             if (instance == null) throw new InvalidOperationException("请选择本次试验命令生成的A1管夹。");
             var record = new JavaScriptSerializer().Deserialize<A1NativeTrialRecord>(instance["Payload"].StringValue);
-            if (record == null || record.Version != 1 || record.NativeClass != "UBOLT_GUIDE"
+            if (record == null || record.Version != 1
+                || record.NativeClass != (record.NativeEditing ? "SSP_A1_NATIVE_TEST" : "UBOLT_GUIDE")
                 || string.IsNullOrWhiteSpace(record.PipeInstanceId) || string.IsNullOrWhiteSpace(record.SupportInstanceId))
                 throw new InvalidOperationException("试验记录缺失或版本不支持。");
             A1NativeTrialCalculator.RequireFinite(record.StationMm);

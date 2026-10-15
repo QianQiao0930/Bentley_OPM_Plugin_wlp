@@ -27,7 +27,7 @@ namespace SteelSectionProbe
     page.SelectionChanged+=selected=>((Button)root.FindName("HomeEnterButton")).IsEnabled=selected;
     page.StatusRequested+=(text,error)=>((TextBlock)root.FindName("StatusText")).Text=text;
     Arrange(root,400,880);
-    Check(((TextBlock)page.FindName("TotalText")).Text=="32","真实模块数量");
+    Check(((TextBlock)page.FindName("TotalText")).Text=="33","真实模块数量");
     Check(((FrameworkElement)page.FindName("HeaderBand")).ActualHeight==159,"原型头部159");
     Check(((FrameworkElement)page.FindName("ToolbarBand")).ActualHeight==131,"原型工具栏131");
     Check(((FrameworkElement)page.FindName("HomeStatsBand")).ActualHeight==47,"原型统计带47");
@@ -103,8 +103,8 @@ namespace SteelSectionProbe
   {
    Click(page,"RecentSort");Arrange(root,400,880);
    var list=(ItemsControl)page.FindName("SortedList");
-   Check(list.Items.Count==32,"最近列表包含全部可用模块");
-   Check(list.Items.Cast<HomeCardItem>().Select(item=>item.PageId).Distinct().Count()==32,"最近列表每模块仅出现一次");
+   Check(list.Items.Count==33,"最近列表包含全部可用模块");
+   Check(list.Items.Cast<HomeCardItem>().Select(item=>item.PageId).Distinct().Count()==33,"最近列表每模块仅出现一次");
    foreach(string name in new[]{"RecentSection","ModelingSection","SupportSection","StatsSection","PlannedSection"})
     Check(((FrameworkElement)page.FindName(name)).Visibility==Visibility.Collapsed,"最近模式隐藏旧分区 "+name);
    var ids=list.Items.Cast<HomeCardItem>().Select(item=>item.PageId).ToArray();
@@ -116,7 +116,7 @@ namespace SteelSectionProbe
    Click(page,"CompactToggle");Arrange(root,400,880);
    Check(list.ItemTemplate==page.FindResource("CompactCardTemplate"),"全局列表支持简约模式");
    Save(root,Path.Combine(output,"home-recent-compact-400-880.png"),400,880);
-   Click(page,"SupportTab");Arrange(root,400,880);Check(list.Items.Count==17,"全局最近尊重显式分类筛选");
+   Click(page,"SupportTab");Arrange(root,400,880);Check(list.Items.Count==18,"全局最近尊重显式分类筛选");
    HomePreferenceFixture.Reload();var restored=new HomePage();
    Check(((ToggleButton)restored.FindName("CompactToggle")).IsChecked==true&&((ToggleButton)restored.FindName("RecentSort")).IsChecked==true&&((ToggleButton)restored.FindName("SupportTab")).IsChecked==true&&((ToggleButton)restored.FindName("PinToggle")).IsChecked==false,"重新创建页面恢复所有开关");
    Click(page,"AllTab");var search=(TextBox)page.FindName("SearchBox");search.Text="Q2";Arrange(root,400,880);Check(list.Items.Count==1,"全局最近支持编号搜索");search.Clear();

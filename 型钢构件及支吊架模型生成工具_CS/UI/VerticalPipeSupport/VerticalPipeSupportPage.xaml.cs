@@ -203,13 +203,13 @@ namespace SteelSectionProbe
                 var center=ShiftAlongAxis(selection,axisOffsetMm);
                 UpdatePositionReadout();
                 preview.Show(plan,new DPoint3d(center[0]*scale,center[1]*scale,center[2]*scale),
-                    new DVector3d(selection.AxisX,selection.AxisY,selection.AxisZ));
+                    new DVector3d(selection.AxisX,selection.AxisY,selection.AxisZ),selection);
                 ConfirmButton.IsEnabled=true;PreviewUpdateHint.Set(UpdateButton,false);
                 PreviewText.Text="预览："+plan.Number+"；"+plan.Specification+
                     (axisOffsetMm!=0?"；沿轴偏移 "+
                         axisOffsetMm.ToString("0.#",CultureInfo.InvariantCulture)+" mm":"")+
                     (string.IsNullOrEmpty(selection.AxisNote)?"":"；"+selection.AxisNote);
-                Status("立管耳轴预览已生成。",false);
+                Status(NativePipeSupportSource.Eligible(selection)?"立管耳轴预览已生成；确认后关联原生管道。":"立管耳轴预览已生成；辅助线/参考来源生成普通构件，不建立ISO关联。",false);
             }
             catch(Exception ex)
             {
@@ -404,7 +404,7 @@ namespace SteelSectionProbe
             {
                 string writeElapsed=WriteDuration.Measure(preview.Confirm);selection=null;UpdatePositionReadout();PreviewUpdateHint.Set(UpdateButton,false);ConfirmButton.IsEnabled=false;
                 sliding=false;axisOffsetMm=0;
-                PreviewText.Text="已确认生成并写入清单；可继续点取下一处。";
+                PreviewText.Text=preview.LastConfirmedNative?"已生成原生关联耳轴并写入清单；可继续点取下一处。":"已生成普通耳轴并写入清单（无ISO关联）；可继续点取下一处。";
                 PreviewText.Text += " 写入耗时 "+writeElapsed+"。";
                 Status("立管耳轴已生成；写入耗时 "+writeElapsed+"。",false);
             }

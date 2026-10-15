@@ -1,5 +1,9 @@
 # A1 原生关联离线检查
 
+2026-10-15初始化时序修复：总计1952项。新链接生产组件真实的A1NativeParametricSetup部分；假BMECObject构造函数在RelatedInstance绑定前执行Setup，Create阶段再执行PrepareGraphics。新增10项检查验证构造期不访问父管/不写长度、反复Setup、自身非法参数不吞、生成期仍拒绝缺失父管、绑定后初始化端口及长度、重生成重读参数。用户已确认首版原生A1可放置/旋转/移动/随管移动；本次只修构造期弹窗，新版宿主效果待复测。
+
+2026-10-15：增加独立参数化A1原生编辑试验的适配器检查，现合计1942项。新增9组模型/Schema单位、CHECKEDIT轴上定位与ISO失步/脱轴/错向、CHECK固定原站位语义、记录兼容以及13类创建故障/回滚/开关恢复。假API只物化新对象，不模拟操作柄或自动跟随。`Check-NativeEditingSchema.ps1`另有30项隔离类安装/备份/幂等/冲突拒绝检查；组件本身依赖真实SDK编译及OPM宿主验证，步骤见[A1原生编辑与随动验证](../../Docs/A1原生编辑与随动验证.md)。
+
 运行：`dotnet run --project Development/A1NativeSupportCheck/A1NativeSupportCheck.csproj -c Release`
 
 检查直接链接生产环境中的试验适配器、JSON ItemType 存储、站位计算和 A1 目录/计算。DGN、EC、原生对象和事务采用 API 替身；生产环境的 unsafe 图形桥接由主工程对真实 OPM SDK 编译验证。链接的领域模型有其他模块专用字段，本检查工程单独忽略 CS0649，不影响主工程警告设置。

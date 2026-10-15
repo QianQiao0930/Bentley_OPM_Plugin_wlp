@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><LangVersion>7.3</LangVersion><NoWarn>CS0649</NoWarn></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Domain/ProfileModels.cs" Link="ProfileModels.cs" />
+    <Compile Include="../../Data/RuntimeData.cs" Link="RuntimeData.cs" />
+    <Compile Include="../../Data/ProfileLookup.cs" Link="ProfileLookup.cs" />
+    <Compile Include="../../Domain/PortalFrame/PortalFrameModels.cs" Link="PortalFrameModels.cs" />
+    <Compile Include="../../Data/PortalFrame/PortalFrameCatalog.cs" Link="PortalFrameCatalog.cs" />
+    <Compile Include="../../Domain/TFrame/TFrameModels.cs" Link="TFrameModels.cs" />
+    <Compile Include="../../Data/TFrame/TFrameCatalog.cs" Link="TFrameCatalog.cs" />
+    <Compile Include="../../Services/TFrame/TFrameCalculator.cs" Link="TFrameCalculator.cs" />
+    <Compile Include="../../Services/TFrame/TFrameSectionAxes.cs" Link="TFrameSectionAxes.cs" />
+    <!-- TFrame 的 G4 地脚复用门型架几何，PortalFrameModels 里的 Plate 字段类型是 G2AnchorPlan，
+         必须与 PortalFrameCheck 一样链接 G2 三件套，否则本检查工程单独编译会报 CS0246。 -->
+    <Compile Include="../../Domain/G2Anchor/G2AnchorModels.cs" Link="G2AnchorModels.cs" />
+    <Compile Include="../../Data/G2Anchor/G2AnchorCatalog.cs" Link="G2AnchorCatalog.cs" />
+    <Compile Include="../../Services/G2Anchor/G2AnchorCalculator.cs" Link="G2AnchorCalculator.cs" />
+    <EmbeddedResource Include="../../Resources/profiles.bin" LogicalName="SteelSectionProbe.profiles.bin" />
+  </ItemGroup>
+</Project>

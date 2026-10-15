@@ -1,10 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net48</TargetFramework><LangVersion>7.3</LangVersion><AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 <!-- Linked production domain models also contain fields used only by other modules. -->
-<NoWarn>$(NoWarn);CS0649</NoWarn></PropertyGroup><ItemGroup>
+<NoWarn>$(NoWarn);CS0649</NoWarn><DefineConstants>$(DefineConstants);A1_NATIVE_SETUP_CHECK</DefineConstants></PropertyGroup><ItemGroup>
 <Reference Include="System.Web.Extensions"/><Reference Include="System.Web"/>
 <Compile Include="../../Domain/A1NativeSupport/*.cs" Link="Domain/%(Filename)%(Extension)"/>
+<Compile Include="../../Domain/NativePipeSupport/NativePipeSupportDefinition.cs" Link="NativePipeSupportDefinition.cs"/>
 <Compile Include="../../Services/A1NativeSupport/*.cs" Link="Services/%(Filename)%(Extension)"/>
 <Compile Include="../../OpenPlant/A1NativeSupport/A1NativeTrialAdapter.cs" Link="A1NativeTrialAdapter.cs"/>
+<Compile Include="../../OpenPlant/A1NativeSupport/A1NativeParametricSetup.cs" Link="A1NativeParametricSetup.cs"/>
 <Compile Include="../../OpenPlant/NativePipeSupport/NativeSupportData.cs" Link="NativeSupportData.cs"/>
 <Compile Include="../../OpenPlant/NativePipeSupport/NativeSupportElements.cs" Link="NativeSupportElements.cs"/>
 <Compile Include="../../OpenPlant/NativePipeSupport/NativePipeSupportWriter.cs" Link="NativePipeSupportWriter.cs"/>

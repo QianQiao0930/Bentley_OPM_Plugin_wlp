@@ -7,6 +7,7 @@ namespace SteelSectionProbe
         public string PipeInstanceId = "", SupportInstanceId = "", NativeClass = "UBOLT_GUIDE", Tag = "";
         public double StationMm, AngleDeg, OriginalLengthMm;
         public int Dn;
+        public bool NativeEditing;
     }
 
     internal sealed class A1NativeTrialPosition

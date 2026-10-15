@@ -55,10 +55,78 @@ namespace SteelSectionProbe
             double[] x, y, z;
             foreach (double value in new[] { origin.X, origin.Y, origin.Z, axis.X, axis.Y, axis.Z }) NativeSupportData.Finite(value);
             PipeClampFrame.Axes(axis.X, axis.Y, axis.Z, out x, out y, out z);
-            placement = new DTransform3d(DMatrix3d.FromColumns(new DVector3d(x[0], x[1], x[2]), new DVector3d(y[0], y[1], y[2]), new DVector3d(z[0], z[1], z[2]))) { Translation = origin };
-            inverse = new DTransform3d(DMatrix3d.FromColumns(new DVector3d(x[0], y[0], z[0]), new DVector3d(x[1], y[1], z[1]), new DVector3d(x[2], y[2], z[2])))
-            { Translation = new DPoint3d(-x[0] * origin.X - x[1] * origin.Y - x[2] * origin.Z,
-                -y[0] * origin.X - y[1] * origin.Y - y[2] * origin.Z, -z[0] * origin.X - z[1] * origin.Y - z[2] * origin.Z) };
+            FromAxes(origin, x, y, z, out placement, out inverse);
+        }
+
+        /// <summary>
+        /// 按配方选择坐标架。立管耳轴用自带 SinglePipeTrunnion 的轴：X=管轴，−Z=耳轴伸出。
+        /// 操作长度和旋转柄沿局部 Z；若把 Z 设成管轴，旋转柄就会落到立管上。
+        /// </summary>
+        internal static void PlacementFrame(NativePipeSupportRecipe recipe, double scale,
+            out DTransform3d placement, out DTransform3d inverse)
+        {
+            if (recipe == null) throw new InvalidOperationException("原生耳轴配方为空。");
+            NativeSupportData.Finite(scale);
+            if (scale <= 0) throw new InvalidOperationException("模型单位无效。");
+            var origin = new DPoint3d(recipe.CenterMm[0] * scale, recipe.CenterMm[1] * scale, recipe.CenterMm[2] * scale);
+            var axis = new DVector3d(recipe.Axis[0], recipe.Axis[1], recipe.Axis[2]);
+            if (recipe.Vertical != null)
+                TrunnionFrame(origin, axis, recipe.Vertical.AzimuthDegrees,
+                    recipe.Vertical.Kind == VerticalPipeSupportKind.F10, out placement, out inverse);
+            else
+                Frame(origin, axis, out placement, out inverse);
+        }
+
+        /// <summary>
+        /// 与自带 SinglePipeTrunnion 相同：圆柱与 LENGTH 落在局部 −Z（耳轴端），
+        /// 点串 direction=−X 沿管轴（滑动）。F6/F7 的 0°=+Y；F10 的 0°=+X。
+        /// </summary>
+        internal static void TrunnionFrame(DPoint3d origin, DVector3d pipeAxis, double azimuthDegrees, bool f10,
+            out DTransform3d placement, out DTransform3d inverse)
+        {
+            foreach (double value in new[] { origin.X, origin.Y, origin.Z, pipeAxis.X, pipeAxis.Y, pipeAxis.Z, azimuthDegrees })
+                NativeSupportData.Finite(value);
+            double length = Math.Sqrt(pipeAxis.X * pipeAxis.X + pipeAxis.Y * pipeAxis.Y + pipeAxis.Z * pipeAxis.Z);
+            if (length <= 1e-12) throw new InvalidOperationException("立管轴线长度无效。");
+            double[] pipe = { pipeAxis.X / length, pipeAxis.Y / length, pipeAxis.Z / length };
+            double radians = azimuthDegrees * Math.PI / 180.0;
+            double refX = f10 ? Math.Cos(radians) : Math.Sin(radians);
+            double refY = f10 ? Math.Sin(radians) : Math.Cos(radians);
+            double dotOut = refX * pipe[0] + refY * pipe[1];
+            double ox = refX - dotOut * pipe[0], oy = refY - dotOut * pipe[1], oz = 0.0 - dotOut * pipe[2];
+            double outLength = Math.Sqrt(ox * ox + oy * oy + oz * oz);
+            if (outLength <= 1e-12) throw new InvalidOperationException("耳轴方位角与管轴平行，无法定位。");
+            // Stock cylinder runs along local -Z and LENGTH reaches that tip.
+            double[] z = { -ox / outLength, -oy / outLength, -oz / outLength };
+            double dot = pipe[0] * z[0] + pipe[1] * z[1] + pipe[2] * z[2];
+            double xx = pipe[0] - dot * z[0], xy = pipe[1] - dot * z[1], xz = pipe[2] - dot * z[2];
+            double xLength = Math.Sqrt(xx * xx + xy * xy + xz * xz);
+            if (xLength <= 1e-12) throw new InvalidOperationException("耳轴坐标架叉积失败。");
+            double[] x = { xx / xLength, xy / xLength, xz / xLength };
+            double[] y = {
+                z[1] * x[2] - z[2] * x[1],
+                z[2] * x[0] - z[0] * x[2],
+                z[0] * x[1] - z[1] * x[0] };
+            double yLength = Math.Sqrt(y[0] * y[0] + y[1] * y[1] + y[2] * y[2]);
+            if (yLength <= 1e-12) throw new InvalidOperationException("耳轴坐标架叉积失败。");
+            y[0] /= yLength; y[1] /= yLength; y[2] /= yLength;
+            FromAxes(origin, x, y, z, out placement, out inverse);
+        }
+
+        private static void FromAxes(DPoint3d origin, double[] x, double[] y, double[] z,
+            out DTransform3d placement, out DTransform3d inverse)
+        {
+            placement = new DTransform3d(DMatrix3d.FromColumns(
+                new DVector3d(x[0], x[1], x[2]), new DVector3d(y[0], y[1], y[2]), new DVector3d(z[0], z[1], z[2])))
+            { Translation = origin };
+            inverse = new DTransform3d(DMatrix3d.FromColumns(
+                new DVector3d(x[0], y[0], z[0]), new DVector3d(x[1], y[1], z[1]), new DVector3d(x[2], y[2], z[2])))
+            {
+                Translation = new DPoint3d(
+                    -x[0] * origin.X - x[1] * origin.Y - x[2] * origin.Z,
+                    -y[0] * origin.X - y[1] * origin.Y - y[2] * origin.Z,
+                    -z[0] * origin.X - z[1] * origin.Y - z[2] * origin.Z)
+            };
         }
     }
 }

@@ -1,0 +1,21 @@
+﻿{
+    "WhenUtc":  "2026-10-15T05:42:27.8201374Z",
+    "Workset":  "CINF_F1263AA",
+    "SchemaDirectory":  "C:\\ProgramData\\Bentley\\OpenPlant 2024\\Configuration\\WorkSpaces\\CINF_International_Projects_Workspace\\WorkSets\\CINF_F1263AA\\Standards\\OpenPlant\\Schemas",
+    "SchemaBackup":  "E:\\CODE\\Bentley_Plugin\\Bentley_OPM_Plugin_wlp\\迁移备份\\耳轴自带类参数化操作柄_20261015\\schema-backup",
+    "MdlappsDll":  "C:\\Program Files\\Bentley\\OpenPlant 2024\\OpenPlantModeler\\mdlapps\\SteelSectionProbe.dll",
+    "DllSHA256":  "1E60C48B36DBEC2D3F87DBA37E4FB715040491C5EC7DC1EB1312A28832F53375",
+    "MVID":  "e779746c-0a26-4c6e-a538-4e921ae677a0",
+    "AssemblyVersion":  "1.0.0.0",
+    "Classes":  [
+                    "SINGLE_PIPE_TRUNNION",
+                    "DOUBLE_PIPE_TRUNNION",
+                    "SIMPLE_ELBOW_SUPPORT"
+                ],
+    "Verified":  [
+                     "SSP_RECIPE",
+                     "CREATION_ATTRIBUTE=NativePipeSupportComponent",
+                     "IE_TAG=this.ALIAS",
+                     "IE_VALUE_MAP preserved"
+                 ]
+}

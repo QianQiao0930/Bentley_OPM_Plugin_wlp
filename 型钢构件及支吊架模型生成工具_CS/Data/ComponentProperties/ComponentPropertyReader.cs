@@ -288,6 +288,7 @@ namespace SteelSectionProbe
                     }
                     string schema = instance.ClassDefinition.Schema.Name;
                     string className = instance.ClassDefinition.Name;
+                    snapshot.InstanceIdsByClass[schema + "." + className] = instance.InstanceId;
                     foreach (var pair in values)
                         snapshot.AllProperties.Add(new KeyValuePair<string, string>(schema + "." + className + "." + pair.Key, pair.Value));
                     int score = schema.StartsWith("OpenPlant", StringComparison.OrdinalIgnoreCase) ? 10 : 0;

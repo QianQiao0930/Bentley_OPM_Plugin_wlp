@@ -16,6 +16,7 @@ namespace SteelSectionProbe
             var parts=N8Builder.Build(next,origin);
             var replacement=new CellHeaderElement(Session.Instance.GetActiveDgnModel(),
                 "N8_CONNECTION_PLATE",DPoint3d.Zero,DMatrix3d.Identity,parts);
+            SupportModelLevel.Use(replacement);
             var status=replacement.AddToModel();
             if(status!=StatusInt.Success)throw new InvalidOperationException("N8 预览写入失败："+status);
             try { Delete(preview); } catch {Delete(replacement);throw;}

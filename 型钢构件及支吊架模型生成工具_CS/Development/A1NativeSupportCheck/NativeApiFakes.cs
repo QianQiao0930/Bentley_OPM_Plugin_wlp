@@ -76,7 +76,7 @@ namespace Bentley.GeometryNET
 {
     internal struct DPoint3d { public double X, Y, Z; public DPoint3d(double x, double y, double z) { X = x; Y = y; Z = z; } public static DPoint3d Zero { get { return new DPoint3d(); } } }
     internal struct DVector3d { public double X, Y, Z; public DVector3d(double x, double y, double z) { X = x; Y = y; Z = z; } }
-    internal struct DMatrix3d { public DVector3d X, Y, Z; public static DMatrix3d Identity { get { return FromColumns(new DVector3d(1, 0, 0), new DVector3d(0, 1, 0), new DVector3d(0, 0, 1)); } } public static DMatrix3d FromColumns(DVector3d x, DVector3d y, DVector3d z) { return new DMatrix3d { X = x, Y = y, Z = z }; } }
+    internal struct DMatrix3d { public DVector3d X, Y, Z; public DVector3d ColumnX { get { return X; } } public static DMatrix3d Identity { get { return FromColumns(new DVector3d(1, 0, 0), new DVector3d(0, 1, 0), new DVector3d(0, 0, 1)); } } public static DMatrix3d FromColumns(DVector3d x, DVector3d y, DVector3d z) { return new DMatrix3d { X = x, Y = y, Z = z }; } }
     internal struct DTransform3d
     {
         public DMatrix3d Matrix; public DPoint3d Translation;
@@ -93,6 +93,7 @@ namespace Bentley.ECObjects.Instance
         internal void Clear() { value = null; }
         public string StringValue { get { if (value is double) throw new InvalidOperationException(); return value as string; } set { this.value = value; } }
         public double DoubleValue { get { return value is double ? (double)value : 0; } set { this.value = value; } }
+        public int IntValue { get { return value is int ? (int)value : 0; } set { this.value = value; } }
     }
     internal sealed class Definition
     {
@@ -100,8 +101,8 @@ namespace Bentley.ECObjects.Instance
         internal bool NominalString;
         public Definition Type { get { return new Definition { Name = Name == "NOMINAL_DIAMETER" && !NominalString ? "double" : "string" }; } }
         public IEnumerable<Definition> Properties(bool includeBase)
-          { return new[] { "NAME", "DEVICE_TYPE_CODE", "NUMBER", "ALIAS", "DESCRIPTION", "SPECIFICATION", "UBOLT_DIAMETER", "UBOLT_LENGTH", "UBOLT_WIDTH", "NOMINAL_DIAMETER", "STATE", "SHOP_FIELD", "SUPPORT_POINT_X", "SUPPORT_POINT_Y", "SUPPORT_POINT_Z" }
-            .Where(n => SteelSectionProbe.World.Fault != "MissingIsoProperty" || n != "SUPPORT_POINT_X").Select(n => new Definition { Name = n,NominalString=Name=="SUPPORT_LOCATION" }); }
+          { return new[] { "NAME", "DEVICE_TYPE_CODE", "NUMBER", "ALIAS", "DESCRIPTION", "SPECIFICATION", "UBOLT_DIAMETER", "UBOLT_LENGTH", "UBOLT_WIDTH", "NOMINAL_DIAMETER", "STATE", "SHOP_FIELD", "SUPPORT_POINT_X", "SUPPORT_POINT_Y", "SUPPORT_POINT_Z", "SSP_A1_DN", "SSP_A1_OPENING", "SSP_RECIPE", "TOTAL_HEIGHT", "SUPPORT_HEIGHT", "SUPPORT_DIAMETER", "BASE_LENGTH" }
+            .Where(n => SteelSectionProbe.World.Fault != "MissingIsoProperty" || n != "SUPPORT_POINT_X").Select(n => new Definition { Name = n,NominalString=Name=="SUPPORT_LOCATION" || Name=="SSP_A1_NATIVE_TEST" || Name=="SSP_PIPE_CLAMP" }); }
     }
     internal sealed class IECInstance
     {
@@ -119,9 +120,25 @@ namespace Bentley.DgnPlatformNET
 {
     internal enum StatusInt { Success, Error }
     internal class DgnModelRef { public static unsafe void* GetNativeDgnModelRefP(DgnModelRef model, bool allowNull) { return (void*)((DgnModel)model).Handle; } }
-    internal sealed class DgnModel : DgnModelRef { public bool Is3d = true; public int Handle = 1; public double Scale = 1000; public ModelInfo GetModelInfo() { return new ModelInfo { UorPerMeter = Scale * 1000 }; } }
+    internal sealed class DgnModel : DgnModelRef { public bool Is3d = true; public int Handle = 1; public double Scale = 1000; public DgnFile File = new DgnFile(); public ModelInfo GetModelInfo() { return new ModelInfo { UorPerMeter = Scale * 1000 }; } public DgnFile GetDgnFile() { return File; } }
     internal sealed class TransformInfo { public DTransform3d Transform; public TransformInfo(DTransform3d transform){Transform=transform;} }
     internal sealed class ModelInfo { public double UorPerMeter; }
+    internal struct LevelId { internal uint Value; public static explicit operator uint(LevelId id) { return id.Value; } }
+    internal struct LevelHandle { internal bool IsValid; internal LevelId LevelId; }
+    internal class LevelCache { }
+    internal sealed class FileLevelCache : LevelCache
+    {
+        internal LevelHandle Existing;
+        public LevelHandle GetLevelByName(string name) { return Existing.IsValid ? Existing : new LevelHandle(); }
+        public LevelHandle CreateLevel(string name) { Existing = new LevelHandle { IsValid = true, LevelId = new LevelId { Value = 8 } }; return Existing; }
+    }
+    internal sealed class DgnFile { internal FileLevelCache Cache = new FileLevelCache(); public LevelCache GetLevelCache() { return Cache; } }
+    internal sealed class ElementPropertiesSetter : System.IDisposable
+    {
+        public void SetLevel(LevelId level) { }
+        public bool Apply(Elements.Element element) { return true; }
+        public void Dispose() { }
+    }
     internal static class TransactionManager
     {
         public static bool IsUndoInProgress, IsActive;
@@ -188,6 +205,7 @@ namespace Bentley.DgnPlatformNET.Elements
 }
 namespace Bentley.MstnPlatformNET
 {
+    internal static class SettingsActivator { public static void SetActiveLevel(uint levelId) { } }
     internal sealed class Session { public static Session Instance = new Session(); public DgnModel Model = new DgnModel(); public DgnModel GetActiveDgnModel() { return Model; } public object GetActiveDgnFile() { return this; } }
 }
 namespace Bentley.OpenPlant.Modeler.Api
@@ -196,7 +214,78 @@ namespace Bentley.OpenPlant.Modeler.Api
     {
         internal bool Disposed;
         public IECInstance Instance, RelatedInstance;
-        public BMECObject(IECInstance instance, bool nonParametric) { Instance = instance; }
+#if A1_NATIVE_SETUP_CHECK
+        private SteelSectionProbe.A1NativeParametricComponent component;
+#endif
+#if PIPE_CLAMP_NATIVE_CHECK
+        private SteelSectionProbe.NativePipeSupportComponent nativeComponent;
+#endif
+        public BMECObject(IECInstance instance, bool nonParametric)
+        {
+            Instance = instance; Instance.Parametric = !nonParametric;
+#if A1_NATIVE_SETUP_CHECK
+            if (!nonParametric && instance.ClassDefinition.Name == "SSP_A1_NATIVE_TEST")
+            {
+                component = new SteelSectionProbe.A1NativeParametricComponent {
+                    BMECObject = new SteelSectionProbe.ParametricSetupValues { Source = instance, ParentReady = false } };
+                // The host's actual Init callback occurs here, not after RelatedInstance is assigned.
+                component.Setup();
+            }
+#endif
+#if PIPE_CLAMP_NATIVE_CHECK
+            if (!nonParametric && (instance.ClassDefinition.Name == "SSP_PIPE_CLAMP" || instance.ClassDefinition.Name == "SSP_TRUNNION"
+                || instance.ClassDefinition.Name == "SINGLE_PIPE_TRUNNION" || instance.ClassDefinition.Name == "DOUBLE_PIPE_TRUNNION"
+                || instance.ClassDefinition.Name == "SIMPLE_ELBOW_SUPPORT"))
+            {
+                nativeComponent = new SteelSectionProbe.NativePipeSupportComponent {
+                    BMECObject = new SteelSectionProbe.ParametricSetupValues { Source = instance, ParentReady = false } };
+                nativeComponent.Setup();
+            }
+#endif
+        }
+        // Only models creation/persistence. No simulated native manipulation or automatic following.
+        public int Create()
+        {
+            SteelSectionProbe.World.Created = this;
+            if (SteelSectionProbe.World.Fault == "Create") return 1;
+#if A1_NATIVE_SETUP_CHECK
+            if (component != null)
+            {
+                component.BMECObject.ParentReady = RelatedInstance != null;
+                component.PrepareGraphics();
+            }
+#endif
+            if (BMECApi.Instance.IsPersistentId(Instance.InstanceId)) return 0;
+#if PIPE_CLAMP_NATIVE_CHECK
+            if (nativeComponent != null)
+            {
+                nativeComponent.BMECObject.ParentReady = RelatedInstance != null;
+                nativeComponent.PrepareGraphics();
+            }
+#endif
+            Instance.Parent = SteelSectionProbe.World.Fault == "Relationship" ? null : RelatedInstance;
+            if (SteelSectionProbe.World.Fault == "Parametric") Instance.Parametric = false;
+            if (SteelSectionProbe.World.Fault == "WrongOrigin")
+            {
+                var shifted = Transform3d; shifted.Translation.X += 10000; Transform3d = shifted;
+            }
+            if (!BMECApi.Instance.DeferCommits)
+            {
+                Instance.InstanceId = "trial-" + Guid.NewGuid().ToString("N");
+                var element = new Element { ElementId = SteelSectionProbe.World.Next++, Model = Bentley.MstnPlatformNET.Session.Instance.Model, Instance = Instance };
+#if PIPE_CLAMP_NATIVE_CHECK
+                if (nativeComponent != null)
+                    using (var local = SteelSectionProbe.NativePipeSupportRecipeGraphics.BuildLocal(nativeComponent.RecipeForCheck))
+                    {
+                        element.Geometry = local.Geometry.Select(Transform3d.Apply).ToArray();
+                        element.CellName = local.CellName;
+                    }
+#endif
+                SteelSectionProbe.World.Elements[element.ElementId] = element;
+                SteelSectionProbe.World.Instances[Instance.InstanceId] = Instance;
+            }
+            return 0;
+        }
         public bool IsValid { get { return !Disposed; } }
         public bool IsParametric { get { return Instance.Parametric; } }
         public DTransform3d Transform3d { get { return Instance.Transform; } set { Instance.Transform = value; } }
@@ -209,7 +298,7 @@ namespace Bentley.OpenPlant.Modeler.Api
         public void Dispose() { Disposed = true; }
     }
     internal sealed class BMECInstanceManager
-    { public static BMECInstanceManager Instance = new BMECInstanceManager(); public IECInstance CreateECInstance(string type, bool defaults) { return new IECInstance(type, "mechanical"); } }
+    { public static BMECInstanceManager Instance = new BMECInstanceManager(); public IECInstance CreateECInstance(string type, bool defaults) { return SteelSectionProbe.World.Fault=="SchemaMissing" ? null : new IECInstance(type, "mechanical"); } }
     internal sealed class BMECObjectWriter
     {
         private readonly BMECObject support;
@@ -217,10 +306,13 @@ namespace Bentley.OpenPlant.Modeler.Api
         public bool Serialize()
         {
             // Match the active SUPPORT.NAME expression instead of letting a handwritten NAME appear stable.
-            if (support.Instance.ClassDefinition.Name == "SUPPORT_LOCATION")
+            if (support.Instance.ClassDefinition.Name == "SUPPORT_LOCATION" || support.Instance.ClassDefinition.Name == "SSP_PIPE_CLAMP" || support.Instance.ClassDefinition.Name == "SSP_TRUNNION"
+                || support.Instance.ClassDefinition.Name == "SINGLE_PIPE_TRUNNION" || support.Instance.ClassDefinition.Name == "DOUBLE_PIPE_TRUNNION"
+                || support.Instance.ClassDefinition.Name == "SIMPLE_ELBOW_SUPPORT")
                 support.Instance["NAME"].StringValue = support.Instance["DEVICE_TYPE_CODE"].StringValue + "-" + WorldNumber(support);
             if (SteelSectionProbe.World.Fault == "AliasDropped") support.Instance["ALIAS"].Clear();
             if (SteelSectionProbe.World.Fault == "MarkerDropped") support.Instance["DEVICE_TYPE_CODE"].StringValue = "SP";
+            if (SteelSectionProbe.World.Fault == "RecipeDropped") support.Instance["SSP_RECIPE"].Clear();
             if (SteelSectionProbe.World.Fault == "IsoPointDropped") support.Instance["SUPPORT_POINT_X"].DoubleValue = 0;
             if (SteelSectionProbe.World.Fault == "StateDropped") support.Instance["STATE"].Clear();
             return SteelSectionProbe.World.Fault != "Serialize";
@@ -263,6 +355,7 @@ namespace SteelSectionProbe.PipeAlignment
         public static Acquired Acquire(string id, IECInstance instance) {
             var found=BMECApi.Instance.ObjectCache.FindByInstanceId(id);
             if(SteelSectionProbe.World.Fault=="ReadbackAliasDropped"&&found!=null)found.Instance["ALIAS"].Clear();
+            if(SteelSectionProbe.World.Fault=="ReadbackRecipeDropped"&&found!=null)found.Instance["SSP_RECIPE"].Clear();
             return new Acquired { Object = found };
         }
     }

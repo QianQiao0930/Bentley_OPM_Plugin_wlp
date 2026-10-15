@@ -39,7 +39,7 @@ namespace SteelSectionProbe
             double value = support.GetDoubleValueInMM(name); Finite(value); return value;
         }
 
-        internal static void Validate(BMECObject support, string parentId, double[] pointMm, double uorPerMm, Action<string> log)
+        internal static void Validate(BMECObject support, string parentId, double[] pointMm, double uorPerMm, Action<string> log, bool parametric = false)
         {
             var parents = BMECApi.Instance.GetRelatedInstances(support.Instance, "DEVICE_HAS_SUPPORT", false, true);
             if (parents == null || parents.Count != 1 || parents[0].InstanceId != parentId)
@@ -50,7 +50,7 @@ namespace SteelSectionProbe
             for (int i = 0; i < 3; i++) isoErrorSquared += Math.Pow(ReadCoordinate(support, "SUPPORT_POINT_" + "XYZ"[i]) - pointMm[i], 2);
             double isoError = Math.Sqrt(isoErrorSquared); Finite(modelError); Finite(isoError);
             if (modelError > 1 || isoError > 1) throw new InvalidOperationException("支吊架三维/ISO支撑点与目标管轴位置不一致。");
-            if (support.IsParametric) throw new InvalidOperationException("原生组件未保留自定义支吊架外形。");
+            if (support.IsParametric != parametric) throw new InvalidOperationException("原生组件图形类型与本次创建方式不一致。");
             if (support.Instance["STATE"].IsNull || support.Instance["STATE"].StringValue != "Design"
                 || support.Instance["SHOP_FIELD"].IsNull || support.Instance["SHOP_FIELD"].StringValue != "SHOP")
                 throw new InvalidOperationException("支吊架Design/SHOP出图状态未保存。");

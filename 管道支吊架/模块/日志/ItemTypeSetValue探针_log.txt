@@ -1,0 +1,5 @@
+=== ItemType SetValue probe start ===
+probe library ready: ItemTypeSetValueProbe / ProbeInstanceValue
+host element 1 created
+RESULT: ApplyCustomItem 返回 None，无法做实例赋值。
+cleanup library skipped: AttributeError("type object 'MSPyDgnPlatform.ItemTypeLibrary' has no attribute 'DeleteLibrary'")

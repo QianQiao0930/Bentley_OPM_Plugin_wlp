@@ -16,6 +16,7 @@ namespace SteelSectionProbe
             var parts=TriangleBracketBuilder.Build(next,line);
             var replacement=new CellHeaderElement(Session.Instance.GetActiveDgnModel(),
                 next.CellName,DPoint3d.Zero,DMatrix3d.Identity,parts);
+            SupportModelLevel.Use(replacement);
             var status=replacement.AddToModel();
             if(status!=StatusInt.Success)throw new InvalidOperationException("三角架预览写入失败："+status);
             try{Delete(preview);}catch{Delete(replacement);throw;}

@@ -1,0 +1,14 @@
+[
+  {
+    "Path": "bin/Release/net48/SteelSectionProbe.dll",
+    "SHA256": "DD325D47311A9325FA78A25F292E00846063E7DBBACE1B70906ABEB4684904D6"
+  },
+  {
+    "Path": "bin/Release/net48_full/SteelSectionProbe.dll",
+    "SHA256": "DD325D47311A9325FA78A25F292E00846063E7DBBACE1B70906ABEB4684904D6"
+  },
+  {
+    "Path": "bin/Release/Unlicensed/SteelSectionProbe.dll",
+    "SHA256": "CDCE82E140D1EC7C5983E99D7B41001B0AD44D5B2223D900253DCEC6D66CA42D"
+  }
+]

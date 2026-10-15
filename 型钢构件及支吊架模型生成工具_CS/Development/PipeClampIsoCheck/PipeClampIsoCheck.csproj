@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-<PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net48</TargetFramework><LangVersion>7.3</LangVersion><AllowUnsafeBlocks>true</AllowUnsafeBlocks><NoWarn>$(NoWarn);0649</NoWarn></PropertyGroup>
+<PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net48</TargetFramework><LangVersion>7.3</LangVersion><AllowUnsafeBlocks>true</AllowUnsafeBlocks><NoWarn>$(NoWarn);0649</NoWarn><DefineConstants>$(DefineConstants);PIPE_CLAMP_NATIVE_CHECK</DefineConstants></PropertyGroup>
 <ItemGroup><Reference Include="System.Web.Extensions"/><Reference Include="System.Web"/></ItemGroup>
 <ItemGroup><Compile Include="../../Domain/ProfileModels.cs" Link="ProfileModels.cs" />
 <Compile Include="../../Data/RuntimeData.cs" Link="RuntimeData.cs" />
@@ -36,6 +36,10 @@
 <Compile Include="../../Domain/G2Anchor/G2AnchorModels.cs" Link="G2AnchorModels.cs" />
 <Compile Include="../../Data/G2Anchor/G2AnchorCatalog.cs" Link="G2AnchorCatalog.cs" />
 <Compile Include="../A1NativeSupportCheck/NativeApiFakes.cs" Link="NativeApiFakes.cs"/>
+<Compile Include="../A1NativeSupportCheck/ParametricSetupFakes.cs" Link="ParametricSetupFakes.cs"/>
+<Compile Include="../../Services/NativePipeSupport/NativePipeSupportRecipeCodec.cs" Link="NativePipeSupportRecipeCodec.cs"/>
+<Compile Include="../../OpenPlant/NativePipeSupport/NativePipeSupportRecipeGraphics.cs" Link="NativePipeSupportRecipeGraphics.cs"/>
+<Compile Include="../../OpenPlant/NativePipeSupport/NativePipeSupportComponentSetup.cs" Link="NativePipeSupportComponentSetup.cs"/>
 <Compile Include="../../Domain/PipeClamp/PipeClampSelection.cs" Link="PipeClampSelection.cs"/>
 <Compile Include="../../Domain/NativePipeSupport/*.cs" Link="Domain/%(Filename)%(Extension)"/>
 <Compile Include="../../OpenPlant/NativePipeSupport/NativeSupportData.cs" Link="NativeSupportData.cs"/>
@@ -43,10 +47,22 @@
 <Compile Include="../../OpenPlant/NativePipeSupport/NativePipeSupportWriter.cs" Link="NativePipeSupportWriter.cs"/>
 <Compile Include="../../OpenPlant/NativePipeSupport/NativePipeSupportSource.cs" Link="NativePipeSupportSource.cs"/>
 <Compile Include="../../Infrastructure/NativePipeSupport/NativePipeSupportStore.cs" Link="NativePipeSupportStore.cs"/>
+<Compile Include="../../Services/SupportModelLevel.cs" Link="SupportModelLevel.cs"/>
 <Compile Include="../../Tools/PipeClamp/PipeClampPreviewSession.cs" Link="PipeClampPreviewSession.cs"/>
 <Compile Include="../../Tools/PipeClamp/PipeClampTransientPreview.cs" Link="PipeClampTransientPreview.cs"/>
 <Compile Include="../../UI/PipeClamp/PipeClampLastChoice.cs" Link="PipeClampLastChoice.cs"/>
 <Compile Include="../../Services/PipeClamp/PipeClampFrame.cs" Link="PipeClampFrame.cs"/>
+<Compile Include="../../Domain/VerticalPipeSupport/VerticalPipeSupportModels.cs" Link="VerticalPipeSupportModels.cs"/>
+<Compile Include="../../Domain/ElbowTrunnion/ElbowTrunnionModels.cs" Link="ElbowTrunnionModels.cs"/>
+<Compile Include="../../Data/VerticalPipeSupport/VerticalPipeSupportCatalog.cs" Link="VerticalPipeSupportCatalog.cs"/>
+<Compile Include="../../Services/VerticalPipeSupport/VerticalPipeSupportCalculator.cs" Link="VerticalPipeSupportCalculator.cs"/>
+<Compile Include="../../Data/ElbowTrunnion/ElbowTrunnionCatalog.cs" Link="ElbowTrunnionCatalog.cs"/>
+<Compile Include="../../Services/ElbowTrunnion/ElbowTrunnionCalculator.cs" Link="ElbowTrunnionCalculator.cs"/>
+<Compile Include="../../Tools/VerticalPipeSupport/VerticalPipeSupportPreviewSession.cs" Link="VerticalPipeSupportPreviewSession.cs"/>
+<Compile Include="../../Tools/ElbowTrunnion/ElbowTrunnionPreviewSession.cs" Link="ElbowTrunnionPreviewSession.cs"/>
+<Compile Include="../../Tools/Trunnion/TrunnionPreviewSession.cs" Link="TrunnionPreviewSession.cs"/>
+<Compile Include="../../OpenPlant/NativePipeSupport/NativeTrunnionSource.cs" Link="NativeTrunnionSource.cs"/>
+<Compile Include="../../OpenPlant/NativePipeSupport/NativeTrunnionPlacement.cs" Link="NativeTrunnionPlacement.cs"/>
 </ItemGroup>
 <ItemGroup><EmbeddedResource Include="../../Resources/profiles.bin" LogicalName="SteelSectionProbe.profiles.bin"/></ItemGroup>
 </Project>

@@ -440,7 +440,7 @@
       }
     ],
     "bindings": [],
-    "businessSha256": "a5ae816ddcfe605792beeefc1b5e099a338c2d6f9db7a323ae4351aa2f04f451"
+    "businessSha256": "884d9034631ab20ad6538187779ac5b39a6b627d35733319588337a4aafd9ce6"
   },
   "G2Anchor/G2AnchorPage.xaml": {
     "class": "G2AnchorPage",
@@ -601,7 +601,7 @@
     },
     "choices": [],
     "bindings": [],
-    "businessSha256": "27850c58c1a7a262b7f1afd6e6d52b812ff0a600422bfe18262958677f4cd129"
+    "businessSha256": "94e59692a5a344ad403a2f98b99126ec1ad1de54af3ff9650f0b20f085c3fd5e"
   },
   "ColdRiserGuide/ColdRiserGuidePage.xaml": {
     "class": "ColdRiserGuidePage",

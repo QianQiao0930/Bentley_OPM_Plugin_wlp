@@ -1,0 +1,62 @@
+C:\ProgramData\Bentley\OpenPlant 2024\Configuration\WorkSpaces\CINF_International_Projects_Workspace\WorkSets\CINF_F1263AA\Standards\OpenPlant\Schemas\OpenPlant_3D.01.08.ecschema.xml
+<ECClass typeName="SSP_PIPE_CLAMP" isDomainClass="True" displayLabel="Pipe Clamp" xmlns="http://www.bentley.com/schemas/Bentley.ECXML.2.0"><BaseClass>SUPPORT_LOCATION</BaseClass><ECProperty propertyName="SSP_RECIPE" typeName="string" /></ECClass>
+C:\ProgramData\Bentley\OpenPlant 2024\Configuration\WorkSpaces\CINF_International_Projects_Workspace\WorkSets\CINF_F1263AA\Standards\OpenPlant\Schemas\OpenPlant_3D_Supplemental_Modeling.01.08.ecschema.xml
+<ECClass typeName="SSP_PIPE_CLAMP" isDomainClass="False" xmlns="http://www.bentley.com/schemas/Bentley.ECXML.2.0"><ECCustomAttributes><CREATION_ATTRIBUTE xmlns="OpenPlant_CustomAttributes.08.11">
+                <ASSEMBLY_NAME>SteelSectionProbe</ASSEMBLY_NAME>
+                <CLASS_NAME>NativePipeSupportComponent</CLASS_NAME>
+                <NAMESPACE>SteelSectionProbe</NAMESPACE>
+                <PLACEMENT_TOOL>PipeSupportPlacementTool</PLACEMENT_TOOL>
+                <HANDLER_TYPE>Support</HANDLER_TYPE>
+                <DIAGRAM_CELL_NAME>Support_Location</DIAGRAM_CELL_NAME>
+                <CELL_LIBRARY>SupportPreview.cel</CELL_LIBRARY>
+            </CREATION_ATTRIBUTE></ECCustomAttributes></ECClass>
+C:\ProgramData\Bentley\OpenPlant 2024\Configuration\WorkSpaces\CINF_International_Projects_Workspace\WorkSets\CINF_F1263AA\Standards\OpenPlant\Schemas\OpenPlant_3D_Supplemental_Isometrics_Isoextractor.01.08.ecschema.xml
+<ECClass typeName="SSP_PIPE_CLAMP" isDomainClass="False" xmlns="http://www.bentley.com/schemas/Bentley.ECXML.2.0"><ECCustomAttributes><BOM_LABELS xmlns="OpenPlant_IsoExtractor_Custom_Attributes.01.08">
+                <ECX_IE_SPEC>this.SPECIFICATION</ECX_IE_SPEC>
+                <OTH_ATTRIBUTES>
+                    <BOM_ATTR_STRUCT>
+                        <NAME>UUID</NAME>
+                        <ECX_VALUE>this.GUID</ECX_VALUE>
+                    </BOM_ATTR_STRUCT>
+                    <BOM_ATTR_STRUCT>
+                        <NAME>DSTATE</NAME>
+                        <ECX_VALUE>this.DESIGN_STATE</ECX_VALUE>
+                    </BOM_ATTR_STRUCT>
+                    <BOM_ATTR_STRUCT>
+                        <NAME>IE_CODE</NAME>
+                        <ECX_VALUE>this.CODE</ECX_VALUE>
+                    </BOM_ATTR_STRUCT>
+                    <BOM_ATTR_STRUCT>
+                        <NAME>IE_CMP_NAME</NAME>
+                        <ECX_VALUE>"IE_CMP_NAME"</ECX_VALUE>
+                    </BOM_ATTR_STRUCT>
+                    <BOM_ATTR_STRUCT>
+                        <NAME>IE_FIELD_EXT</NAME>
+                        <ECX_VALUE>IIf(IM.Match (IM.GetValue("SHOP_FIELD","SHOP"),"FIELD","2",""),2,1)</ECX_VALUE>
+                    </BOM_ATTR_STRUCT>
+                    <BOM_ATTR_STRUCT>
+                        <NAME>COMP_STATE</NAME>
+                        <ECX_VALUE>this.STATE</ECX_VALUE>
+                    </BOM_ATTR_STRUCT>
+                    <BOM_ATTR_STRUCT>
+                        <NAME>IE_EXISTING</NAME>
+                        <ECX_VALUE>IIf(IM.Match (this.STATE,"EXISTING", "FOR_DEMOLITION", ""),1,0)</ECX_VALUE>
+                    </BOM_ATTR_STRUCT>
+                    <BOM_ATTR_STRUCT>
+                        <NAME>EC_CLASS</NAME>
+                        <ECX_VALUE>this.GetClass().Name</ECX_VALUE>
+                    </BOM_ATTR_STRUCT>
+                    <BOM_ATTR_STRUCT>
+                        <NAME>IE_TAG</NAME>
+                        <ECX_VALUE>this.ALIAS</ECX_VALUE>
+                    </BOM_ATTR_STRUCT>
+                    <BOM_ATTR_STRUCT>
+                        <NAME>IE_DESCRIPT</NAME>
+                        <ECX_VALUE>IM.GetValue("DESCRIPTION",IM.GetValue("NAME","NODESC"))</ECX_VALUE>
+                    </BOM_ATTR_STRUCT>
+                    <BOM_ATTR_STRUCT>
+                        <NAME>IE_SPEC</NAME>
+                        <ECX_VALUE>this.SPECIFICATION</ECX_VALUE>
+                    </BOM_ATTR_STRUCT>
+                </OTH_ATTRIBUTES>
+            </BOM_LABELS></ECCustomAttributes></ECClass>

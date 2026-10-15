@@ -1,0 +1,20 @@
+﻿[
+    {
+        "BeforeSHA256":  "B526FA78461834A8BEC7DB8FCE9ADDC647976A4CDFC3633B584DBBA6A3E84978",
+        "Backup":  "E:\\CODE\\Bentley_Plugin\\Bentley_OPM_Plugin_wlp\\迁移备份\\耳轴自带类参数化操作柄_20261015\\schema-backup\\OpenPlant_3D.01.08.ecschema.xml.b4d13f989adf4403a4f86cacfbbf7a4e.bak",
+        "AfterSHA256":  "7BC40CF069AF8A87839C8A73B9B8EB19C957D9BDE0B83F3923781F196FDF970D",
+        "Schema":  "C:\\ProgramData\\Bentley\\OpenPlant 2024\\Configuration\\WorkSpaces\\CINF_International_Projects_Workspace\\WorkSets\\CINF_F1263AA\\Standards\\OpenPlant\\Schemas\\OpenPlant_3D.01.08.ecschema.xml"
+    },
+    {
+        "BeforeSHA256":  "1A8C484D64761430BF2B493E8DEA524A5E1F1C1EB8D731E6FC2731E12C969BEE",
+        "Backup":  "E:\\CODE\\Bentley_Plugin\\Bentley_OPM_Plugin_wlp\\迁移备份\\耳轴自带类参数化操作柄_20261015\\schema-backup\\OpenPlant_3D_Supplemental_Modeling.01.08.ecschema.xml.ee1803d9efc043b9a66ce75d4733f727.bak",
+        "AfterSHA256":  "03CF6276854D56850DC5E7018893CCB5A2BF50056672708CC9652B100B132C1A",
+        "Schema":  "C:\\ProgramData\\Bentley\\OpenPlant 2024\\Configuration\\WorkSpaces\\CINF_International_Projects_Workspace\\WorkSets\\CINF_F1263AA\\Standards\\OpenPlant\\Schemas\\OpenPlant_3D_Supplemental_Modeling.01.08.ecschema.xml"
+    },
+    {
+        "BeforeSHA256":  "CD34BE41E3354AF3DC387CE62CFF2BDDDF9CE02540CB550E4B04D2C8B1450CD8",
+        "Backup":  "E:\\CODE\\Bentley_Plugin\\Bentley_OPM_Plugin_wlp\\迁移备份\\耳轴自带类参数化操作柄_20261015\\schema-backup\\OpenPlant_3D_Supplemental_Isometrics_Isoextractor.01.08.ecschema.xml.44ac0522ce394b58bfc2d39d57d05a27.bak",
+        "AfterSHA256":  "DDE1340732BA4DA3D03E772396307D408369D78BE9CAD5DB628E651616D2693F",
+        "Schema":  "C:\\ProgramData\\Bentley\\OpenPlant 2024\\Configuration\\WorkSpaces\\CINF_International_Projects_Workspace\\WorkSets\\CINF_F1263AA\\Standards\\OpenPlant\\Schemas\\OpenPlant_3D_Supplemental_Isometrics_Isoextractor.01.08.ecschema.xml"
+    }
+]

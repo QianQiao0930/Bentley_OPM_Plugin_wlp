@@ -8,7 +8,7 @@ namespace SteelSectionProbe
     {
         internal static void Run(Action<Action<string>> work)
         {
-            var log = new StringBuilder(DateTimeOffset.Now.ToString("o") + " 管夹原生ISO确认\r\n");
+            var log = new StringBuilder(DateTimeOffset.Now.ToString("o") + " 支吊架原生ISO确认\r\n");
             log.AppendLine("DLL=" + typeof(NativeSupportLog).Assembly.Location + "；MVID=" + typeof(NativeSupportLog).Assembly.ManifestModule.ModuleVersionId);
             try { work(text => log.AppendLine(text)); }
             catch (Exception ex) { log.AppendLine(ex.ToString()); throw; }

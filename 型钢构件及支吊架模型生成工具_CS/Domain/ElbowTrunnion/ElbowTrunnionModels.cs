@@ -55,6 +55,10 @@ namespace SteelSectionProbe
         internal int MainDn;
         internal double OutsideDiameterMm;
         internal ElbowFrame Frame;
+        internal bool IsFromReference, IsNativePipingElbow;
+        internal string NativeParentInstanceId;
+        internal long NativeModelToken;
+        internal double SourceUorPerMm;
     }
 
     internal sealed class ElbowTrunnionPlan

@@ -308,7 +308,8 @@ namespace SteelSectionProbe
             PlanText.Text=plan.AssemblyTag+"\n耳轴 DN"+plan.TrunnionDn+
                 " · 外径 "+plan.TrunnionOdMm.ToString("G",CultureInfo.InvariantCulture)+
                 " mm · 壁厚 "+plan.WallMm.ToString("G",CultureInfo.InvariantCulture)+
-                " mm · 管长 "+plan.TubeLengthMm.ToString("F1",CultureInfo.InvariantCulture)+" mm";
+                " mm · 管长 "+plan.TubeLengthMm.ToString("F1",CultureInfo.InvariantCulture)+" mm"+
+                (NativeTrunnionSource.Eligible(plan.Selection)?"\n确认后关联原生弯头。":"\n参考/风管来源生成普通构件，不建立ISO关联。");
         }
         private void Confirm_Click(object sender,RoutedEventArgs e)
         {
@@ -323,7 +324,7 @@ namespace SteelSectionProbe
                 string writeElapsed=WriteDuration.Measure(preview.Confirm);
                 selection=null;PreviewUpdateHint.Set(UpdateButton,false);
                 ConfirmButton.IsEnabled=false;
-                SelectionText.Text="已生成 "+number;
+                SelectionText.Text="已生成 "+number+(preview.LastConfirmedNative?"（原生弯头关联）":"（普通构件，无ISO关联）");
                 LiveLengthText.Text="";
                 PlanText.Text="";
                 SelectionText.Text += " 写入耗时 "+writeElapsed+"。";

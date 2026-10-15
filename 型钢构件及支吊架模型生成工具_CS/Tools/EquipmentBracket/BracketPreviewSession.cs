@@ -17,6 +17,7 @@ namespace SteelSectionProbe
             var replacement=new CellHeaderElement(Session.Instance.GetActiveDgnModel(),
                 next.Double?"N4_DOUBLE_BRACKET":"N3_SINGLE_BRACKET",
                 DPoint3d.Zero,DMatrix3d.Identity,parts);
+            SupportModelLevel.Use(replacement);
             var status=replacement.AddToModel();
             if(status!=StatusInt.Success)throw new InvalidOperationException("三角架预览写入失败："+status);
             try{Delete(preview);}catch{Delete(replacement);throw;}

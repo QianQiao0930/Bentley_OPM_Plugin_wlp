@@ -16,11 +16,20 @@ namespace SteelSectionProbe
 
         internal static void Create(IECInstance instance, IECInstance pipe, DTransform3d placement,
             double[] pointMm, Func<Element> graphicsFactory, Action<BMECObject, Element> attach,
-            Action complete, Action<string> log, Action<BMECObject> validateReadback = null)
+            Action complete, Action<string> log, Action<BMECObject> validateReadback = null, bool parametric = false,
+            string parentClassName = "PIPE")
         {
             if (!LicenseService.IsActivated) throw new InvalidOperationException("请先激活软件。");
             if (TransactionManager.IsUndoInProgress) throw new InvalidOperationException("正在撤销/重做，请稍后再试。");
-            if (instance == null || pipe == null || pipe.ClassDefinition.Name != "PIPE") throw new InvalidOperationException("原生支吊架需要真实直管。");
+            // 现有直管调用仍默认严格PIPE；弯头入口先重读/验证，再显式传入其实际类名。
+            if (instance == null || pipe == null || string.IsNullOrEmpty(parentClassName)
+                || pipe.ClassDefinition.Name != parentClassName) throw new InvalidOperationException("原生支吊架父构件类型不一致。");
+            bool elbowParentAllowed = NativePipeSupportDefinition.IsStockElbowTrunnionClass(instance.ClassDefinition.Name)
+                || (parametric && instance.ClassDefinition.Name == NativePipeSupportDefinition.TrunnionClass);
+            if (parentClassName != "PIPE" && (!elbowParentAllowed
+                || parentClassName.IndexOf("ELBOW", StringComparison.OrdinalIgnoreCase) < 0
+                || parentClassName.IndexOf("HVAC", StringComparison.OrdinalIgnoreCase) >= 0))
+                throw new InvalidOperationException("非直管关联仅用于已验证的管道弯头原生耳轴。");
             using (var source = NativeSupportElements.Get(pipe, true)) { }
             double scale = Session.Instance.GetActiveDgnModel().GetModelInfo().UorPerMeter / 1000.0;
             NativeSupportData.Finite(scale);
@@ -38,10 +47,9 @@ namespace SteelSectionProbe
             try
             {
                 api.DeferCommits = false;
-                support = new BMECObject(instance, true);
+                support = new BMECObject(instance, !parametric);
                 support.RelatedInstance = pipe;
-                using (var graphics = graphicsFactory())
-                    NativeSupportGraphics.Create(support, graphics, placement, log, () =>
+                Action finish = () =>
                     {
                         log("原生实例=" + support.Instance.InstanceId);
                         if (!api.IsPersistentId(support.Instance.InstanceId)) throw new InvalidOperationException("原生实例仍未持久化。");
@@ -60,11 +68,22 @@ namespace SteelSectionProbe
                         {
                             if (readback.Object == null || !readback.Object.IsValid) throw new InvalidOperationException("无法重读原生支吊架。");
                             if (readback.Object.Instance.InstanceId != support.Instance.InstanceId) throw new InvalidOperationException("重读的原生支吊架身份不一致。");
-                            NativeSupportData.Validate(readback.Object, pipe.InstanceId, pointMm, scale, log);
+                            NativeSupportData.Validate(readback.Object, pipe.InstanceId, pointMm, scale, log, parametric);
                             validateReadback?.Invoke(readback.Object);
                         }
                         complete();
-                    });
+                    };
+                if (parametric)
+                {
+                    support.Transform3d = placement;
+                    int status = support.Create();
+                    log("阶段=原生组件Create；返回=" + status + "；实例=" + support.Instance.InstanceId);
+                    if (status != 0) throw new InvalidOperationException("原生组件Create失败：" + status);
+                    if (!new BMECObjectWriter(support).Serialize()) throw new InvalidOperationException("原生组件位置写入失败。");
+                    finish();
+                }
+                else using (var graphics = graphicsFactory())
+                    NativeSupportGraphics.Create(support, graphics, placement, log, finish);
                 TransactionManager.CloseCurrentTransaction(true);
             }
             catch (Exception error)

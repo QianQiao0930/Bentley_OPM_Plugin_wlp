@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using System.Windows.Forms.Integration;
 using Bentley.MstnPlatformNET.WinForms;
@@ -17,6 +18,8 @@ namespace SteelSectionProbe
 
         private const string PanelId = "SteelSectionProbe.Workspace";
         private WindowContent panel;
+        private Timer floatingChromeTimer;
+        private Form floatingChromeHost;
         private bool panelOpen;
         private bool workspaceDisposed;
         internal static MainWindow Current;
@@ -74,6 +77,8 @@ namespace SteelSectionProbe
                 panel.CanDockInCenter = true;
                 panel.CanAutoHide = true;
                 panel.Closeable = true;
+                // 浮动后若没有边框，窗口没有可拖动的标题栏，会停在拉出时的位置。
+                panel.FormBorderStyle = FormBorderStyle.Sizable;
                 panel.MinimumSize = MinimumSize;
                 panel.ContentCloseQuery += Panel_CloseQuery;
             }
@@ -83,6 +88,13 @@ namespace SteelSectionProbe
                 panelOpen = true;
             }
             panel.Show();
+            EnsureFloatingChrome();
+            if (floatingChromeTimer == null)
+            {
+                floatingChromeTimer = new Timer { Interval = 400 };
+                floatingChromeTimer.Tick += delegate { EnsureFloatingChrome(); };
+            }
+            floatingChromeTimer.Start();
             UpdateMinimumSize();
             if (panel.Unpinned) panel.AutoHideExpand();
             panel.Zone.SetFocus();
@@ -96,6 +108,7 @@ namespace SteelSectionProbe
             {
                 if (panelOpen) workspace.OnPanelHidden();
                 panelOpen = false;
+                if (floatingChromeTimer != null) floatingChromeTimer.Stop();
                 e.CloseAction = action;
             }
             catch (Exception ex)
@@ -111,6 +124,7 @@ namespace SteelSectionProbe
             try
             {
                 workspace.OnPanelHidden();
+                if (floatingChromeTimer != null) floatingChromeTimer.Stop();
                 panel.Hide();
                 panelOpen = false;
             }
@@ -121,7 +135,45 @@ namespace SteelSectionProbe
         }
 
         // Retained for existing page event handlers. Native caption owns these actions.
-        internal void BeginTitleDrag() { }
+        internal void BeginTitleDrag()
+        {
+            Form host = panel == null ? null : panel.FloatingHostForm;
+            if (host == null || host.IsDisposed || !host.IsHandleCreated) return;
+            EnsureFloatingChrome();
+            // 只移动 Bentley 的浮动宿主，内容仍留在停靠区里，才能再拖回边缘停靠。
+            ReleaseCapture();
+            SendMessage(host.Handle, 0xA1, (IntPtr)2, IntPtr.Zero);
+        }
+
+        private void EnsureFloatingChrome()
+        {
+            Form host = panel == null ? null : panel.FloatingHostForm;
+            if (host == null || host.IsDisposed)
+            {
+                floatingChromeHost = null;
+                return;
+            }
+            if (!ReferenceEquals(floatingChromeHost, host))
+            {
+                if (floatingChromeHost != null) floatingChromeHost.FormClosing -= FloatingHost_FormClosing;
+                floatingChromeHost = host;
+                host.FormClosing += FloatingHost_FormClosing;
+            }
+            host.ShowInTaskbar = false;
+            host.Text = Text;
+            if (host.FormBorderStyle != FormBorderStyle.Sizable)
+                host.FormBorderStyle = FormBorderStyle.Sizable;
+            host.ControlBox = true;
+            host.MinimizeBox = true;
+            host.MaximizeBox = true;
+        }
+
+        private void FloatingHost_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            if (e.CloseReason != CloseReason.UserClosing) return;
+            e.Cancel = true;
+            Close();
+        }
         internal void MinimizeFromHome() { if (panel != null) panel.AutoHideUnpin(); }
 
         internal void ShowActivationPage()
@@ -218,5 +270,10 @@ namespace SteelSectionProbe
                 elementHost.Child = null;
             }
         }
+
+        [DllImport("user32.dll")]
+        private static extern bool ReleaseCapture();
+        [DllImport("user32.dll")]
+        private static extern IntPtr SendMessage(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam);
     }
 }
