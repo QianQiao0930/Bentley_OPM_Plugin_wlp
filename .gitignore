@@ -12,3 +12,14 @@ debug_log.txt
 
 # WorkBuddy 会话记忆（工具工作笔记，不入库）
 .workbuddy/
+
+# 迁移备份目录（本地历史快照，不入库）
+迁移备份/
+
+# 误生成的注册表导出目录（脚本在仓库根目录执行产生，不入库）
+Directory/
+HKEY_CLASSES_ROOT/
+
+# 选型/状态缓存（本地运行时状态，不入库）
+last_selection.json
+*_上次选型.json

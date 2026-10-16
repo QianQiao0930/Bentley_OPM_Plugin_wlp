@@ -1,4 +1,0 @@
-A1NativeParametricComponent.Create3DElements: 统一样式调用=0；共用Create存在
-NativeParametricSupportGraphics.Create: 统一样式调用=0；SetGraphicsType存在
-NativePipeSupportComponent.Create3DElements: 统一样式调用=0；共用Create存在
-MVID=e673daa7-9018-4f2f-ad97-5c82e6f7b733
