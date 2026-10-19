@@ -2,6 +2,10 @@
 
 当前版本：V1.0.0（程序集/文件版本1.0.0.0；唯一来源App/AssemblyInfo.cs，首页及作者页自动读取）。
 
+2026-10-17直线点取区固定精简：LineCoordinatesPage将SelectionCard移出ParameterScroll，位于顶部Auto行，坐标/快速对齐在中间滚动，底部OperationCard保持固定。点取区约72 DIP，第一行标题与点取/结束按钮，第二行只读选择状态与毫米/模型XYZ单位；原说明移至悬停提示，长选择状态单行显示、悬停查看全文。具名控件、默认值、事件及业务源码保持。ToolPagesUiCheck 201项（新增点取区高度和滚动固定检查）、LineCoordinatesCheck 93项通过，授权/无授权Release均0警告0错误，常规/备用DLL同步；OPM宿主尚未实测。改前源码/原型/DLL/PDB及SHA256位于仓库迁移备份/直线点取区固定精简_20261017。
+
+2026-10-17墙面爬梯参数双列：WallLadderPage五个填写框按原顺序从左到右、从上到下排布，梯宽/距墙、最低横担离地/支架间距各一行，方向角在第三行左侧；两列等宽、间距10，同行标题和输入分别共享Auto行，标题换行不影响输入对齐，护笼勾选保持整行。仅调整XAML布局，原字段/默认值/事件及业务源码保持。ModelingUiCheck 406项、WallLadderCheck 12372项通过；授权/无授权Release均0警告0错误，常规/备用DLL已同步。OPM宿主界面尚未实测。改前源码/原型/DLL/PDB与SHA256位于仓库迁移备份/墙面爬梯双列布局_20261017，源码基线7eb5679。
+
 2026-10-15直线坐标显示与快速对齐措辞：坐标框改为显示2位小数（LineCoordinateCalculator.Display，0.##）；应用修改时未编辑字段沿用精确值——字段文本与显示值逐字一致即视为未改动，避免只改一项时把其余五项舍入；G17的Format保留供往返精度与检查使用。四个正交按钮改为按结果分组的措辞（竖直线·两端X/Y对齐 / 水平线·两端Z对齐，各「终点贴起点」「起点贴终点」），「对齐到管道…」改「贴合到管道底标高…」；控件名、事件与只填草稿的行为不变。LineCoordinatesCheck 93项、ToolPagesUiCheck 199项通过；授权Release 0警告0错误。宿主显示与真实写回仍需OPM实测。
 
 2026-10-15支吊架Schema安装合并为单实现：Deployment/Install-NativeSupportEditing.ps1 现在是唯一的 Schema 修改实现（`-Features All|Trunnion|PipeClamp`），一次遍历三份 schema、共用一份备份/替换/回滚/收据，写入自带耳轴三类（SSP_RECIPE/参数化组件/IE_TAG=ALIAS）与正式管夹隔离类 SSP_PIPE_CLAMP。原 Install-NativeSupportSchema.ps1、Install-TrunnionStockParametric.ps1、Install-TrunnionNativeEditing.ps1、Install-PipeClampNativeEditing.ps1、Install-TrunnionStockIsoTag.ps1 已删除（含旧 -Mode Trunnion 隔离类方案）；离线检查直接调用本脚本并显式传 -Features。默认只读预览，关OPM后 -Apply，写前SHA256备份、部分失败回滚、重复幂等。工作集 CINF_F1263AA 实测两套类均已就位；旧的无配方耳轴件与非参数化管夹件须删除后重放。备份/收据在 迁移备份/耳轴Schema安装_20261015 与 迁移备份/管夹Schema安装_20261015。

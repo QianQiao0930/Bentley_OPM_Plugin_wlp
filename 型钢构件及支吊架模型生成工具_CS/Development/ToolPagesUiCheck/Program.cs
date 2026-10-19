@@ -43,8 +43,11 @@ namespace SteelSectionProbe
                     if(page is LineCoordinatesPage)
                     {
                         var operation=(FrameworkElement)page.FindName("OperationCard");var before=operation.TranslatePoint(new Point(),root);
+                        var selection=(FrameworkElement)page.FindName("SelectionCard");var selectionBefore=selection.TranslatePoint(new Point(),root);
+                        Check(selection.ActualHeight<=76,"直线点取区紧凑高度");
                         ((ScrollViewer)page.FindName("ParameterScroll")).ScrollToEnd();Arrange(root);
                         Check(operation.TranslatePoint(new Point(),root)==before,"直线坐标操作区不随参数滚动");
+                        Check(selection.TranslatePoint(new Point(),root)==selectionBefore,"直线点取区不随参数滚动");
                         foreach(var box in Children<TextBox>(page).Where(b=>b.Name.EndsWith("Text")&&b.Name!="SelectionText"))Check(box.ActualHeight>=34&&box.ActualWidth>120,"坐标输入高度/宽度(两列) "+box.Name);
                     }
                 }

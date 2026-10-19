@@ -10,23 +10,24 @@
         <Grid.RowDefinitions><RowDefinition Height="95"/><RowDefinition Height="*"/></Grid.RowDefinitions>
         <local:PrototypeChrome Title="直线坐标修改" Code="XYZ" Caption="HOME / 查询 / 直线端点坐标" Icon="M3,19 L19,3 M1,17 H5 V21 H1 Z M17,1 H21 V5 H17 Z"/>
         <Grid Grid.Row="1" Margin="16,12,10,12">
-            <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-            <ScrollViewer x:Name="ParameterScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,6,0">
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <Border x:Name="SelectionCard" Style="{StaticResource CardStyle}" Padding="10,8" Margin="0,0,6,8">
                 <StackPanel>
-                    <Border Style="{StaticResource CardStyle}" Padding="0">
-                        <StackPanel>
-                            <Border Height="35" BorderBrush="#E8EDF2" BorderThickness="0,0,0,1" Padding="12,0"><TextBlock Text="01 /  点取直线" Style="{StaticResource SectionTitleStyle}" Margin="0" VerticalAlignment="Center"/></Border>
-                            <StackPanel Margin="12">
-                                <TextBlock Text="点取一条直线段，读取起点和终点的 XYZ 坐标。" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                                <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/></Grid.ColumnDefinitions>
-                                    <Button x:Name="PickButton" Content="点取直线" Style="{StaticResource PrimaryButtonStyle}" Click="Pick_Click" Margin="0"/>
-                                    <Button x:Name="StopButton" Grid.Column="2" Content="结束点取" Style="{StaticResource SecondaryButtonStyle}" Click="Stop_Click" Margin="0" IsEnabled="False"/>
-                                </Grid>
-                                <TextBox x:Name="SelectionText" Text="尚未点取直线" IsReadOnly="True" BorderThickness="0" Background="Transparent" TextWrapping="Wrap" Margin="0,8,0,0" Padding="0" MinHeight="24"/>
-                                <TextBlock Text="坐标单位：毫米（mm）· 模型 XYZ" FontSize="11" Foreground="#5B6B7B" Margin="0,6,0,0"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </Border>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="8"/><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <TextBlock Text="01 / 点取直线" Style="{StaticResource SectionTitleStyle}" FontSize="12" Margin="0" VerticalAlignment="Center" ToolTip="点取一条直线段，读取起点和终点的 XYZ 坐标。"/>
+                        <Button x:Name="PickButton" Grid.Column="2" Content="点取直线" Style="{StaticResource PrimaryButtonStyle}" Click="Pick_Click" Height="32" Margin="0" ToolTip="点取一条直线段，读取起点和终点的 XYZ 坐标。"/>
+                        <Button x:Name="StopButton" Grid.Column="4" Content="结束点取" Style="{StaticResource SecondaryButtonStyle}" Click="Stop_Click" Height="32" Margin="0" IsEnabled="False"/>
+                    </Grid>
+                    <Grid Margin="0,4,0,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBox x:Name="SelectionText" Text="尚未点取直线" IsReadOnly="True" BorderThickness="0" Background="Transparent" TextWrapping="NoWrap" Padding="0" MinHeight="18" Height="18" FontSize="11" ToolTip="{Binding Text,RelativeSource={RelativeSource Self}}"/>
+                        <TextBlock Grid.Column="2" Text="毫米（mm）· 模型 XYZ" FontSize="10.5" Foreground="#5B6B7B" VerticalAlignment="Center"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+            <ScrollViewer x:Name="ParameterScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,6,0">
+                <StackPanel>
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/></Grid.ColumnDefinitions>
                         <Border Style="{StaticResource CardStyle}" Padding="0">
@@ -75,7 +76,7 @@
                     </Border>
                 </StackPanel>
             </ScrollViewer>
-            <Border x:Name="OperationCard" Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,6,6,0">
+            <Border x:Name="OperationCard" Grid.Row="2" Style="{StaticResource CardStyle}" Margin="0,6,6,0">
                 <StackPanel>
                     <TextBlock x:Name="LengthText" Text="线段长度：—" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,8"/>
                     <TextBlock x:Name="EditStateText" Text="点取后可编辑；点击应用修改才会写入原线段。" FontSize="11" Foreground="#5B6B7B" TextWrapping="Wrap" Margin="0,0,0,10"/>

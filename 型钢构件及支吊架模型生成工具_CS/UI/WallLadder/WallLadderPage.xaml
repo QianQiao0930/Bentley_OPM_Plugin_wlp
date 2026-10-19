@@ -18,16 +18,24 @@
                                 <TextBlock Text="点取一条竖直线：表示墙面与爬梯中心投影。低端为地面，高端为平台；线高不超过6000 mm。" Margin="0,0,0,10"/>
                                 <TextBlock Text="攀爬高度（由辅助线读取）" FontWeight="SemiBold" Margin="0,0,0,5"/>
                                 <TextBlock x:Name="HeightText" Text="尚未选择竖直线"/>
-                                <TextBlock Text="立柱中心距 / 梯宽（mm）" FontWeight="SemiBold" Margin="0,10,0,5"/>
-                                <TextBox x:Name="WidthText" Text="400" TextChanged="Parameter_Changed" Style="{StaticResource ModelInput}"/>
-                                <TextBlock Text="立柱中心距墙（mm）" FontWeight="SemiBold" Margin="0,10,0,5"/>
-                                <TextBox x:Name="StandoffText" Text="220" TextChanged="Parameter_Changed" Style="{StaticResource ModelInput}"/>
-                                <TextBlock Text="最低横担离地（mm）" FontWeight="SemiBold" Margin="0,10,0,5"/>
-                                <TextBox x:Name="FirstRungText" Text="400" TextChanged="Parameter_Changed" Style="{StaticResource ModelInput}"/>
-                                <TextBlock Text="中间支架间距（mm）" FontWeight="SemiBold" Margin="0,10,0,5"/>
-                                <TextBox x:Name="BracketSpacingText" Text="1500" TextChanged="Parameter_Changed" Style="{StaticResource ModelInput}"/>
-                                <TextBlock Text="出梯方向角（°）" FontWeight="SemiBold" Margin="0,10,0,5"/>
-                                <TextBox x:Name="HeadingText" Text="0" TextChanged="Parameter_Changed" Style="{StaticResource ModelInput}"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Text="立柱中心距 / 梯宽（mm）" FontWeight="SemiBold" Margin="0,10,0,5"/>
+                                    <TextBox Grid.Row="1" x:Name="WidthText" Text="400" TextChanged="Parameter_Changed" Style="{StaticResource ModelInput}"/>
+                                    <TextBlock Grid.Column="2" Text="立柱中心距墙（mm）" FontWeight="SemiBold" Margin="0,10,0,5"/>
+                                    <TextBox Grid.Row="1" Grid.Column="2" x:Name="StandoffText" Text="220" TextChanged="Parameter_Changed" Style="{StaticResource ModelInput}"/>
+                                    <TextBlock Grid.Row="2" Text="最低横担离地（mm）" FontWeight="SemiBold" Margin="0,10,0,5"/>
+                                    <TextBox Grid.Row="3" x:Name="FirstRungText" Text="400" TextChanged="Parameter_Changed" Style="{StaticResource ModelInput}"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="2" Text="中间支架间距（mm）" FontWeight="SemiBold" Margin="0,10,0,5"/>
+                                    <TextBox Grid.Row="3" Grid.Column="2" x:Name="BracketSpacingText" Text="1500" TextChanged="Parameter_Changed" Style="{StaticResource ModelInput}"/>
+                                    <TextBlock Grid.Row="4" Text="出梯方向角（°）" FontWeight="SemiBold" Margin="0,10,0,5"/>
+                                    <TextBox Grid.Row="5" x:Name="HeadingText" Text="0" TextChanged="Parameter_Changed" Style="{StaticResource ModelInput}"/>
+                                </Grid>
                                 <CheckBox x:Name="CageCheck" Content="生成防护笼及顶部倒L拉结" IsChecked="True" Checked="Parameter_Changed" Unchecked="Parameter_Changed" Margin="0,12,0,0" Style="{StaticResource ModelCheck}"/>
                                 <TextBlock Text="0°向 +X，90°向 +Y。爬梯与护笼分别封装为普通模型块；原辅助线保持。" Margin="0,8,0,0"/>
                             </StackPanel>
