@@ -53,19 +53,27 @@ namespace SteelSectionProbe
 
             // 1. 先判定，再把通过判定的设备交给写入层。
             var equipmentIds = new List<ulong>();
+            var reasons = new List<string>();
             int rejected = 0;
             foreach (var pair in selections)
             {
                 EquipmentLevelEntry entry = EquipmentLevelReader.Classify(pair.Model, pair.Id);
                 EquipmentLevelLog.Write("判定 " + pair.Id + "（" + entry.Name + "）：" + entry.Verdict +
                     (string.IsNullOrEmpty(entry.Reason) ? "" : " / " + entry.Reason));
-                if (entry.Verdict == EquipmentLevelVerdict.Equipment) equipmentIds.Add(pair.Id);
-                else rejected++;
+                if (entry.Verdict == EquipmentLevelVerdict.Equipment)
+                {
+                    equipmentIds.Add(pair.Id);
+                }
+                else
+                {
+                    rejected++;
+                    reasons.Add(pair.Id + "：" + (string.IsNullOrEmpty(entry.Reason) ? entry.Verdict.ToString() : entry.Reason));
+                }
             }
 
             if (equipmentIds.Count == 0)
             {
-                SetStatus("选中的 " + rejected + " 个元素都不是设备（需要 ElementType = Equipment 的普通单元），未做修改。");
+                SetStatus("未修改。判定结果：" + JoinReasons(reasons));
                 return;
             }
 
@@ -130,6 +138,16 @@ namespace SteelSectionProbe
         {
             try { MessageCenter.Instance.StatusMessage = text; }
             catch { /* 状态栏写不进去不影响结果。 */ }
+        }
+
+        /// <summary>把判定原因拼成一句话；最多列三条，其余写进日志。</summary>
+        private static string JoinReasons(List<string> reasons)
+        {
+            if (reasons.Count == 0) return "没有判定结果。";
+            int take = reasons.Count > 3 ? 3 : reasons.Count;
+            var text = string.Join("；", reasons.GetRange(0, take).ToArray());
+            if (reasons.Count > take) text += "；另有 " + (reasons.Count - take) + " 个见日志";
+            return text;
         }
     }
 }

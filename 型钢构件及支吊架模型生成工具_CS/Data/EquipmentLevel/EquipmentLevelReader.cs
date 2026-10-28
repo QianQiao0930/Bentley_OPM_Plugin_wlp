@@ -70,37 +70,38 @@ namespace SteelSectionProbe
                 return entry;
             }
 
-            CellHeaderElement cell = element as CellHeaderElement;
-            if (cell == null)
-            {
-                entry.Verdict = EquipmentLevelVerdict.NotACell;
-                entry.Reason = "不是单元（" + SafeTypeName(element) + "）";
-                return entry;
-            }
-            if (!cell.IsNormalCell)
-            {
-                entry.Verdict = EquipmentLevelVerdict.UnsupportedCell;
-                entry.Reason = "是共享单元或参数化单元，本版本不处理";
-                return entry;
-            }
-
+            // 先按 EC 判据认设备：ElementType = Equipment。
+            // 这一步不依赖单元的子类，避免普通单元被包装成 Type2Element 之类时被误拒。
             bool isEquipment;
-            string error;
+            string ecDetail;
             try
             {
-                isEquipment = HasEquipmentElementType(element, out error);
+                isEquipment = HasEquipmentElementType(element, out ecDetail);
             }
             catch (Exception ex)
             {
                 isEquipment = false;
-                error = ex.Message;
+                ecDetail = "读取 EC 异常：" + ex.Message;
             }
             if (!isEquipment)
             {
                 entry.Verdict = EquipmentLevelVerdict.NotEquipment;
-                entry.Reason = string.IsNullOrEmpty(error)
-                    ? "EC 属性 ElementType 不是 Equipment"
-                    : "读取 EC 属性失败：" + error;
+                entry.Reason = string.IsNullOrEmpty(ecDetail) ? "EC 属性 ElementType 不是 Equipment" : ecDetail;
+                return entry;
+            }
+
+            // 是设备，再确认它是"可以安全改子元素的普通单元"。
+            CellHeaderElement cell = element as CellHeaderElement;
+            if (cell == null && !(element is Type2Element))
+            {
+                entry.Verdict = EquipmentLevelVerdict.NotACell;
+                entry.Reason = "有设备属性，但不是单元（" + SafeTypeName(element) + "）";
+                return entry;
+            }
+            if (cell != null && !cell.IsNormalCell)
+            {
+                entry.Verdict = EquipmentLevelVerdict.UnsupportedCell;
+                entry.Reason = "是共享单元或参数化单元，本版本不处理";
                 return entry;
             }
 
@@ -108,10 +109,19 @@ namespace SteelSectionProbe
             return entry;
         }
 
-        /// <summary>判断元素上是否存在 ElementType=Equipment 的 EC 属性。</summary>
-        internal static bool HasEquipmentElementType(Element element, out string error)
+        /// <summary>
+        /// 判断元素上是否存在 <c>ElementType = Equipment</c> 的 EC 属性。
+        /// <para>
+        /// 按<b>属性名</b>匹配再取值，而不是直接写访问字符串：
+        /// <c>DgnElementSchema.NormalCellElement.ElementType</c> 可能是继承来的属性，
+        /// 直接 <c>instance["ElementType"]</c> 不一定取得到；这里遍历
+        /// <c>ClassDefinition.Properties(true)</c>（含继承）逐个比对。
+        /// </para>
+        /// </summary>
+        internal static bool HasEquipmentElementType(Element element, out string detail)
         {
-            error = null;
+            detail = null;
+            var found = new List<string>();
             var scope = FindInstancesScope.CreateScope(element, new FindInstancesScopeOption(DgnECHostType.Element));
             var query = new ECQuery();
             query.SelectClause.SelectAllProperties = true;
@@ -120,11 +130,36 @@ namespace SteelSectionProbe
             {
                 foreach (IDgnECInstance instance in instances)
                 {
-                    string value = ReadTextProperty(instance, ElementTypeProperty);
-                    if (value == null) continue;
-                    if (value.Trim().Equals(EquipmentValue, StringComparison.OrdinalIgnoreCase)) return true;
+                    string className;
+                    try { className = instance.ClassDefinition.Name; }
+                    catch { className = "未知类"; }
+                    found.Add(className);
+
+                    try
+                    {
+                        foreach (var property in instance.ClassDefinition.Properties(true))
+                        {
+                            string name = property.Name;
+                            if (name == null) continue;
+                            // 本体名就是 ElementType，或继承访问串以 ".ElementType" 结尾，两者都认。
+                            if (!name.Equals(ElementTypeProperty, StringComparison.OrdinalIgnoreCase) &&
+                                !name.EndsWith("." + ElementTypeProperty, StringComparison.OrdinalIgnoreCase)) continue;
+                            string value = ReadTextProperty(instance, name);
+                            if (value == null) continue;
+                            if (!value.Trim().Equals(EquipmentValue, StringComparison.OrdinalIgnoreCase)) continue;
+                            detail = "ElementType = " + value.Trim() + "（类 " + className + "）";
+                            return true;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        EquipmentLevelLog.Write("读取 EC 属性失败（类 " + className + "）：" + ex.Message);
+                    }
                 }
             }
+            detail = found.Count == 0
+                ? "元素上没有找到任何 EC 实例"
+                : "已找到的 EC 类：" + string.Join("、", found.ToArray()) + "，都不含 ElementType = Equipment";
             return false;
         }
 
