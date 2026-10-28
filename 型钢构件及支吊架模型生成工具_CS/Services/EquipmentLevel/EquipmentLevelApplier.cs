@@ -62,6 +62,23 @@ namespace SteelSectionProbe
                     continue;
                 }
                 var all = tree.Descendants(element);
+                // 设备本体的几何是模型里的独立元素，不在依赖树里，只能按"完全落在设备范围内"补进来。
+                var extras = tree.ElementsInsideRange(element);
+                if (extras.Count > 0)
+                {
+                    var seen = new HashSet<ulong>();
+                    foreach (var known in all) seen.Add(SafeId(known));
+                    int added = 0;
+                    foreach (var extra in extras)
+                    {
+                        ulong extraId = SafeId(extra);
+                        if (extraId == 0 || seen.Contains(extraId)) continue;
+                        seen.Add(extraId);
+                        all.Add(extra);
+                        added++;
+                    }
+                    EquipmentLevelLog.Write("范围补集：新增 " + added + " 个设备本体图元，图元总数 " + all.Count);
+                }
                 if (all.Count == 0)
                 {
                     AddProblem(report.Problems, "设备 " + rawId + " 取不到图形图元（" + tree.Diagnose(element) + "），跳过");

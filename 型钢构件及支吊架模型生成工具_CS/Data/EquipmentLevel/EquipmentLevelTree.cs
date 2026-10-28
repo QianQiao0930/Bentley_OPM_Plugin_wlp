@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using Bentley.DgnPlatformNET;
 using Bentley.DgnPlatformNET.Elements;
+using Bentley.GeometryNET;
 
 namespace SteelSectionProbe
 {
@@ -143,9 +144,91 @@ namespace SteelSectionProbe
         }
 
         /// <summary>
-        /// 把整棵图元树写进独立日志（id / 深度 / 类型 / 图层 / 子元素数 / 描述）。
-        /// 用来核对"程序摸到的图元"与"模型里实际存在的图元"是否一致。
+        /// 设备范围内、但不在依赖树里的图形元素。
+        /// <para>
+        /// OpenPlant 把设备本体（筒体、圆环、轮廓线等）存成<b>模型里的独立元素</b>，
+        /// 既不挂 <c>ParentElement</c>，也不在 <c>GetDependants()</c> 里 —— 顺着任何父子/依赖
+        /// 通道都摸不到，只能按空间范围归属：<b>完全落在设备范围内</b>的图形元素才算它的。
+        /// 只按"完全包含"判定，穿过设备包围盒的邻管不会被误改。
+        /// </para>
         /// </summary>
+        internal List<Element> ElementsInsideRange(Element root)
+        {
+            var result = new List<Element>();
+            DRange3d box;
+            if (!TryRange(root, out box))
+            {
+                EquipmentLevelLog.Write("范围补集：取不到设备范围，跳过");
+                return result;
+            }
+            long rootId = (long)SafeId(root);
+            int scanned = 0;
+            int inside = 0;
+            try
+            {
+                var enumerable = model.GetGraphicElements() as IEnumerable;
+                if (enumerable == null) return result;
+                foreach (object item in enumerable)
+                {
+                    var element = item as Element;
+                    if (element == null || !element.IsValid) continue;
+                    scanned++;
+                    if ((long)SafeId(element) == rootId) continue;
+                    DRange3d range;
+                    if (!TryRange(element, out range)) continue;
+                    if (!IsInside(range, box)) continue;
+                    result.Add(element);
+                    inside++;
+                }
+            }
+            catch (Exception ex)
+            {
+                EquipmentLevelLog.Write("范围补集失败：" + ex.Message);
+            }
+            EquipmentLevelLog.Write("范围补集：扫描 " + scanned + " 个图形元素，完全落在设备范围内 " + inside + " 个");
+            return result;
+        }
+
+        /// <summary>取元素范围（UOR）：优先几何曲线，取不到再退回 COM 包围盒。</summary>
+        private bool TryRange(Element element, out DRange3d range)
+        {
+            range = DRange3d.NullRange;
+            try
+            {
+                var curves = CurvePathQuery.ElementToCurveVector(element);
+                if (curves != null && curves.GetRange(out range) && range.High.X >= range.Low.X) return true;
+            }
+            catch { }
+            try
+            {
+                var app = Bentley.MstnPlatformNET.InteropServices.Utilities.ComApp;
+                var com = app.ActiveModelReference.GetElementByID64(checked((long)SafeId(element)));
+                if (com == null) return false;
+                var comRange = com.Range;
+                if (comRange.High.X < comRange.Low.X) return false;
+                double scale = model.GetModelInfo().UorPerMaster;
+                range.Low = new DPoint3d(comRange.Low.X * scale, comRange.Low.Y * scale, comRange.Low.Z * scale);
+                range.High = new DPoint3d(comRange.High.X * scale, comRange.High.Y * scale, comRange.High.Z * scale);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>完全包含判定，允许极小的数值容差。</summary>
+        private static bool IsInside(DRange3d range, DRange3d box)
+        {
+            double diag = Math.Max(box.High.X - box.Low.X,
+                Math.Max(box.High.Y - box.Low.Y, box.High.Z - box.Low.Z));
+            double tolerance = Math.Max(1.0, diag * 1e-6);
+            return range.Low.X >= box.Low.X - tolerance && range.High.X <= box.High.X + tolerance &&
+                   range.Low.Y >= box.Low.Y - tolerance && range.High.Y <= box.High.Y + tolerance &&
+                   range.Low.Z >= box.Low.Z - tolerance && range.High.Z <= box.High.Z + tolerance;
+        }
+
+        /// <summary>把整棵图元树写进独立日志（id / 深度 / 类型 / 图层 / 子元素数 / 描述）。</summary>
         internal void Dump(Element root, string title)
         {
             var builder = new System.Text.StringBuilder();
