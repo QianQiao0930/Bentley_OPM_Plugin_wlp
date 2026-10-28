@@ -31,6 +31,27 @@ namespace SteelSectionProbe
             }
         }
 
+        /// <summary>
+        /// 把图元树写进独立文件 <c>tree.log</c>（每次覆盖，不参与 latest.log 的滚动）。
+        /// 只用于核对结构，失败同样不影响业务。
+        /// </summary>
+        internal static void WriteTree(string text)
+        {
+            try
+            {
+                string file = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "SteelSectionProbe", "logs", "EquipmentLevel", "tree.log");
+                string directory = Path.GetDirectoryName(file);
+                if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
+                File.WriteAllText(file, text, new UTF8Encoding(false));
+            }
+            catch
+            {
+                // 诊断文件写不进去不影响改层。
+            }
+        }
+
         internal static void Write(string message)
         {
             try

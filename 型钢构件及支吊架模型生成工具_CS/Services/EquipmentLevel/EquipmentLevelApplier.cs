@@ -97,7 +97,8 @@ namespace SteelSectionProbe
                 report.PlannedElementCount += targets.Leaves.Count + targets.Containers.Count;
                 report.Details.Add("设备 " + rawId + "（" + SafeName(element) + "）：" + targets.Leaves.Count +
                     " 个图元、" + targets.Containers.Count + " 个容器单元" +
-                    (rejected > 0 ? "，跳过 " + rejected + " 个非图形元素" : ""));
+                    (rejected > 0 ? "，跳过 " + rejected + " 个非图形元素" : string.Empty));
+                tree.Dump(element, "设备 " + rawId + "（" + SafeName(element) + "）图元树");
             }
 
             if (plan.Count == 0)
@@ -227,7 +228,7 @@ namespace SteelSectionProbe
                 }
 
                 Commit();
-                report.ChangedElementCount = changed;
+                report.ChangedElementCount = CountOnTarget(tree, plan, targetLevel, model);
                 return true;
             }
             catch (Exception ex)
@@ -466,6 +467,27 @@ namespace SteelSectionProbe
                 }
             }
             return true;
+        }
+
+        /// <summary>统计真正落在目标图层上的图元数（按最终状态算，不累加各轮写入次数）。</summary>
+        private static int CountOnTarget(EquipmentLevelTree tree, Dictionary<ulong, DeviceTargets> plan,
+            LevelId targetLevel, DgnModel model)
+        {
+            int count = 0;
+            foreach (var pair in plan)
+            {
+                ulong deviceId = pair.Key;
+                Element device = model.FindElementById(new ElementId(ref deviceId));
+                if (device == null || !device.IsValid) continue;
+                var map = MapById(tree, device);
+                foreach (ulong id in AllTargets(pair.Value))
+                {
+                    Element element;
+                    if (!map.TryGetValue(id, out element)) continue;
+                    if ((uint)element.LevelId == (uint)targetLevel) count++;
+                }
+            }
+            return count;
         }
 
         /// <summary>统计仍然没有被改层的容器单元数量（不算失败，只如实报告）。</summary>

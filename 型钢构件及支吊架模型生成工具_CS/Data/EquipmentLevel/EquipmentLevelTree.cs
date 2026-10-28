@@ -142,6 +142,51 @@ namespace SteelSectionProbe
             return result;
         }
 
+        /// <summary>
+        /// 把整棵图元树写进独立日志（id / 深度 / 类型 / 图层 / 子元素数 / 描述）。
+        /// 用来核对"程序摸到的图元"与"模型里实际存在的图元"是否一致。
+        /// </summary>
+        internal void Dump(Element root, string title)
+        {
+            var builder = new System.Text.StringBuilder();
+            builder.AppendLine("==== " + title + " ====");
+            int total = 0;
+            DumpNode(root, 0, builder, new HashSet<ulong>(), ref total);
+            builder.AppendLine("总计 " + total + " 个图元");
+            EquipmentLevelLog.WriteTree(builder.ToString());
+        }
+
+        private void DumpNode(Element parent, int depth, System.Text.StringBuilder builder,
+            HashSet<ulong> visited, ref int total)
+        {
+            if (parent == null || depth > MaxDepth) return;
+            foreach (var child in Children(parent, depth == 0))
+            {
+                ulong id = SafeId(child);
+                if (id != 0 && !visited.Add(id)) continue;
+                total++;
+                if (total > MaxElements) return;
+                builder.AppendLine("  " + new string(' ', depth * 2) + "d" + (depth + 1) +
+                    " id=" + id + " 类型=" + SafeTypeName(child) +
+                    " 层=" + SafeLevel(child) +
+                    " 子=" + Children(child, false).Count +
+                    " 描述=" + SafeDescription(child));
+                DumpNode(child, depth + 1, builder, visited, ref total);
+            }
+        }
+
+        private static string SafeLevel(Element element)
+        {
+            try { return ((uint)element.LevelId).ToString(); }
+            catch { return "?"; }
+        }
+
+        private static string SafeDescription(Element element)
+        {
+            try { return element.Description; }
+            catch { return ""; }
+        }
+
         private void CollectAnyOrder(Element parent, List<Element> output, int depth, HashSet<ulong> visited)
         {
             if (parent == null || depth > MaxDepth || output.Count >= MaxElements) return;
