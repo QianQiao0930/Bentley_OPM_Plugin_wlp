@@ -48,8 +48,9 @@ namespace SteelSectionProbe
             var report = new EquipmentLevelReport { TargetLevelName = targetLevelName };
             var tree = new EquipmentLevelTree(model);
 
-            // 1. 收集每台设备的候选图元：设置器接受不了的元素（Datum、Type66 这类控制元素）不算。
-            var plan = new Dictionary<ulong, List<ulong>>();
+            // 1. 收集每台设备的候选图元：设置器接受不了的元素（Datum、Type66 这类控制元素）不算；
+            //    有子元素的"容器单元"单独归类——实测它们本身不接受改层，但内部图元可以改。
+            var plan = new Dictionary<ulong, DeviceTargets>();
             foreach (ulong rawId in ids)
             {
                 ulong id = rawId;
@@ -75,26 +76,28 @@ namespace SteelSectionProbe
                     continue;
                 }
 
-                var candidates = new List<ulong>();
+                var targets = new DeviceTargets();
                 int rejected = 0;
                 foreach (var candidate in all)
                 {
                     ulong candidateId = SafeId(candidate);
                     if (candidateId == 0) { rejected++; continue; }
                     if (!CanSetLevel(candidate, targetLevel)) { rejected++; continue; }
-                    candidates.Add(candidateId);
+                    if (tree.Children(candidate).Count > 0) targets.Containers.Add(candidateId);
+                    else targets.Leaves.Add(candidateId);
                 }
-                if (candidates.Count == 0)
+                if (targets.Leaves.Count == 0 && targets.Containers.Count == 0)
                 {
                     AddProblem(report.Problems, "设备 " + rawId + " 的 " + all.Count +
                         " 个图元都不接受图层修改，跳过");
                     report.RejectedCount++;
                     continue;
                 }
-                plan[rawId] = candidates;
-                report.PlannedElementCount += candidates.Count;
-                report.Details.Add("设备 " + rawId + "（" + SafeName(element) + "）：" + candidates.Count +
-                    " 个可改图元" + (rejected > 0 ? "，跳过 " + rejected + " 个非图形元素" : ""));
+                plan[rawId] = targets;
+                report.PlannedElementCount += targets.Leaves.Count + targets.Containers.Count;
+                report.Details.Add("设备 " + rawId + "（" + SafeName(element) + "）：" + targets.Leaves.Count +
+                    " 个图元、" + targets.Containers.Count + " 个容器单元" +
+                    (rejected > 0 ? "，跳过 " + rejected + " 个非图形元素" : ""));
             }
 
             if (plan.Count == 0)
@@ -122,9 +125,13 @@ namespace SteelSectionProbe
                 {
                     report.Succeeded = true;
                     report.Method = modePlan.Name;
+                    report.ContainersNotChanged = CountNotChangedContainers(tree, plan, targetLevel, model);
                     report.Summary = "设备图层修改完成：" + report.EquipmentCount + " 台设备、" +
                         report.ChangedElementCount + " 个图元 → 图层「" + targetLevelName + "」（" +
-                        modePlan.Name + "）";
+                        modePlan.Name + "）" +
+                        (report.ContainersNotChanged > 0
+                            ? "；" + report.ContainersNotChanged + " 个容器单元本身不接受改层（其内部图元已改）"
+                            : string.Empty);
                     EquipmentLevelLog.Write("成功（" + modePlan.Name + "）：" + report.Summary);
                     return report;
                 }
@@ -147,7 +154,7 @@ namespace SteelSectionProbe
         }
 
         /// <summary>尝试一种写入方式：一个事务内完成，校验通过才提交，否则回滚。</summary>
-        private static bool Run(DgnModel model, EquipmentLevelTree tree, Dictionary<ulong, List<ulong>> plan,
+        private static bool Run(DgnModel model, EquipmentLevelTree tree, Dictionary<ulong, DeviceTargets> plan,
             LevelId targetLevel, string targetLevelName, WriteMode mode, EquipmentLevelReport report,
             out string failure)
         {
@@ -180,13 +187,13 @@ namespace SteelSectionProbe
                     switch (mode)
                     {
                         case WriteMode.ComRewrite:
-                            changed += RunComPasses(tree, device, pair.Value, targetLevel, comLevel, problems);
+                            changed += RunComPasses(tree, device, AllTargets(pair.Value), targetLevel, comLevel, problems);
                             break;
 
                         case WriteMode.ReplaceEach:
                             {
                                 var map = MapById(tree, device);
-                                foreach (ulong id in pair.Value)
+                                foreach (ulong id in AllTargets(pair.Value))
                                 {
                                     if (ReplaceOne(model, map, id, targetLevel, problems)) changed++;
                                 }
@@ -196,7 +203,7 @@ namespace SteelSectionProbe
                         default:
                             {
                                 var map = MapById(tree, device);
-                                foreach (ulong id in pair.Value)
+                                foreach (ulong id in AllTargets(pair.Value))
                                 {
                                     Element element;
                                     if (!map.TryGetValue(id, out element)) { AddProblem(problems, "图元 " + id + " 找不到"); continue; }
@@ -418,10 +425,14 @@ namespace SteelSectionProbe
         }
 
         /// <summary>
-        /// 校验：重新遍历一次设备，每个候选图元都必须落在目标图层。
-        /// 只校验候选图元，控制元素不参与。
+        /// 校验：重新遍历一次设备。
+        /// <para>
+        /// <b>真实几何图元（叶子）必须全部落到目标图层</b>——这是成功的判据。
+        /// 有子元素的"容器单元"实测在 COM/.NET 两条通道上都不接受改层，
+        /// 因此它们只统计、不算失败（它们的内部图元已经改好了，外观已跟随）。
+        /// </para>
         /// </summary>
-        private static bool Verify(EquipmentLevelTree tree, Dictionary<ulong, List<ulong>> plan,
+        private static bool Verify(EquipmentLevelTree tree, Dictionary<ulong, DeviceTargets> plan,
             LevelId targetLevel, DgnModel model, out string failure)
         {
             failure = null;
@@ -437,7 +448,7 @@ namespace SteelSectionProbe
                 var map = MapById(tree, device);
                 int mismatched = 0;
                 int missing = 0;
-                foreach (ulong id in pair.Value)
+                foreach (ulong id in pair.Value.Leaves)
                 {
                     Element element;
                     if (!map.TryGetValue(id, out element)) { missing++; continue; }
@@ -450,11 +461,48 @@ namespace SteelSectionProbe
                 }
                 if (mismatched > 0)
                 {
-                    failure = "设备 " + pair.Key + " 仍有 " + mismatched + " 个图元没有落到目标图层";
+                    failure = "设备 " + pair.Key + " 仍有 " + mismatched + " 个几何图元没有落到目标图层";
                     return false;
                 }
             }
             return true;
+        }
+
+        /// <summary>统计仍然没有被改层的容器单元数量（不算失败，只如实报告）。</summary>
+        private static int CountNotChangedContainers(EquipmentLevelTree tree, Dictionary<ulong, DeviceTargets> plan,
+            LevelId targetLevel, DgnModel model)
+        {
+            int count = 0;
+            foreach (var pair in plan)
+            {
+                ulong deviceId = pair.Key;
+                Element device = model.FindElementById(new ElementId(ref deviceId));
+                if (device == null || !device.IsValid) continue;
+                var map = MapById(tree, device);
+                foreach (ulong id in pair.Value.Containers)
+                {
+                    Element element;
+                    if (!map.TryGetValue(id, out element)) { count++; continue; }
+                    if ((uint)element.LevelId != (uint)targetLevel) count++;
+                }
+            }
+            return count;
+        }
+
+        /// <summary>一台设备的待改清单：叶子图元与容器单元分开。</summary>
+        private sealed class DeviceTargets
+        {
+            internal readonly List<ulong> Leaves = new List<ulong>();
+            internal readonly List<ulong> Containers = new List<ulong>();
+        }
+
+        /// <summary>叶子图元与容器单元合成一条写入序列（容器在后，避免它覆盖子元素）。</summary>
+        private static List<ulong> AllTargets(DeviceTargets targets)
+        {
+            var all = new List<ulong>(targets.Leaves.Count + targets.Containers.Count);
+            all.AddRange(targets.Leaves);
+            all.AddRange(targets.Containers);
+            return all;
         }
 
         /// <summary>开始一次可撤销的修改：结束上一个动作、记录撤销位置。</summary>

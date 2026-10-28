@@ -106,7 +106,10 @@ namespace SteelSectionProbe
         /// <summary>后序遍历全部后代：子元素的子元素先收集，子元素本身随后。</summary>
         internal void CollectPostOrder(Element parent, List<Element> output, int depth)
         {
-            CollectPostOrder(parent, output, depth, new HashSet<ulong>());
+            var visited = new HashSet<ulong>();
+            ulong rootId = SafeId(parent);
+            if (rootId != 0) visited.Add(rootId);
+            CollectPostOrder(parent, output, depth, visited);
         }
 
         private void CollectPostOrder(Element parent, List<Element> output, int depth, HashSet<ulong> visited)
@@ -128,7 +131,12 @@ namespace SteelSectionProbe
         internal List<Element> Descendants(Element parent)
         {
             var result = new List<Element>();
-            CollectAnyOrder(parent, result, 0, new HashSet<ulong>());
+            var visited = new HashSet<ulong>();
+            // 先把根元素自己登记进去：GetDependants 会把祖先一并返回，
+            // 不登记根元素就会把它自己当成后代，进而当成"要改层的图元"。
+            ulong rootId = SafeId(parent);
+            if (rootId != 0) visited.Add(rootId);
+            CollectAnyOrder(parent, result, 0, visited);
             if (result.Count >= MaxElements)
                 EquipmentLevelLog.Write("遍历达到图元上限 " + MaxElements + "，已截断（可能存在异常结构）");
             return result;

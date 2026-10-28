@@ -58,6 +58,9 @@ namespace SteelSectionProbe
         /// <summary>被拒绝的选中元素数。</summary>
         internal int RejectedCount;
 
+        /// <summary>本身不接受改层的容器单元数量（其内部图元已改到目标图层）。</summary>
+        internal int ContainersNotChanged;
+
         /// <summary>是否成功；失败时模型已回滚。</summary>
         internal bool Succeeded;
 
