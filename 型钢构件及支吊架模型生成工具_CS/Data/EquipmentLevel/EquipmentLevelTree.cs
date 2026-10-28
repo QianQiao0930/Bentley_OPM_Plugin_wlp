@@ -1,0 +1,234 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using Bentley.DgnPlatformNET;
+using Bentley.DgnPlatformNET.Elements;
+
+namespace SteelSectionProbe
+{
+    /// <summary>
+    /// 设备的图形图元树。<b>只读</b>。
+    /// <para>
+    /// 取子元素有两条路，按顺序尝试：
+    /// </para>
+    /// <list type="number">
+    /// <item><c>Element.ExposeChildren(Query)</c> + <c>GetChildren()</c>：正常单元的首选路径；</item>
+    /// <item>
+    /// <b>按父元素扫描整个模型</b>：单元里存的图元在 DGN 文件里本来就是彼此独立的元素，
+    /// 只是记录了"父元素"关系。<c>GetChildren()</c> 在 OpenPlant 的设备单元上可能返回空
+    /// （单元没有对外暴露子元素），这时遍历模型一次、按 <c>ParentElement</c> 分组就能把它们找回来。
+    /// </item>
+    /// </list>
+    /// <para>
+    /// 两条路都取不到时明确报告"取不到子图元"，绝不静默当成"没有图元"。
+    /// </para>
+    /// </summary>
+    internal sealed class EquipmentLevelTree
+    {
+        /// <summary>递归展开的最大层数，防止异常结构导致无限下钻。</summary>
+        internal const int MaxDepth = 8;
+
+        /// <summary>单台设备最多展开的图元数，超限拒绝处理。</summary>
+        internal const int MaxElements = 20000;
+
+        private readonly DgnModel model;
+        private Dictionary<ulong, List<ulong>> childrenByParent;
+        private bool indexBuilt;
+        private bool scanFailed;
+        private int scannedElements;
+
+        internal EquipmentLevelTree(DgnModel model)
+        {
+            if (model == null) throw new InvalidOperationException("没有活动模型。");
+            this.model = model;
+        }
+
+        /// <summary>取直接子元素。先走 GetChildren，取不到再看模型里的父子关系。</summary>
+        internal List<Element> Children(Element parent)
+        {
+            if (parent == null) return new List<Element>();
+            var direct = ReadDirectChildren(parent);
+            if (direct.Count > 0) return direct;
+            return ReadScannedChildren(parent);
+        }
+
+        /// <summary>后序遍历全部后代：子元素的子元素先收集，子元素本身随后。</summary>
+        internal void CollectPostOrder(Element parent, List<Element> output, int depth)
+        {
+            if (parent == null || depth > MaxDepth || output.Count >= MaxElements) return;
+            foreach (var child in Children(parent))
+            {
+                if (output.Count >= MaxElements) return;
+                CollectPostOrder(child, output, depth + 1);
+                if (output.Count >= MaxElements) return;
+                output.Add(child);
+            }
+        }
+
+        /// <summary>无序收集全部后代（校验用）。</summary>
+        internal List<Element> Descendants(Element parent)
+        {
+            var result = new List<Element>();
+            CollectAnyOrder(parent, result, 0);
+            return result;
+        }
+
+        private void CollectAnyOrder(Element parent, List<Element> output, int depth)
+        {
+            if (parent == null || depth > MaxDepth || output.Count >= MaxElements) return;
+            foreach (var child in Children(parent))
+            {
+                if (output.Count >= MaxElements) return;
+                output.Add(child);
+                CollectAnyOrder(child, output, depth + 1);
+            }
+        }
+
+        /// <summary>后代数量；取不到子元素时返回 0，由调用方结合诊断信息报告。</summary>
+        internal int Count(Element parent)
+        {
+            return Descendants(parent).Count;
+        }
+
+        /// <summary>给"没有子图元"这类结论补一句可判断原因的诊断文字。</summary>
+        internal string Diagnose(Element parent)
+        {
+            if (parent == null) return "元素为空";
+            int direct = ReadDirectChildren(parent).Count;
+            EnsureIndex();
+            List<ulong> scanned;
+            childrenByParent.TryGetValue(SafeId(parent), out scanned);
+            int scannedCount = scanned == null ? 0 : scanned.Count;
+            return "GetChildren 返回 " + direct + " 个；按父元素扫描模型（" + scannedElements + " 个元素）找到 " +
+                scannedCount + " 个" + (scanFailed ? "（扫描失败，见日志）" : "");
+        }
+
+        /// <summary>路径一：ExposeChildren + GetChildren。</summary>
+        private List<Element> ReadDirectChildren(Element parent)
+        {
+            var list = new List<Element>();
+            try
+            {
+                // 不先 ExposeChildren，GetChildren 在部分元素上会直接返回空。
+                try { parent.ExposeChildren(ExposeChildrenReason.Query); }
+                catch (Exception ex) { EquipmentLevelLog.Write("ExposeChildren 失败：" + ex.Message); }
+
+                object children = parent.GetChildren();
+                if (children == null)
+                {
+                    EquipmentLevelLog.Write("GetChildren 返回 null（" + SafeTypeName(parent) + "）");
+                    return list;
+                }
+                var enumerable = children as IEnumerable;
+                if (enumerable == null)
+                {
+                    EquipmentLevelLog.Write("GetChildren 返回的类型不可枚举：" + children.GetType().FullName);
+                    return list;
+                }
+                foreach (object item in enumerable)
+                {
+                    var child = item as Element;
+                    if (child == null || !child.IsValid) continue;
+                    list.Add(child);
+                }
+            }
+            catch (Exception ex)
+            {
+                EquipmentLevelLog.Write("读取子元素失败：" + ex.Message);
+            }
+            return list;
+        }
+
+        /// <summary>路径二：遍历模型一次，按父元素 ID 分组。</summary>
+        private List<Element> ReadScannedChildren(Element parent)
+        {
+            var list = new List<Element>();
+            EnsureIndex();
+            List<ulong> ids;
+            if (!childrenByParent.TryGetValue(SafeId(parent), out ids) || ids == null) return list;
+            foreach (ulong rawId in ids)
+            {
+                ulong id = rawId;
+                try
+                {
+                    Element child = model.FindElementById(new ElementId(ref id));
+                    if (child == null || !child.IsValid) continue;
+                    list.Add(child);
+                }
+                catch (Exception ex)
+                {
+                    EquipmentLevelLog.Write("按 ID 取子元素失败（" + rawId + "）：" + ex.Message);
+                }
+            }
+            return list;
+        }
+
+        private void EnsureIndex()
+        {
+            if (indexBuilt) return;
+            indexBuilt = true;
+            childrenByParent = new Dictionary<ulong, List<ulong>>();
+            var started = DateTime.UtcNow;
+            try
+            {
+                object elements = model.GetElements();
+                var enumerable = elements as IEnumerable;
+                if (enumerable == null)
+                {
+                    scanFailed = true;
+                    EquipmentLevelLog.Write("模型元素集合不可枚举：" + (elements == null ? "null" : elements.GetType().FullName));
+                    return;
+                }
+                foreach (object item in enumerable)
+                {
+                    var element = item as Element;
+                    if (element == null || !element.IsValid) continue;
+                    scannedElements++;
+                    ulong parentId = ParentIdOf(element);
+                    if (parentId == 0) continue;
+                    List<ulong> list;
+                    if (!childrenByParent.TryGetValue(parentId, out list))
+                    {
+                        list = new List<ulong>();
+                        childrenByParent[parentId] = list;
+                    }
+                    list.Add(element.ElementId);
+                }
+                EquipmentLevelLog.Write("模型扫描完成：" + scannedElements + " 个元素，带父元素的 " +
+                    childrenByParent.Count + " 组，耗时 " +
+                    (DateTime.UtcNow - started).TotalMilliseconds.ToString("F0") + " ms");
+            }
+            catch (Exception ex)
+            {
+                scanFailed = true;
+                EquipmentLevelLog.Write("模型扫描失败：" + ex.Message);
+            }
+        }
+
+        private static ulong ParentIdOf(Element element)
+        {
+            try
+            {
+                Element parent = element.ParentElement;
+                if (parent == null) return 0;
+                return parent.ElementId;
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        private static ulong SafeId(Element element)
+        {
+            try { return element.ElementId; }
+            catch { return 0; }
+        }
+
+        private static string SafeTypeName(Element element)
+        {
+            try { return element.TypeName; }
+            catch { return "未知类型"; }
+        }
+    }
+}

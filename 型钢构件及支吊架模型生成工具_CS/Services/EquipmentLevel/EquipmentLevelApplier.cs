@@ -40,6 +40,7 @@ namespace SteelSectionProbe
         {
             if (model == null) throw new InvalidOperationException("没有活动模型。");
             var report = new EquipmentLevelReport { TargetLevelName = targetLevelName };
+            var tree = new EquipmentLevelTree(model);
 
             var counts = new Dictionary<ulong, int>();
             foreach (ulong rawId in ids)
@@ -52,17 +53,18 @@ namespace SteelSectionProbe
                     report.RejectedCount++;
                     continue;
                 }
-                int count = EquipmentLevelReader.CountDescendants(element, 0);
+                int count = tree.Count(element);
                 if (count <= 0)
                 {
-                    AddProblem(report.Problems, "设备 " + rawId + " 没有图形子元素，跳过");
+                    string diagnosis = tree.Diagnose(element);
+                    AddProblem(report.Problems, "设备 " + rawId + " 取不到图形图元（" + diagnosis + "），跳过");
                     report.RejectedCount++;
                     continue;
                 }
-                if (count >= EquipmentLevelReader.MaxElements)
+                if (count >= EquipmentLevelTree.MaxElements)
                 {
                     AddProblem(report.Problems, "设备 " + rawId + " 的图元数超过 " +
-                        EquipmentLevelReader.MaxElements + "，拒绝处理");
+                        EquipmentLevelTree.MaxElements + "，拒绝处理");
                     report.RejectedCount++;
                     continue;
                 }
@@ -73,13 +75,15 @@ namespace SteelSectionProbe
 
             if (counts.Count == 0)
             {
-                report.Summary = "选中的设备里没有可修改的图形图元。";
+                report.Summary = report.Problems.Count == 0
+                    ? "选中的设备里没有可修改的图形图元。"
+                    : "未修改：" + report.Problems[0];
                 return report;
             }
             report.EquipmentCount = counts.Count;
 
             string failureA;
-            if (Run(model, counts, targetLevel, true, report, out failureA))
+            if (Run(model, tree, counts, targetLevel, true, report, out failureA))
             {
                 report.Succeeded = true;
                 report.Method = "逐个子元素替换";
@@ -91,7 +95,7 @@ namespace SteelSectionProbe
             EquipmentLevelLog.Write("方式 A（逐个子元素替换）失败：" + failureA + "；改试整台单元替换");
             report.Problems.Clear();
             string failureB;
-            if (Run(model, counts, targetLevel, false, report, out failureB))
+            if (Run(model, tree, counts, targetLevel, false, report, out failureB))
             {
                 report.Succeeded = true;
                 report.Method = "整台单元替换";
@@ -112,8 +116,8 @@ namespace SteelSectionProbe
         /// <summary>
         /// 尝试一种写入方式：一个事务内完成，校验通过才提交，否则回滚。
         /// </summary>
-        private static bool Run(DgnModel model, IDictionary<ulong, int> counts, LevelId targetLevel,
-            bool replaceEachChild, EquipmentLevelReport report, out string failure)
+        private static bool Run(DgnModel model, EquipmentLevelTree tree, IDictionary<ulong, int> counts,
+            LevelId targetLevel, bool replaceEachChild, EquipmentLevelReport report, out string failure)
         {
             failure = null;
             TransactionPosition mark;
@@ -140,7 +144,7 @@ namespace SteelSectionProbe
                         AddProblem(problems, "设备 " + pair.Key + " 写入前消失了");
                         continue;
                     }
-                    changed += ApplyToSubtree(model, device, targetLevel, replaceEachChild, problems);
+                    changed += ApplyToSubtree(model, tree, device, targetLevel, replaceEachChild, problems);
                     if (!replaceEachChild)
                     {
                         StatusInt status = device.ReplaceInModel(device);
@@ -152,7 +156,7 @@ namespace SteelSectionProbe
                 }
 
                 string verifyFailure;
-                if (!Verify(model, counts, targetLevel, out verifyFailure))
+                if (!Verify(model, tree, counts, targetLevel, out verifyFailure))
                 {
                     failure = string.IsNullOrEmpty(verifyFailure) ? "写入后校验失败" : verifyFailure;
                     Restore(mark, problems, failure);
@@ -188,11 +192,11 @@ namespace SteelSectionProbe
         /// 事先收集到的其它子元素句柄可能已经失效，拿失效句柄去写回会把单元写坏。
         /// </para>
         /// </summary>
-        private static int ApplyToSubtree(DgnModel model, Element device, LevelId targetLevel,
-            bool replaceEachChild, List<string> problems)
+        private static int ApplyToSubtree(DgnModel model, EquipmentLevelTree tree, Element device,
+            LevelId targetLevel, bool replaceEachChild, List<string> problems)
         {
             var postOrder = new List<Element>();
-            CollectPostOrder(device, postOrder, 0);
+            tree.CollectPostOrder(device, postOrder, 0);
             int changed = 0;
             foreach (var original in postOrder)
             {
@@ -257,26 +261,12 @@ namespace SteelSectionProbe
             }
         }
 
-        /// <summary>后序遍历：先收集子元素的子元素，再收集子元素本身。</summary>
-        private static void CollectPostOrder(Element parent, List<Element> output, int depth)
-        {
-            if (parent == null || depth > EquipmentLevelReader.MaxDepth) return;
-            var children = EquipmentLevelReader.ReadChildren(parent);
-            foreach (var child in children)
-            {
-                if (output.Count >= EquipmentLevelReader.MaxElements) return;
-                CollectPostOrder(child, output, depth + 1);
-                if (output.Count >= EquipmentLevelReader.MaxElements) return;
-                output.Add(child);
-            }
-        }
-
         /// <summary>
         /// 校验：每台设备的图元数必须与写入前一致（防止写回重复或丢失），
         /// 且每个图元都必须落在目标图层。
         /// </summary>
-        private static bool Verify(DgnModel model, IDictionary<ulong, int> counts, LevelId targetLevel,
-            out string failure)
+        private static bool Verify(DgnModel model, EquipmentLevelTree tree, IDictionary<ulong, int> counts,
+            LevelId targetLevel, out string failure)
         {
             failure = null;
             foreach (var pair in counts)
@@ -288,8 +278,7 @@ namespace SteelSectionProbe
                     failure = "设备 " + pair.Key + " 写入后找不到";
                     return false;
                 }
-                var all = new List<Element>();
-                EquipmentLevelReader.CollectDescendants(device, all, 0);
+                var all = tree.Descendants(device);
                 if (all.Count != pair.Value)
                 {
                     failure = "设备 " + pair.Key + " 的图元数从 " + pair.Value + " 变成 " + all.Count +

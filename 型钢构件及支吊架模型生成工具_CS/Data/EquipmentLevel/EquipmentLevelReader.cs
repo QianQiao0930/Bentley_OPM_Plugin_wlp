@@ -181,62 +181,6 @@ namespace SteelSectionProbe
             }
         }
 
-        /// <summary>
-        /// 取元素的直接子元素快照。先整体复制到列表再处理，
-        /// 避免"边枚举边替换"把枚举器搞坏。
-        /// </summary>
-        internal static List<Element> ReadChildren(Element parent)
-        {
-            var list = new List<Element>();
-            if (parent == null) return list;
-            try
-            {
-                object children = parent.GetChildren();
-                if (children == null) return list;
-                var enumerable = children as System.Collections.IEnumerable;
-                if (enumerable == null) return list;
-                foreach (object item in enumerable)
-                {
-                    Element child = item as Element;
-                    if (child == null || !child.IsValid) continue;
-                    list.Add(child);
-                }
-            }
-            catch (Exception ex)
-            {
-                EquipmentLevelLog.Write("读取子元素失败：" + ex.Message);
-            }
-            return list;
-        }
-
-        /// <summary>递归收集全部后代的快照（只读用途）。</summary>
-        internal static void CollectDescendants(Element parent, List<Element> output, int depth)
-        {
-            if (parent == null || depth > MaxDepth || output.Count >= MaxElements) return;
-            var children = ReadChildren(parent);
-            foreach (var child in children)
-            {
-                if (output.Count >= MaxElements) return;
-                output.Add(child);
-                CollectDescendants(child, output, depth + 1);
-            }
-        }
-
-        /// <summary>递归统计后代数量。</summary>
-        internal static int CountDescendants(Element parent, int depth)
-        {
-            if (parent == null || depth > MaxDepth) return 0;
-            int count = 0;
-            var children = ReadChildren(parent);
-            foreach (var child in children)
-            {
-                count++;
-                count += CountDescendants(child, depth + 1);
-                if (count >= MaxElements) return count;
-            }
-            return count;
-        }
-
         private static string SafeName(Element element)
         {
             try
