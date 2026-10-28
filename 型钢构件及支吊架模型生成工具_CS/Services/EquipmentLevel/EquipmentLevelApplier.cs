@@ -9,32 +9,38 @@ namespace SteelSectionProbe
     /// <summary>
     /// 把设备的图形图元批量改到目标图层。
     /// <para>
-    /// 只处理设备的图形子元素，<b>不动设备元素本身</b>：设备身份、EC 数据、管口与连接关系
-    /// 都不参与这次修改，因此不需要"打散 → 重新生成设备"这一步。
+    /// 只处理设备的图形图元，<b>不动设备元素本身</b>：设备身份、EC 数据、管口与连接关系
+    /// 都不参与这次修改，因此不需要"打散 → 重新生成设备"。
     /// </para>
     /// <para>
-    /// 写入分两种方式，按顺序尝试，都要通过"图元数不变 + 每个图元都在目标图层"的校验才算成功：
+    /// 写入方式按顺序尝试，任何一种都必须通过"候选图元全部落到目标图层"的校验才算成功：
     /// </para>
     /// <list type="number">
-    /// <item><b>逐个子元素替换</b>：每个图元改完属性后自己写回，保留单元身份；</item>
-    /// <item><b>整台单元替换</b>：所有图元先在内存里改好，最后把整台设备单元写回一次。</item>
+    /// <item>
+    /// <b>COM Rewrite</b>（<c>Element.Level</c> + <c>Element.Rewrite()</c>）：
+    /// OpenPlant 设备的图形是单元内部件，.NET 的 <c>ReplaceInModel</c> 一律返回 69645 拒绝，
+    /// 而 COM 的 Rewrite 走的是另一条写入实现。
+    /// </item>
+    /// <item><b>逐个子元素替换</b>（.NET <c>ReplaceInModel</c>）：普通单元可用。</item>
+    /// <item><b>整台单元替换</b>：所有图元先在内存改好，最后把整台设备单元写回一次。</item>
     /// </list>
     /// <para>
-    /// 两种都失败时整批回滚（<c>CancelToPosition</c>），模型恢复到调用前的状态，
-    /// 不会留下"改了一半"的设备。
+    /// 全部失败时整批回滚（<c>CancelToPosition</c>），不会留下"改了一半"的设备。
     /// </para>
     /// </summary>
     internal static class EquipmentLevelApplier
     {
         private const int MaxProblemLines = 20;
 
-        /// <summary>
-        /// 对已判定为设备的元素批量改层。
-        /// </summary>
-        /// <param name="model">活动模型。</param>
-        /// <param name="ids">设备元素 ID（调用方已完成设备判定）。</param>
-        /// <param name="targetLevel">目标图层。</param>
-        /// <param name="targetLevelName">目标图层名（仅用于报告）。</param>
+        /// <summary>写入方式。</summary>
+        private enum WriteMode
+        {
+            ComRewrite = 0,
+            ReplaceEach = 1,
+            ReplaceDevice = 2
+        }
+
+        /// <summary>对已判定为设备的元素批量改层。</summary>
         internal static EquipmentLevelReport Apply(DgnModel model, IList<ulong> ids,
             LevelId targetLevel, string targetLevelName)
         {
@@ -42,7 +48,8 @@ namespace SteelSectionProbe
             var report = new EquipmentLevelReport { TargetLevelName = targetLevelName };
             var tree = new EquipmentLevelTree(model);
 
-            var counts = new Dictionary<ulong, int>();
+            // 1. 收集每台设备的候选图元：设置器接受不了的元素（Datum、Type66 这类控制元素）不算。
+            var plan = new Dictionary<ulong, List<ulong>>();
             foreach (ulong rawId in ids)
             {
                 ulong id = rawId;
@@ -53,71 +60,96 @@ namespace SteelSectionProbe
                     report.RejectedCount++;
                     continue;
                 }
-                int count = tree.Count(element);
-                if (count <= 0)
+                var all = tree.Descendants(element);
+                if (all.Count == 0)
                 {
-                    string diagnosis = tree.Diagnose(element);
-                    AddProblem(report.Problems, "设备 " + rawId + " 取不到图形图元（" + diagnosis + "），跳过");
+                    AddProblem(report.Problems, "设备 " + rawId + " 取不到图形图元（" + tree.Diagnose(element) + "），跳过");
                     report.RejectedCount++;
                     continue;
                 }
-                if (count >= EquipmentLevelTree.MaxElements)
+                if (all.Count >= EquipmentLevelTree.MaxElements)
                 {
                     AddProblem(report.Problems, "设备 " + rawId + " 的图元数超过 " +
                         EquipmentLevelTree.MaxElements + "，拒绝处理");
                     report.RejectedCount++;
                     continue;
                 }
-                counts[rawId] = count;
-                report.PlannedElementCount += count;
-                report.Details.Add("设备 " + rawId + "（" + SafeName(element) + "）：" + count + " 个图元");
+
+                var candidates = new List<ulong>();
+                int rejected = 0;
+                foreach (var candidate in all)
+                {
+                    ulong candidateId = SafeId(candidate);
+                    if (candidateId == 0) { rejected++; continue; }
+                    if (!CanSetLevel(candidate, targetLevel)) { rejected++; continue; }
+                    candidates.Add(candidateId);
+                }
+                if (candidates.Count == 0)
+                {
+                    AddProblem(report.Problems, "设备 " + rawId + " 的 " + all.Count +
+                        " 个图元都不接受图层修改，跳过");
+                    report.RejectedCount++;
+                    continue;
+                }
+                plan[rawId] = candidates;
+                report.PlannedElementCount += candidates.Count;
+                report.Details.Add("设备 " + rawId + "（" + SafeName(element) + "）：" + candidates.Count +
+                    " 个可改图元" + (rejected > 0 ? "，跳过 " + rejected + " 个非图形元素" : ""));
             }
 
-            if (counts.Count == 0)
+            if (plan.Count == 0)
             {
                 report.Summary = report.Problems.Count == 0
                     ? "选中的设备里没有可修改的图形图元。"
                     : "未修改：" + report.Problems[0];
                 return report;
             }
-            report.EquipmentCount = counts.Count;
+            report.EquipmentCount = plan.Count;
 
-            string failureA;
-            if (Run(model, tree, counts, targetLevel, true, report, out failureA))
+            // 2. 依次尝试三种写入方式。
+            var modes = new[]
             {
-                report.Succeeded = true;
-                report.Method = "逐个子元素替换";
-                report.Summary = BuildSummary(report, report.Method);
-                EquipmentLevelLog.Write("成功（逐个子元素替换）：" + report.Summary);
-                return report;
+                new ModePlan { Mode = WriteMode.ComRewrite, Name = "COM Rewrite" },
+                new ModePlan { Mode = WriteMode.ReplaceEach, Name = "逐个子元素替换" },
+                new ModePlan { Mode = WriteMode.ReplaceDevice, Name = "整台单元替换" }
+            };
+            var failures = new List<string>();
+            foreach (var modePlan in modes)
+            {
+                report.Problems.Clear();
+                string failure;
+                if (Run(model, tree, plan, targetLevel, targetLevelName, modePlan.Mode, report, out failure))
+                {
+                    report.Succeeded = true;
+                    report.Method = modePlan.Name;
+                    report.Summary = "设备图层修改完成：" + report.EquipmentCount + " 台设备、" +
+                        report.ChangedElementCount + " 个图元 → 图层「" + targetLevelName + "」（" +
+                        modePlan.Name + "）";
+                    EquipmentLevelLog.Write("成功（" + modePlan.Name + "）：" + report.Summary);
+                    return report;
+                }
+                failures.Add(modePlan.Name + " 失败：" + failure);
+                EquipmentLevelLog.Write("方式「" + modePlan.Name + "」失败：" + failure);
             }
 
-            EquipmentLevelLog.Write("方式 A（逐个子元素替换）失败：" + failureA + "；改试整台单元替换");
-            report.Problems.Clear();
-            string failureB;
-            if (Run(model, tree, counts, targetLevel, false, report, out failureB))
-            {
-                report.Succeeded = true;
-                report.Method = "整台单元替换";
-                report.Summary = BuildSummary(report, report.Method);
-                EquipmentLevelLog.Write("成功（整台单元替换）：" + report.Summary);
-                return report;
-            }
-
-            EquipmentLevelLog.Write("方式 B（整台单元替换）也失败：" + failureB);
             report.Succeeded = false;
             report.Method = string.Empty;
             report.ChangedElementCount = 0;
-            report.Failure = "逐个子元素替换失败：" + failureA + "\n整台单元替换失败：" + failureB;
+            report.Failure = string.Join("\n", failures.ToArray());
             report.Summary = "设备图层修改失败，模型已回滚。原因见日志：" + EquipmentLevelLog.FilePath;
             return report;
         }
 
-        /// <summary>
-        /// 尝试一种写入方式：一个事务内完成，校验通过才提交，否则回滚。
-        /// </summary>
-        private static bool Run(DgnModel model, EquipmentLevelTree tree, IDictionary<ulong, int> counts,
-            LevelId targetLevel, bool replaceEachChild, EquipmentLevelReport report, out string failure)
+        private struct ModePlan
+        {
+            internal WriteMode Mode;
+            internal string Name;
+        }
+
+        /// <summary>尝试一种写入方式：一个事务内完成，校验通过才提交，否则回滚。</summary>
+        private static bool Run(DgnModel model, EquipmentLevelTree tree, Dictionary<ulong, List<ulong>> plan,
+            LevelId targetLevel, string targetLevelName, WriteMode mode, EquipmentLevelReport report,
+            out string failure)
         {
             failure = null;
             TransactionPosition mark;
@@ -135,28 +167,54 @@ namespace SteelSectionProbe
             {
                 int changed = 0;
                 var problems = new List<string>();
-                foreach (var pair in counts)
+                object comLevel = mode == WriteMode.ComRewrite ? ResolveComLevel(targetLevelName, problems) : null;
+                foreach (var pair in plan)
                 {
-                    ulong id = pair.Key;
-                    Element device = model.FindElementById(new ElementId(ref id));
+                    ulong deviceId = pair.Key;
+                    Element device = model.FindElementById(new ElementId(ref deviceId));
                     if (device == null || !device.IsValid)
                     {
                         AddProblem(problems, "设备 " + pair.Key + " 写入前消失了");
                         continue;
                     }
-                    changed += ApplyToSubtree(model, tree, device, targetLevel, replaceEachChild, problems);
-                    if (!replaceEachChild)
+                    switch (mode)
                     {
-                        StatusInt status = device.ReplaceInModel(device);
-                        if (status != StatusInt.Success)
-                        {
-                            AddProblem(problems, "整台设备 " + pair.Key + " 写回失败：" + status);
-                        }
+                        case WriteMode.ComRewrite:
+                            foreach (ulong id in pair.Value)
+                            {
+                                if (ComRewrite(id, comLevel, problems)) changed++;
+                            }
+                            break;
+
+                        case WriteMode.ReplaceEach:
+                            {
+                                var map = MapById(tree, device);
+                                foreach (ulong id in pair.Value)
+                                {
+                                    if (ReplaceOne(model, map, id, targetLevel, problems)) changed++;
+                                }
+                            }
+                            break;
+
+                        default:
+                            {
+                                var map = MapById(tree, device);
+                                foreach (ulong id in pair.Value)
+                                {
+                                    Element element;
+                                    if (!map.TryGetValue(id, out element)) { AddProblem(problems, "图元 " + id + " 找不到"); continue; }
+                                    if (SetLevelInMemory(element, targetLevel, problems)) changed++;
+                                }
+                                StatusInt status = device.ReplaceInModel(device);
+                                if (status != StatusInt.Success)
+                                    AddProblem(problems, "整台设备 " + pair.Key + " 写回失败：" + status);
+                            }
+                            break;
                     }
                 }
 
                 string verifyFailure;
-                if (!Verify(model, tree, counts, targetLevel, out verifyFailure))
+                if (!Verify(tree, plan, targetLevel, model, out verifyFailure))
                 {
                     failure = string.IsNullOrEmpty(verifyFailure) ? "写入后校验失败" : verifyFailure;
                     Restore(mark, problems, failure);
@@ -184,111 +242,161 @@ namespace SteelSectionProbe
             }
         }
 
-        /// <summary>
-        /// 按"先子后父"的顺序改整棵子树：子元素先落地，父元素随后写回，
-        /// 避免父元素替换后子元素句柄失效。
-        /// <para>
-        /// 每个图元在写入前都按 ID 重新取一次：一次替换会重写整个单元的描述记录，
-        /// 事先收集到的其它子元素句柄可能已经失效，拿失效句柄去写回会把单元写坏。
-        /// </para>
-        /// </summary>
-        private static int ApplyToSubtree(DgnModel model, EquipmentLevelTree tree, Element device,
-            LevelId targetLevel, bool replaceEachChild, List<string> problems)
-        {
-            var postOrder = new List<Element>();
-            tree.CollectPostOrder(device, postOrder, 0);
-            int changed = 0;
-            foreach (var original in postOrder)
-            {
-                Element element = original;
-                if (replaceEachChild)
-                {
-                    Element fresh = FindByElementId(model, original);
-                    if (fresh != null) element = fresh;
-                }
-                if (element == null || !element.IsValid)
-                {
-                    AddProblem(problems, "图元在写入过程中失效");
-                    continue;
-                }
-                try
-                {
-                    bool applied;
-                    using (var setter = new ElementPropertiesSetter())
-                    {
-                        setter.SetLevel(targetLevel);
-                        applied = setter.Apply(element);
-                    }
-                    if (!applied)
-                    {
-                        AddProblem(problems, "设置图层失败：" + Describe(element));
-                        continue;
-                    }
-                    if (replaceEachChild)
-                    {
-                        StatusInt status = element.ReplaceInModel(element);
-                        if (status != StatusInt.Success)
-                        {
-                            AddProblem(problems, "写回失败（" + status + "）：" + Describe(element));
-                            continue;
-                        }
-                    }
-                    changed++;
-                }
-                catch (Exception ex)
-                {
-                    AddProblem(problems, "处理图元异常：" + ex.Message);
-                }
-            }
-            return changed;
-        }
-
-        /// <summary>按元素 ID 重新取一次图元；取不到就返回 null，由调用方回退到原对象。</summary>
-        private static Element FindByElementId(DgnModel model, Element element)
+        /// <summary>设置器能不能接受这个图元（控制元素如 Datum、Type66 不接受，直接排除）。</summary>
+        private static bool CanSetLevel(Element element, LevelId targetLevel)
         {
             try
             {
-                if (element == null) return null;
-                ulong id = element.ElementId;
-                if (id == 0) return null;
-                ElementId elementId = new ElementId(ref id);
-                Element found = model.FindElementById(elementId);
-                return found != null && found.IsValid ? found : null;
+                using (var setter = new ElementPropertiesSetter())
+                {
+                    setter.SetLevel(targetLevel);
+                    return setter.Apply(element);
+                }
             }
             catch
             {
-                return null;
+                return false;
             }
         }
 
+        private static bool SetLevelInMemory(Element element, LevelId targetLevel, List<string> problems)
+        {
+            try
+            {
+                using (var setter = new ElementPropertiesSetter())
+                {
+                    setter.SetLevel(targetLevel);
+                    if (setter.Apply(element)) return true;
+                }
+                AddProblem(problems, "设置图层失败：" + Describe(element));
+            }
+            catch (Exception ex)
+            {
+                AddProblem(problems, "设置图层异常：" + ex.Message);
+            }
+            return false;
+        }
+
+        private static bool ReplaceOne(DgnModel model, Dictionary<ulong, Element> map, ulong id,
+            LevelId targetLevel, List<string> problems)
+        {
+            Element element;
+            if (!map.TryGetValue(id, out element))
+            {
+                AddProblem(problems, "图元 " + id + " 找不到");
+                return false;
+            }
+            if (!SetLevelInMemory(element, targetLevel, problems)) return false;
+            try
+            {
+                StatusInt status = element.ReplaceInModel(element);
+                if (status == StatusInt.Success) return true;
+                AddProblem(problems, "写回失败（" + status + "）：" + Describe(element));
+            }
+            catch (Exception ex)
+            {
+                AddProblem(problems, "写回异常：" + ex.Message);
+            }
+            return false;
+        }
+
         /// <summary>
-        /// 校验：每台设备的图元数必须与写入前一致（防止写回重复或丢失），
-        /// 且每个图元都必须落在目标图层。
+        /// COM 通道：<c>Element.Level = ...</c> 后 <c>Element.Rewrite()</c>。
+        /// 这是单元内部件唯一被实测允许的写法（.NET 侧一律 69645）。
         /// </summary>
-        private static bool Verify(DgnModel model, EquipmentLevelTree tree, IDictionary<ulong, int> counts,
-            LevelId targetLevel, out string failure)
+        private static bool ComRewrite(ulong id, object comLevel, List<string> problems)
+        {
+            if (comLevel == null)
+            {
+                AddProblem(problems, "COM 图层对象不可用，无法写回 " + id);
+                return false;
+            }
+            try
+            {
+                var app = Bentley.MstnPlatformNET.InteropServices.Utilities.ComApp;
+                var comElement = app.ActiveModelReference.GetElementByID64(checked((long)id));
+                if (comElement == null)
+                {
+                    AddProblem(problems, "COM 取不到图元 " + id);
+                    return false;
+                }
+                comElement.Level = (Bentley.Interop.MicroStationDGN.Level)comLevel;
+                comElement.Rewrite();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                AddProblem(problems, "COM 写回失败（" + id + "）：" + ex.Message);
+                return false;
+            }
+        }
+
+        /// <summary>按名称取 COM 图层对象；找不到就直接判本次方式不可用。</summary>
+        private static object ResolveComLevel(string levelName, List<string> problems)
+        {
+            try
+            {
+                var app = Bentley.MstnPlatformNET.InteropServices.Utilities.ComApp;
+                var levels = app.ActiveModelReference.Levels;
+                var level = levels.Find(levelName);
+                if (level != null) return level;
+                foreach (Bentley.Interop.MicroStationDGN.Level candidate in levels)
+                {
+                    if (candidate != null && string.Equals(candidate.Name, levelName, StringComparison.OrdinalIgnoreCase))
+                        return candidate;
+                }
+                AddProblem(problems, "COM 找不到图层「" + levelName + "」");
+            }
+            catch (Exception ex)
+            {
+                AddProblem(problems, "读取 COM 图层失败：" + ex.Message);
+            }
+            return null;
+        }
+
+        /// <summary>后序映射：元素 ID → 元素。</summary>
+        private static Dictionary<ulong, Element> MapById(EquipmentLevelTree tree, Element device)
+        {
+            var map = new Dictionary<ulong, Element>();
+            foreach (var element in tree.Descendants(device))
+            {
+                ulong id = SafeId(element);
+                if (id == 0 || map.ContainsKey(id)) continue;
+                map[id] = element;
+            }
+            return map;
+        }
+
+        /// <summary>
+        /// 校验：重新遍历一次设备，每个候选图元都必须落在目标图层。
+        /// 只校验候选图元，控制元素不参与。
+        /// </summary>
+        private static bool Verify(EquipmentLevelTree tree, Dictionary<ulong, List<ulong>> plan,
+            LevelId targetLevel, DgnModel model, out string failure)
         {
             failure = null;
-            foreach (var pair in counts)
+            foreach (var pair in plan)
             {
-                ulong id = pair.Key;
-                Element device = model.FindElementById(new ElementId(ref id));
+                ulong deviceId = pair.Key;
+                Element device = model.FindElementById(new ElementId(ref deviceId));
                 if (device == null || !device.IsValid)
                 {
                     failure = "设备 " + pair.Key + " 写入后找不到";
                     return false;
                 }
-                var all = tree.Descendants(device);
-                if (all.Count != pair.Value)
-                {
-                    failure = "设备 " + pair.Key + " 的图元数从 " + pair.Value + " 变成 " + all.Count +
-                        "，结构被改动";
-                    return false;
-                }
+                var map = MapById(tree, device);
                 int mismatched = 0;
-                foreach (var element in all)
+                int missing = 0;
+                foreach (ulong id in pair.Value)
                 {
+                    Element element;
+                    if (!map.TryGetValue(id, out element)) { missing++; continue; }
                     if ((uint)element.LevelId != (uint)targetLevel) mismatched++;
+                }
+                if (missing > 0)
+                {
+                    failure = "设备 " + pair.Key + " 有 " + missing + " 个图元写入后找不到";
+                    return false;
                 }
                 if (mismatched > 0)
                 {
@@ -327,12 +435,6 @@ namespace SteelSectionProbe
                 EquipmentLevelLog.Write("回滚失败：" + status + "，请用撤销恢复模型");
         }
 
-        private static string BuildSummary(EquipmentLevelReport report, string method)
-        {
-            return "设备图层修改完成：" + report.EquipmentCount + " 台设备、" + report.ChangedElementCount +
-                " 个图元 → 图层「" + report.TargetLevelName + "」（" + method + "）";
-        }
-
         private static void AppendProblems(EquipmentLevelReport report, List<string> problems)
         {
             foreach (var problem in problems)
@@ -348,16 +450,16 @@ namespace SteelSectionProbe
             if (problems != null && problems.Count < MaxProblemLines) problems.Add(message);
         }
 
+        private static ulong SafeId(Element element)
+        {
+            try { return element.ElementId; }
+            catch { return 0; }
+        }
+
         private static string Describe(Element element)
         {
-            try
-            {
-                return element.TypeName + " " + element.ElementId;
-            }
-            catch
-            {
-                return "图元";
-            }
+            try { return element.TypeName + " " + element.ElementId; }
+            catch { return "图元"; }
         }
 
         private static string SafeName(Element element)
