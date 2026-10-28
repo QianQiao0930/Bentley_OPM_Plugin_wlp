@@ -43,14 +43,25 @@ namespace SteelSectionProbe
             this.model = model;
         }
 
-        /// <summary>取直接子元素。先走 GetChildren，取不到再看依赖元素，最后才扫模型。</summary>
+        /// <summary>
+        /// 取直接子元素。根元素（设备本身）先走 GetChildren，取不到再看依赖元素；
+        /// 更深层的元素只用 GetChildren，最后才扫模型。
+        /// </summary>
         internal List<Element> Children(Element parent)
+        {
+            return Children(parent, false);
+        }
+
+        private List<Element> Children(Element parent, bool allowDependants)
         {
             if (parent == null) return new List<Element>();
             var direct = ReadDirectChildren(parent);
             if (direct.Count > 0) return direct;
-            var dependants = ReadDependants(parent);
-            if (dependants.Count > 0) return dependants;
+            if (allowDependants)
+            {
+                var dependants = ReadDependants(parent);
+                if (dependants.Count > 0) return dependants;
+            }
             return ReadScannedChildren(parent);
         }
 
@@ -95,11 +106,19 @@ namespace SteelSectionProbe
         /// <summary>后序遍历全部后代：子元素的子元素先收集，子元素本身随后。</summary>
         internal void CollectPostOrder(Element parent, List<Element> output, int depth)
         {
+            CollectPostOrder(parent, output, depth, new HashSet<ulong>());
+        }
+
+        private void CollectPostOrder(Element parent, List<Element> output, int depth, HashSet<ulong> visited)
+        {
             if (parent == null || depth > MaxDepth || output.Count >= MaxElements) return;
-            foreach (var child in Children(parent))
+            foreach (var child in Children(parent, depth == 0))
             {
                 if (output.Count >= MaxElements) return;
-                CollectPostOrder(child, output, depth + 1);
+                ulong id = SafeId(child);
+                // 已访问过就不再下钻：GetDependants 会把祖先一并返回，不去重会指数级膨胀。
+                if (id != 0 && !visited.Add(id)) continue;
+                CollectPostOrder(child, output, depth + 1, visited);
                 if (output.Count >= MaxElements) return;
                 output.Add(child);
             }
@@ -109,18 +128,22 @@ namespace SteelSectionProbe
         internal List<Element> Descendants(Element parent)
         {
             var result = new List<Element>();
-            CollectAnyOrder(parent, result, 0);
+            CollectAnyOrder(parent, result, 0, new HashSet<ulong>());
+            if (result.Count >= MaxElements)
+                EquipmentLevelLog.Write("遍历达到图元上限 " + MaxElements + "，已截断（可能存在异常结构）");
             return result;
         }
 
-        private void CollectAnyOrder(Element parent, List<Element> output, int depth)
+        private void CollectAnyOrder(Element parent, List<Element> output, int depth, HashSet<ulong> visited)
         {
             if (parent == null || depth > MaxDepth || output.Count >= MaxElements) return;
-            foreach (var child in Children(parent))
+            foreach (var child in Children(parent, depth == 0))
             {
                 if (output.Count >= MaxElements) return;
+                ulong id = SafeId(child);
+                if (id != 0 && !visited.Add(id)) continue;
                 output.Add(child);
-                CollectAnyOrder(child, output, depth + 1);
+                CollectAnyOrder(child, output, depth + 1, visited);
             }
         }
 
