@@ -43,13 +43,53 @@ namespace SteelSectionProbe
             this.model = model;
         }
 
-        /// <summary>取直接子元素。先走 GetChildren，取不到再看模型里的父子关系。</summary>
+        /// <summary>取直接子元素。先走 GetChildren，取不到再看依赖元素，最后才扫模型。</summary>
         internal List<Element> Children(Element parent)
         {
             if (parent == null) return new List<Element>();
             var direct = ReadDirectChildren(parent);
             if (direct.Count > 0) return direct;
+            var dependants = ReadDependants(parent);
+            if (dependants.Count > 0) return dependants;
             return ReadScannedChildren(parent);
+        }
+
+        /// <summary>
+        /// 路径二：<c>GetDependants()</c>。
+        /// <para>
+        /// OpenPlant 的 <c>Equipment</c> 元素上 <c>ExposeChildren</c> 返回 false、
+        /// <c>GetChildren()</c> 恒为 0，但 <c>GetDependants()</c> 能给出它的图形图元
+        /// （实测一台设备 19 个）。这些元素在模型层面既不是单元子元素、也不在
+        /// <c>GetElements()</c> 枚举范围内，只有这条通道能拿到。
+        /// </para>
+        /// </summary>
+        private List<Element> ReadDependants(Element parent)
+        {
+            var list = new List<Element>();
+            try
+            {
+                object dependants = parent.GetDependants();
+                if (dependants == null) return list;
+                var enumerable = dependants as IEnumerable;
+                if (enumerable == null)
+                {
+                    EquipmentLevelLog.Write("GetDependants 返回的类型不可枚举：" + dependants.GetType().FullName);
+                    return list;
+                }
+                foreach (object item in enumerable)
+                {
+                    var element = item as Element;
+                    if (element == null || !element.IsValid) continue;
+                    list.Add(element);
+                }
+                if (list.Count > 0)
+                    EquipmentLevelLog.Write("改用 GetDependants：找到 " + list.Count + " 个图形图元");
+            }
+            catch (Exception ex)
+            {
+                EquipmentLevelLog.Write("读取依赖元素失败：" + ex.Message);
+            }
+            return list;
         }
 
         /// <summary>后序遍历全部后代：子元素的子元素先收集，子元素本身随后。</summary>
@@ -99,8 +139,25 @@ namespace SteelSectionProbe
             List<ulong> scanned;
             childrenByParent.TryGetValue(SafeId(parent), out scanned);
             int scannedCount = scanned == null ? 0 : scanned.Count;
-            return "GetChildren 返回 " + direct + " 个；按父元素扫描模型（" + scannedElements + " 个元素）找到 " +
-                scannedCount + " 个" + (scanFailed ? "（扫描失败，见日志）" : "");
+            int dependants = 0;
+            try
+            {
+                object value = parent.GetDependants();
+                if (value != null) dependants = CountItems(value);
+            }
+            catch { }
+            return "GetChildren 返回 " + direct + " 个；GetDependants 返回 " + dependants +
+                " 个；按父元素扫描模型（" + scannedElements + " 个元素）找到 " + scannedCount + " 个" +
+                (scanFailed ? "（扫描失败，见日志）" : "");
+        }
+
+        private static int CountItems(object collection)
+        {
+            var enumerable = collection as IEnumerable;
+            if (enumerable == null) return 0;
+            int count = 0;
+            foreach (object item in enumerable) count++;
+            return count;
         }
 
         /// <summary>路径一：ExposeChildren + GetChildren。</summary>
