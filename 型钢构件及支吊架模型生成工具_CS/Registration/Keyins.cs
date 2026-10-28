@@ -31,5 +31,14 @@ namespace SteelSectionProbe
                 MainWindow.Current.ShowComponentPropertiesPage();
             }
         }
+
+        /// <summary>
+        /// 把选中设备的图形图元批量改到当前活动图层。
+        /// 只处理 ElementType = Equipment 的普通单元，其余元素一律跳过。
+        /// </summary>
+        public static void EquipmentLevel(string args)
+        {
+            EquipmentLevelCommand.Run();
+        }
     }
 }
