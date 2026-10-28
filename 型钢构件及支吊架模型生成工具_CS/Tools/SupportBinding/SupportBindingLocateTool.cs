@@ -5,7 +5,7 @@ using Bentley.MstnPlatformNET;
 
 namespace SteelSectionProbe
 {
-    internal sealed class SupportBindingLocateTool : DgnElementSetTool
+    internal sealed class SupportBindingLocateTool : ProbeLocateTool
     {
         private static SupportBindingLocateTool active;
         private static bool oldSnap, oldLocate;

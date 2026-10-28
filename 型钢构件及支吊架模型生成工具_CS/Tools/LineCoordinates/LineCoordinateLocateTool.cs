@@ -5,7 +5,7 @@ using Bentley.MstnPlatformNET;
 
 namespace SteelSectionProbe
 {
-    internal sealed class LineCoordinateLocateTool : DgnElementSetTool
+    internal sealed class LineCoordinateLocateTool : ProbeLocateTool
     {
         private static LineCoordinateLocateTool active;
         private static bool oldSnap, oldLocate;

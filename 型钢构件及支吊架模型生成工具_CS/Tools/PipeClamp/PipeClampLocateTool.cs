@@ -8,7 +8,7 @@ namespace SteelSectionProbe
     /// 管夹类功能共用的点选工具：悬停定位管道 / 直线 / 多段线，左键上报元素 ID 与点击点。
     /// 五种管夹共用初始定位工具；A1 定位后另用工具调整开口方向。
     /// </summary>
-    internal sealed class PipeClampLocateTool : DgnElementSetTool
+    internal sealed class PipeClampLocateTool : ProbeLocateTool
     {
         private static PipeClampLocateTool active;
         private static bool oldSnap,oldLocate;

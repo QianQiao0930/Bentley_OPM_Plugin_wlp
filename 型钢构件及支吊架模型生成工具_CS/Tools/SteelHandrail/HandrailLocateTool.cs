@@ -4,7 +4,7 @@ using Bentley.MstnPlatformNET;
 
 namespace SteelSectionProbe
 {
-    internal sealed class HandrailLocateTool:DgnElementSetTool
+    internal sealed class HandrailLocateTool:ProbeLocateTool
     {
         private static HandrailLocateTool active;
         private static bool snap,locate;

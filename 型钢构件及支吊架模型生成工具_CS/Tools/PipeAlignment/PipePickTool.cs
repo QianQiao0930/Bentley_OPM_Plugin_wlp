@@ -16,7 +16,7 @@ namespace SteelSectionProbe.PipeAlignment
     /// 基准管要求单选并立即进入下一阶段，目标管允许多选（连续左键 / Ctrl+Click / 框选）。
     /// </para>
     /// </summary>
-    internal sealed class PipePickTool : DgnElementSetTool
+    internal sealed class PipePickTool : ProbeLocateTool
     {
         internal enum PickPurpose
         {

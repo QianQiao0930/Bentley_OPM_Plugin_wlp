@@ -2,6 +2,8 @@
 
 当前版本：V1.0.0（程序集/文件版本1.0.0.0；唯一来源App/AssemblyInfo.cs，首页及作者页自动读取）。
 
+2026-10-26点取忽略元素选择集与T型架状态栏：新增 `Tools/ProbeLocateTool.cs` 作为全部只读点取工具的基类。**根因**：`DgnElementSetTool` 安装时若发现已有选择集，会把它当作自己的元素议程，议程非空后一次左键不再走 `OnDataButton → DoLocate`，而是去"修改议程"，`OnElementModify` 返回错误后宿主重启/退出工具——现象是"先在视图中选中一条直线再点【开始点取】，左键点线没有预览、点取还自己结束了"，选择集为空时同一段代码正常。**只覆写 `AllowSelection()=None` 并不够**（宿主仍会拿到议程并把工具结束掉），最终做法是在**工具构造时（`InstallTool` 之前）挂起活动选择集**：记下其中的元素并 `SelectionSetManager.EmptyAll()`，让宿主走已验证可用的空选择集路径，`OnCleanup` 时再 `AddElement` 放回，用户选择不会永久丢失；另外仍固定 `AllowSelection=None`、`AllowFence=None`、`GetPreferredElementSource=Pick` 并在安装时清一次议程作多层兜底。14 个只读点取工具（放置管夹、门型架、T 型架、L 型架、N3/N4、三角架、垫板、围栏、立管耳轴、弯头耳轴、构件特性、直线坐标与按管道对齐、支吊架组合绑定）改为继承该基类；诊断日志写到 `%LOCALAPPDATA%\SteelSectionProbe\logs\Locate\latest.log`（安装/清理、选择集挂起与归还、T 型架每次左键的定位结果与议程数）。T 型架另补齐状态栏实时文案（开始点取提示、参数变更、筋板编号、预览成功带编号、取消、结束点取、点取失败、未点取就更新）并在定位不到辅助线时提示。授权/无授权 Release 均 0 警告 0 错误，net48 与 net48_full SHA256 一致（`747141B2…7CAC7D9`），TFrameCheck 与原 597 项 SupportUiCheck 通过；OPM 宿主内"先选中再点取"、连续点取、参考文件点取与选择集归还需实测。
+
 2026-10-17直线点取区固定精简：LineCoordinatesPage将SelectionCard移出ParameterScroll，位于顶部Auto行，坐标/快速对齐在中间滚动，底部OperationCard保持固定。点取区约72 DIP，第一行标题与点取/结束按钮，第二行只读选择状态与毫米/模型XYZ单位；原说明移至悬停提示，长选择状态单行显示、悬停查看全文。具名控件、默认值、事件及业务源码保持。ToolPagesUiCheck 201项（新增点取区高度和滚动固定检查）、LineCoordinatesCheck 93项通过，授权/无授权Release均0警告0错误，常规/备用DLL同步；OPM宿主尚未实测。改前源码/原型/DLL/PDB及SHA256位于仓库迁移备份/直线点取区固定精简_20261017。
 
 2026-10-17墙面爬梯参数双列：WallLadderPage五个填写框按原顺序从左到右、从上到下排布，梯宽/距墙、最低横担离地/支架间距各一行，方向角在第三行左侧；两列等宽、间距10，同行标题和输入分别共享Auto行，标题换行不影响输入对齐，护笼勾选保持整行。仅调整XAML布局，原字段/默认值/事件及业务源码保持。ModelingUiCheck 406项、WallLadderCheck 12372项通过；授权/无授权Release均0警告0错误，常规/备用DLL已同步。OPM宿主界面尚未实测。改前源码/原型/DLL/PDB与SHA256位于仓库迁移备份/墙面爬梯双列布局_20261017，源码基线7eb5679。
@@ -748,6 +750,17 @@ bin/Release/net48_full/SteelSectionProbe.dll
 补充：`Element` 没有 `ElementRange` / `ModelRef` 属性，但**有 `DgnModelRef` 与 `DgnModel`**；`HitPath` 也没有 `GetHeadElementRef`。需要查 Bentley API 真实签名时，用 `_apidump` 那类"只读元数据"的办法（`PEReader` + `MetadataReader`，可打印完整签名）—— 注意 **`DgnElementSetTool` 在 `Bentley.DgnDisplayNet.dll` 里，不在 `Bentley.DgnPlatformNET.dll`**，按类型名找 DLL 时先 `grep -a` 一下。**不要用 PowerShell 的 `Reflection.Assembly.LoadFrom`**（被安全策略拦截），也不要用"故意编译报错"的探针去猜不存在的成员：编译器的函数体分析会被声明级错误压制，可能给出"看起来没报错"的假象。
 
 破坏性操作（删除辅助线等）必须排除参考元素：参考元素的 ID 在活动模型里删不掉，应提前禁用选项并说明原因。
+
+### 25.1 只读点取工具一律继承 `Tools/ProbeLocateTool.cs`
+
+新增或修改点取（定位）工具时，**不要直接继承 `DgnElementSetTool`**，而应继承 `ProbeLocateTool`。它把"只按光标定位"固定在基类上：
+
+- 固定 `AllowSelection()=UsesSelection.None`、`AllowFence()=UsesFence.None`、`GetPreferredElementSource()=ElementSource.Pick`，安装时再清一次宿主编进来的议程；
+- **关键**：在**工具构造时（`InstallTool` 之前）挂起活动选择集**——`SelectionSetManager.GetElement` 记下元素，`EmptyAll()` 清空，让宿主走"选择集为空"这条已验证可用的路径；`OnCleanup` 里用 `AddElement` 把它们放回，用户的选择不会永久丢失。
+
+原因是 `DgnElementSetTool` 在安装时若发现已有选择集，会把它当作自己的元素议程；议程一旦非空，一次左键就不再走 `OnDataButton → DoLocate`，而是去"修改议程"，`OnElementModify` 返回错误后宿主重启/退出工具。现象是"先在视图中选中一条直线，再点【开始点取】，左键点线没有预览、点取还自己结束了"，而选择集为空时同一段代码完全正常。**实测教训：只覆写 `AllowSelection()` 返回 `None` 不够** —— 宿主仍会把议程建起来并结束工具，必须在安装前把选择集挂起。
+
+排查这类"点取没反应/工具自己结束"的问题，先看诊断日志 `%LOCALAPPDATA%\SteelSectionProbe\logs\Locate\latest.log`（由 `ProbeLocateLog` 写入：安装/清理、选择集挂起与归还数量、每次左键的定位结果与议程数），不要靠猜。
 
 ## 26. 点选参考文件元素时的"临时辅助线"流程（放置管夹）
 

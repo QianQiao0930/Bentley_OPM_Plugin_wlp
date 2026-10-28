@@ -9,7 +9,7 @@ namespace SteelSectionProbe
     /// 「对齐到管道」的点取工具：只读取一根活动模型管道及其点取位置，
     /// 不改任何几何与属性；读取走 <see cref="LineCoordinatePipeReader"/>，改动走应用修改流程。
     /// </summary>
-    internal sealed class LineCoordinatePipeTool : DgnElementSetTool
+    internal sealed class LineCoordinatePipeTool : ProbeLocateTool
     {
         private static LineCoordinatePipeTool active;
         private static bool oldSnap, oldLocate;

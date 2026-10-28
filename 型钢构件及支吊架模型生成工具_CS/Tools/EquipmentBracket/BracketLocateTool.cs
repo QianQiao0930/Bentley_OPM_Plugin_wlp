@@ -4,7 +4,7 @@ using Bentley.MstnPlatformNET;
 
 namespace SteelSectionProbe
 {
-    internal sealed class BracketLocateTool:DgnElementSetTool
+    internal sealed class BracketLocateTool:ProbeLocateTool
     {
         private static BracketLocateTool active;
         private static bool snap,locate;

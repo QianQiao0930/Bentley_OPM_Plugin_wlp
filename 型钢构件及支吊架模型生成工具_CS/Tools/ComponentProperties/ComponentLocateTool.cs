@@ -5,7 +5,7 @@ using Bentley.MstnPlatformNET;
 namespace SteelSectionProbe
 {
     /// <summary>Read-only one-click element picker. Bentley objects never leave its callbacks.</summary>
-    internal sealed class ComponentLocateTool : DgnElementSetTool
+    internal sealed class ComponentLocateTool : ProbeLocateTool
     {
         private static ComponentLocateTool active;
         private static bool savedSnapEnabled;

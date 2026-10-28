@@ -132,12 +132,17 @@ namespace SteelSectionProbe
         {
             if(!ready||Kind!="D15"||dirty)return;
             string number=preview.UpdateStiffener(StiffenerText.Text);
-            if(number!=null)PreviewText.Text="编号："+number+"\n筋板尺寸已同步到清单；几何预览未变化。";
+            if(number!=null)
+            {
+                PreviewText.Text="编号："+number+"\n筋板尺寸已同步到清单；几何预览未变化。";
+                Status("筋板尺寸已写入编号："+number+"；几何预览未变化。",false);
+            }
         }
         private void Changed()
         {if(line==null)return;dirty=true;ConfirmButton.IsEnabled=false;
             PreviewUpdateHint.Set(UpdateButton,true);
-            PreviewText.Text="参数已变更，请更新预览后再确定生成。";}
+            PreviewText.Text="参数已变更，请更新预览后再确定生成。";
+            Status("参数已变更，请更新预览后再确定生成。",false);}
         private static double Number(string text,string label)
         {double value;if(!double.TryParse(text,NumberStyles.Float,CultureInfo.CurrentCulture,out value)&&
             !double.TryParse(text,NumberStyles.Float,CultureInfo.InvariantCulture,out value))
@@ -164,7 +169,12 @@ namespace SteelSectionProbe
         }
         private void Regenerate()
         {
-            if(line==null)return;
+            if(line==null)
+            {
+                PreviewText.Text="请先点取辅助线，再更新预览。";
+                Status("请先点取辅助线，再更新预览。",true);
+                return;
+            }
             UpdateLimits();
             try
             {
@@ -177,7 +187,7 @@ namespace SteelSectionProbe
                     " mm；构件 B 下料长="+plan.L2Mm.ToString("0.#")+" mm"+
                     (plan.AllowableLoadKn.HasValue?"\n允许垂直荷载："+
                         plan.AllowableLoadKn.Value.ToString("0.##")+" kN":"\n当前 H/L 档位无允许荷载值");
-                Status("T 型架预览已生成。",false);
+                Status("T 型架预览已生成："+plan.Number+"。",false);
             }
             catch(Exception ex){ConfirmButton.IsEnabled=false;PreviewText.Text="预览未更新："+ex.Message;
                 Status(ex.Message,true);}
@@ -199,21 +209,33 @@ namespace SteelSectionProbe
                     if(line.IsFromReference)KeepLineCheck.IsChecked=true;
                     Regenerate();
                 }
-                catch(Exception ex){line=null;UpdateLimits();Status("点取失败："+ex.Message,true);}
+                catch(Exception ex){line=null;UpdateLimits();PreviewUpdateHint.Set(UpdateButton,false);
+                    PreviewText.Text="未生成预览："+ex.Message;Status("点取失败："+ex.Message,true);}
             }),DispatcherPriority.Background);
         }
         private void OnEnded()
         {locating=false;try{preview.Cancel();}catch(Exception ex){Status(ex.Message,true);}
             line=null;dirty=false;ConfirmButton.IsEnabled=false;
-            PreviewText.Text="已结束点取。";PreviewUpdateHint.Set(UpdateButton,false);UpdateLimits();}
+            PreviewText.Text="已结束点取。";PreviewUpdateHint.Set(UpdateButton,false);UpdateLimits();
+            Status("已结束点取，未确认的预览已取消。",false);}
         private void Pick_Click(object sender,RoutedEventArgs e)
-        {try{TFrameLocateTool.Begin();locating=true;}catch(Exception ex){Status(ex.Message,true);}}
+        {
+            try
+            {
+                TFrameLocateTool.Begin();locating=true;
+                Status(Kind=="D15"
+                    ?"请在视图中左键点取水平辅助直线（线长 = L1 + 构件 B 腹板厚）；右键退出点取。"
+                    :"请在视图中左键点取整组中心的竖直辅助直线（线长为 H）；右键退出点取。",false);
+            }
+            catch(Exception ex){Status("无法开始点取："+ex.Message,true);}
+        }
         private void End_Click(object sender,RoutedEventArgs e){TFrameLocateTool.End();}
         private void Update_Click(object sender,RoutedEventArgs e){Regenerate();}
         private void Cancel_Click(object sender,RoutedEventArgs e)
         {try{preview.Cancel();line=null;dirty=false;ConfirmButton.IsEnabled=false;
-            PreviewUpdateHint.Set(UpdateButton,false);PreviewText.Text="已取消预览。";UpdateLimits();}
-            catch(Exception ex){Status(ex.Message,true);}}
+            PreviewUpdateHint.Set(UpdateButton,false);PreviewText.Text="已取消预览。";UpdateLimits();
+            Status("已取消预览。",false);}
+            catch(Exception ex){Status("取消预览失败："+ex.Message,true);}}
         private async void Confirm_Click(object sender,RoutedEventArgs e)
         {
             if(dirty){Status("请先更新预览。",true);return;}

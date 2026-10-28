@@ -4,7 +4,7 @@ using Bentley.MstnPlatformNET;
 namespace SteelSectionProbe
 {
     /// <summary>墙面爬梯只读定位；沿用共用工具的参考定位与捕捉恢复约定。</summary>
-    internal sealed class WallLadderLocateTool : DgnElementSetTool
+    internal sealed class WallLadderLocateTool : ProbeLocateTool
     {
         private static WallLadderLocateTool active;
         private static bool oldSnap,oldLocate;

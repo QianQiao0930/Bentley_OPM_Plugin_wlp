@@ -4,7 +4,7 @@ using Bentley.MstnPlatformNET;
 
 namespace SteelSectionProbe
 {
-    internal sealed class ElbowTrunnionLocateTool : DgnElementSetTool
+    internal sealed class ElbowTrunnionLocateTool : ProbeLocateTool
     {
         private static ElbowTrunnionLocateTool active;
         private static bool oldSnap,oldLocate;

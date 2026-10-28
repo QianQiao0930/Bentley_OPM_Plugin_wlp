@@ -4,7 +4,7 @@ using Bentley.MstnPlatformNET;
 
 namespace SteelSectionProbe
 {
-    internal sealed class PortalFrameLocateTool:DgnElementSetTool
+    internal sealed class PortalFrameLocateTool:ProbeLocateTool
     {
         private static PortalFrameLocateTool active;
         private static bool snap,locate,horizontal;
