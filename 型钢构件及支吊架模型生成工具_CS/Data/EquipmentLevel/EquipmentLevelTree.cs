@@ -171,29 +171,12 @@ namespace SteelSectionProbe
             var started = DateTime.UtcNow;
             try
             {
-                object elements = model.GetElements();
-                var enumerable = elements as IEnumerable;
-                if (enumerable == null)
-                {
-                    scanFailed = true;
-                    EquipmentLevelLog.Write("模型元素集合不可枚举：" + (elements == null ? "null" : elements.GetType().FullName));
-                    return;
-                }
-                foreach (object item in enumerable)
-                {
-                    var element = item as Element;
-                    if (element == null || !element.IsValid) continue;
-                    scannedElements++;
-                    ulong parentId = ParentIdOf(element);
-                    if (parentId == 0) continue;
-                    List<ulong> list;
-                    if (!childrenByParent.TryGetValue(parentId, out list))
-                    {
-                        list = new List<ulong>();
-                        childrenByParent[parentId] = list;
-                    }
-                    list.Add(element.ElementId);
-                }
+                // 三种集合都扫一遍并去重：GetElements() 可能只给"顶层"元素，
+                // 复杂元素/单元内部件常常只有在 GetGraphicElements() 里才拿得到。
+                var seen = new Dictionary<ulong, bool>();
+                ScanCollection(model.GetElements(), seen, "GetElements");
+                ScanCollection(model.GetGraphicElements(), seen, "GetGraphicElements");
+                ScanCollection(model.GetControlElements(), seen, "GetControlElements");
                 EquipmentLevelLog.Write("模型扫描完成：" + scannedElements + " 个元素，带父元素的 " +
                     childrenByParent.Count + " 组，耗时 " +
                     (DateTime.UtcNow - started).TotalMilliseconds.ToString("F0") + " ms");
@@ -203,6 +186,43 @@ namespace SteelSectionProbe
                 scanFailed = true;
                 EquipmentLevelLog.Write("模型扫描失败：" + ex.Message);
             }
+        }
+
+        /// <summary>把一个元素集合扫进"父元素 → 子元素 ID"索引，按元素 ID 去重。</summary>
+        private void ScanCollection(object collection, IDictionary<ulong, bool> seen, string label)
+        {
+            var enumerable = collection as IEnumerable;
+            if (enumerable == null)
+            {
+                EquipmentLevelLog.Write("  " + label + "：不可枚举（" + (collection == null ? "null" : collection.GetType().Name) + "）");
+                return;
+            }
+            int count = 0;
+            int withParent = 0;
+            foreach (object item in enumerable)
+            {
+                var element = item as Element;
+                if (element == null || !element.IsValid) continue;
+                count++;
+                ulong id = SafeId(element);
+                if (id != 0)
+                {
+                    if (seen.ContainsKey(id)) continue;
+                    seen[id] = true;
+                }
+                scannedElements++;
+                ulong parentId = ParentIdOf(element);
+                if (parentId == 0) continue;
+                withParent++;
+                List<ulong> list;
+                if (!childrenByParent.TryGetValue(parentId, out list))
+                {
+                    list = new List<ulong>();
+                    childrenByParent[parentId] = list;
+                }
+                list.Add(id);
+            }
+            EquipmentLevelLog.Write("  " + label + "：枚举 " + count + " 个，其中带父元素 " + withParent + " 个");
         }
 
         private static ulong ParentIdOf(Element element)

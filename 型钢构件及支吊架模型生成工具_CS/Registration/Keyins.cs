@@ -40,5 +40,13 @@ namespace SteelSectionProbe
         {
             EquipmentLevelCommand.Run();
         }
+
+        /// <summary>
+        /// 只读探测：把选中元素能否取到图形图元的各条通道全部写进日志。
+        /// </summary>
+        public static void EquipmentProbe(string args)
+        {
+            EquipmentLevelProbe.Run();
+        }
     }
 }
