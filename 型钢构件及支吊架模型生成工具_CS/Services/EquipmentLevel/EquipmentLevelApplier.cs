@@ -180,10 +180,7 @@ namespace SteelSectionProbe
                     switch (mode)
                     {
                         case WriteMode.ComRewrite:
-                            foreach (ulong id in pair.Value)
-                            {
-                                if (ComRewrite(id, comLevel, problems)) changed++;
-                            }
+                            changed += RunComPasses(tree, device, pair.Value, targetLevel, comLevel, problems);
                             break;
 
                         case WriteMode.ReplaceEach:
@@ -240,6 +237,59 @@ namespace SteelSectionProbe
                 }
                 return false;
             }
+        }
+
+        /// <summary>
+        /// COM 通道的迭代收敛：一次写回可能被父单元的重写覆盖回去，
+        /// 因此反复只改"还没落到目标图层"的图元，直到没有新的变化为止。
+        /// <para>实测：第一轮 97 个里 60 个生效、37 个被父单元写回带回；靠迭代把它们补齐。</para>
+        /// </summary>
+        private static int RunComPasses(EquipmentLevelTree tree, Element device, List<ulong> candidates,
+            LevelId targetLevel, object comLevel, List<string> problems)
+        {
+            int changed = 0;
+            int previous = int.MaxValue;
+            for (int pass = 1; pass <= 4; pass++)
+            {
+                var map = MapById(tree, device);
+                var pending = new List<ulong>();
+                foreach (ulong id in candidates)
+                {
+                    Element element;
+                    if (!map.TryGetValue(id, out element)) continue;
+                    if ((uint)element.LevelId == (uint)targetLevel) continue;
+                    pending.Add(id);
+                }
+                if (pending.Count == 0)
+                {
+                    EquipmentLevelLog.Write("COM 第 " + pass + " 轮：已全部落到目标图层");
+                    break;
+                }
+                if (pending.Count >= previous)
+                {
+                    EquipmentLevelLog.Write("COM 第 " + pass + " 轮：没有新的进展（剩 " + pending.Count + " 个），停止");
+                    var map2 = MapById(tree, device);
+                    int logged = 0;
+                    foreach (ulong id in pending)
+                    {
+                        if (logged++ >= 10) break;
+                        Element stuck;
+                        EquipmentLevelLog.Write("  仍改不动：" +
+                            (map2.TryGetValue(id, out stuck) ? Describe(stuck) : ("图元 " + id)));
+                    }
+                    break;
+                }
+                previous = pending.Count;
+                int ok = 0;
+                foreach (ulong id in pending)
+                {
+                    if (ComRewrite(id, comLevel, problems)) ok++;
+                }
+                changed += ok;
+                EquipmentLevelLog.Write("COM 第 " + pass + " 轮：本轮写回 " + ok + " 个，开始前待改 " +
+                    pending.Count + " 个");
+            }
+            return changed;
         }
 
         /// <summary>设置器能不能接受这个图元（控制元素如 Datum、Type66 不接受，直接排除）。</summary>
