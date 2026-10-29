@@ -17,4 +17,9 @@ namespace SteelSectionProbe
         void OnDeactivated();
         void OnWorkspaceClosing();
     }
+
+    internal interface IWorkspaceBusyPage
+    {
+        bool IsBusy { get; }
+    }
 }

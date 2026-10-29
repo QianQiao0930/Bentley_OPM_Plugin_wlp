@@ -27,12 +27,6 @@ namespace SteelSectionProbe
         /// <summary>设备在该属性上的取值。</summary>
         internal const string EquipmentValue = "Equipment";
 
-        /// <summary>递归展开的最大层数，防止异常结构导致无限下钻。</summary>
-        internal const int MaxDepth = 8;
-
-        /// <summary>单台设备最多展开的图元数，超限直接拒绝。</summary>
-        internal const int MaxElements = 20000;
-
         /// <summary>取活动模型；没有活动模型时抛中文异常。</summary>
         internal static DgnModel ActiveModel()
         {
@@ -101,7 +95,7 @@ namespace SteelSectionProbe
             if (cell != null && !cell.IsNormalCell)
             {
                 entry.Verdict = EquipmentLevelVerdict.UnsupportedCell;
-                entry.Reason = "是共享单元或参数化单元，本版本不处理";
+                entry.Reason = "选中的根是共享单元或参数化单元，请选择普通设备单元";
                 return entry;
             }
 

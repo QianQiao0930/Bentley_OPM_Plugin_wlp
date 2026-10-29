@@ -7,11 +7,12 @@ using Bentley.MstnPlatformNET;
 namespace SteelSectionProbe
 {
     /// <summary>
-    /// <c>STEELPROBE EQLEVEL</c> 的实现：把<b>选中设备</b>的图形图元批量改到<b>当前活动图层</b>。
+    /// <c>STEELPROBE EQLEVEL</c>：设备内部图形改到当前活动图层，颜色改为随层。
     /// <para>
     /// 使用顺序：先把活动图层切到目标层 → 选中一台或多台设备 → 执行命令。
     /// 只处理普通单元且 EC 属性 <c>ElementType</c> 为 <c>Equipment</c> 的元素；
-    /// 管道、管件、支吊架、共享单元、参数化单元与参考文件元素全部拒绝，并在日志里写明原因。
+    /// 管道、管件、支吊架、共享/参数化单元根与参考文件元素拒绝，并在日志里写明原因。
+    /// 普通设备内部的共享单元仅修改实例层色覆盖，不写公共定义。
     /// </para>
     /// </summary>
     internal static class EquipmentLevelCommand
@@ -79,6 +80,7 @@ namespace SteelSectionProbe
 
             // 2. 目标图层 = 当前活动图层。
             LevelHandle target = ReadActiveLevel(model);
+            EquipmentLevelLog.Write("==== EQLEVEL COM包含关系 + 颜色随层；目标层「" + target.Name + "」 ====");
 
             // 3. 写入 + 校验 + 失败回滚。
             EquipmentLevelReport report = EquipmentLevelApplier.Apply(model, equipmentIds,

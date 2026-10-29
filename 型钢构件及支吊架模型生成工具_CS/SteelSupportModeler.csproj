@@ -57,6 +57,8 @@
   <ItemGroup><EmbeddedResource Include="Resources\profiles.bin" LogicalName="SteelSectionProbe.profiles.bin" /></ItemGroup>
   <ItemGroup><EmbeddedResource Include="Resources\nozzle_flange_data.json" LogicalName="SteelSectionProbe.nozzle_flange_data.json" /></ItemGroup>
   <ItemGroup><Compile Remove="Development\ComponentPropertiesCheck\**\*.cs" />
+    <Compile Remove="Development\EquipmentLevelCheck\**\*.cs" />
+    <Compile Remove="Development\EquipmentLevelUiCheck\**\*.cs" />
     <Compile Remove="Development\ElbowTrunnionCheck\**\*.cs" />
     <Compile Remove="Development\SupportStatisticsCheck\**\*.cs" />
     <Compile Remove="Development\TankManholeCheck\**\*.cs" />

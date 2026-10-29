@@ -33,6 +33,8 @@
                     "竖直线定位、圆钢横担、墙面支架与真实圆弧护笼。", 18, HomeCategories.Modeling, "handrail"),
                 new FeatureDescriptor("magnetic-level-gauge", "磁翻板液位计",
                     "接口中心距、筒体法兰、阀门手轮和红白翻片外观模型。", 19, HomeCategories.Modeling, "nozzle"),
+                new FeatureDescriptor("equipment-level", "设备图层与颜色",
+                    "选择文档图层与颜色，批量统一设备内部图形。", 22, HomeCategories.Modeling, "puzzle"),
                 new FeatureDescriptor("component-properties", "构件特性查询",
                     "点取构件，查看 EC 属性与几何特性。", 20, HomeCategories.Stats, "inspect"),
                 new FeatureDescriptor("line-coordinates", "直线坐标修改",

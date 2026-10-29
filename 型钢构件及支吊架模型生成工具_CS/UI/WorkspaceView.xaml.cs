@@ -38,6 +38,7 @@ namespace SteelSectionProbe
             RegisterPage(new TankLadderPage());
             RegisterPage(new WallLadderPage());
             RegisterPage(new MagneticGaugePage());
+            RegisterPage(new EquipmentLevelPage());
             RegisterPage(new PipeAlignmentPage());
             RegisterPage(new ComponentPropertiesPage());
             RegisterPage(new LineCoordinatesPage());
@@ -81,6 +82,7 @@ namespace SteelSectionProbe
 
         private void OpenPage(string id)
         {
+            if (!CanLeaveCurrentPage()) return;
             if (id != "activation" && id != "about" && !LicenseService.IsActivated)
             {
                 ShowActivationPage();
@@ -163,6 +165,7 @@ namespace SteelSectionProbe
 
         internal void ShowHome()
         {
+            if (!CanLeaveCurrentPage()) return;
             if (currentPage != null) currentPage.OnDeactivated();
             currentPage = null;
             PageHost.Content = homePage;
@@ -186,6 +189,14 @@ namespace SteelSectionProbe
         {
             HeaderRow.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
             HeaderRowDef.MinHeight = visible ? 88 : 0;
+        }
+
+        private bool CanLeaveCurrentPage()
+        {
+            var busyPage = currentPage as IWorkspaceBusyPage;
+            if (busyPage == null || !busyPage.IsBusy) return true;
+            SetStatus("设备正在处理中，请等待完成后切换页面。", false);
+            return false;
         }
 
         /// <summary>首页宽度校准的剩余尝试次数（防止布局抖动时反复改窗口尺寸）。</summary>

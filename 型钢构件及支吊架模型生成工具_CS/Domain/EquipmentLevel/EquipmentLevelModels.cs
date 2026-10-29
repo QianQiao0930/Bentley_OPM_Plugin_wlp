@@ -7,7 +7,8 @@ namespace SteelSectionProbe
     /// <para>
     /// 本功能只处理 <b>设备</b>：普通单元（NormalCell），且 EC 属性
     /// <c>DgnElementSchema.NormalCellElement.ElementType</c> 的值为 <c>Equipment</c>。
-    /// 管道、管件、支吊架、参考文件、共享单元与参数化单元一律不动。
+    /// 管道、管件、支吊架、参考文件、共享/参数化单元根不作为设备入口。
+    /// 普通设备内部的共享单元通过实例层色覆盖处理，不改公共定义。
     /// </para>
     /// </summary>
     internal enum EquipmentLevelVerdict
@@ -49,19 +50,25 @@ namespace SteelSectionProbe
         /// <summary>判定为设备并参与处理的台数。</summary>
         internal int EquipmentCount;
 
-        /// <summary>计划修改的图元数（写入前的快照）。</summary>
+        /// <summary>必须通过图层、颜色双重校验的图形数，不含可选的容器单元头。</summary>
         internal int PlannedElementCount;
 
-        /// <summary>实际写入并校验通过的图元数。</summary>
+        /// <summary>修改前不符合、修改后通过校验的唯一图形数。</summary>
         internal int ChangedElementCount;
+
+        /// <summary>从宿主重新读取并通过图层、颜色双重校验的图形数量。</summary>
+        internal int VerifiedElementCount;
+
+        /// <summary>修改前已经满足所选图层和颜色条件的图形数量。</summary>
+        internal int AlreadyOnTargetCount;
 
         /// <summary>被拒绝的选中元素数。</summary>
         internal int RejectedCount;
 
-        /// <summary>本身不接受改层的容器单元数量（其内部图元已改到目标图层）。</summary>
+        /// <summary>属性未统一的容器单元头数量（内部图形已通过图层和颜色校验）。</summary>
         internal int ContainersNotChanged;
 
-        /// <summary>是否成功；失败时模型已回滚。</summary>
+        /// <summary>是否成功；失败时回滚结果须看 Summary，不能假定回滚成功。</summary>
         internal bool Succeeded;
 
         /// <summary>一句话结论，用于状态栏。</summary>
@@ -70,7 +77,7 @@ namespace SteelSectionProbe
         /// <summary>失败原因；成功时为空。</summary>
         internal string Failure = string.Empty;
 
-        /// <summary>实际生效的写入方式（逐个子元素 / 整台单元），用于沉淀宿主行为。</summary>
+        /// <summary>实际使用的读取/写入方式。</summary>
         internal string Method = string.Empty;
 
         /// <summary>逐台设备的明细文字。</summary>

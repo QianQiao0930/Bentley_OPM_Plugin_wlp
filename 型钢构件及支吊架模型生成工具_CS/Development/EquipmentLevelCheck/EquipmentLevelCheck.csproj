@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <UseAppHost>false</UseAppHost>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>7.3</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <NuGetAudit>false</NuGetAudit>
+    <NoWarn>$(NoWarn);CS0649</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Data/EquipmentLevel/EquipmentLevelTree.cs" Link="EquipmentLevelTree.cs" />
+    <Compile Include="../../Data/EquipmentLevel/EquipmentLevelUiReader.cs" Link="EquipmentLevelUiReader.cs" />
+    <Compile Include="../../Services/EquipmentLevel/EquipmentLevelApplier.cs" Link="EquipmentLevelApplier.cs" />
+    <Compile Include="../../Domain/EquipmentLevel/EquipmentLevelModels.cs" Link="EquipmentLevelModels.cs" />
+    <Compile Include="../../Domain/EquipmentLevel/EquipmentAppearanceOptions.cs" Link="EquipmentAppearanceOptions.cs" />
+    <Compile Include="../../Services/EquipmentLevel/EquipmentLevelProgressReporter.cs" Link="EquipmentLevelProgressReporter.cs" />
+  </ItemGroup>
+</Project>

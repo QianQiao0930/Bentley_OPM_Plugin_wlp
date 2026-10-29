@@ -1,617 +1,341 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using Bentley.DgnPlatformNET;
-using Bentley.DgnPlatformNET.Elements;
-using Bentley.MstnPlatformNET;
+using Com = Bentley.Interop.MicroStationDGN;
 
 namespace SteelSectionProbe
 {
     /// <summary>
-    /// 把设备的图形图元批量改到目标图层。
-    /// <para>
-    /// 只处理设备的图形图元，<b>不动设备元素本身</b>：设备身份、EC 数据、管口与连接关系
-    /// 都不参与这次修改，因此不需要"打散 → 重新生成设备"。
-    /// </para>
-    /// <para>
-    /// 写入方式按顺序尝试，任何一种都必须通过"候选图元全部落到目标图层"的校验才算成功：
-    /// </para>
-    /// <list type="number">
-    /// <item>
-    /// <b>COM Rewrite</b>（<c>Element.Level</c> + <c>Element.Rewrite()</c>）：
-    /// OpenPlant 设备的图形是单元内部件，.NET 的 <c>ReplaceInModel</c> 一律返回 69645 拒绝，
-    /// 而 COM 的 Rewrite 走的是另一条写入实现。
-    /// </item>
-    /// <item><b>逐个子元素替换</b>（.NET <c>ReplaceInModel</c>）：普通单元可用。</item>
-    /// <item><b>整台单元替换</b>：所有图元先在内存改好，最后把整台设备单元写回一次。</item>
-    /// </list>
-    /// <para>
-    /// 全部失败时整批回滚（<c>CancelToPosition</c>），不会留下"改了一半"的设备。
-    /// </para>
+    /// 按实际包含关系制定计划，统一改层和颜色随层；重新读取同一棵树校验后才提交。
+    /// 不打散、不重建，不把依赖元素或包围盒中的邻近对象当作设备内部件。
     /// </summary>
     internal static class EquipmentLevelApplier
     {
+        private const int MaxPasses = 3;
         private const int MaxProblemLines = 20;
+        internal static bool IsRunning { get; private set; }
 
-        /// <summary>写入方式。</summary>
-        private enum WriteMode
-        {
-            ComRewrite = 0,
-            ReplaceEach = 1,
-            ReplaceDevice = 2
-        }
-
-        /// <summary>对已判定为设备的元素批量改层。</summary>
         internal static EquipmentLevelReport Apply(DgnModel model, IList<ulong> ids,
             LevelId targetLevel, string targetLevelName)
         {
-            if (model == null) throw new InvalidOperationException("没有活动模型。");
+            return Apply(model, ids, new EquipmentAppearanceOptions { TargetLevelId = (uint)targetLevel,
+                TargetLevelName = targetLevelName, ColorMode = EquipmentColorMode.ByLevel });
+        }
+
+        internal static EquipmentLevelReport Apply(DgnModel model, IList<ulong> ids,
+            EquipmentAppearanceOptions options, Action<EquipmentLevelProgress> progress = null, Action validateContext = null)
+        {
+            if (IsRunning) return new EquipmentLevelReport { Summary = "已有设备修改任务正在运行，请等待完成。" };
+            IsRunning = true;
+            try { return ApplyCore(model, ids, options, new EquipmentLevelProgressReporter(progress, validateContext)); }
+            finally { IsRunning = false; }
+        }
+
+        private static EquipmentLevelReport ApplyCore(DgnModel model, IList<ulong> ids,
+            EquipmentAppearanceOptions options, EquipmentLevelProgressReporter progress)
+        {
+            string targetLevelName = options == null ? "" : options.TargetLevelName;
             var report = new EquipmentLevelReport { TargetLevelName = targetLevelName };
-            var tree = new EquipmentLevelTree(model);
-
-            // 1. 收集每台设备的候选图元：设置器接受不了的元素（Datum、Type66 这类控制元素）不算；
-            //    有子元素的"容器单元"单独归类——实测它们本身不接受改层，但内部图元可以改。
-            var plan = new Dictionary<ulong, DeviceTargets>();
-            foreach (ulong rawId in ids)
+            var tree = new EquipmentLevelTree(progress.Scanned);
+            var plan = new Dictionary<ulong, EquipmentLevelSnapshot>();
+            var dump = new StringBuilder();
+            Com.Level comLevel;
+            int byLevelColor;
+            string phase = "读取活动模型";
+            // 计划阶段完全只读，任一设备读取不完整就不开始本批写入。
+            try
             {
-                ulong id = rawId;
-                Element element = model.FindElementById(new ElementId(ref id));
-                if (element == null || !element.IsValid)
+                progress.Step("检查文档与目标图层", 0, 0, force: true);
+                if (options == null || string.IsNullOrWhiteSpace(options.TargetLevelName))
+                    throw new InvalidOperationException("请先选择目标图层。");
+                if (!Enum.IsDefined(typeof(EquipmentColorMode), options.ColorMode) || options.Rgb > 0xFFFFFF)
+                    throw new InvalidOperationException("颜色设置无效。");
+                if (model == null) throw new InvalidOperationException("没有活动模型。");
+                var file = model.GetDgnFile();
+                if (file == null) throw new InvalidOperationException("活动模型未提供 DGN 文件对象。");
+                if (model.IsReadOnly || file.IsReadOnly)
+                    throw new InvalidOperationException("活动模型或文件是只读的。");
+                phase = "读取目标图层「" + targetLevelName + "」";
+                var app = Bentley.MstnPlatformNET.InteropServices.Utilities.ComApp;
+                if (app == null) throw new InvalidOperationException("OPM COM 应用对象不可用。");
+                var active = app.ActiveModelReference;
+                if (active == null) throw new InvalidOperationException("OPM COM 活动模型不可用。");
+                var levels = active.Levels;
+                if (levels == null) throw new InvalidOperationException("OPM COM 图层集合不可用。");
+                comLevel = levels.Find(targetLevelName);
+                if (comLevel == null || (uint)comLevel.ID != options.TargetLevelId)
+                    throw new InvalidOperationException("COM 与活动模型的目标图层不一致。");
+                if (comLevel.IsLocked) throw new InvalidOperationException("目标图层已锁定。");
+                phase = "解析目标颜色";
+                byLevelColor = options.ColorMode == EquipmentColorMode.ByLevel ? app.ByLevelColor() : 0;
+                if (options.ColorMode == EquipmentColorMode.CustomRgb)
                 {
-                    AddProblem(report.Problems, "元素 " + rawId + " 已不存在，跳过");
-                    report.RejectedCount++;
-                    continue;
+                    int oleRgb = (int)(((options.Rgb >> 16) & 255) | (options.Rgb & 0x00FF00) | ((options.Rgb & 255) << 16));
+                    byLevelColor = active.InternalColorFromRGBColor(oleRgb);
+                    if ((active.InternalColorToRGBColor(byLevelColor) & 0xFFFFFF) != oleRgb)
+                        throw new InvalidOperationException("宿主未能精确转换指定颜色。");
                 }
-                var all = tree.Descendants(element);
-                // 设备本体的几何是模型里的独立元素，不在依赖树里，只能按"完全落在设备范围内"补进来。
-                var extras = tree.ElementsInsideRange(element);
-                if (extras.Count > 0)
+                int equipmentIndex = 0;
+                foreach (ulong id in ids)
                 {
-                    var seen = new HashSet<ulong>();
-                    foreach (var known in all) seen.Add(SafeId(known));
-                    int added = 0;
-                    foreach (var extra in extras)
-                    {
-                        ulong extraId = SafeId(extra);
-                        if (extraId == 0 || seen.Contains(extraId)) continue;
-                        seen.Add(extraId);
-                        all.Add(extra);
-                        added++;
-                    }
-                    EquipmentLevelLog.Write("范围补集：新增 " + added + " 个设备本体图元，图元总数 " + all.Count);
+                    progress.Step("读取设备内部图元", equipmentIndex++, ids.Count, "设备 " + id, true);
+                    phase = "读取设备 " + id + " 的 COM 内部图元";
+                    if (plan.ContainsKey(id)) continue;
+                    var root = EquipmentLevelTree.Find(id);
+                    if (root.IsLocked) throw new InvalidOperationException("设备 " + id + " 已锁定。");
+                    var snapshot = tree.Capture(id);
+                    EquipmentLevelTree.LogModelLookup(snapshot);
+                    if (!snapshot.Nodes.Values.Any(n => n.RequiresAppearance))
+                        throw new InvalidOperationException("设备 " + id +
+                            " 的 COM GetSubElements 未读到可修改的内部图形；未修改。请执行 STEELPROBE EQPROBE 查看结构。");
+                    foreach (var node in snapshot.Nodes.Values)
+                        if (node.RequiresAppearance && node.IsLocked)
+                            throw new InvalidOperationException("设备 " + id + " 的图元 " + node.Id + " 已锁定。");
+                    plan.Add(id, snapshot);
+                    dump.Append(EquipmentLevelTree.Format(snapshot, "修改前"));
                 }
-                if (all.Count == 0)
-                {
-                    AddProblem(report.Problems, "设备 " + rawId + " 取不到图形图元（" + tree.Diagnose(element) + "），跳过");
-                    report.RejectedCount++;
-                    continue;
-                }
-                if (all.Count >= EquipmentLevelTree.MaxElements)
-                {
-                    AddProblem(report.Problems, "设备 " + rawId + " 的图元数超过 " +
-                        EquipmentLevelTree.MaxElements + "，拒绝处理");
-                    report.RejectedCount++;
-                    continue;
-                }
-
-                var targets = new DeviceTargets();
-                int rejected = 0;
-                foreach (var candidate in all)
-                {
-                    ulong candidateId = SafeId(candidate);
-                    if (candidateId == 0) { rejected++; continue; }
-                    if (!CanSetLevel(candidate, targetLevel)) { rejected++; continue; }
-                    if (tree.Children(candidate).Count > 0) targets.Containers.Add(candidateId);
-                    else targets.Leaves.Add(candidateId);
-                }
-                if (targets.Leaves.Count == 0 && targets.Containers.Count == 0)
-                {
-                    AddProblem(report.Problems, "设备 " + rawId + " 的 " + all.Count +
-                        " 个图元都不接受图层修改，跳过");
-                    report.RejectedCount++;
-                    continue;
-                }
-                plan[rawId] = targets;
-                report.PlannedElementCount += targets.Leaves.Count + targets.Containers.Count;
-                report.Details.Add("设备 " + rawId + "（" + SafeName(element) + "）：" + targets.Leaves.Count +
-                    " 个图元、" + targets.Containers.Count + " 个容器单元" +
-                    (rejected > 0 ? "，跳过 " + rejected + " 个非图形元素" : string.Empty));
-                tree.Dump(element, "设备 " + rawId + "（" + SafeName(element) + "）图元树");
+                if (plan.Count == 0) throw new InvalidOperationException("没有可修改的设备。");
+                // 重叠选择会使一台设备的根成为另一台的待改容器，直接拒绝歧义。
+                foreach (var snapshot in plan.Values)
+                    foreach (ulong rootId in plan.Keys)
+                        if (snapshot.Nodes.ContainsKey(rootId))
+                            throw new InvalidOperationException("选中的设备互相嵌套，请只选外层设备。");
+                if (plan.Values.SelectMany(s => s.Nodes.Keys).GroupBy(id => id).Any(g => g.Count() > 1))
+                    throw new InvalidOperationException("不同设备返回相同内部件，无法确认归属，未修改。");
+                EquipmentLevelLog.WriteTree(dump.ToString());
             }
-
-            if (plan.Count == 0)
+            catch (Exception ex)
             {
-                report.Summary = report.Problems.Count == 0
-                    ? "选中的设备里没有可修改的图形图元。"
-                    : "未修改：" + report.Problems[0];
+                dump.AppendLine("读取/计划失败，阶段：" + phase + "，未开始写入。" + Environment.NewLine + ex);
+                EquipmentLevelLog.WriteTree(dump.ToString());
+                report.Failure = phase + "：" + ex.Message;
+                report.Summary = "未修改：" + report.Failure;
+                EquipmentLevelLog.Write("计划异常，阶段：" + phase + Environment.NewLine + ex);
+                EquipmentLevelLog.Write(report.Summary);
                 return report;
             }
+
+            int levelId = comLevel.ID;
+            var all = plan.Values.SelectMany(s => s.Nodes.Values)
+                .GroupBy(n => n.Id).Select(g => g.First()).ToList();
+            var required = all.Where(n => n.RequiresAppearance).ToList();
+            var owners = plan.Values.SelectMany(s => s.Nodes.Keys.Select(id => new { Id = id, Snapshot = s }))
+                .ToDictionary(p => p.Id, p => p.Snapshot);
+            var initiallyDifferent = new HashSet<ulong>(
+                required.Where(n => !MatchesTarget(n, levelId, byLevelColor, options.ColorMode, n)).Select(n => n.Id));
             report.EquipmentCount = plan.Count;
+            report.PlannedElementCount = required.Count;
+            report.AlreadyOnTargetCount = required.Count - initiallyDifferent.Count;
+            EquipmentLevelLog.Write("计划：设备 " + plan.Count + " 台，图形 " + required.Count +
+                " 个，已符合 " + report.AlreadyOnTargetCount + " 个；目标层 ID=" + levelId +
+                "，目标内部颜色=" + byLevelColor + "（" + options.ColorDescription + "）。");
+            foreach (var snapshot in plan.Values)
+                report.Details.Add("设备 " + snapshot.RootId + "：COM 内部件 " + snapshot.Nodes.Count +
+                    " 个，必须校验的图形 " + snapshot.Nodes.Values.Count(n => n.RequiresAppearance) + " 个。");
+            int sharedCount = required.Count(n => n.IsSharedInstance);
+            if (sharedCount > 0)
+                report.Details.Add("其中共享单元实例 " + sharedCount + " 个：使用实例图层/颜色覆盖；公共定义及其内部图元原始属性保持不变。");
 
-            // 2. 依次尝试三种写入方式。
-            var modes = new[]
-            {
-                new ModePlan { Mode = WriteMode.ComRewrite, Name = "COM Rewrite" },
-                new ModePlan { Mode = WriteMode.ReplaceEach, Name = "逐个子元素替换" },
-                new ModePlan { Mode = WriteMode.ReplaceDevice, Name = "整台单元替换" }
-            };
-            var failures = new List<string>();
-            foreach (var modePlan in modes)
-            {
-                report.Problems.Clear();
-                string failure;
-                if (Run(model, tree, plan, targetLevel, targetLevelName, modePlan.Mode, report, out failure))
-                {
-                    report.Succeeded = true;
-                    report.Method = modePlan.Name;
-                    report.ContainersNotChanged = CountNotChangedContainers(tree, plan, targetLevel, model);
-                    report.Summary = "设备图层修改完成：" + report.EquipmentCount + " 台设备、" +
-                        report.ChangedElementCount + " 个图元 → 图层「" + targetLevelName + "」（" +
-                        modePlan.Name + "）" +
-                        (report.ContainersNotChanged > 0
-                            ? "；" + report.ContainersNotChanged + " 个容器单元本身不接受改层（其内部图元已改）"
-                            : string.Empty);
-                    EquipmentLevelLog.Write("成功（" + modePlan.Name + "）：" + report.Summary);
-                    return report;
-                }
-                failures.Add(modePlan.Name + " 失败：" + failure);
-                EquipmentLevelLog.Write("方式「" + modePlan.Name + "」失败：" + failure);
-            }
-
-            report.Succeeded = false;
-            report.Method = string.Empty;
-            report.ChangedElementCount = 0;
-            report.Failure = string.Join("\n", failures.ToArray());
-            report.Summary = "设备图层修改失败，模型已回滚。原因见日志：" + EquipmentLevelLog.FilePath;
-            return report;
-        }
-
-        private struct ModePlan
-        {
-            internal WriteMode Mode;
-            internal string Name;
-        }
-
-        /// <summary>尝试一种写入方式：一个事务内完成，校验通过才提交，否则回滚。</summary>
-        private static bool Run(DgnModel model, EquipmentLevelTree tree, Dictionary<ulong, DeviceTargets> plan,
-            LevelId targetLevel, string targetLevelName, WriteMode mode, EquipmentLevelReport report,
-            out string failure)
-        {
-            failure = null;
-            TransactionPosition mark;
+            TransactionPosition mark = default(TransactionPosition);
+            bool editStarted = false;
             try
             {
                 mark = BeginEdit();
-            }
-            catch (Exception ex)
-            {
-                failure = ex.Message;
-                return false;
-            }
-
-            try
-            {
-                int changed = 0;
-                var problems = new List<string>();
-                object comLevel = mode == WriteMode.ComRewrite ? ResolveComLevel(targetLevelName, problems) : null;
-                foreach (var pair in plan)
+                editStarted = true;
+                // 父容器先写，子图形后写，避免最后重写容器覆盖已改的子元素。
+                int written = 0;
+                foreach (var node in all.OrderBy(n => n.Depth))
                 {
-                    ulong deviceId = pair.Key;
-                    Element device = model.FindElementById(new ElementId(ref deviceId));
-                    if (device == null || !device.IsValid)
+                    progress.Step("修改图层与颜色", written++, all.Count);
+                    if (!node.IsGraphic || MatchesTarget(node, levelId, byLevelColor, options.ColorMode, node)) continue;
+                    if (node.IsContainer)
                     {
-                        AddProblem(problems, "设备 " + pair.Key + " 写入前消失了");
-                        continue;
+                        if (!node.HasAppearance) continue;
+                        try { Write(tree, owners[node.Id], node, comLevel, byLevelColor, options.ColorMode); }
+                        catch (Exception ex) { AddProblem(report, "容器 " + node.Id + " 未改：" + ex.Message); }
                     }
-                    switch (mode)
+                    else Write(tree, owners[node.Id], node, comLevel, byLevelColor, options.ColorMode);
+                }
+
+                Dictionary<ulong, EquipmentLevelNode> current = null;
+                for (int pass = 1; pass <= MaxPasses; pass++)
+                {
+                    progress.Step("重新读取并校验 · 第 " + pass + " 轮", 0, 0, force: true);
+                    // Capture 重新读取全部节点和属性，不用内存 setter 的结果作成功依据。
+                    current = ReadAndVerifyStructure(tree, plan);
+                    var pending = required.Where(n => !MatchesTarget(current[n.Id], levelId, byLevelColor, options.ColorMode, n)).ToList();
+                    EquipmentLevelLog.Write("校验第 " + pass + " 轮：图形 " + required.Count +
+                        " 个，图层或颜色未符合 " + pending.Count + " 个。");
+                    if (pending.Count == 0) break;
+                    if (pass == MaxPasses)
                     {
-                        case WriteMode.ComRewrite:
-                            changed += RunComPasses(tree, device, AllTargets(pair.Value), targetLevel, comLevel, problems);
-                            break;
-
-                        case WriteMode.ReplaceEach:
-                            {
-                                var map = MapById(tree, device);
-                                foreach (ulong id in AllTargets(pair.Value))
-                                {
-                                    if (ReplaceOne(model, map, id, targetLevel, problems)) changed++;
-                                }
-                            }
-                            break;
-
-                        default:
-                            {
-                                var map = MapById(tree, device);
-                                foreach (ulong id in AllTargets(pair.Value))
-                                {
-                                    Element element;
-                                    if (!map.TryGetValue(id, out element)) { AddProblem(problems, "图元 " + id + " 找不到"); continue; }
-                                    if (SetLevelInMemory(element, targetLevel, problems)) changed++;
-                                }
-                                StatusInt status = device.ReplaceInModel(device);
-                                if (status != StatusInt.Success)
-                                    AddProblem(problems, "整台设备 " + pair.Key + " 写回失败：" + status);
-                            }
-                            break;
+                        foreach (var node in pending.Take(10))
+                            AddProblem(report, "未落地 id=" + node.Id + " 类型=" + node.Type +
+                                " 层=" + current[node.Id].LevelId + " 颜色=" + current[node.Id].Color +
+                                (node.IsSharedInstance ? " 覆盖层=" + current[node.Id].OverridesComponentLevel +
+                                    " 覆盖色=" + current[node.Id].OverridesComponentColor : ""));
+                        throw new InvalidOperationException("仍有 " + pending.Count + " 个图形未达到目标图层和所选颜色设置。");
+                    }
+                    int retried = 0;
+                    foreach (var node in pending.OrderBy(n => n.Depth))
+                    {
+                        progress.Step("补写未符合的图形", retried++, pending.Count);
+                        Write(tree, owners[node.Id], node, comLevel, byLevelColor, options.ColorMode);
                     }
                 }
 
-                string verifyFailure;
-                if (!Verify(tree, plan, targetLevel, model, out verifyFailure))
-                {
-                    failure = string.IsNullOrEmpty(verifyFailure) ? "写入后校验失败" : verifyFailure;
-                    Restore(mark, problems, failure);
-                    AppendProblems(report, problems);
-                    return false;
-                }
-
-                Commit();
-                report.ChangedElementCount = CountOnTarget(tree, plan, targetLevel, model);
-                return true;
+                int containersNotChanged = all.Count(n => n.IsGraphic && n.IsContainer &&
+                    !MatchesTarget(current[n.Id], levelId, byLevelColor, options.ColorMode, n));
+                progress.Step("提交修改", 0, 0, force: true);
+                // 所有可能失败的读取与校验均在提交之前完成。
+                EquipmentLevelLog.Write("事务提交开始：设备 " + plan.Count + " 台，图形 " + required.Count +
+                    " 个，其中智能实体 " + required.Count(n => n.IsAtomicSolid) + " 个，共享实例 " + sharedCount + " 个。");
+                TransactionManager.CloseCurrentTransaction(true);
+                EquipmentLevelLog.Write("事务提交结束。");
+                progress.SuspendContextValidation();
+                report.Succeeded = true;
+                report.Method = "COM 包含路径定位 + Rewrite";
+                report.ChangedElementCount = initiallyDifferent.Count;
+                report.VerifiedElementCount = required.Count;
+                report.ContainersNotChanged = containersNotChanged;
+                report.Summary = "设备图层与颜色修改完成：" + report.EquipmentCount + " 台，实际修改 " +
+                    report.ChangedElementCount + " 个图形，校验 " + report.VerifiedElementCount +
+                    " 个 →「" + targetLevelName + "」，" + options.ColorDescription +
+                    (sharedCount > 0 ? "；含 " + sharedCount + " 个共享实例（实例覆盖，公共定义保留）" : "") +
+                    (containersNotChanged > 0 ? "；" + containersNotChanged + " 个单元头属性未统一（内部图形已校验）" : "") + "。";
+                EquipmentLevelLog.Write(report.Summary);
+                progress.Step("处理完成", required.Count, required.Count, force: true);
+                return report;
             }
             catch (Exception ex)
             {
-                failure = ex.Message;
-                try
+                EquipmentLevelLog.Write("写入/校验异常：" + ex);
+                progress.SuspendContextValidation();
+                report.Failure = ex.Message;
+                report.ChangedElementCount = 0;
+                bool restored = false;
+                string rollbackProblem = null;
+                if (editStarted)
                 {
-                    if (TransactionManager.CancelToPosition(mark, false) != StatusInt.Success)
-                        failure += "；回滚也失败，请用撤销恢复模型";
-                }
-                catch (Exception rollbackError)
-                {
-                    failure += "；回滚异常：" + rollbackError.Message;
-                }
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// COM 通道的迭代收敛：一次写回可能被父单元的重写覆盖回去，
-        /// 因此反复只改"还没落到目标图层"的图元，直到没有新的变化为止。
-        /// <para>实测：第一轮 97 个里 60 个生效、37 个被父单元写回带回；靠迭代把它们补齐。</para>
-        /// </summary>
-        private static int RunComPasses(EquipmentLevelTree tree, Element device, List<ulong> candidates,
-            LevelId targetLevel, object comLevel, List<string> problems)
-        {
-            int changed = 0;
-            int previous = int.MaxValue;
-            for (int pass = 1; pass <= 4; pass++)
-            {
-                var map = MapById(tree, device);
-                var pending = new List<ulong>();
-                foreach (ulong id in candidates)
-                {
-                    Element element;
-                    if (!map.TryGetValue(id, out element)) continue;
-                    if ((uint)element.LevelId == (uint)targetLevel) continue;
-                    pending.Add(id);
-                }
-                if (pending.Count == 0)
-                {
-                    EquipmentLevelLog.Write("COM 第 " + pass + " 轮：已全部落到目标图层");
-                    break;
-                }
-                if (pending.Count >= previous)
-                {
-                    EquipmentLevelLog.Write("COM 第 " + pass + " 轮：没有新的进展（剩 " + pending.Count + " 个），停止");
-                    var map2 = MapById(tree, device);
-                    int logged = 0;
-                    foreach (ulong id in pending)
+                    progress.Step("失败，正在整批回滚", 0, 0, force: true);
+                    try
                     {
-                        if (logged++ >= 10) break;
-                        Element stuck;
-                        EquipmentLevelLog.Write("  仍改不动：" +
-                            (map2.TryGetValue(id, out stuck) ? Describe(stuck) : ("图元 " + id)));
+                        StatusInt status = TransactionManager.CancelToPosition(mark, false);
+                        restored = status == StatusInt.Success;
+                        if (!restored) rollbackProblem = status.ToString();
+                        if (restored)
+                        {
+                            var rolledBack = ReadAndVerifyStructure(tree, plan);
+                            foreach (var original in all.Where(n => n.IsGraphic && n.HasAppearance))
+                                if (!rolledBack[original.Id].Matches(original.LevelId, original.Color) ||
+                                    (original.IsSharedInstance &&
+                                        (rolledBack[original.Id].OverridesComponentLevel != original.OverridesComponentLevel ||
+                                         rolledBack[original.Id].OverridesComponentColor != original.OverridesComponentColor)))
+                                    throw new InvalidOperationException("回滚后图元 " + original.Id + " 的属性未恢复。");
+                        }
                     }
-                    break;
+                    catch (Exception rollbackError) { restored = false; rollbackProblem = rollbackError.Message; }
                 }
-                previous = pending.Count;
-                int ok = 0;
-                foreach (ulong id in pending)
-                {
-                    if (ComRewrite(id, comLevel, problems)) ok++;
-                }
-                changed += ok;
-                EquipmentLevelLog.Write("COM 第 " + pass + " 轮：本轮写回 " + ok + " 个，开始前待改 " +
-                    pending.Count + " 个");
-            }
-            return changed;
-        }
-
-        /// <summary>设置器能不能接受这个图元（控制元素如 Datum、Type66 不接受，直接排除）。</summary>
-        private static bool CanSetLevel(Element element, LevelId targetLevel)
-        {
-            try
-            {
-                using (var setter = new ElementPropertiesSetter())
-                {
-                    setter.SetLevel(targetLevel);
-                    return setter.Apply(element);
-                }
-            }
-            catch
-            {
-                return false;
+                report.Summary = !editStarted ? "未修改：" + ex.Message :
+                    restored ? "修改失败，已整批回滚：" + ex.Message :
+                    "修改失败，回滚未完成，请立即用撤销恢复模型：" + ex.Message + "；" + rollbackProblem;
+                EquipmentLevelLog.Write(report.Summary);
+                return report;
             }
         }
 
-        private static bool SetLevelInMemory(Element element, LevelId targetLevel, List<string> problems)
+        private static bool MatchesTarget(EquipmentLevelNode node, int levelId, int color, EquipmentColorMode mode, EquipmentLevelNode original)
         {
+            return node.HasAppearance && node.LevelId == levelId &&
+                node.Color == (mode == EquipmentColorMode.KeepOriginal ? original.Color : color) &&
+                (!node.IsSharedInstance || (node.OverridesComponentLevel &&
+                    node.OverridesComponentColor == (mode == EquipmentColorMode.KeepOriginal ? original.OverridesComponentColor : true)));
+        }
+
+        private static void Write(EquipmentLevelTree tree, EquipmentLevelSnapshot owner, EquipmentLevelNode original,
+            Com.Level level, int byLevelColor, EquipmentColorMode mode)
+        {
+            ulong id = original.Id;
+            // 从设备根沿原包含路径取得新组件，不能用模型级内部件查找返回的外层单元代写。
             try
             {
-                using (var setter = new ElementPropertiesSetter())
+                var element = tree.Resolve(owner, original);
+                if (element.IsLocked) throw new InvalidOperationException("元素已锁定。");
+                int color = mode == EquipmentColorMode.KeepOriginal ? original.Color : byLevelColor;
+                if (original.IsSharedInstance)
                 {
-                    setter.SetLevel(targetLevel);
-                    if (setter.Apply(element)) return true;
+                    var shared = element.AsSharedCellElement();
+                    if (shared == null) throw new InvalidOperationException("共享实例接口不可用。");
+                    if (shared.Name != original.SharedName) throw new InvalidOperationException("共享实例引用的定义已变化。");
+                    shared.OverridesComponentLevel = true;
+                    shared.OverridesComponentColor = mode == EquipmentColorMode.KeepOriginal ? original.OverridesComponentColor : true;
+                    shared.Level = level;
+                    shared.Color = color;
+                    shared.Rewrite();
                 }
-                AddProblem(problems, "设置图层失败：" + Describe(element));
+                else if (element.IsSmartSolidElement)
+                {
+                    var solid = element.AsSmartSolidElement;
+                    if (solid == null) throw new InvalidOperationException("SmartSolid 接口不可用。");
+                    solid.Level = level;
+                    solid.Color = color;
+                    solid.Rewrite();
+                }
+                else
+                {
+                    element.Level = level;
+                    element.Color = color;
+                    element.Rewrite();
+                }
             }
             catch (Exception ex)
             {
-                AddProblem(problems, "设置图层异常：" + ex.Message);
+                throw new InvalidOperationException("图元 " + id + " 写入失败：" + ex.Message, ex);
             }
-            return false;
         }
 
-        private static bool ReplaceOne(DgnModel model, Dictionary<ulong, Element> map, ulong id,
-            LevelId targetLevel, List<string> problems)
+        private static Dictionary<ulong, EquipmentLevelNode> ReadAndVerifyStructure(EquipmentLevelTree tree,
+            Dictionary<ulong, EquipmentLevelSnapshot> plan)
         {
-            Element element;
-            if (!map.TryGetValue(id, out element))
+            var map = new Dictionary<ulong, EquipmentLevelNode>();
+            foreach (var before in plan.Values)
             {
-                AddProblem(problems, "图元 " + id + " 找不到");
-                return false;
-            }
-            if (!SetLevelInMemory(element, targetLevel, problems)) return false;
-            try
-            {
-                StatusInt status = element.ReplaceInModel(element);
-                if (status == StatusInt.Success) return true;
-                AddProblem(problems, "写回失败（" + status + "）：" + Describe(element));
-            }
-            catch (Exception ex)
-            {
-                AddProblem(problems, "写回异常：" + ex.Message);
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// COM 通道：<c>Element.Level = ...</c> 后 <c>Element.Rewrite()</c>。
-        /// 这是单元内部件唯一被实测允许的写法（.NET 侧一律 69645）。
-        /// </summary>
-        private static bool ComRewrite(ulong id, object comLevel, List<string> problems)
-        {
-            if (comLevel == null)
-            {
-                AddProblem(problems, "COM 图层对象不可用，无法写回 " + id);
-                return false;
-            }
-            try
-            {
-                var app = Bentley.MstnPlatformNET.InteropServices.Utilities.ComApp;
-                var comElement = app.ActiveModelReference.GetElementByID64(checked((long)id));
-                if (comElement == null)
+                var after = tree.Capture(before.RootId);
+                if (before.Nodes.Count != after.Nodes.Count)
+                    throw new InvalidOperationException("设备 " + before.RootId + " 内部件数量变化，拒绝提交。");
+                foreach (var original in before.Nodes.Values)
                 {
-                    AddProblem(problems, "COM 取不到图元 " + id);
-                    return false;
+                    EquipmentLevelNode node;
+                    if (!after.Nodes.TryGetValue(original.Id, out node) ||
+                        node.ParentId != original.ParentId || node.Type != original.Type ||
+                        node.IsGraphic != original.IsGraphic || node.IsContainer != original.IsContainer ||
+                        node.IsCell != original.IsCell ||
+                        node.IsAtomicSolid != original.IsAtomicSolid ||
+                        node.IsSharedInstance != original.IsSharedInstance || node.SharedName != original.SharedName)
+                        throw new InvalidOperationException("设备 " + before.RootId + " 内部件 " + original.Id +
+                            " 的身份或包含关系变化，拒绝提交。");
+                    map[node.Id] = node;
                 }
-                comElement.Level = (Bentley.Interop.MicroStationDGN.Level)comLevel;
-                comElement.Rewrite();
-                return true;
-            }
-            catch (Exception ex)
-            {
-                AddProblem(problems, "COM 写回失败（" + id + "）：" + ex.Message);
-                return false;
-            }
-        }
-
-        /// <summary>按名称取 COM 图层对象；找不到就直接判本次方式不可用。</summary>
-        private static object ResolveComLevel(string levelName, List<string> problems)
-        {
-            try
-            {
-                var app = Bentley.MstnPlatformNET.InteropServices.Utilities.ComApp;
-                var levels = app.ActiveModelReference.Levels;
-                var level = levels.Find(levelName);
-                if (level != null) return level;
-                foreach (Bentley.Interop.MicroStationDGN.Level candidate in levels)
-                {
-                    if (candidate != null && string.Equals(candidate.Name, levelName, StringComparison.OrdinalIgnoreCase))
-                        return candidate;
-                }
-                AddProblem(problems, "COM 找不到图层「" + levelName + "」");
-            }
-            catch (Exception ex)
-            {
-                AddProblem(problems, "读取 COM 图层失败：" + ex.Message);
-            }
-            return null;
-        }
-
-        /// <summary>后序映射：元素 ID → 元素。</summary>
-        private static Dictionary<ulong, Element> MapById(EquipmentLevelTree tree, Element device)
-        {
-            var map = new Dictionary<ulong, Element>();
-            foreach (var element in tree.Descendants(device))
-            {
-                ulong id = SafeId(element);
-                if (id == 0 || map.ContainsKey(id)) continue;
-                map[id] = element;
             }
             return map;
         }
 
-        /// <summary>
-        /// 校验：重新遍历一次设备。
-        /// <para>
-        /// <b>真实几何图元（叶子）必须全部落到目标图层</b>——这是成功的判据。
-        /// 有子元素的"容器单元"实测在 COM/.NET 两条通道上都不接受改层，
-        /// 因此它们只统计、不算失败（它们的内部图元已经改好了，外观已跟随）。
-        /// </para>
-        /// </summary>
-        private static bool Verify(EquipmentLevelTree tree, Dictionary<ulong, DeviceTargets> plan,
-            LevelId targetLevel, DgnModel model, out string failure)
-        {
-            failure = null;
-            foreach (var pair in plan)
-            {
-                ulong deviceId = pair.Key;
-                Element device = model.FindElementById(new ElementId(ref deviceId));
-                if (device == null || !device.IsValid)
-                {
-                    failure = "设备 " + pair.Key + " 写入后找不到";
-                    return false;
-                }
-                var map = MapById(tree, device);
-                int mismatched = 0;
-                int missing = 0;
-                foreach (ulong id in pair.Value.Leaves)
-                {
-                    Element element;
-                    if (!map.TryGetValue(id, out element)) { missing++; continue; }
-                    if ((uint)element.LevelId != (uint)targetLevel) mismatched++;
-                }
-                if (missing > 0)
-                {
-                    failure = "设备 " + pair.Key + " 有 " + missing + " 个图元写入后找不到";
-                    return false;
-                }
-                if (mismatched > 0)
-                {
-                    failure = "设备 " + pair.Key + " 仍有 " + mismatched + " 个几何图元没有落到目标图层";
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        /// <summary>统计真正落在目标图层上的图元数（按最终状态算，不累加各轮写入次数）。</summary>
-        private static int CountOnTarget(EquipmentLevelTree tree, Dictionary<ulong, DeviceTargets> plan,
-            LevelId targetLevel, DgnModel model)
-        {
-            int count = 0;
-            foreach (var pair in plan)
-            {
-                ulong deviceId = pair.Key;
-                Element device = model.FindElementById(new ElementId(ref deviceId));
-                if (device == null || !device.IsValid) continue;
-                var map = MapById(tree, device);
-                foreach (ulong id in AllTargets(pair.Value))
-                {
-                    Element element;
-                    if (!map.TryGetValue(id, out element)) continue;
-                    if ((uint)element.LevelId == (uint)targetLevel) count++;
-                }
-            }
-            return count;
-        }
-
-        /// <summary>统计仍然没有被改层的容器单元数量（不算失败，只如实报告）。</summary>
-        private static int CountNotChangedContainers(EquipmentLevelTree tree, Dictionary<ulong, DeviceTargets> plan,
-            LevelId targetLevel, DgnModel model)
-        {
-            int count = 0;
-            foreach (var pair in plan)
-            {
-                ulong deviceId = pair.Key;
-                Element device = model.FindElementById(new ElementId(ref deviceId));
-                if (device == null || !device.IsValid) continue;
-                var map = MapById(tree, device);
-                foreach (ulong id in pair.Value.Containers)
-                {
-                    Element element;
-                    if (!map.TryGetValue(id, out element)) { count++; continue; }
-                    if ((uint)element.LevelId != (uint)targetLevel) count++;
-                }
-            }
-            return count;
-        }
-
-        /// <summary>一台设备的待改清单：叶子图元与容器单元分开。</summary>
-        private sealed class DeviceTargets
-        {
-            internal readonly List<ulong> Leaves = new List<ulong>();
-            internal readonly List<ulong> Containers = new List<ulong>();
-        }
-
-        /// <summary>叶子图元与容器单元合成一条写入序列（容器在后，避免它覆盖子元素）。</summary>
-        private static List<ulong> AllTargets(DeviceTargets targets)
-        {
-            var all = new List<ulong>(targets.Leaves.Count + targets.Containers.Count);
-            all.AddRange(targets.Leaves);
-            all.AddRange(targets.Containers);
-            return all;
-        }
-
-        /// <summary>开始一次可撤销的修改：结束上一个动作、记录撤销位置。</summary>
         private static TransactionPosition BeginEdit()
         {
             if (TransactionManager.IsUndoInProgress)
-                throw new InvalidOperationException("正在撤销或重做，不能修改图层。");
+                throw new InvalidOperationException("正在撤销或重做，不能修改设备。");
             if (!TransactionManager.IsActive) TransactionManager.Activate();
-            if (!TransactionManager.IsActive)
-                throw new InvalidOperationException("无法启用模型撤销记录。");
+            if (!TransactionManager.IsActive) throw new InvalidOperationException("无法启用模型撤销记录。");
             TransactionManager.CloseCurrentTransaction(true);
             return TransactionManager.CurrentTransactionPosition;
         }
 
-        /// <summary>把本次修改封成一个撤销步骤，保留宿主 Ctrl+Z / Redo 历史。</summary>
-        private static void Commit()
+        private static void AddProblem(EquipmentLevelReport report, string message)
         {
-            TransactionManager.CloseCurrentTransaction(true);
-        }
-
-        /// <summary>校验失败时回滚，并把过程中的问题一起写进日志。</summary>
-        private static void Restore(TransactionPosition mark, List<string> problems, string failure)
-        {
-            EquipmentLevelLog.Write("校验失败：" + failure);
-            foreach (var problem in problems) EquipmentLevelLog.Write("  写入问题：" + problem);
-            StatusInt status = TransactionManager.CancelToPosition(mark, false);
-            if (status != StatusInt.Success)
-                EquipmentLevelLog.Write("回滚失败：" + status + "，请用撤销恢复模型");
-        }
-
-        private static void AppendProblems(EquipmentLevelReport report, List<string> problems)
-        {
-            foreach (var problem in problems)
-            {
-                if (report.Problems.Count >= MaxProblemLines) return;
-                report.Problems.Add(problem);
-            }
-        }
-
-        private static void AddProblem(List<string> problems, string message)
-        {
-            EquipmentLevelLog.Write("问题：" + message);
-            if (problems != null && problems.Count < MaxProblemLines) problems.Add(message);
-        }
-
-        private static ulong SafeId(Element element)
-        {
-            try { return element.ElementId; }
-            catch { return 0; }
-        }
-
-        private static string Describe(Element element)
-        {
-            try { return element.TypeName + " " + element.ElementId; }
-            catch { return "图元"; }
-        }
-
-        private static string SafeName(Element element)
-        {
-            try
-            {
-                var cell = element as CellHeaderElement;
-                if (cell != null && !string.IsNullOrWhiteSpace(cell.CellName)) return cell.CellName;
-                string description = element.Description;
-                return string.IsNullOrWhiteSpace(description) ? element.TypeName : description;
-            }
-            catch
-            {
-                return "未命名";
-            }
+            EquipmentLevelLog.Write(message);
+            if (report.Problems.Count < MaxProblemLines) report.Problems.Add(message);
         }
     }
 }

@@ -1,0 +1,75 @@
+<UserControl xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:SteelSectionProbe"
+             x:Class="SteelSectionProbe.EquipmentLevelPage" x:ClassModifier="internal" Tag="prototype-v4" Background="#F4F7FA"
+             TextOptions.TextFormattingMode="Ideal" TextOptions.TextRenderingMode="ClearType">
+    <UserControl.Resources>
+        <ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="../Prototype/ModelingTheme.xaml"/></ResourceDictionary.MergedDictionaries></ResourceDictionary>
+    </UserControl.Resources>
+    <Grid>
+        <Grid.RowDefinitions><RowDefinition Height="95"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <local:PrototypeChrome x:Name="PageChrome" Title="设备图层与颜色" Code="EQL" Caption="HOME / 建模 / 设备外观"
+            Accent="#1F6FEB" IconBackground="#EAF2FF" IconBorder="#CADFFB" Icon="M2,7 L12,2 22,7 12,12 Z M2,12 L12,17 22,12 M2,17 L12,22 22,17"/>
+        <Grid Grid.Row="1" Margin="16,12,10,12">
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <Border x:Name="SelectionCard" Style="{StaticResource CardStyle}" Padding="10,8" Margin="0,0,6,8">
+                <StackPanel>
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="130"/></Grid.ColumnDefinitions>
+                        <TextBlock Text="01 / 设备选择" Style="{StaticResource SectionTitleStyle}" FontSize="12" Margin="0" VerticalAlignment="Center"/>
+                        <Button x:Name="ReadSelectionButton" Grid.Column="1" Content="读取选中设备" Style="{StaticResource SecondaryButtonStyle}" Click="ReadSelection_Click" Margin="0"/>
+                    </Grid>
+                    <TextBlock x:Name="SelectionSummary" Text="先在模型中选择设备，再读取选择。" FontSize="11" Foreground="#5B6B7B" Margin="0,4,0,0" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTip="{Binding Text,RelativeSource={RelativeSource Self}}"/>
+                </StackPanel>
+            </Border>
+            <ScrollViewer x:Name="ParameterScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,6,0">
+                <StackPanel>
+                    <Border Style="{StaticResource CardStyle}">
+                        <StackPanel x:Name="SettingsPanel">
+                            <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                                <TextBlock Text="02 / 目标图层" Style="{StaticResource SectionTitleStyle}" VerticalAlignment="Center"/>
+                                <Button x:Name="RefreshLevelsButton" Grid.Column="1" Content="刷新图层" Style="{StaticResource SecondaryButtonStyle}" Click="RefreshLevels_Click" Margin="0"/>
+                            </Grid>
+                            <TextBlock x:Name="DocumentText" Text="尚未读取活动文档" FontSize="10.5" Foreground="#5B6B7B" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                            <ComboBox x:Name="LevelCombo" Style="{StaticResource ModelCombo}" DisplayMemberPath="DisplayName" SelectionChanged="Parameters_Changed" MaxDropDownHeight="280">
+                                <ComboBox.ItemContainerStyle><Style TargetType="ComboBoxItem"><Setter Property="IsEnabled" Value="{Binding IsWritable}"/><Setter Property="ToolTip" Value="{Binding Availability}"/></Style></ComboBox.ItemContainerStyle>
+                            </ComboBox>
+                            <TextBlock x:Name="LevelInfoText" Text="从活动文档中选择一个可写图层。" FontSize="10.5" Foreground="#5B6B7B" Margin="0,6,0,0"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource CardStyle}">
+                        <StackPanel x:Name="ColorPanel">
+                            <TextBlock Text="03 / 颜色设置" Style="{StaticResource SectionTitleStyle}"/>
+                            <ComboBox x:Name="ColorModeCombo" Style="{StaticResource ModelCombo}" SelectedIndex="0" SelectionChanged="Parameters_Changed">
+                                <ComboBoxItem Content="随目标图层颜色"/>
+                                <ComboBoxItem Content="指定颜色"/>
+                                <ComboBoxItem Content="保持图元原色"/>
+                            </ComboBox>
+                            <Grid x:Name="CustomColorPanel" Margin="0,8,0,0" Visibility="Collapsed">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="34"/><ColumnDefinition Width="8"/><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition Width="88"/></Grid.ColumnDefinitions>
+                                <Border x:Name="ColorSwatch" Background="#7FA37C" BorderBrush="#DDE3EA" BorderThickness="1" CornerRadius="4"/>
+                                <TextBox x:Name="ColorHexText" Grid.Column="2" Text="#7FA37C" Style="{StaticResource ModelInput}" TextChanged="ColorText_Changed" MaxLength="7" ToolTip="六位 RGB 色值，例如 #7FA37C"/>
+                                <Button x:Name="ChooseColorButton" Grid.Column="4" Content="选择颜色" Style="{StaticResource SecondaryButtonStyle}" Click="ChooseColor_Click" Margin="0"/>
+                            </Grid>
+                            <TextBlock x:Name="ColorHintText" Text="内部图元颜色设为随层，以后可通过目标图层统一调整。" FontSize="10.5" Foreground="#5B6B7B" Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource CardStyle}">
+                        <StackPanel>
+                            <TextBlock Text="04 / 设备与处理结果" Style="{StaticResource SectionTitleStyle}"/>
+                            <TextBox x:Name="ResultText" Text="尚未读取设备。" IsReadOnly="True" TextWrapping="Wrap" VerticalContentAlignment="Top" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MinHeight="110" MaxHeight="220" Background="Transparent" BorderThickness="0" Padding="0" FontSize="11"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+            <Border x:Name="OperationCard" Grid.Row="2" Style="{StaticResource CardStyle}" Margin="0,6,6,0">
+                <StackPanel>
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
+                        <TextBlock x:Name="StageText" Text="等待处理" FontWeight="SemiBold" FontSize="12"/>
+                        <TextBlock x:Name="ElapsedText" Grid.Column="1" Text="用时 0.0 s" HorizontalAlignment="Right" FontFamily="Consolas" FontSize="11"/>
+                    </Grid>
+                    <ProgressBar x:Name="WorkProgress" Minimum="0" Maximum="100" Value="0" Height="6" Margin="0,7,0,0" Foreground="#1F6FEB" Background="#E8EDF2" BorderThickness="0"/>
+                    <TextBlock x:Name="ProgressDetailText" Text="只处理设备实际包含的图形，支持撤销。" FontSize="10.5" Foreground="#5B6B7B" Margin="0,6,0,8" MaxHeight="28" LineHeight="14" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text,RelativeSource={RelativeSource Self}}"/>
+                    <Button x:Name="ApplyButton" Content="应用修改" Style="{StaticResource PrimaryButtonStyle}" Click="Apply_Click" IsEnabled="False" Height="36" Margin="0"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

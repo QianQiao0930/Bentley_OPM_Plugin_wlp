@@ -64,7 +64,9 @@ namespace SteelSectionProbe
                 ids.Add(selected.ElementId);
             }
 
-            foreach (ulong rawId in ids) ProbeElement(model, rawId);
+            var trees = new System.Text.StringBuilder();
+            foreach (ulong rawId in ids) ProbeElement(model, rawId, trees);
+            EquipmentLevelLog.WriteTree(trees.ToString());
 
             EquipmentLevelLog.Write("==== EQPROBE 结束 ====");
             SetStatus("探测完成：选中 " + ids.Count + " 个元素，详细结果见 " + EquipmentLevelLog.FilePath);
@@ -89,7 +91,7 @@ namespace SteelSectionProbe
             }
         }
 
-        private static void ProbeElement(DgnModel model, ulong rawId)
+        private static void ProbeElement(DgnModel model, ulong rawId, System.Text.StringBuilder trees)
         {
             ulong id = rawId;
             EquipmentLevelLog.Write("---- 元素 " + rawId + " ----");
@@ -106,6 +108,20 @@ namespace SteelSectionProbe
                 "  IsGraphics=" + SafeBool(delegate { return element.IsGraphics; }) +
                 "  IsPersistent=" + SafeBool(delegate { return element.IsPersistent; }));
             EquipmentLevelLog.Write("  ParentElement=" + SafeParentId(element));
+
+            // 与 EQLEVEL 使用同一条实际包含关系读取路径，只记录、不写模型。
+            try
+            {
+                var snapshot = new EquipmentLevelTree().Capture(rawId);
+                string treeText = EquipmentLevelTree.Format(snapshot, "EQPROBE 只读设备 " + rawId);
+                trees.Append(treeText);
+                EquipmentLevelLog.Write(treeText);
+            }
+            catch (Exception ex)
+            {
+                trees.AppendLine("设备 " + rawId + " COM 读取失败：" + ex.Message);
+                EquipmentLevelLog.Write("  COM GetSubElements 递归读取失败：" + ex.Message);
+            }
 
             // 通道一：ExposeChildren + GetChildren。
             try

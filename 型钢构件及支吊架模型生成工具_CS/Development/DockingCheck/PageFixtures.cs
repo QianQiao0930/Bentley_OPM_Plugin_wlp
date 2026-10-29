@@ -7,6 +7,7 @@ namespace SteelSectionProbe {
  internal sealed class TankLadderPage : TestPage { internal TankLadderPage() : base("tank-ladder") { } }
  internal sealed class WallLadderPage : TestPage { internal WallLadderPage() : base("wall-ladder") { } }
  internal sealed class MagneticGaugePage : TestPage { internal MagneticGaugePage() : base("magnetic-level-gauge") { } }
+ internal sealed class EquipmentLevelPage : TestPage, IWorkspaceBusyPage { internal EquipmentLevelPage() : base("equipment-level") { } public bool IsBusy { get; set; } }
  internal sealed class PipeAlignmentPage : TestPage { internal PipeAlignmentPage() : base("pipe-alignment") { } }
  internal sealed class ComponentPropertiesPage : TestPage { internal ComponentPropertiesPage() : base("component-properties") { } }
  internal sealed class LineCoordinatesPage : TestPage { internal LineCoordinatesPage() : base("line-coordinates") { } }

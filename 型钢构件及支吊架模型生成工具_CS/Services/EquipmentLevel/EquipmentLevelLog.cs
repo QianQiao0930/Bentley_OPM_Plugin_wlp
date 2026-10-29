@@ -10,8 +10,7 @@ namespace SteelSectionProbe
     /// <c>%LOCALAPPDATA%\SteelSectionProbe\logs\EquipmentLevel\latest.log</c>，
     /// 每次进程启动覆盖一次，超过 256 KB 自动截断。
     /// <para>
-    /// 这里记录的是"宿主到底走通了哪一条写入路径"这种只能实测才知道的事实：
-    /// 逐个子元素替换是否成功、是否必须退回到整台单元替换、校验时读到多少个图元。
+    /// 记录 COM 包含关系、修改前图层/颜色、重新读取的校验结果与回滚结果。
     /// 日志失败绝不影响业务。
     /// </para>
     /// </summary>

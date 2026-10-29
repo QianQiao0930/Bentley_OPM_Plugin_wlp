@@ -67,6 +67,20 @@ namespace SteelSectionProbe
                 Check(addIn.TryUnload() == Bentley.MstnPlatformNET.AddIn.UnloadingEventArgs.Response.UnloadProceed
                     && last.IsDisposed && MainWindow.Current == null && manager.Removals == 1, "卸载解除面板注册并释放工作区");
                 addIn.TryUnload(); Check(manager.Removals == 1, "重复卸载幂等");
+                LicenseService.IsActivated = true;
+                var guarded = new WorkspaceView();
+                var open = typeof(WorkspaceView).GetMethod("OpenPage", BindingFlags.NonPublic | BindingFlags.Instance);
+                open.Invoke(guarded, new object[] { "equipment-level" });
+                var equipment = (EquipmentLevelPage)TestPage.All["equipment-level"];
+                Check(equipment.Activated == 1, "设备页面已实际进入");
+                equipment.IsBusy = true;
+                guarded.ShowHome();
+                Check(equipment.Deactivated == 0, "设备处理期间返回首页被阻止");
+                open.Invoke(guarded, new object[] { "steel-sections" });
+                Check(equipment.Deactivated == 0 && TestPage.All["steel-sections"].Activated == 0, "设备处理期间切换模块被阻止");
+                equipment.IsBusy = false; guarded.ShowHome();
+                Check(equipment.Deactivated == 1, "设备处理完成后恢复导航");
+                guarded.OnWorkspaceClosing();
                 Console.WriteLine("PASS: " + checks + " 真实MainWindow/WorkspaceView停靠调用与关闭/重开生命周期检查；Bentley窗口API使用替身，宿主效果需实测。");
                 return 0;
             }
