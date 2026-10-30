@@ -16,7 +16,7 @@ namespace SteelSectionProbe
 
         internal static void Begin()
         {
-            if (active != null) { Enable(); Prompt(); return; }
+            if (active != null) { active.PrepareForPicking("重复开始点取"); Enable(); Prompt(); return; }
             var created = new LineCoordinateLocateTool();
             oldSnap = AccuSnap.SnapEnabled; oldLocate = AccuSnap.LocateEnabled;
             active = created;

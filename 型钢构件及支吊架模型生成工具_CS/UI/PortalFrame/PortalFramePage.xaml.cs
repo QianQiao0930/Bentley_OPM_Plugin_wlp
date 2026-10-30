@@ -169,7 +169,7 @@ namespace SteelSectionProbe
             line=null;dirty=false;ConfirmButton.IsEnabled=false;
             PreviewText.Text="已结束点取。";PreviewUpdateHint.Set(UpdateButton,false);}
         private void Pick_Click(object sender,RoutedEventArgs e)
-        {try{if(PortalFrameLocateTool.IsActive&&locating){Status("可直接点取下一条辅助线。",false);return;}
+        {try{if(PortalFrameLocateTool.IsActive&&locating){PortalFrameLocateTool.Begin(Kind=="D16");Status("已清空当前选择，可直接点取下一条辅助线。",false);return;}
             PortalFrameLocateTool.Begin(Kind=="D16");locating=true;}catch(Exception ex){Status(ex.Message,true);}}
         private void End_Click(object sender,RoutedEventArgs e){PortalFrameLocateTool.End();}
         private void Update_Click(object sender,RoutedEventArgs e){Regenerate();}

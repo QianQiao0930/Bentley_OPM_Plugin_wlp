@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net48</TargetFramework><LangVersion>7.3</LangVersion>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems><NoWarn>$(NoWarn);0649</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System.Web.Extensions" />
+    <Compile Include="HostFakes.cs;Program.cs;LicenseStub.cs" />
+    <Compile Include="../../Domain/CelLibrary/CelPlacementModels.cs" Link="Production/CelPlacementModels.cs" />
+    <Compile Include="../../Services/CelLibrary/CelPlacementWriter.cs" Link="Production/CelPlacementWriter.cs" />
+    <Compile Include="../../Services/CelLibrary/CelStatisticsCalculator.cs" Link="Production/CelStatisticsCalculator.cs" />
+    <Compile Include="../../Services/CelLibrary/CelStatisticsExporter.cs" Link="Production/CelStatisticsExporter.cs" />
+    <Compile Include="../../Infrastructure/CelLibrary/CelComponentStore.cs" Link="Production/CelComponentStore.cs" />
+    <Compile Include="../../Tools/CelLibrary/CelPlacementTool.cs" Link="Production/CelPlacementTool.cs" />
+  </ItemGroup>
+</Project>

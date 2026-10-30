@@ -320,6 +320,106 @@ namespace EquipmentLevelCheck
                 Bentley.MstnPlatformNET.SelectionSetManager.Items.Add(new Bentley.DgnPlatformNET.Elements.Element { ElementId = 1, DgnModelRef = new DgnModelRef { Model = new DgnModel() } });
                 var selection = EquipmentLevelUiReader.ReadSelection();
                 Assert(selection.Equipment.Count == 1 && selection.Rejected.Count == 2, "明确范围与拒绝原因");
+                Assert(selection.ChildElementCount == 1 && selection.EquipmentChildCounts[1] == 1, "拒绝项和重复设备不增加子构件数");
+            });
+            Check("空选择的子构件统计为零且不访问 COM 设备", () =>
+            {
+                Bentley.MstnPlatformNET.InteropServices.Utilities.ComApp = null;
+                var selection = EquipmentLevelUiReader.ReadSelection();
+                Assert(selection.ChildElementCount == 0 && selection.EquipmentChildCounts.Count == 0, "空选择返回零");
+                AssertReadOnly();
+            });
+            Check("选择读取给出每台设备及总子构件数且排除普通容器头", () =>
+            {
+                Store.Add(1, true, 2, 3); Store.Add(2); Store.Add(3, true, 4, 5).NullLevel = true;
+                Store.Add(4); Store.Add(5).Graphic = false;
+                Store.Add(10, true, 11, 12); Store.Add(11); Store.Add(12);
+                Select(1, 10);
+                var selection = EquipmentLevelUiReader.ReadSelection();
+                Assert(selection.ChildElementCount == 4 && selection.EquipmentChildCounts.Count == 2, "总数只含需处理图形");
+                Assert(selection.EquipmentChildCounts[1] == 2 && selection.EquipmentChildCounts[10] == 2, "每台排除根、普通容器及非图形记录");
+                Assert(Store.Data[3].NullLevel && Store.Data[4].Color == 7, "读取保留不可读容器及原属性");
+                AssertReadOnly();
+            });
+            Check("设备与内部件重复出现时每台及总数按持久 ID 去重", () =>
+            {
+                Store.Add(1, true, 2, 2, 3); Store.Add(2); Store.Add(3);
+                Store.Add(10, true, 2, 11, 11); Store.Add(11);
+                Select(1, 1, 10);
+                var selection = EquipmentLevelUiReader.ReadSelection();
+                Assert(selection.Equipment.Count == 2 && selection.EquipmentChildCounts[1] == 2 &&
+                    selection.EquipmentChildCounts[10] == 2, "每台独立去重");
+                Assert(selection.ChildElementCount == 3, "跨设备重复图元在总数中只计一次");
+                AssertReadOnly();
+            });
+            Check("选择统计在 SmartSolid 与共享实例边界停止", () =>
+            {
+                Store.Add(1, true, 2, 3);
+                Store.Add(2, true, 20, 21, 22, 23);
+                foreach (ulong id in new ulong[] { 20, 21, 22, 23 })
+                { var shared = Shared(id, 100); shared.Cell = true; shared.FailEnumeration = true; }
+                var solid = Store.Add(3, false, 101, 102); solid.Smart = solid.Complex = true;
+                solid.Type = "CellHeader"; solid.FailEnumeration = true;
+                Store.Add(100).Type = "DgnStoreHeader";
+                Store.Add(101).Type = "DgnStoreHeader"; Store.Add(102).Type = "Line";
+                Select(1);
+                var selection = EquipmentLevelUiReader.ReadSelection();
+                Assert(selection.ChildElementCount == 5 && selection.EquipmentChildCounts[1] == 5, "四个实例加一个实体，不含公共定义或内部缓存");
+                Assert(Store.Data[20].OverrideLevel == false && Store.Data[20].OverrideColor == false &&
+                    Store.Data[100].Level == 1 && Store.Data[102].Color == 7, "公共定义、内部记录及实例开关保持原值");
+                AssertReadOnly();
+            });
+            Check("选择统计沿用复杂链头及空普通单元的修改范围", () =>
+            {
+                Store.Add(1, true, 2, 4); var chain = Store.Add(2, false, 3);
+                chain.Complex = true; chain.Type = "ComplexString"; Store.Add(3); Store.Add(4, true);
+                Select(1);
+                var selection = EquipmentLevelUiReader.ReadSelection();
+                Assert(selection.ChildElementCount == 3 && selection.EquipmentChildCounts[1] == 3, "复杂图形头及无子件图形仍按 RequiresAppearance 计数");
+                AssertReadOnly();
+            });
+            Check("选择统计不因当前层色已符合而缩小待处理范围", () =>
+            {
+                Basic(); Store.Data[2].Level = 2; Store.Data[2].Color = -1; Select(1);
+                var selection = EquipmentLevelUiReader.ReadSelection();
+                Assert(selection.ChildElementCount == 1, "读取时未选择最终选项，数量表示完整处理范围");
+                AssertReadOnly();
+            });
+            Check("后续设备读取失败不得返回先前设备的部分统计", () =>
+            {
+                Basic(); Store.Add(10, true, 11); Store.Add(11, true, 12).FailEnumeration = true; Store.Add(12);
+                Select(1, 10); EquipmentLevelSelection selection = null; string error = "";
+                try { selection = EquipmentLevelUiReader.ReadSelection(); }
+                catch (InvalidOperationException ex) { error = ex.Message; }
+                Assert(selection == null && error.Contains("设备 10") && error.Contains("子构件数量读取失败") &&
+                    error.Contains("图元 11"), "整次读取失败并明确设备及失败内部件");
+                AssertReadOnly();
+            });
+            Check("选择统计遇到缺失内部件时明确失败", () =>
+            {
+                Store.Add(1, true, 2, 3); Store.Add(2); Select(1);
+                AssertSelectionCountFails("设备 1", "无法读取的内部件");
+                AssertReadOnly();
+            });
+            Check("选择统计遇到不可读叶子属性时拒绝不完整数量", () =>
+            {
+                Basic(); Store.Data[2].NullLevel = true; Select(1);
+                AssertSelectionCountFails("设备 1", "图元 2");
+                AssertReadOnly();
+            });
+            Check("选择统计遇到不明实体边界时拒绝展开内部表示", () =>
+            {
+                Store.Add(1, true, 2); var special = Store.Add(2, false, 3);
+                special.Type = "CellHeader"; special.Complex = true; Store.Add(3); Select(1);
+                AssertSelectionCountFails("设备 1", "特殊 CellHeader");
+                AssertReadOnly();
+            });
+            Check("选择统计读取失败不清除或试写用户选择", () =>
+            {
+                Basic(); Select(1); Bentley.MstnPlatformNET.SelectionSetManager.Items.Add(null);
+                AssertSelectionCountFails("选择集中", "无法读取的元素");
+                Assert(Bentley.MstnPlatformNET.SelectionSetManager.Items.Count == 2, "保留全部原选择");
+                AssertReadOnly();
             });
             Check("活动文档切换使缓存选择失效", () =>
             {
@@ -550,6 +650,25 @@ namespace EquipmentLevelCheck
             catch (Exception ex) { throw new Exception(name + ": " + ex.Message, ex); }
         }
         private static void Basic() { Store.Add(1, true, 2); Store.Add(2); }
+        private static void Select(params ulong[] ids)
+        {
+            foreach (ulong id in ids)
+                Bentley.MstnPlatformNET.SelectionSetManager.Items.Add(new Bentley.DgnPlatformNET.Elements.Element
+                    { ElementId = id, DgnModelRef = new DgnModelRef { Model = Store.ActiveModel } });
+        }
+        private static void AssertReadOnly()
+        {
+            Assert(Store.AppearanceAssignments == 0 && Store.Writes.Count == 0 && Store.SmartWrites.Count == 0 &&
+                Store.SharedWrites.Count == 0 && Store.Marks == 0 && Store.Commits == 0 && Store.Cancels == 0,
+                "读取统计不得尝试属性赋值、Rewrite 或创建、提交、回滚事务");
+        }
+        private static void AssertSelectionCountFails(params string[] details)
+        {
+            EquipmentLevelSelection selection = null; string error = "";
+            try { selection = EquipmentLevelUiReader.ReadSelection(); }
+            catch (InvalidOperationException ex) { error = ex.Message; }
+            Assert(selection == null && details.All(error.Contains), "不能返回部分数量，且错误必须包含上下文：" + error);
+        }
         private static State Shared(ulong id, params ulong[] definitionChildren)
         {
             var shared = Store.Add(id, false, definitionChildren);

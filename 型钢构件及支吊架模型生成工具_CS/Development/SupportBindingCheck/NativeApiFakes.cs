@@ -177,12 +177,71 @@ namespace Bentley.DgnPlatformNET
     internal enum ComponentMode { None }
     internal sealed class DgnButtonEvent {}
     internal sealed class HitPath { internal Element Element; internal Element GetHeadElement(){return Element;} }
+    internal static class SelectionSetManager
+    {
+        internal static readonly List<Element> Selected=new List<Element>();
+        internal static bool ThrowOnEmpty,IgnoreEmpty;
+        internal static int EmptyCalls;
+        internal static bool IsActive(){return Selected.Count!=0;}
+        internal static uint NumSelected(){return (uint)Selected.Count;}
+        internal static void EmptyAll()
+        {
+            EmptyCalls++;
+            if(ThrowOnEmpty)throw new InvalidOperationException("模拟选择集清空失败");
+            if(!IgnoreEmpty)Selected.Clear();
+        }
+        internal static void Reset(){Selected.Clear();ThrowOnEmpty=IgnoreEmpty=false;EmptyCalls=0;}
+    }
+    internal sealed class ElementAgenda
+    {
+        internal readonly List<Element> Elements=new List<Element>();
+        internal bool IsEmpty {get{return Elements.Count==0;}}
+        internal uint GetCount(){return (uint)Elements.Count;}
+        internal void Empty(bool release){Elements.Clear();}
+    }
     internal class DgnElementSetTool
     {
+        internal enum UsesSelection { None,Check }
+        internal enum UsesFence { None,Check }
+        internal enum ElementSource { Pick,SelectionSet,Fence }
         internal static DgnElementSetTool Tool;
+        internal static Action BeforeInstall,AfterBaseInstall,BeforePostInstall;
+        internal static readonly List<DgnElementSetTool> PendingCleanup=new List<DgnElementSetTool>();
+        internal static bool DelayCleanup;
+        internal static int InstallCalls,BaseInstallCalls,SelectedBeforeOnInstall,SelectedInBaseOnInstall,AgendaAdoptions,LocateCalls;
+        internal readonly ElementAgenda ElementAgenda=new ElementAgenda();
+        private ElementSource source;
         internal DgnElementSetTool(int a,int b){}
-        internal void InstallTool(){Tool=this;OnPostInstall();}
-        internal void ExitTool(){OnCleanup();Tool=null;}
+        internal void InstallTool()
+        {
+            InstallCalls++;
+            BeforeInstall?.Invoke();
+            SelectedBeforeOnInstall=(int)SelectionSetManager.NumSelected();
+            Tool=this;
+            if(!OnInstall())throw new InvalidOperationException("模拟安装返回失败");
+            BeforePostInstall?.Invoke();
+            OnPostInstall();
+        }
+        internal void ExitTool(){if(DelayCleanup)PendingCleanup.Add(this);else Cleanup(this);}
+        internal static void Cleanup(DgnElementSetTool tool){tool.OnCleanup();if(ReferenceEquals(Tool,tool))Tool=null;}
+        internal static void DrainCleanup(){var tools=PendingCleanup.ToArray();PendingCleanup.Clear();foreach(var tool in tools)Cleanup(tool);}
+        protected virtual UsesSelection AllowSelection(){return UsesSelection.Check;}
+        protected virtual UsesFence AllowFence(){return UsesFence.Check;}
+        protected virtual ElementSource GetPreferredElementSource(){return ElementSource.SelectionSet;}
+        protected void SetElementSource(ElementSource value){source=value;}
+        protected ElementSource GetElementSource(){return source;}
+        internal void SeedSelectionAgenda(Element element){ElementAgenda.Elements.Add(element);source=ElementSource.SelectionSet;}
+        internal bool UsesDirectPick {get{return source==ElementSource.Pick&&AllowSelection()==UsesSelection.None&&AllowFence()==UsesFence.None&&GetPreferredElementSource()==ElementSource.Pick;}}
+        protected virtual bool OnInstall()
+        {
+            BaseInstallCalls++;
+            SelectedInBaseOnInstall=(int)SelectionSetManager.NumSelected();
+            // 模拟宿主即使AllowSelection=None也会把非空选择集编为议程的行为。
+            if(SelectedInBaseOnInstall!=0){AgendaAdoptions++;ElementAgenda.Elements.AddRange(SelectionSetManager.Selected);source=ElementSource.SelectionSet;}
+            AfterBaseInstall?.Invoke();
+            if(FakeState.Fault=="tool-install")throw new InvalidOperationException("模拟点取安装失败");
+            return true;
+        }
         protected virtual void OnPostInstall(){}
         protected virtual void OnCleanup(){}
         protected virtual void OnRestartTool(){}
@@ -190,8 +249,18 @@ namespace Bentley.DgnPlatformNET
         protected virtual bool OnDataButton(DgnButtonEvent ev){return true;}
         protected virtual bool OnPostLocate(HitPath path,out string reason){reason="";return true;}
         public virtual StatusInt OnElementModify(Element element){return StatusInt.Error;}
-        protected HitPath DoLocate(DgnButtonEvent ev,bool locate,int mode){return new HitPath{Element=FakeState.Pick};}
-        internal static void Pick(Element element){FakeState.Pick=element;Tool.OnDataButton(new DgnButtonEvent());}
+        protected HitPath DoLocate(DgnButtonEvent ev,bool locate,int mode){LocateCalls++;return new HitPath{Element=FakeState.Pick};}
+        internal static void Pick(Element element)
+        {
+            FakeState.Pick=element;
+            if(!Tool.ElementAgenda.IsEmpty){Tool.OnElementModify(element);Tool.OnRestartTool();return;}
+            Tool.OnDataButton(new DgnButtonEvent());
+        }
+        internal static void Reset()
+        {
+            Tool=null;BeforeInstall=AfterBaseInstall=BeforePostInstall=null;PendingCleanup.Clear();DelayCleanup=false;
+            InstallCalls=BaseInstallCalls=SelectedBeforeOnInstall=SelectedInBaseOnInstall=AgendaAdoptions=LocateCalls=0;
+        }
     }
 }
 namespace Bentley.MstnPlatformNET
@@ -367,6 +436,7 @@ internal static class FakeState
     internal static long Token=1;
     internal static void Reset()
     {
+        SelectionSetManager.Reset();DgnElementSetTool.Reset();
         Model=new DgnModel();File=new DgnFile();Elements.Clear();Libraries.Clear();Fault="";Detached=false;
         Serializes=OwnedDisposes=NextNote=0;UorPerMm=MmPerSchemaUnit=1;Token=1;TransactionManager.Rollbacks=TransactionManager.Closes=0;
         Bentley.OpenPlant.Modeler.Api.BMECApi.Instance.ObjectCache.Values.Clear();

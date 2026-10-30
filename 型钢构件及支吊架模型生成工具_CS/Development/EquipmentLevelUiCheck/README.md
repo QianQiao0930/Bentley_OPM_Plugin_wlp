@@ -1,5 +1,7 @@
 # 设备图层与颜色页面检查
 
+2026-10-29新增子构件数量检查：顶部总数及逐台数量、重新读取替换旧数、空选择零数、读取失败不显示部分数量、统计忙状态、Undo/模型切换/文档关闭/离开后数量失效，以及五种尺寸下新增数量行完整可见。统计读取使用展示替身；真实只读计数和SmartSolid/共享实例边界由EquipmentLevelCheck验证。
+
 此工程编译正式 EquipmentLevelPage 的 XAML 和代码、共享主题/Chrome、NativePanelLayout、页面契约与领域选项。文档、设备和模型写入服务采用隔离替身；不加载 OPM、不读写用户模型。
 
 构建：`dotnet build Development/EquipmentLevelUiCheck/EquipmentLevelUiCheck.csproj -c Release`。

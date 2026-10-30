@@ -11,6 +11,7 @@
     <Compile Include="../../Infrastructure/SupportBinding/*.cs" Link="Infrastructure/%(Filename)%(Extension)"/>
     <Compile Include="../../OpenPlant/SupportBinding/*.cs" Link="OpenPlant/%(Filename)%(Extension)"/>
     <Compile Include="../../Tools/SupportBinding/*.cs" Link="Tools/%(Filename)%(Extension)"/>
+    <Compile Include="../../Tools/ProbeLocateTool.cs" Link="Tools/ProbeLocateTool.cs"/>
     <Compile Include="../../UI/SupportBinding/SupportBindingPage.xaml.cs" Link="UI/SupportBindingPage.xaml.cs"/>
     <Compile Include="../../Domain/NativePipeSupport/NativePipeSupportDefinition.cs" Link="NativePipeSupportDefinition.cs"/>
     <Compile Include="../../Data/LocatedElement.cs" Link="LocatedElement.cs"/>

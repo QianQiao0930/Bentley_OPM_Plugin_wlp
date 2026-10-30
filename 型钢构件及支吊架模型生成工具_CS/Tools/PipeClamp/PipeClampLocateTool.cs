@@ -49,6 +49,7 @@ namespace SteelSectionProbe
             var tool=active;
             if(tool!=null)
             {
+                tool.PrepareForPicking("重复开始点取");
                 // 已经在点取中：**只重新确保捕捉/定位可用，不要"结束再安装"**。
                 // 结束再安装会在 Begin 内部先触发一次 Ended（页面据此清空选择并提示
                 // "已结束点取"），而紧接着安装的新实例还可能被上一个实例的延迟清理

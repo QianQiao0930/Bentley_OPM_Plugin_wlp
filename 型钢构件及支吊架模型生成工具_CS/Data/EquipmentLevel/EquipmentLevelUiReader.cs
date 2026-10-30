@@ -73,7 +73,37 @@ namespace SteelSectionProbe
                 }
                 else result.Rejected.Add(entry);
             }
+            ReadChildCounts(result);
             return result;
+        }
+
+        /// <summary>沿修改时使用的实际包含树统计图形，不写模型或展开实体内部表示。</summary>
+        private static void ReadChildCounts(EquipmentLevelSelection selection)
+        {
+            var tree = new EquipmentLevelTree();
+            var counted = new HashSet<ulong>();
+            foreach (var entry in selection.Equipment)
+            {
+                try
+                {
+                    var snapshot = tree.Capture(entry.ElementId);
+                    int count = 0;
+                    foreach (var node in snapshot.Nodes.Values)
+                    {
+                        if (!node.RequiresAppearance) continue;
+                        count++;
+                        counted.Add(node.Id);
+                    }
+                    selection.EquipmentChildCounts.Add(entry.ElementId, count);
+                }
+                catch (Exception ex)
+                {
+                    // 必须完整读出每台设备，不能把已读部分显示为整个选择的完整数量。
+                    throw new InvalidOperationException("设备 " + entry.ElementId +
+                        " 的子构件数量读取失败，请重新选择或检查设备：" + ex.Message, ex);
+                }
+            }
+            selection.ChildElementCount = counted.Count;
         }
 
         internal static void Validate(EquipmentLevelDocument document, EquipmentLevelSelection selection)
@@ -118,5 +148,7 @@ namespace SteelSectionProbe
         internal DgnModel Model;
         internal readonly List<EquipmentLevelEntry> Equipment = new List<EquipmentLevelEntry>();
         internal readonly List<EquipmentLevelEntry> Rejected = new List<EquipmentLevelEntry>();
+        internal int ChildElementCount;
+        internal readonly Dictionary<ulong, int> EquipmentChildCounts = new Dictionary<ulong, int>();
     }
 }

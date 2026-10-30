@@ -23,6 +23,33 @@ namespace SteelSectionProbe
                 Check(page.PageId == "equipment-level" && apply.IsEnabled, "注册标识与已读取设备可应用");
                 Check(levels.Items.Count == 3 && ((EquipmentLevelChoice)levels.SelectedItem).Id == 1, "文档图层与活动层默认选中");
                 Check(Control<TextBlock>(page, "SelectionSummary").Text.Contains("2 台") && Control<TextBlock>(page, "SelectionSummary").Text.Contains("跳过 1"), "设备及拒绝数量");
+                Check(Control<TextBlock>(page, "ChildCountText").Text == "子构件：120 个", "设备读取后显示完整子构件总数");
+                Check(Control<TextBox>(page, "ResultText").Text.Contains("678312] · 子构件 90 个") &&
+                    Control<TextBox>(page, "ResultText").Text.Contains("678313] · 子构件 30 个"), "每台设备列出各自子构件数量");
+                Check(Fixture.ApplyCalls == 0, "读取子构件数量不进入模型写入");
+                bool readingSeen = false, readingCloseBlocked = false;
+                Fixture.DuringRead = delegate
+                {
+                    readingSeen = page.IsBusy && !apply.IsEnabled && !Control<Button>(page, "ReadSelectionButton").IsEnabled &&
+                        Control<TextBlock>(page, "ChildCountText").Text.Contains("统计中");
+                    try { page.OnDeactivated(); } catch (InvalidOperationException) { readingCloseBlocked = true; }
+                };
+                Fixture.FirstChildCount = 3; Fixture.SecondChildCount = 4;
+                Click(Control<Button>(page, "ReadSelectionButton"));
+                Check(readingSeen && readingCloseBlocked && !page.IsBusy, "统计中反馈可见且不能重入或离开");
+                Check(Control<TextBlock>(page, "ChildCountText").Text == "子构件：7 个" &&
+                    !Control<TextBox>(page, "ResultText").Text.Contains("90 个"), "重新读取更新数量而不残留上次明细");
+                Fixture.DuringRead = null; Fixture.FailRead = true;
+                Click(Control<Button>(page, "ReadSelectionButton"));
+                Check(Control<TextBlock>(page, "ChildCountText").Text == "子构件：统计失败" && !apply.IsEnabled && !page.IsBusy,
+                    "读取不完整不误报零或部分数量，也不能应用");
+                Check(Control<TextBox>(page, "ResultText").Text.Contains("678313") && Fixture.ApplyCalls == 0,
+                    "统计失败保留具体设备与原因且未写模型");
+                Fixture.FailRead = false; Fixture.HasSelection = false;
+                Click(Control<Button>(page, "ReadSelectionButton"));
+                Check(Control<TextBlock>(page, "ChildCountText").Text == "子构件：0 个" && !apply.IsEnabled, "空选择显示零个子构件");
+                Fixture.HasSelection = true; Fixture.FirstChildCount = 90; Fixture.SecondChildCount = 30;
+                Click(Control<Button>(page, "ReadSelectionButton"));
                 Check(mode.SelectedIndex == 0 && Control<Grid>(page, "CustomColorPanel").Visibility == Visibility.Collapsed, "默认随层");
                 levels.SelectedIndex = 1; mode.SelectedIndex = 1;
                 Control<TextBox>(page, "ColorHexText").Text = "#123456";
@@ -51,9 +78,14 @@ namespace SteelSectionProbe
                 Check(Control<TextBox>(page, "ResultText").Text.Contains("回滚"), "失败结果可见");
                 Fixture.FailApply = false;
                 Bentley.DgnPlatformNET.TransactionManager.Undo(); Check(!apply.IsEnabled, "撤销后重新读取");
+                Check(Control<TextBlock>(page, "ChildCountText").Text == "子构件：未读取", "撤销后旧子构件数量失效");
                 Click(Control<Button>(page, "ReadSelectionButton")); Check(apply.IsEnabled, "重新读取恢复可用");
                 Fixture.Model = new Bentley.DgnPlatformNET.DgnModel();
                 Invoke(page, "Timer_Tick", null, EventArgs.Empty); Check(!apply.IsEnabled, "切换模型清空旧选择");
+                Check(Control<TextBlock>(page, "ChildCountText").Text == "子构件：未读取", "切换模型不显示旧数量");
+                Fixture.Model = null; Invoke(page, "Timer_Tick", null, EventArgs.Empty);
+                Check(Control<TextBlock>(page, "ChildCountText").Text == "子构件：未读取" && !apply.IsEnabled, "文档关闭清除旧数量");
+                Fixture.Model = new Bentley.DgnPlatformNET.DgnModel();
                 Click(Control<Button>(page, "ReadSelectionButton")); levels.SelectedIndex = 1;
                 // 截图和几何检查使用真实页面，模拟服务只提供文档/设备展示数据。
                 string output = Path.GetFullPath(args.Length == 0 ? "previews" : args[0]); Directory.CreateDirectory(output);
@@ -64,6 +96,10 @@ namespace SteelSectionProbe
                     Point pos = apply.TranslatePoint(new Point(),page);
                     Check(pos.Y >= 0 && pos.Y + apply.ActualHeight <= size.Height, "应用按钮固定且可见 " + size);
                     Check(pos.X >= 0 && pos.X + apply.ActualWidth <= size.Width, "应用按钮不溢出 " + size);
+                    var countText = Control<TextBlock>(page, "ChildCountText");
+                    var countPos = countText.TranslatePoint(new Point(), page);
+                    Check(countText.ActualHeight > 0 && countPos.Y >= 0 && countPos.Y + countText.ActualHeight <= size.Height &&
+                        countText.DesiredSize.Width <= countText.ActualWidth + .1, "顶部子构件数量完整可见 " + size);
                     Check(TextContains(levels, "E-TNK") && !TextContains(levels, "SteelSectionProbe"), "目标层显示名称而非类型名 " + size);
                     var scroll = Control<ScrollViewer>(page,"ParameterScroll"); double y = pos.Y;
                     scroll.ScrollToBottom(); page.UpdateLayout();
@@ -77,6 +113,7 @@ namespace SteelSectionProbe
                     }
                 }
                 page.OnDeactivated(); Check(!apply.IsEnabled, "离开清理选择与事件");
+                Check(Control<TextBlock>(page, "ChildCountText").Text == "子构件：未读取", "离开页面清除旧数量");
                 Console.WriteLine("EquipmentLevelUiCheck: " + checks + " checks passed; real XAML and page lifecycle, host services use fixtures.");
                 return 0;
             }

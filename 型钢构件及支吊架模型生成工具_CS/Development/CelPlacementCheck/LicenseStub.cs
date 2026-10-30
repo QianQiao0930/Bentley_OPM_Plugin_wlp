@@ -1,0 +1,1 @@
+namespace SteelSectionProbe { internal static class LicenseService { internal static bool IsActivated = true; } }

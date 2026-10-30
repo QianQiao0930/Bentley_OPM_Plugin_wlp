@@ -217,6 +217,7 @@ namespace SteelSectionProbe
             {
                 DataChecks();
                 BomChecks();
+                LocateSelectionChecks();
                 string output=args.Length==0?Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"previews"):args[0];Directory.CreateDirectory(output);
                 UiChecks(output);
                 Console.WriteLine("PASS: "+checks+" 组合绑定领域、真实Reader/Store/Editor、点取及页面检查。");return 0;

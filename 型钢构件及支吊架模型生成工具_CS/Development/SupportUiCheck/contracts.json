@@ -269,7 +269,7 @@
       }
     ],
     "bindings": [],
-    "businessSha256": "700e040456b1b461beeb5f4c4c32311d9ca3ec57b9164074a2a09aef3ca482c1"
+    "businessSha256": "5c8ea282e0bab83a039e1394dd9c855d1512b21971f4ba1192d5afb6ffa788d3"
   },
   "ElbowTrunnion/ElbowTrunnionPage.xaml": {
     "class": "ElbowTrunnionPage",
@@ -660,7 +660,7 @@
     },
     "choices": [],
     "bindings": [],
-    "businessSha256": "2dc84028c5973a4467ad803e058d241a14f050123a6a5e5f60b2b62f5c67efb8"
+    "businessSha256": "3f8408238174dc8f8794fbbb8c5fa94721ccac857e344cf138dc7ccf7b682bfb"
   },
   "N1Cantilever/N1CantileverPage.xaml": {
     "class": "N1CantileverPage",
@@ -1250,7 +1250,7 @@
     },
     "choices": [],
     "bindings": [],
-    "businessSha256": "9d4de42474e14c45c6a43ec80d28d0fbafcf7f4b34e3585efe4319eebaf251f5"
+    "businessSha256": "a095f03133c373a4ce971955d1305ab24e81a12a08c1c09b9b22b48092bac3c0"
   },
   "TFrame/TFramePage.xaml": {
     "class": "TFramePage",
@@ -1314,7 +1314,7 @@
     },
     "choices": [],
     "bindings": [],
-    "businessSha256": "46dea65917b4c80c7f98ea5f0c917229de5907e1310e44051ad11ff8c3eeed16"
+    "businessSha256": "6b7cbce3b53d37259b68e32adaef98621eae965a6bbec5425774c912766fe54d"
   },
   "PadPlate/PadPlatePage.xaml": {
     "class": "PadPlatePage",

@@ -21,7 +21,7 @@ namespace SteelSectionProbe
         }
         internal static void Begin()
         {
-            if(active!=null){AccuSnap.SnapEnabled=true;AccuSnap.LocateEnabled=true;Prompt();return;}
+            if(active!=null){active.PrepareForPicking("重复开始点取");AccuSnap.SnapEnabled=true;AccuSnap.LocateEnabled=true;Prompt();return;}
             var created=new WallLadderLocateTool();oldSnap=AccuSnap.SnapEnabled;oldLocate=AccuSnap.LocateEnabled;active=created;
             try{created.InstallTool();AccuSnap.SnapEnabled=true;AccuSnap.LocateEnabled=true;}
             catch{active=null;Restore();throw;}

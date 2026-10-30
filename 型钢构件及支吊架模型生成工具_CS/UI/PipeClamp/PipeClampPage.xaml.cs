@@ -619,10 +619,11 @@ namespace SteelSectionProbe
                 if(A1ClampOrientationTool.IsActive)A1ClampOrientationTool.End();
                 if(PipeClampLocateTool.IsActive)
                 {
+                    PipeClampLocateTool.Begin();
                     // 工具还装着（例如刚"确定生成"过）：只恢复页面状态，**不要重新安装** ——
                     // 重装会先"结束再安装"，白丢一次状态，也容易踩到延迟清理的竞态。
                     locating=true;
-                    Status("已在点取中：直接在模型里点取下一处即可；要停止请点「结束点取」。",false);
+                    Status("已清空当前选择，可直接点取下一处；要停止请点「结束点取」。",false);
                     return;
                 }
                 RefreshSpecification();

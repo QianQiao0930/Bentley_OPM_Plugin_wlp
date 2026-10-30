@@ -173,7 +173,7 @@ namespace SteelSectionProbe
         {
             try
             {
-                if(PipeClampLocateTool.IsActive&&locating){Status("可直接点取下一处，无需再点开始点取。",false);return;}
+                if(PipeClampLocateTool.IsActive&&locating){PipeClampLocateTool.Begin();Status("已清空当前选择，可直接点取下一处。",false);return;}
                 if(L7GuideDirectionTool.IsActive)L7GuideDirectionTool.End();
                 if(L7GuideLengthTool.IsActive)L7GuideLengthTool.End();
                 preview.Cancel();ConfirmButton.IsEnabled=false;selection=null;PreviewUpdateHint.Set(UpdateButton,false);

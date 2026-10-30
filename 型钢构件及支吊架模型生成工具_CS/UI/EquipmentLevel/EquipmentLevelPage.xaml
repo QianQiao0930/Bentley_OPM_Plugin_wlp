@@ -17,6 +17,8 @@
                         <Button x:Name="ReadSelectionButton" Grid.Column="1" Content="读取选中设备" Style="{StaticResource SecondaryButtonStyle}" Click="ReadSelection_Click" Margin="0"/>
                     </Grid>
                     <TextBlock x:Name="SelectionSummary" Text="先在模型中选择设备，再读取选择。" FontSize="11" Foreground="#5B6B7B" Margin="0,4,0,0" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTip="{Binding Text,RelativeSource={RelativeSource Self}}"/>
+                    <TextBlock x:Name="ChildCountText" Text="子构件：未读取" FontSize="11.5" FontWeight="SemiBold" Foreground="#1F6FEB" Margin="0,3,0,0"
+                        ToolTip="按设备内部参与处理的图形统计；已符合目标设置的对象不重复修改，实际改动数见处理结果。"/>
                 </StackPanel>
             </Border>
             <ScrollViewer x:Name="ParameterScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,6,0">

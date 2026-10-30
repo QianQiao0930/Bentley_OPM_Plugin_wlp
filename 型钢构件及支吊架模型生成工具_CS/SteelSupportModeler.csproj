@@ -56,9 +56,18 @@
   <ItemGroup><EmbeddedResource Include="Resources\fire_extinguisher_recipes.json" LogicalName="SteelSectionProbe.fire_extinguisher_recipes.json" /></ItemGroup>
   <ItemGroup><EmbeddedResource Include="Resources\profiles.bin" LogicalName="SteelSectionProbe.profiles.bin" /></ItemGroup>
   <ItemGroup><EmbeddedResource Include="Resources\nozzle_flange_data.json" LogicalName="SteelSectionProbe.nozzle_flange_data.json" /></ItemGroup>
+  <ItemGroup>
+    <Content Include="..\资料\地面冲洗水盘管.cel" Link="地面冲洗水盘管.cel" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
   <ItemGroup><Compile Remove="Development\ComponentPropertiesCheck\**\*.cs" />
     <Compile Remove="Development\EquipmentLevelCheck\**\*.cs" />
     <Compile Remove="Development\EquipmentLevelUiCheck\**\*.cs" />
+    <Compile Remove="Development\PreviewOwnershipCheck\**\*.cs" />
+    <Compile Remove="Development\ProbeLocateCheck\**\*.cs" />
+    <Compile Remove="Development\CelLibraryCheck\**\*.cs" />
+    <Compile Remove="Development\CelLibraryIoCheck\**\*.cs" />
+    <Compile Remove="Development\CelPlacementCheck\**\*.cs" />
+    <Compile Remove="Development\CelLibraryUiCheck\**\*.cs" />
     <Compile Remove="Development\ElbowTrunnionCheck\**\*.cs" />
     <Compile Remove="Development\SupportStatisticsCheck\**\*.cs" />
     <Compile Remove="Development\TankManholeCheck\**\*.cs" />

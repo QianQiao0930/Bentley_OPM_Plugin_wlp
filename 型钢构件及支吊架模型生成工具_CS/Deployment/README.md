@@ -27,7 +27,7 @@
 | `install_new_version.ps1` | 把 `bin\Release\net48_full\SteelSectionProbe.dll` 复制回常规产物 `bin\Release\net48\SteelSectionProbe.dll` 并校验 SHA256 一致；被 OPM 占用时失败并提示先关闭。**只在本工程 `bin` 内操作，不涉及 OPM 安装目录。** |
 | `install_new_version.cmd` | 上面 ps1 的批处理包装，供双击运行。 |
 
-> 注意：部署到 OPM 实际加载目录（`mdlapps`）属于宿主环境操作，不在本目录脚本范围内，需手动替换 DLL/PDB。
+> 注意：部署到 OPM 实际加载目录（`mdlapps`）属于宿主环境操作，不在本目录脚本范围内，需手动替换 DLL/PDB，并把 `地面冲洗水盘管.cel` 放在 DLL 同一目录。CEL 构件放置无需安装 Schema，详细用法见 [CEL构件放置](../Docs/CEL构件放置.md)。
 
 ---
 

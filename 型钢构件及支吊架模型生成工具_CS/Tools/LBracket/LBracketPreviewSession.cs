@@ -8,32 +8,25 @@ namespace SteelSectionProbe
 {
     internal sealed class LBracketPreviewSession
     {
-        private Element preview;
+        private readonly PreviewElementOwnership ownership = new PreviewElementOwnership("D7 ");
         private LBracketPlan plan;
-        internal bool HasPreview {get{return preview!=null;}}
+        internal bool HasPreview {get{return ownership.HasPreview;}}
         internal void Show(LBracketPlan next)
         {
+            ownership.Invalidate();plan=null;
             var parts=LBracketBuilder.Build(next);
             var replacement=new CellHeaderElement(Session.Instance.GetActiveDgnModel(),
                 LBracketCatalog.CellName,DPoint3d.Zero,DMatrix3d.Identity,parts);
             SupportModelLevel.Use(replacement);
             var status=replacement.AddToModel();
             if(status!=StatusInt.Success)throw new InvalidOperationException("D7 预览写入失败："+status);
-            try{Delete(preview);}catch{Delete(replacement);throw;}
-            preview=replacement;plan=next;
+            ownership.ReplaceWrittenElement(replacement);plan=next;
         }
         internal void Confirm()
         {
-            if(preview==null||plan==null)throw new InvalidOperationException("没有可确认的 D7 预览。");
-            Statistics.AttachLBracket(preview,plan);
-            preview=null;plan=null;
+            if(plan==null)throw new InvalidOperationException("没有可确认的 D7 预览。");
+            ownership.Confirm(element=>Statistics.AttachLBracket(element,plan));plan=null;
         }
-        internal void Cancel(){Delete(preview);preview=null;plan=null;}
-        private static void Delete(Element element)
-        {
-            if(element==null||!element.IsValid)return;
-            var status=element.DeleteFromModel();
-            if(status!=StatusInt.Success)throw new InvalidOperationException("D7 预览删除失败："+status);
-        }
+        internal void Cancel(){plan=null;ownership.Cancel();}
     }
 }

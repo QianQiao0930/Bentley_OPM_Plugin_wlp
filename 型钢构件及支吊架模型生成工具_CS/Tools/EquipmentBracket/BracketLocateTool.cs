@@ -25,7 +25,7 @@ namespace SteelSectionProbe
         {Begin("请选择一条水平辅助线，左键生成三角架预览；右键退出。");}
         internal static void Begin(string instruction)
         {
-            if(active!=null){AccuSnap.SnapEnabled=true;AccuSnap.LocateEnabled=true;return;}
+            if(active!=null){active.PrepareForPicking("重复开始点取");AccuSnap.SnapEnabled=true;AccuSnap.LocateEnabled=true;return;}
             var created=new BracketLocateTool(instruction);
             snap=AccuSnap.SnapEnabled;locate=AccuSnap.LocateEnabled;active=created;
             try {created.InstallTool();AccuSnap.SnapEnabled=true;AccuSnap.LocateEnabled=true;}

@@ -1,6 +1,24 @@
 # 型钢构件及支吊架模型生成工具：AI 与开发者协作规范
 
+2026-10-30 CEL单元规范命名：资料/地面冲洗水盘管.cel中的12种可放置单元采用“安装形式-介质卷盘-固定方式”命名，挂装式/立柱式、冲洗水/压缩空气/水气组合、钢结构焊接/混凝土墙柱/焊接固定/锚板固定；库文件名不变。通过Bentley原生模型属性改名，保存后重开核对名称、单位、实际三维原点及可放置标志，75个几何/控制存储流逐字节保持一致。与旧名称完全相同的描述同步改名，其他描述保留。原库、改名表、一次性脚本和核验记录保留于迁移备份/CEL单元规范命名_20261030，不入库。用户已确认此前CEL预览方向切换及连续放置显示可用。
+
+2026-10-30 CEL方向预览与连续放置实时显示：用户宿主日志已确认ID15770/16088均在工具退出前完成根与附加项提交，且原COM IsNew仍true，因此此前IsNew假阴性修复有宿主证据；本次未将该成功扩大为预览/刷新已验证。预览移除AxHost/GDI+ Metafile包装，按标准IPicture/IUnknown vtable在自有HDC上Render，两次黑/白绘制恢复透明度，保持白底居中与比例；不接管或释放宿主WMF/EMF句柄。方向切换失败保留上张冻结图、恢复方向状态，可重复点击重试，完整记录异常。页面开始放置只依赖真实库条目/有限角度/离线工厂验证，图片错误不再结束工具或锁住放置。每次左键先清暂态、EndDynamics，再事务放置与View.Redraw，随后BeginDynamics继续；显示刷新失败只报警，不回滚已提交根或丢成功通知。改前源码/DLL/宿主日志/截图在迁移备份/CEL预览方向及实时显示修正_20261030。
+
+2026-10-30 CEL放置与预览修正：用户截图已成功读取12种单元，但放置后的旧id==0||IsNew校验失败并触发回滚；截图未记录两值，不能断言是哪一分支。Writer不再用Add后的原COM IsNew判断持久化，改以实际ID重读根和附加项；原包装ID未更新时，仅接受与添加前不同且名称/原点匹配的新末尾单元，再经原生根身份核对。撤销校验、整件回退保持，并记录logs/CelLibrary/latest.log（原包装ID/IsNew、解析ID、提交/回滚）。预览移除黑底ElementPreview/描述符桥接，采用真实离线CEL.GetPicture(...,false)和AxHost安全转换；仅预览副本居中、等轴旋转，透明图像裁到实际图形后等比缩放，WPF白底与双轴居中，白色画笔在预览像素中补对比，不修改源/放置件或宿主背景。43项放置与66项页面/像素检查通过，含IsNew保留、ID为0复制、末尾旧件拒绝、背景不透明白、中心和长宽比。仍需用户在OPM试放验证原生API效果。改前源码/DLL/用户截图备份在迁移备份/CEL放置及预览修正_20261030。
+
+本轮CEL离线验证完成：CelLibraryIoCheck 18场景/38断言、CelPlacementCheck 39断言、CelLibraryUiCheck 62断言（真实XAML及真实预览包装配宿主替身），HomeCheck、HomeUiCheck 83项、DockingCheck 66项通过。授权/无授权Release均0警告0错误；授权DLL和CEL同步net48/net48_full并核对SHA256，交付包bin/Release/CEL构件放置_20261030.zip。临时预览清理失败保留Pending供重试，原生回调不传播业务异常；页面离开清理失败保持active以允许重试，延迟绘图失败带revision保护，显示名称有ToString兼容共享Combo模板。主工程不包含检查替身。OPM未启动、未替换宿主DLL，真实CEL几何与宿主交互尚待试放。
+
+2026-10-29新增CEL构件放置（用户授权业务）：PageId cel-library，HomeFeatureCatalog与WorkspaceView显式登记，总35可用+1占位（建模14/支吊架18/查询3）。Domain/CelLibrary为纯数值；Data/CelLibrary只读枚举可放置三维模型；Geometry以COM CreateCellElement2 true-scale生成离线普通Cell，DPoint3d输入UOR、内部换为活动主单位，显式世界Z旋转矩阵；临时附加CEL后必须恢复原附加库（含原无库），失败明确报告。面板内WindowsFormsHost嵌Bentley ElementPreview显示同一工厂真实几何；预览不写模型或统计。Tool单击连续放置，事务内加入Cell及SSP_CelLibraryComponents/CelComponent附加项，失败撤销并重读；统计只读实际根实例、排参考与嵌套，不以递增内存计数替代真实模型。源CEL作为Content随DLL输出并默认同目录，原生控件引用Private=false，禁止分发宿主DLL。新检查源码必须从主工程排除。改前完整工作源码、DLL/PDB和CEL在迁移备份/CEL构件放置_20261029；离线检查不能替代OPM原生预览/导入/放置/Undo验收。
+
 当前版本：V1.0.0（程序集/文件版本1.0.0.0；唯一来源App/AssemblyInfo.cs，首页及作者页自动读取）。
+
+2026-10-29设备选择数量展示：用户要求读取设备时体现待处理子构件规模。EquipmentLevelUiReader.ReadSelection增加只读ChildElementCount及EquipmentChildCounts，复用EquipmentLevelTree.Capture/RequiresAppearance；总数按持久图元ID去重，普通容器不计、SmartSolid和共享实例各计一个，不展开公共定义或实体内部表示，不调用Apply或试写。任一设备读取不完整则明确失败，不返回部分统计。EquipmentLevelPage顶部新增蓝色ChildCountText，结果区显示每台设备数量；读取期间忙状态保护与统计中提示，失败/Undo/文档切换/离开清除旧数，应用成功按实际校验数更新。此为用户授权业务展示，不适用历史UI-only冻结；模型写入/事务流程不改。改前源码和DLL/PDB位于迁移备份/设备选择子构件数量_20261029；离线计数和界面检查不代表OPM宿主已实测。
+
+2026-10-29点取选择集规则更新（用户明确要求，覆盖下方旧“挂起/归还”描述）：点击开始点取时直接放弃全部已有选择，用户重新在视图中点选；不缓存元素或模型引用，结束、安装失败及旧实例延迟Cleanup均不恢复旧选择。共用ProbeLocateTool在构造、基类安装前与安装后清空并核对选择集，保留AllowSelection=None、AllowFence=None、Pick及议程清理；清空失败明确停止，不能带着旧议程继续。14个只读点取工具重复Begin调用PrepareForPicking清选择/议程并复用原实例，不End/重装、不重复发Ended、不重记AccuSnap初始状态。页面已激活分支也须进入Begin，不能只提示后return（管夹、Q1/Q2、保冷立管、门型架、围栏、组合绑定已补齐）。工具清理不读写选择集，避免触碰用户后来选择。真实点取/宿主响应仍需OPM验证，离线检查只能证明相应控制流。
+
+同轮代码审查修复：八个普通Cell预览会话（Bracket/PadPlate/PortalFrame/LBracket/SteelHandrail/SquareManhole/TFrame/TriangleBracket）共用Tools/PreviewElementOwnership；新件成功写入后立即登记，删除失败保留全部未确认所有权供Cancel/关闭重试，重建失败禁确认。SupportBindingCheck链接真实ProbeLocateTool并补齐选择集/议程宿主替身。新增ProbeLocateCheck与PreviewOwnershipCheck分别检查真实点取和预览故障路径，检查源码从主工程排除。改前源码及DLL/PDB备份位于仓库迁移备份/点取清空选择集及审查修复_20261029_a1ed137。
+
+本轮离线验证：ProbeLocateCheck 15场景/55断言、PreviewOwnershipCheck 113场景/617断言、SupportBindingCheck 309项、SupportUiCheck 597项和原UI契约通过。UI契约仅更新用户授权的管夹/保冷立管/门型架业务摘要，并补齐拉取代码已有的TFrame状态栏改动摘要；原XAML控件、事件、绑定与选择项不放宽。围栏重复开始失败时locating沿用真实工具IsActive，确保仍可结束/关闭清理。宿主一次点取、COM删除、交接与Undo仍未实测。
 
 2026-10-29内部件寻址与类型保护修正（当前写入规则）：用户设备546189/739007/738973的首个待写图元560777/739026/739002均被旧Write中的“图元类型已变化”拦截，日志显示整批回滚。旧代码从包含枚举取得计划，却用模型级GetElementByID64(内部件ID)定位写入对象；未比较返回ID，泛化异常也未记录实际Type/Smart/Shared标志，故原日志不足以确认具体是哪一项不同，不能直接宣称模型组件真正变型或已证实当前宿主必然返回外层头。现Tree.Resolve从设备根沿计划中的逐级ParentId/GetSubElements重新取得每次写入的组件，核对每级实际ID/类型/图形与普通单元/SmartSolid/Shared身份及共享名称；根Find也必须核对返回ID。Capture与Resolve共用LogicalChildren白名单，SmartSolid/共享实例不展开，未移除身份保护。Applier初写/补写均走同一路径，不保留父容器重写前COM包装；提交前重读和回滚开关校验保持。每台设备首图形增加只读“寻址对照”日志，记录模型级实际返回身份，诊断结果不参与写入。旧替身默认精确返回内部件，漏测该分歧；现默认模拟模型级返回外层单元，73场景包含精确返回兼容、同类型不同ID根、父路径变化、真实类型变化、包装失效及四共享实例泵。双版编译及备件同步见验证记录；宿主行为/本次模型写回仍未实测。改前源码/DLL/PDB及日志在迁移备份/设备图层_内部件寻址修正_20261029。
 
@@ -768,11 +786,13 @@ bin/Release/net48_full/SteelSectionProbe.dll
 新增或修改点取（定位）工具时，**不要直接继承 `DgnElementSetTool`**，而应继承 `ProbeLocateTool`。它把"只按光标定位"固定在基类上：
 
 - 固定 `AllowSelection()=UsesSelection.None`、`AllowFence()=UsesFence.None`、`GetPreferredElementSource()=ElementSource.Pick`，安装时再清一次宿主编进来的议程；
-- **关键**：在**工具构造时（`InstallTool` 之前）挂起活动选择集**——`SelectionSetManager.GetElement` 记下元素，`EmptyAll()` 清空，让宿主走"选择集为空"这条已验证可用的路径；`OnCleanup` 里用 `AddElement` 把它们放回，用户的选择不会永久丢失。
+- **关键**：在**工具构造时（`InstallTool` 之前）直接清空全部选择集**，安装前后再核对清空。用户已明确要求放弃旧选择并重新点选；不得保存/归还选择集，不持有旧元素或模型引用。清空失败时明确报错并停止安装。
+- 已激活工具重复`Begin()`时调用`PrepareForPicking`清空新选择和旧议程，保持原工具与页面预览；页面早返回分支同样必须调用对应`Begin()`，不得为清空选择而`End()`再重装。
+- `OnCleanup`不读写选择集；取消、关闭、安装失败及工具交接均不恢复旧选择，也不干预用户后来建立的新选择。
 
-原因是 `DgnElementSetTool` 在安装时若发现已有选择集，会把它当作自己的元素议程；议程一旦非空，一次左键就不再走 `OnDataButton → DoLocate`，而是去"修改议程"，`OnElementModify` 返回错误后宿主重启/退出工具。现象是"先在视图中选中一条直线，再点【开始点取】，左键点线没有预览、点取还自己结束了"，而选择集为空时同一段代码完全正常。**实测教训：只覆写 `AllowSelection()` 返回 `None` 不够** —— 宿主仍会把议程建起来并结束工具，必须在安装前把选择集挂起。
+原因是 `DgnElementSetTool` 在安装时若发现已有选择集，会把它当作自己的元素议程；议程一旦非空，一次左键就不再走 `OnDataButton → DoLocate`，而是去"修改议程"，`OnElementModify` 返回错误后宿主重启/退出工具。现象是"先在视图中选中一条直线，再点【开始点取】，左键点线没有预览、点取还自己结束了"，而选择集为空时同一段代码完全正常。**实测教训：只覆写 `AllowSelection()` 返回 `None` 不够** —— 必须在安装前清空选择集；原“挂起并归还”方案现已由用户指定的直接放弃方案替代。
 
-排查这类"点取没反应/工具自己结束"的问题，先看诊断日志 `%LOCALAPPDATA%\SteelSectionProbe\logs\Locate\latest.log`（由 `ProbeLocateLog` 写入：安装/清理、选择集挂起与归还数量、每次左键的定位结果与议程数），不要靠猜。
+排查这类"点取没反应/工具自己结束"的问题，先看诊断日志 `%LOCALAPPDATA%\SteelSectionProbe\logs\Locate\latest.log`（由 `ProbeLocateLog` 写入：安装/清理、选择集清空前后数量、每次左键的定位结果与议程数），不要靠猜。
 
 ## 26. 点选参考文件元素时的"临时辅助线"流程（放置管夹）
 

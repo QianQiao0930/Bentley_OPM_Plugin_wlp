@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 
@@ -102,10 +102,10 @@ namespace SteelSectionProbe
                 ready.Add(feature);
             }
 
-            Equal(ready.Count, 34, "可用功能数");
+            Equal(ready.Count, 35, "可用功能数");
             Equal(placeholders, 1, "规划中占位卡数");
             Equal(Order(HomeFeatureRanker.Rank(all, new Dictionary<string, HomePreferenceRecord>(), Now)),
-                "steel-sections,steel-handrail,tank-spiral-stair,tank-ladder,wall-ladder,magnetic-level-gauge,component-properties,line-coordinates,equipment-level,pipe-alignment,elbow-trunnion,support-statistics,tank-manhole,square-manhole,solid-nozzle,fire-cabinet,hose-cabinet," +
+                "steel-sections,steel-handrail,tank-spiral-stair,tank-ladder,wall-ladder,magnetic-level-gauge,component-properties,line-coordinates,equipment-level,cel-library,pipe-alignment,elbow-trunnion,support-statistics,tank-manhole,square-manhole,solid-nozzle,fire-cabinet,hose-cabinet," +
                 "pipe-clamp,q1-small-pipe-support,support-binding,vertical-pipe-support,cold-riser-guide,g2-anchor-plate,n1-cantilever,n2-cantilever,n3-single-bracket,n4-double-bracket,d2-cantilever,triangle-bracket,l-bracket,portal-frame,t-frame,pad-plate,n8-connection-plate,",
                 "清单出厂顺序");
         }
@@ -173,6 +173,7 @@ namespace SteelSectionProbe
             Equal(byId["component-properties"], HomeCategories.Stats, "构件特性查询分区");
             Equal(byId["line-coordinates"], HomeCategories.Stats, "直线坐标修改分区");
             Equal(byId["equipment-level"], HomeCategories.Modeling, "设备图层与颜色分区");
+            Equal(byId["cel-library"], HomeCategories.Modeling, "CEL构件放置分区");
 
             Equal(HomeCategories.DisplayNameOf(HomeCategories.Modeling), "建模类", "建模类中文名");
             Equal(HomeCategories.DisplayNameOf(HomeCategories.Support), "HGT21629 支吊架", "支吊架分区中文名");
@@ -205,7 +206,7 @@ namespace SteelSectionProbe
         {
             List<HomeEntry> entries = HomeFeatureRanker.Rank(HomeFeatureCatalog.All(),
                 new Dictionary<string, HomePreferenceRecord>(), Now);
-            Equal(entries.Count, 35, "冷启动条目数");
+            Equal(entries.Count, 36, "冷启动条目数");
             Equal(PinnedOrder(entries), "", "冷启动不应有置顶项");
             for (int i = 1; i < entries.Count; i++)
             {

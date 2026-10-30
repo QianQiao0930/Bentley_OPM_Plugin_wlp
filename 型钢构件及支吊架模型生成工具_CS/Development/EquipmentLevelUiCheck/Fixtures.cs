@@ -25,11 +25,13 @@ namespace SteelSectionProbe
     internal static class Fixture
     {
         internal static DgnModel Model = new DgnModel();
-        internal static bool HasSelection = true, FailApply;
+        internal static bool HasSelection = true, FailApply, FailRead;
+        internal static int FirstChildCount = 90, SecondChildCount = 30;
         internal static string Status;
         internal static EquipmentAppearanceOptions Applied;
         internal static int ApplyCalls;
         internal static Action DuringApply;
+        internal static Action DuringRead;
     }
     internal static class EquipmentLevelReader
     {
@@ -45,6 +47,8 @@ namespace SteelSectionProbe
     internal sealed class EquipmentLevelSelection
     {
         internal DgnModel Model;
+        internal int ChildElementCount;
+        internal readonly Dictionary<ulong, int> EquipmentChildCounts = new Dictionary<ulong, int>();
         internal readonly List<EquipmentLevelEntry> Equipment = new List<EquipmentLevelEntry>();
         internal readonly List<EquipmentLevelEntry> Rejected = new List<EquipmentLevelEntry>();
     }
@@ -60,11 +64,16 @@ namespace SteelSectionProbe
         internal static EquipmentLevelSelection ReadSelection()
         {
             var result = new EquipmentLevelSelection { Model = EquipmentLevelReader.ActiveModel() };
+            if (Fixture.DuringRead != null) Fixture.DuringRead();
+            if (Fixture.FailRead) throw new InvalidOperationException("设备 678313 的子构件统计失败：内部件读取不完整。");
             if (Fixture.HasSelection)
             {
                 result.Equipment.Add(new EquipmentLevelEntry { ElementId = 678312, Name = "4006-CPT-MP-0002" });
                 result.Equipment.Add(new EquipmentLevelEntry { ElementId = 678313, Name = "4006-CPT-MP-0003" });
                 result.Rejected.Add(new EquipmentLevelEntry { ElementId = 40, Reason = "不是设备" });
+                result.EquipmentChildCounts[678312] = Fixture.FirstChildCount;
+                result.EquipmentChildCounts[678313] = Fixture.SecondChildCount;
+                result.ChildElementCount = Fixture.FirstChildCount + Fixture.SecondChildCount;
             }
             return result;
         }

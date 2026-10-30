@@ -37,7 +37,7 @@ namespace EquipmentLevelCheck
         internal static int Revision;
         internal static List<string> Logs;
         internal static bool FailRollback, NoOpRollback, UndoInProgress;
-        internal static int Marks, Commits, Cancels;
+        internal static int Marks, Commits, Cancels, AppearanceAssignments;
         internal static Action<ulong> AfterRewrite;
         internal static Bentley.DgnPlatformNET.DgnModel ActiveModel;
         internal static List<Bentley.DgnPlatformNET.LevelHandle> LevelHandles;
@@ -60,7 +60,7 @@ namespace EquipmentLevelCheck
             Logs = new List<string>();
             Saved = null;
             FailRollback = NoOpRollback = UndoInProgress = false;
-            Marks = Commits = Cancels = 0;
+            Marks = Commits = Cancels = AppearanceAssignments = 0;
             AfterRewrite = null;
             ActiveModel = new Bentley.DgnPlatformNET.DgnModel();
             LevelHandles = new List<Bentley.DgnPlatformNET.LevelHandle>();
@@ -157,9 +157,9 @@ namespace Bentley.Interop.MicroStationDGN
                 if (state.ThrowLevelRead) throw new NullReferenceException("simulated missing layer attribute");
                 return state.NullLevel ? null : new Level { ID = state.Level };
             }
-            set { state.Level = value.ID; }
+            set { Store.AppearanceAssignments++; state.Level = value.ID; }
         }
-        internal int Color { get { return state.Color; } set { state.Color = value; } }
+        internal int Color { get { return state.Color; } set { Store.AppearanceAssignments++; state.Color = value; } }
         internal void Rewrite()
         {
             Store.Writes.Add(state.Id);
@@ -196,8 +196,8 @@ namespace Bentley.Interop.MicroStationDGN
     {
         internal SharedCellElement(State value) : base(value) { }
         internal string Name { get { return state.SharedName; } }
-        internal bool OverridesComponentLevel { get { return state.OverrideLevel; } set { state.OverrideLevel = value; } }
-        internal bool OverridesComponentColor { get { return state.OverrideColor; } set { state.OverrideColor = value; } }
+        internal bool OverridesComponentLevel { get { return state.OverrideLevel; } set { Store.AppearanceAssignments++; state.OverrideLevel = value; } }
+        internal bool OverridesComponentColor { get { return state.OverrideColor; } set { Store.AppearanceAssignments++; state.OverrideColor = value; } }
         internal new void Rewrite() { Store.SharedWrites.Add(state.Id); base.Rewrite(); }
     }
     internal sealed class ElementEnumerator

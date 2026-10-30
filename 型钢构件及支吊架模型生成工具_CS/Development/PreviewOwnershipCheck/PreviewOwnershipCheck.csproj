@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>7.3</LangVersion>
+    <NoWarn>CS0649</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Tools/PreviewElementOwnership.cs" Link="PreviewElementOwnership.cs" />
+    <Compile Include="../../Tools/EquipmentBracket/BracketPreviewSession.cs" Link="BracketPreviewSession.cs" />
+    <Compile Include="../../Tools/PadPlate/PadPlatePreviewSession.cs" Link="PadPlatePreviewSession.cs" />
+    <Compile Include="../../Tools/PortalFrame/PortalFramePreviewSession.cs" Link="PortalFramePreviewSession.cs" />
+    <Compile Include="../../Tools/LBracket/LBracketPreviewSession.cs" Link="LBracketPreviewSession.cs" />
+    <Compile Include="../../Tools/SteelHandrail/HandrailPreviewSession.cs" Link="HandrailPreviewSession.cs" />
+    <Compile Include="../../Tools/SquareManhole/SquareManholePreviewSession.cs" Link="SquareManholePreviewSession.cs" />
+    <Compile Include="../../Tools/TFrame/TFramePreviewSession.cs" Link="TFramePreviewSession.cs" />
+    <Compile Include="../../Tools/TriangleBracket/TriangleBracketPreviewSession.cs" Link="TriangleBracketPreviewSession.cs" />
+  </ItemGroup>
+</Project>

@@ -35,6 +35,8 @@
                     "接口中心距、筒体法兰、阀门手轮和红白翻片外观模型。", 19, HomeCategories.Modeling, "nozzle"),
                 new FeatureDescriptor("equipment-level", "设备图层与颜色",
                     "选择文档图层与颜色，批量统一设备内部图形。", 22, HomeCategories.Modeling, "puzzle"),
+                new FeatureDescriptor("cel-library", "CEL 构件放置",
+                    "单元库预览选型、绕Z定向放置及构件数量统计。", 23, HomeCategories.Modeling, "puzzle"),
                 new FeatureDescriptor("component-properties", "构件特性查询",
                     "点取构件，查看 EC 属性与几何特性。", 20, HomeCategories.Stats, "inspect"),
                 new FeatureDescriptor("line-coordinates", "直线坐标修改",

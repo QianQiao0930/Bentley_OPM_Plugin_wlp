@@ -42,7 +42,7 @@ namespace SteelSectionProbe
         {
             if (!active) return;
             if (SupportBindingLocateTool.IsActive && pickingTarget == forTarget)
-            { Status("正在点取，可直接选择下一处。", false); return; }
+            { SupportBindingLocateTool.Begin(); Status("已清空当前选择，可直接点取下一处。", false); return; }
             StopPicking(); pickingTarget = forTarget;
             SupportBindingLocateTool.Begin(); StopButton.IsEnabled = true;
             Status(forTarget ? "请选择已确认的原生管夹或耳轴。" : "请选择承重支架整组，可连续点取；右键结束。", false);

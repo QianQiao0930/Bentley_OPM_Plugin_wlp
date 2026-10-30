@@ -47,6 +47,7 @@ namespace SteelSectionProbe
             active = false; timer.Stop();
             TransactionManager.OnUndoRedoFinished -= UndoFinished;
             selection = null;
+            ChildCountText.Text = "子构件：未读取";
             UpdateEnabled();
         }
         public void OnWorkspaceClosing() { OnDeactivated(); }
@@ -66,6 +67,7 @@ namespace SteelSectionProbe
                 {
                     document = null; selection = null; LevelCombo.ItemsSource = null;
                     DocumentText.Text = "没有活动文档"; SelectionSummary.Text = "文档已关闭，请重新读取。";
+                    ChildCountText.Text = "子构件：未读取"; ResultText.Text = SelectionSummary.Text;
                     UpdateEnabled();
                 }
             }
@@ -75,6 +77,7 @@ namespace SteelSectionProbe
             if (!active || busy) return;
             selection = null;
             SelectionSummary.Text = "已撤销或重做，请重新读取设备。";
+            ChildCountText.Text = "子构件：未读取"; ResultText.Text = SelectionSummary.Text;
             UpdateEnabled();
         }
 
@@ -87,7 +90,11 @@ namespace SteelSectionProbe
             {
                 var fresh = EquipmentLevelUiReader.ReadDocument();
                 bool sameModel = document != null && ReferenceEquals(document.Model, fresh.Model);
-                if (!sameModel) { previous = null; selection = null; SelectionSummary.Text = "请在模型中选择设备，再读取选择。"; }
+                if (!sameModel)
+                {
+                    previous = null; selection = null; SelectionSummary.Text = "请在模型中选择设备，再读取选择。";
+                    ChildCountText.Text = "子构件：未读取"; ResultText.Text = SelectionSummary.Text;
+                }
                 document = fresh;
                 loading = true;
                 LevelCombo.ItemsSource = document.Levels;
@@ -99,6 +106,7 @@ namespace SteelSectionProbe
             {
                 document = null; selection = null; LevelCombo.ItemsSource = null;
                 SelectionSummary.Text = "图层读取失败，请刷新文档。";
+                ChildCountText.Text = "子构件：未读取"; ResultText.Text = SelectionSummary.Text;
                 DocumentText.Text = "图层读取失败"; Status(ex.Message, true);
             }
             finally { loading = false; UpdateParameters(); }
@@ -111,10 +119,22 @@ namespace SteelSectionProbe
             try
             {
                 if (document == null || !ReferenceEquals(document.Model, EquipmentLevelReader.ActiveModel())) RefreshDocument(false);
-                selection = EquipmentLevelUiReader.ReadSelection();
+                busy = true; selection = null; watch.Restart(); ShowElapsed(); UpdateEnabled();
+                SelectionSummary.Text = "正在读取选中设备…"; ChildCountText.Text = "子构件：统计中…";
+                ResultText.Text = "正在读取设备及其内部子构件…";
+                StageText.Text = "读取设备与子构件"; WorkProgress.IsIndeterminate = true;
+                RenderProgress();
+                EquipmentLevelUiReader.ValidateDocument(document);
+                var freshSelection = EquipmentLevelUiReader.ReadSelection();
+                EquipmentLevelUiReader.ValidateDocument(document);
+                if (!ReferenceEquals(freshSelection.Model, document.Model))
+                    throw new InvalidOperationException("活动文档或模型已切换，请重新读取设备。");
+                selection = freshSelection;
                 SelectionSummary.Text = "已读取 " + selection.Equipment.Count + " 台设备" +
                     (selection.Rejected.Count > 0 ? " · 跳过 " + selection.Rejected.Count + " 个非设备元素" : "");
-                ResultText.Text = string.Join(Environment.NewLine, selection.Equipment.Select(e => e.Name + "  [" + e.ElementId + "]")
+                ChildCountText.Text = "子构件：" + selection.ChildElementCount + " 个";
+                ResultText.Text = string.Join(Environment.NewLine, selection.Equipment.Select(e => e.Name + "  [" + e.ElementId +
+                    "] · 子构件 " + selection.EquipmentChildCounts[e.ElementId] + " 个")
                     .Concat(selection.Rejected.Select(e => "跳过 " + e.ElementId + "：" + e.Reason)));
                 if (selection.Equipment.Count == 0) ResultText.Text = string.IsNullOrEmpty(ResultText.Text)
                     ? "先在模型中选择一台或多台设备，再点击“读取选中设备”。" : ResultText.Text;
@@ -125,9 +145,10 @@ namespace SteelSectionProbe
             catch (Exception ex)
             {
                 selection = null; SelectionSummary.Text = "读取失败，请重新选择设备。";
-                ResultText.Text = ex.Message; Status("读取设备失败：" + ex.Message, true);
+                ChildCountText.Text = "子构件：统计失败"; StageText.Text = "读取未完成"; WorkProgress.Value = 0;
+                ProgressDetailText.Text = ex.Message; ResultText.Text = ex.Message; Status("读取设备失败：" + ex.Message, true);
             }
-            UpdateEnabled();
+            finally { watch.Stop(); ShowElapsed(); busy = false; WorkProgress.IsIndeterminate = false; UpdateEnabled(); }
         }
 
         private void Parameters_Changed(object sender, SelectionChangedEventArgs e) { if (!loading) UpdateParameters(); }
@@ -189,6 +210,7 @@ namespace SteelSectionProbe
                 WorkProgress.Value = report.Succeeded ? 100 : 0;
                 ShowElapsed();
                 ProgressDetailText.Text = report.Succeeded ? "修改 " + report.ChangedElementCount + " 个 · 校验 " + report.VerifiedElementCount + " 个图形" : report.Summary;
+                if (report.Succeeded) ChildCountText.Text = "子构件：" + report.VerifiedElementCount + " 个";
                 ResultText.Text = report.Summary + Environment.NewLine + string.Join(Environment.NewLine, report.Details.Concat(report.Problems));
                 Status(report.Summary + " 用时 " + watch.Elapsed.TotalSeconds.ToString("0.0") + " s。", !report.Succeeded);
             }

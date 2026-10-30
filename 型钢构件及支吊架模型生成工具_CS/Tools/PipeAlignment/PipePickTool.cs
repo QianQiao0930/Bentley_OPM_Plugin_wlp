@@ -62,6 +62,7 @@ namespace SteelSectionProbe.PipeAlignment
         {
             if (_active != null)
             {
+                _active.PrepareForPicking("重复开始点取");
                 EnableLocate();
                 Prompt(_active._purpose);
                 return;

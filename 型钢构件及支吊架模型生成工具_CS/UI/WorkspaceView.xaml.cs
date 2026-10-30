@@ -39,6 +39,7 @@ namespace SteelSectionProbe
             RegisterPage(new WallLadderPage());
             RegisterPage(new MagneticGaugePage());
             RegisterPage(new EquipmentLevelPage());
+            RegisterPage(new CelLibraryPage());
             RegisterPage(new PipeAlignmentPage());
             RegisterPage(new ComponentPropertiesPage());
             RegisterPage(new LineCoordinatesPage());

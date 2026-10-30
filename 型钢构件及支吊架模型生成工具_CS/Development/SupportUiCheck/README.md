@@ -1,5 +1,7 @@
 # 支吊架 v4 UI 检查
 
+2026-10-29：用户要求开始点取直接放弃旧选择。管夹/保冷立管/门型架的已激活按钮分支新增对幂等Begin的调用，契约仅更新对应三页业务源码摘要；同时补齐拉取基线a1ed137已有的TFrame状态栏文案源码摘要。原控件、事件、绑定和选择项保持。597项真实XAML布局/DPI检查及validate_contracts.py通过；点取首击和延迟清理由ProbeLocateCheck与SupportBindingCheck的真实工具替身检查验证，不能以本展示夹具替代宿主验收。
+
 2026-10-15：A1/A2新增材料代码输入，默认C1，沿用34高ModelInput。597项检查增加两参数卡的字段默认/宽度边界，以及四种停靠尺寸和四档DPI；实际渲染已查看。契约仅增A1MaterialCodeText/A2MaterialCodeText和授权页面业务SHA，原控件/事件不放宽。这里仍使用空业务回调；编号、清单、ALIAS及偏好序列化由PipeClampCheck/PipeClampIsoCheck验证，宿主联动需实测。
 
 2026-10-14：用户授权正式管夹原生ISO集成，仅更新PipeClampPage业务源码摘要，所有原控件/默认选项/绑定/事件契约保持；原生写入逻辑集中在会话与NativePipeSupport，不放入页面。当前551项布局/固定操作/分型/DPI检查通过，实际确认流程另由PipeClampIsoCheck验证。

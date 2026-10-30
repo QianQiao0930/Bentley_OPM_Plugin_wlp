@@ -23,7 +23,7 @@ namespace SteelSectionProbe
         internal static void Begin()
         {
             ProbeLocateLog.Write("TFrame Begin：已有点取工具="+(active!=null));
-            if(active!=null){AccuSnap.SnapEnabled=true;AccuSnap.LocateEnabled=true;active.Prompt();return;}
+            if(active!=null){active.PrepareForPicking("重复开始点取");AccuSnap.SnapEnabled=true;AccuSnap.LocateEnabled=true;active.Prompt();return;}
             var created=new TFrameLocateTool();
             snap=AccuSnap.SnapEnabled;locate=AccuSnap.LocateEnabled;active=created;
             try{created.InstallTool();AccuSnap.SnapEnabled=true;AccuSnap.LocateEnabled=true;}
@@ -42,7 +42,7 @@ namespace SteelSectionProbe
         private void Prompt()
         {
             NotificationManager.OutputPrompt("请选择当前 T 型架类别对应的辅助直线，左键预览；右键退出。"+
-                (IgnoredSelectionSet?"（已忽略当前选择集）":""));
+                (IgnoredSelectionSet?"（已清空原选择集，请重新点选）":""));
         }
         protected override bool OnDataButton(DgnButtonEvent ev)
         {

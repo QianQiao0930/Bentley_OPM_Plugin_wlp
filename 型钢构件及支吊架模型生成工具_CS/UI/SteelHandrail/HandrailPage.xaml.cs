@@ -97,9 +97,9 @@ namespace SteelSectionProbe
         }
         private void Pick_Click(object sender,RoutedEventArgs e)
         {
-            try{if(HandrailLocateTool.IsActive&&locating){Status("可直接点取下一条辅助线，无需再点开始点取。",false);return;}
+            try{if(HandrailLocateTool.IsActive&&locating){HandrailLocateTool.Begin();Status("已清空当前选择，可直接点取下一条辅助线。",false);return;}
                 locating=true;HandrailLocateTool.Begin();Status("请选择活动模型中的围栏辅助线。",false);}
-            catch(Exception ex){locating=false;Status(ex.Message,true);}
+            catch(Exception ex){locating=HandrailLocateTool.IsActive;Status(ex.Message,true);}
         }
         private void End_Click(object sender,RoutedEventArgs e){if(locating)HandrailLocateTool.End();else ClearPreview();}
         private void Update_Click(object sender,RoutedEventArgs e){if(vertices!=null)Regenerate(vertices);else Status("请先点取围栏辅助线。",false);}

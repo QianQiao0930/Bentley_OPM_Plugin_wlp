@@ -24,7 +24,7 @@ namespace SteelSectionProbe
         internal static void Begin(bool horizontalLine=false)
         {
             horizontal=horizontalLine;
-            if(active!=null){AccuSnap.SnapEnabled=true;AccuSnap.LocateEnabled=true;return;}
+            if(active!=null){active.PrepareForPicking("重复开始点取");AccuSnap.SnapEnabled=true;AccuSnap.LocateEnabled=true;return;}
             var created=new PortalFrameLocateTool();
             snap=AccuSnap.SnapEnabled;locate=AccuSnap.LocateEnabled;active=created;
             try{created.InstallTool();AccuSnap.SnapEnabled=true;AccuSnap.LocateEnabled=true;}

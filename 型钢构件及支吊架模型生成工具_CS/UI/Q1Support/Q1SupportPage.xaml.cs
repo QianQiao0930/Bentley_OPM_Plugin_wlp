@@ -128,7 +128,7 @@ namespace SteelSectionProbe
                 if(model==null||!model.Is3d)throw new InvalidOperationException("请先打开三维模型。");
                 if(orienting){Status("请先左键锁定或右键取消布置角度。",false);return;}
                 if(sliding){Status("请先锁定或取消沿轴滑动。",false);return;}
-                if(locating&&PipeClampLocateTool.IsActive){Status("已在点取中，可直接点击支撑大管。",false);return;}
+                if(locating&&PipeClampLocateTool.IsActive){PipeClampLocateTool.Begin();Status("已清空当前选择，可直接点击支撑大管。",false);return;}
                 double h=ReadHeight();
                 if(double.IsNaN(h)||double.IsInfinity(h)||h<=0||h>1000)throw new InvalidOperationException("中心间距须大于0且不超过1000 mm。");
                 StopSlide();PipeClampLocateTool.Begin();locating=true;revision++;

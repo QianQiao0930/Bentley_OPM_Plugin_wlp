@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Windows;
@@ -27,7 +27,7 @@ namespace SteelSectionProbe
     page.SelectionChanged+=selected=>((Button)root.FindName("HomeEnterButton")).IsEnabled=selected;
     page.StatusRequested+=(text,error)=>((TextBlock)root.FindName("StatusText")).Text=text;
     Arrange(root,400,880);
-    Check(((TextBlock)page.FindName("TotalText")).Text=="34","真实模块数量");
+    Check(((TextBlock)page.FindName("TotalText")).Text=="35","真实模块数量");
     Check(((FrameworkElement)page.FindName("HeaderBand")).ActualHeight==159,"原型头部159");
     Check(((FrameworkElement)page.FindName("ToolbarBand")).ActualHeight==131,"原型工具栏131");
     Check(((FrameworkElement)page.FindName("HomeStatsBand")).ActualHeight==47,"原型统计带47");
@@ -103,8 +103,8 @@ namespace SteelSectionProbe
   {
    Click(page,"RecentSort");Arrange(root,400,880);
    var list=(ItemsControl)page.FindName("SortedList");
-   Check(list.Items.Count==34,"最近列表包含全部可用模块");
-   Check(list.Items.Cast<HomeCardItem>().Select(item=>item.PageId).Distinct().Count()==34,"最近列表每模块仅出现一次");
+   Check(list.Items.Count==35,"最近列表包含全部可用模块");
+   Check(list.Items.Cast<HomeCardItem>().Select(item=>item.PageId).Distinct().Count()==35,"最近列表每模块仅出现一次");
    foreach(string name in new[]{"RecentSection","ModelingSection","SupportSection","StatsSection","PlannedSection"})
     Check(((FrameworkElement)page.FindName(name)).Visibility==Visibility.Collapsed,"最近模式隐藏旧分区 "+name);
    var ids=list.Items.Cast<HomeCardItem>().Select(item=>item.PageId).ToArray();
@@ -125,7 +125,7 @@ namespace SteelSectionProbe
    string requested=null;page.FeatureRequested+=id=>requested=id;page.EnterSelected();Check(requested==((HomeCardItem)list.Items[0]).PageId,"全局列表仍可选择进入");
    var reset=Descendants<Button>(page).First(button=>button.ToolTip!=null&&button.ToolTip.ToString().StartsWith("重置筛选与排序"));reset.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));Arrange(root,400,880);
    HomePreferenceFixture.Reload();restored=new HomePage();Check(((ToggleButton)restored.FindName("AllTab")).IsChecked==true&&((ToggleButton)restored.FindName("DefaultSort")).IsChecked==true&&((ToggleButton)restored.FindName("PinToggle")).IsChecked==true,"重置筛选后保存默认选择");
-   Check(((FrameworkElement)page.FindName("SortedSection")).Visibility==Visibility.Collapsed&&((ItemsControl)page.FindName("ModelingList")).Items.Count==13,"切回默认恢复分类");
+   Check(((FrameworkElement)page.FindName("SortedSection")).Visibility==Visibility.Collapsed&&((ItemsControl)page.FindName("ModelingList")).Items.Count==14,"切回默认恢复分类");
   }
   private static bool homeIconUnchanged(string project)
   {var doc=XDocument.Load(Path.Combine(project,"UI","HomePage.xaml"));return doc.Descendants().Any(e=>e.Name.LocalName=="PathGeometry"&&e.Attributes().Any(a=>a.Name.LocalName=="Key"&&a.Value=="HomeIcon_app")&&e.Attribute("FillRule").Value=="EvenOdd");}
