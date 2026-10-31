@@ -1,0 +1,369 @@
+{
+  "date": "2026-10-31",
+  "baselineCommit": "9dc12b952410abab4d32cf43bfa7352c7e6871e8",
+  "scope": "Read-only on-disk schema inventory; not a live OPM or DGN inspection",
+  "opmFileVersion": "24.00.03.53",
+  "celProvided": false,
+  "hostValidationPerformed": false,
+  "schemas": [
+    {
+      "path": "C:\\ProgramData\\Bentley\\OpenPlant 2024\\Configuration\\WorkSpaces\\CINF_International_Projects_Workspace\\WorkSets\\CINF_F1263AA\\Standards\\OpenPlant\\Schemas\\OpenPlant_3D.01.08.ecschema.xml",
+      "sha256": "8FF0DE91B09BDD58832060C9A30A8ED58C947E6736E1B5086DC8B216AA654DFC",
+      "classes": [
+        {
+          "className": "VALVE_OPERATING_DEVICE",
+          "directBases": [
+            "DEVICE",
+            "opc:VALVE_OPERATING_DEVICE"
+          ],
+          "directProperties": [
+            {
+              "name": "COMPONENT_NAME",
+              "type": "string"
+            },
+            {
+              "name": "SPECIFICATION",
+              "type": "string"
+            },
+            {
+              "name": "UPDATE_GRAPHICS",
+              "type": "boolean"
+            },
+            {
+              "name": "ANGLE",
+              "type": "double"
+            },
+            {
+              "name": "DIAMETER",
+              "type": "double"
+            },
+            {
+              "name": "LENGTH",
+              "type": "double"
+            },
+            {
+              "name": "NOMINAL_DIAMETER",
+              "type": "double"
+            },
+            {
+              "name": "TRANSFORMATION_MATRIX",
+              "type": "bentley:TRANSFORM3D"
+            },
+            {
+              "name": "LINENUMBER",
+              "type": "string"
+            },
+            {
+              "name": "PIECE_MARK",
+              "type": "string"
+            },
+            {
+              "name": "NAME",
+              "type": "string"
+            },
+            {
+              "name": "OUTSIDE_DIAMETER",
+              "type": "double"
+            }
+          ],
+          "creation": {}
+        },
+        {
+          "className": "MANUAL_VALVE_OPERATING_DEVICE",
+          "directBases": [
+            "VALVE_OPERATING_DEVICE"
+          ],
+          "directProperties": [
+            {
+              "name": "Geometry",
+              "type": "binary"
+            }
+          ],
+          "creation": {}
+        },
+        {
+          "className": "VALVE_ACTUATOR",
+          "directBases": [
+            "VALVE_OPERATING_DEVICE"
+          ],
+          "directProperties": [
+            {
+              "name": "STOCK_NUMBER",
+              "type": "string"
+            },
+            {
+              "name": "UNIT_NUMBER",
+              "type": "string"
+            },
+            {
+              "name": "SUFFIX",
+              "type": "string"
+            },
+            {
+              "name": "ORDER_NUMBER",
+              "type": "string"
+            },
+            {
+              "name": "TWISTING_ANGLE",
+              "type": "double"
+            },
+            {
+              "name": "FAILURE_MODE",
+              "type": "string"
+            },
+            {
+              "name": "TRAVEL_TIME",
+              "type": "double"
+            },
+            {
+              "name": "Geometry",
+              "type": "binary"
+            },
+            {
+              "name": "STROKE_LENGTH",
+              "type": "double"
+            },
+            {
+              "name": "SPECID",
+              "type": "string"
+            }
+          ],
+          "creation": {}
+        },
+        {
+          "className": "ELECTRIC_VALVE_ACTUATOR",
+          "directBases": [
+            "VALVE_ACTUATOR"
+          ],
+          "directProperties": [
+            {
+              "name": "BASE_CYLINDER_DIAMETER",
+              "type": "double"
+            },
+            {
+              "name": "TOP_BOX_LENGTH",
+              "type": "double"
+            },
+            {
+              "name": "TOTAL_HEIGHT",
+              "type": "double"
+            }
+          ],
+          "creation": {}
+        },
+        {
+          "className": "GEARBOX_OPERATOR",
+          "directBases": [
+            "MANUAL_VALVE_OPERATING_DEVICE"
+          ],
+          "directProperties": [
+            {
+              "name": "HANDLE_OFFSET",
+              "type": "double"
+            },
+            {
+              "name": "GEAR_BOX_HEIGHT",
+              "type": "double"
+            },
+            {
+              "name": "GEAR_BOX_THICKNESS",
+              "type": "double"
+            },
+            {
+              "name": "GEAR_BOX_WIDTH",
+              "type": "double"
+            },
+            {
+              "name": "HANDLE_WIDTH",
+              "type": "double"
+            },
+            {
+              "name": "HANDLE_HEIGHT",
+              "type": "double"
+            },
+            {
+              "name": "HANDLE_LENGTH",
+              "type": "double"
+            },
+            {
+              "name": "HANDLE_THICKNESS",
+              "type": "double"
+            },
+            {
+              "name": "TOTAL_HEIGHT",
+              "type": "double"
+            }
+          ],
+          "creation": {}
+        },
+        {
+          "className": "PNEUMATIC_VALVE_ACTUATOR",
+          "directBases": [
+            "VALVE_ACTUATOR"
+          ],
+          "directProperties": [
+            {
+              "name": "BASE_CYLINDER_DIAMETER",
+              "type": "double"
+            },
+            {
+              "name": "TOP_CYLINDER_DIAMETER",
+              "type": "double"
+            },
+            {
+              "name": "TOTAL_HEIGHT",
+              "type": "double"
+            }
+          ],
+          "creation": {}
+        }
+      ]
+    },
+    {
+      "path": "C:\\ProgramData\\Bentley\\OpenPlant 2024\\Configuration\\WorkSpaces\\CINF_International_Projects_Workspace\\WorkSets\\CINF_F1263AA\\Standards\\OpenPlant\\Schemas\\OpenPlant_3D_Supplemental_Modeling.01.08.ecschema.xml",
+      "sha256": "B2213AF235BA2B00321C2E0335007C3471CD4A5340B11BE29F897DEEEC624E78",
+      "classes": [
+        {
+          "className": "ELECTRIC_VALVE_ACTUATOR",
+          "directBases": [],
+          "directProperties": [
+            {
+              "name": "BASE_CYLINDER_DIAMETER",
+              "type": "string"
+            },
+            {
+              "name": "TOTAL_HEIGHT",
+              "type": "string"
+            },
+            {
+              "name": "TOP_BOX_LENGTH",
+              "type": "string"
+            }
+          ],
+          "creation": {
+            "ASSEMBLY_NAME": "Bentley.Building.Mechanical.ComponentLibrary",
+            "CLASS_NAME": "ElectricActuatorScript",
+            "NAMESPACE": "Bentley.Building.Mechanical.ComponentLibrary.ValveOperator",
+            "PLACEMENT_TOOL": "TopworksPlacementTool",
+            "HANDLER_TYPE": "Topwork",
+            "DIAGRAM_CELL_NAME": "ELECTRIC_ACTUATOR",
+            "CELL_LIBRARY": "TopWorksPreview.cel"
+          }
+        },
+        {
+          "className": "GEARBOX_OPERATOR",
+          "directBases": [],
+          "directProperties": [
+            {
+              "name": "HANDLE_WIDTH",
+              "type": "string"
+            },
+            {
+              "name": "HANDLE_LENGTH",
+              "type": "string"
+            },
+            {
+              "name": "GEAR_BOX_HEIGHT",
+              "type": "string"
+            },
+            {
+              "name": "GEAR_BOX_THICKNESS",
+              "type": "string"
+            },
+            {
+              "name": "GEAR_BOX_WIDTH",
+              "type": "string"
+            },
+            {
+              "name": "TOTAL_HEIGHT",
+              "type": "string"
+            },
+            {
+              "name": "HANDLE_THICKNESS",
+              "type": "string"
+            },
+            {
+              "name": "HANDLE_HEIGHT",
+              "type": "string"
+            },
+            {
+              "name": "HANDLE_OFFSET",
+              "type": "string"
+            }
+          ],
+          "creation": {
+            "ASSEMBLY_NAME": "Bentley.Building.Mechanical.ComponentLibrary",
+            "CLASS_NAME": "GearBoxOperatorScript",
+            "NAMESPACE": "Bentley.Building.Mechanical.ComponentLibrary.ValveOperator",
+            "PLACEMENT_TOOL": "TopworksPlacementTool",
+            "HANDLER_TYPE": "Topwork",
+            "DIAGRAM_CELL_NAME": "GEARBOX_OPERATOR",
+            "CELL_LIBRARY": "TopWorksPreview.cel"
+          }
+        },
+        {
+          "className": "PNEUMATIC_VALVE_ACTUATOR",
+          "directBases": [],
+          "directProperties": [
+            {
+              "name": "BASE_CYLINDER_DIAMETER",
+              "type": "string"
+            },
+            {
+              "name": "TOP_CYLINDER_DIAMETER",
+              "type": "string"
+            },
+            {
+              "name": "TOTAL_HEIGHT",
+              "type": "string"
+            }
+          ],
+          "creation": {
+            "ASSEMBLY_NAME": "Bentley.Building.Mechanical.ComponentLibrary",
+            "CLASS_NAME": "PnematicActuatorScript",
+            "NAMESPACE": "Bentley.Building.Mechanical.ComponentLibrary.ValveOperator",
+            "PLACEMENT_TOOL": "TopworksPlacementTool",
+            "HANDLER_TYPE": "Topwork",
+            "DIAGRAM_CELL_NAME": "PNEUMATIC_ACTUATOR",
+            "CELL_LIBRARY": "TopWorksPreview.cel"
+          }
+        },
+        {
+          "className": "VALVE_OPERATING_DEVICE",
+          "directBases": [],
+          "directProperties": [
+            {
+              "name": "ANGLE",
+              "type": "string"
+            },
+            {
+              "name": "DIAMETER",
+              "type": "string"
+            },
+            {
+              "name": "LENGTH",
+              "type": "string"
+            },
+            {
+              "name": "NOMINAL_DIAMETER",
+              "type": "string"
+            },
+            {
+              "name": "COMPONENT_NAME",
+              "type": "string"
+            },
+            {
+              "name": "UNIT_OF_MEASURE",
+              "type": "string"
+            },
+            {
+              "name": "UPDATE_GRAPHICS",
+              "type": "string"
+            }
+          ],
+          "creation": {}
+        }
+      ]
+    }
+  ]
+}
