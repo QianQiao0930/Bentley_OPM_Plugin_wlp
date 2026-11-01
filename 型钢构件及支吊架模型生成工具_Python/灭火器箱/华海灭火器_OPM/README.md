@@ -55,7 +55,7 @@ CEL 导出使用 `Cell.AddLibDescr` 写入命名单元，经过 Bentley 的保�
 在普通 Python 3.12 或 Bentley Python 中运行：
 
 ```powershell
-cd 'E:\Code\Bentley_Python_plugin\灭火器箱\华海灭火器_OPM'
+cd 'E:\Code\Bentley_Python_plugin\型钢构件及支吊架模型生成工具_Python\灭火器箱\华海灭火器_OPM'
 & 'C:\ProgramData\Bentley\PowerPlatformPython\python\python.exe' -m unittest -v test_offline
 ```
 
