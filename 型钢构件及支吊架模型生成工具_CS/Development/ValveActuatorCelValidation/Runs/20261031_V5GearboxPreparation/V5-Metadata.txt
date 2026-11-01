@@ -1,0 +1,21 @@
+TYPE ActuatorCallbackCheck.CelGearboxComponent base=Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.GearBoxOperatorScript
+Public, Virtual, HideBySig System.Collections.Generic.List`1<Bentley.Building.Mechanical.Components.ElementHolder> Create3DElements() []
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor() []
+TYPE ActuatorCallbackCheck.Commands base=System.Object
+Assembly, Static, HideBySig, SpecialName Boolean get_HasNativeObjects() []
+Public, Static, HideBySig Void Place(String) [1:args]
+Public, Static, HideBySig Void Gearbox(String) [1:args]
+Public, Static, HideBySig Void Handwheel(String) [1:args]
+Public, Static, HideBySig Void Create(String) [1:args]
+Public, Static, HideBySig Void Probe(String) [1:args]
+Private, Static, HideBySig Void Run(String, System.Action`1<System.Text.StringBuilder>, Boolean) [1:stage, 2:action, 3:keepNativePrompt]
+Private, Static, HideBySig Void StartOfficialPlacement(System.Text.StringBuilder, Boolean) [1:trace, 2:gearbox]
+Private, Static, HideBySig Void DescribeDimensions(Bentley.ECObjects.Instance.IECInstance, System.Text.StringBuilder) [1:instance, 2:trace]
+Private, Static, HideBySig Void Number(Bentley.ECObjects.Instance.IECInstance, String, Double) [1:instance, 2:name, 3:value]
+Private, Static, HideBySig IntPtr Token(Bentley.DgnPlatformNET.DgnModel) [1:model]
+Private, Static, HideBySig Bentley.ECObjects.Instance.IECInstance ReadInstanceAndRelations(Bentley.DgnPlatformNET.Elements.Element) [1:element]
+Private, Static, HideBySig System.Collections.Generic.List`1<Bentley.ECObjects.Instance.IECInstance> Related(Bentley.ECObjects.Instance.IECInstance, Boolean) [1:instance, 2:forward]
+Private, Static, HideBySig Void ProbeCore(System.Text.StringBuilder) [1:trace]
+Private, Static, HideBySig Void Describe(Bentley.ECObjects.Instance.IECInstance, System.Text.StringBuilder) [1:instance, 2:trace]
+Private, Static, HideBySig, SpecialName, RTSpecialName Void .cctor() []
+PROP Boolean HasNativeObjects

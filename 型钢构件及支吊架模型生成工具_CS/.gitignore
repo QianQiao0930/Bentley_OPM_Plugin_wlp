@@ -3,6 +3,16 @@ bin/
 obj/
 Development/*/bin/
 Development/*/obj/
+# Schema 增补工具的打包产物（用 Deployment/SchemaPatcher/build_exe.ps1 重新生成）
+Deployment/SchemaPatcher/build/
+Deployment/SchemaPatcher/dist/
+Deployment/SchemaPatcher/.build-venv/
+Deployment/SchemaPatcherFluent/.venv/
+Deployment/SchemaPatcherFluent/build/
+Deployment/SchemaPatcherFluent/dist/
+Deployment/SchemaPatcherFluent/tests/.work/
+Deployment/SchemaPatcherFluent/tests/.evidence/
+__pycache__/
 # 临时探针文件
 *.tmp
 

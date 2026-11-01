@@ -37,6 +37,13 @@ namespace SteelSectionProbe {
    var entry=(CelLibraryEntry)C<ComboBox>(page,"CellCombo").SelectedItem;Click(page,"StartButton");Preview.FailPicture=true;preview.SetTopView(true);Check(preview.IsReady&&C<Button>(page,"StartButton").IsEnabled&&CelPlacementTool.IsActive,"direction render failure retains image and continuous placement");
    DgnPrimitiveTool.Installed.Click(new DPoint3d(4000,5000,0));Check(Session.Instance.Model.Elements.Count==2,"cell can be placed after direction picture failure");
    Preview.FailPicture=false;int failedPictures=Preview.Pictures;preview.SetTopView(true);Check(preview.IsReady&&Preview.Pictures==failedPictures+1,"failed direction can be retried without reselecting the cell");Click(page,"EndButton");
+    // 单次放置按钮：左键只放一套，随后工具自动结束并恢复按钮。
+    int beforeSingle=Session.Instance.Model.Elements.Count;
+    Check(C<Button>(page,"SingleButton").IsEnabled,"single placement button enabled");
+    Click(page,"SingleButton");Check(CelPlacementTool.IsActive,"single placement installs tool");
+    DgnPrimitiveTool.Installed.Click(new DPoint3d(7000,8000,0));
+    Check(Session.Instance.Model.Elements.Count==beforeSingle+1&&!CelPlacementTool.IsActive&&!CelPlacementTool.NeedsCleanup,"single click places exactly one and ends the tool");
+    Check(C<TextBlock>(page,"PlacementStateText").Text.Contains("单次")&&C<Button>(page,"SingleButton").IsEnabled,"single completion reported and button restored");
    CheckOlePictures();
    using(var fixture=new System.Drawing.Bitmap(200,100,System.Drawing.Imaging.PixelFormat.Format32bppArgb)){
     using(var g=System.Drawing.Graphics.FromImage(fixture)){g.Clear(System.Drawing.Color.Transparent);g.FillRectangle(System.Drawing.Brushes.White,5,9,100,16);}

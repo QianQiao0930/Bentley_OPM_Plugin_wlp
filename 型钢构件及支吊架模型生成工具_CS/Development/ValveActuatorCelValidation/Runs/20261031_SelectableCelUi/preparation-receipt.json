@@ -1,0 +1,33 @@
+{
+  "PreparedUtc": "2026-10-31T13:59:21.8589444Z",
+  "Applied": false,
+  "HostStarted": false,
+  "TestClass": "SSP_CEL_VALVE_ACTUATOR",
+  "BaseClass": "GEARBOX_OPERATOR",
+  "Handler": "CelValveActuatorComponent",
+  "Assembly": "SteelSectionProbe",
+  "Namespace": "SteelSectionProbe",
+  "SelectableCel": true,
+  "Files": [
+    {
+      "Name": "OpenPlant_3D.01.08.ecschema.xml",
+      "Source": "C:\\ProgramData\\Bentley\\OpenPlant 2024\\Configuration\\WorkSpaces\\CINF_International_Projects_Workspace\\WorkSets\\CINF_F1263AA\\Standards\\OpenPlant\\Schemas\\OpenPlant_3D.01.08.ecschema.xml",
+      "SourceSha256": "DFBFD32A9687F94B8921064FB6923A5D543F39628AA8771E50DC026041C1C4F0",
+      "Prepared": "E:\\Code\\Bentley_Python_plugin\\型钢构件及支吊架模型生成工具_CS\\Development\\ValveActuatorCelValidation\\PreparedSchemas-SelectableCel\\OpenPlant_3D.01.08.ecschema.xml",
+      "PreparedSha256": "0DF3DE74DBBBF110F7428EEF06B444F18B17DBF6249FF812B47554A569DA3241",
+      "ExistingBaseClassUnchanged": true,
+      "ExistingNodesUnchanged": true,
+      "TestClassXml": "<ECClass typeName=\"SSP_CEL_VALVE_ACTUATOR\" isDomainClass=\"True\" displayLabel=\"CEL GEARBOX_OPERATOR Callback Check\" xmlns=\"http://www.bentley.com/schemas/Bentley.ECXML.2.0\"><BaseClass>GEARBOX_OPERATOR</BaseClass><ECProperty propertyName=\"SSP_CEL_VERSION\" typeName=\"int\" /><ECProperty propertyName=\"SSP_CEL_NAME\" typeName=\"string\" /><ECProperty propertyName=\"SSP_CEL_SOURCE\" typeName=\"string\" /><ECProperty propertyName=\"SSP_CEL_SHA256\" typeName=\"string\" /><ECProperty propertyName=\"SSP_CEL_DATA\" typeName=\"binary\" /><ECProperty propertyName=\"SSP_CEL_TOKEN\" typeName=\"string\" /></ECClass>"
+    },
+    {
+      "Name": "OpenPlant_3D_Supplemental_Modeling.01.08.ecschema.xml",
+      "Source": "C:\\ProgramData\\Bentley\\OpenPlant 2024\\Configuration\\WorkSpaces\\CINF_International_Projects_Workspace\\WorkSets\\CINF_F1263AA\\Standards\\OpenPlant\\Schemas\\OpenPlant_3D_Supplemental_Modeling.01.08.ecschema.xml",
+      "SourceSha256": "A7AC745C93E497886F635C5DB8A306D0EB428CE2A4DA60A807656ADBC1D4FDF3",
+      "Prepared": "E:\\Code\\Bentley_Python_plugin\\型钢构件及支吊架模型生成工具_CS\\Development\\ValveActuatorCelValidation\\PreparedSchemas-SelectableCel\\OpenPlant_3D_Supplemental_Modeling.01.08.ecschema.xml",
+      "PreparedSha256": "748B42E0978D435113012A2E9D32F2B3A495831D645BC4A306D82CDE5D4FC883",
+      "ExistingBaseClassUnchanged": true,
+      "ExistingNodesUnchanged": true,
+      "TestClassXml": "<ECClass typeName=\"SSP_CEL_VALVE_ACTUATOR\" isDomainClass=\"False\" xmlns=\"http://www.bentley.com/schemas/Bentley.ECXML.2.0\"><ECCustomAttributes><CREATION_ATTRIBUTE xmlns=\"OpenPlant_CustomAttributes.08.11\">\r\n                <ASSEMBLY_NAME>SteelSectionProbe</ASSEMBLY_NAME>\r\n                <CLASS_NAME>CelValveActuatorComponent</CLASS_NAME>\r\n                <NAMESPACE>SteelSectionProbe</NAMESPACE>\r\n                <PLACEMENT_TOOL>TopworksPlacementTool</PLACEMENT_TOOL>\r\n                <HANDLER_TYPE>Topwork</HANDLER_TYPE>\r\n                <DIAGRAM_CELL_NAME>GEARBOX_OPERATOR</DIAGRAM_CELL_NAME>\r\n                <CELL_LIBRARY>TopWorksPreview.cel</CELL_LIBRARY>\r\n            </CREATION_ATTRIBUTE></ECCustomAttributes></ECClass>"
+    }
+  ]
+}

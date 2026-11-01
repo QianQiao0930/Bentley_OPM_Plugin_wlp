@@ -1,0 +1,28 @@
+{
+  "PreparedUtc": "2026-10-31T12:50:14.4623259Z",
+  "Applied": false,
+  "HostStarted": false,
+  "TestClass": "SSP_CEL_HAND_WHEEL",
+  "Files": [
+    {
+      "Name": "OpenPlant_3D.01.08.ecschema.xml",
+      "Source": "C:\\ProgramData\\Bentley\\OpenPlant 2024\\Configuration\\WorkSpaces\\CINF_International_Projects_Workspace\\WorkSets\\CINF_F1263AA\\Standards\\OpenPlant\\Schemas\\OpenPlant_3D.01.08.ecschema.xml",
+      "SourceSha256": "4F1177AA7B298B092860FAC1BD881994930A2183E8EC822000A364A47D733FD8",
+      "Prepared": "E:\\Code\\Bentley_Python_plugin\\型钢构件及支吊架模型生成工具_CS\\Development\\ValveActuatorCelValidation\\CallbackPrototype\\PreparedSchemas\\OpenPlant_3D.01.08.ecschema.xml",
+      "PreparedSha256": "829E5D04EF7ED0E54257D50C41C869BB856FC2B1A2EBECE398C953DF84C60065",
+      "ExistingHandwheelUnchanged": true,
+      "ExistingNodesUnchanged": true,
+      "TestClassXml": "<ECClass typeName=\"SSP_CEL_HAND_WHEEL\" isDomainClass=\"True\" displayLabel=\"CEL Handwheel Callback Check\" xmlns=\"http://www.bentley.com/schemas/Bentley.ECXML.2.0\"><BaseClass>HAND_WHEEL</BaseClass><ECProperty propertyName=\"SSP_CEL_VERSION\" typeName=\"int\" /></ECClass>"
+    },
+    {
+      "Name": "OpenPlant_3D_Supplemental_Modeling.01.08.ecschema.xml",
+      "Source": "C:\\ProgramData\\Bentley\\OpenPlant 2024\\Configuration\\WorkSpaces\\CINF_International_Projects_Workspace\\WorkSets\\CINF_F1263AA\\Standards\\OpenPlant\\Schemas\\OpenPlant_3D_Supplemental_Modeling.01.08.ecschema.xml",
+      "SourceSha256": "1D909E12290354C7685C33F54F1D5AB703920D6965EF45897DCBA13278CF8730",
+      "Prepared": "E:\\Code\\Bentley_Python_plugin\\型钢构件及支吊架模型生成工具_CS\\Development\\ValveActuatorCelValidation\\CallbackPrototype\\PreparedSchemas\\OpenPlant_3D_Supplemental_Modeling.01.08.ecschema.xml",
+      "PreparedSha256": "94929A79D60A9737D966C0E7CCB97D77E2CDF407D80CA3A29EB528B7AB8D457C",
+      "ExistingHandwheelUnchanged": true,
+      "ExistingNodesUnchanged": true,
+      "TestClassXml": "<ECClass typeName=\"SSP_CEL_HAND_WHEEL\" isDomainClass=\"False\" xmlns=\"http://www.bentley.com/schemas/Bentley.ECXML.2.0\"><ECCustomAttributes><CREATION_ATTRIBUTE xmlns=\"OpenPlant_CustomAttributes.08.11\">\r\n                <ASSEMBLY_NAME>ValveActuatorCallbackCheck</ASSEMBLY_NAME>\r\n                <CLASS_NAME>CelHandwheelComponent</CLASS_NAME>\r\n                <NAMESPACE>ActuatorCallbackCheck</NAMESPACE>\r\n                <PLACEMENT_TOOL>TopworksPlacementTool</PLACEMENT_TOOL>\r\n                <HANDLER_TYPE>Topwork</HANDLER_TYPE>\r\n                <DIAGRAM_CELL_NAME>HAND_WHEEL</DIAGRAM_CELL_NAME>\r\n                <CELL_LIBRARY>TopWorksPreview.cel</CELL_LIBRARY>\r\n            </CREATION_ATTRIBUTE></ECCustomAttributes></ECClass>"
+    }
+  ]
+}

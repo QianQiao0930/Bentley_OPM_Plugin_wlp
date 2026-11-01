@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework><LangVersion>7.3</LangVersion><EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <IntermediateOutputPath>obj/SdkProbe/</IntermediateOutputPath><OutputPath>bin/SdkProbe/</OutputPath>
+    <BentleyRoot>D:\Program Files\Bentley\OpenPlant 2024\OpenPlantModeler</BentleyRoot>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="ustation"><HintPath>$(BentleyRoot)/ustation.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.Interop.MicroStationDGN"><HintPath>$(BentleyRoot)/Assemblies/Bentley.Interop.MicroStationDGN.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.Platform"><HintPath>$(BentleyRoot)/Assemblies/ECFramework/Bentley.Platform.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.General.1.0"><HintPath>$(BentleyRoot)/Assemblies/ECFramework/Bentley.General.1.0.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.DgnPlatformNET"><HintPath>$(BentleyRoot)/Bentley.DgnPlatformNET.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.DgnDisplayNet"><HintPath>$(BentleyRoot)/Bentley.DgnDisplayNet.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.GeometryNET"><HintPath>$(BentleyRoot)/Bentley.GeometryNET.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.GeometryNET.Structs"><HintPath>$(BentleyRoot)/Bentley.GeometryNET.Structs.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="bentley.microstation"><HintPath>$(BentleyRoot)/Assemblies/bentley.microstation.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.ECObjects3"><HintPath>$(BentleyRoot)/Assemblies/ECFramework/Bentley.ECObjects3.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Bentley.EC.Persistence3"><HintPath>$(BentleyRoot)/Assemblies/ECFramework/Bentley.EC.Persistence3.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="System.Web.Extensions" />
+    <Compile Include="LicenseStub.cs" />
+    <Compile Include="../../Domain/CelLibrary/CelPlacementModels.cs" Link="Production/CelPlacementModels.cs" />
+    <Compile Include="../../Services/CelLibrary/CelPlacementWriter.cs" Link="Production/CelPlacementWriter.cs" />
+    <Compile Include="../../Services/CelLibrary/CelStatisticsCalculator.cs" Link="Production/CelStatisticsCalculator.cs" />
+    <Compile Include="../../Services/CelLibrary/CelStatisticsExporter.cs" Link="Production/CelStatisticsExporter.cs" />
+    <Compile Include="../../Infrastructure/CelLibrary/CelComponentStore.cs" Link="Production/CelComponentStore.cs" />
+    <Compile Include="../../Infrastructure/CelLibrary/CelLibraryLog.cs" Link="Production/CelLibraryLog.cs" />
+    <Compile Include="../../Tools/CelLibrary/CelPlacementTool.cs" Link="Production/CelPlacementTool.cs" />
+  </ItemGroup>
+</Project>

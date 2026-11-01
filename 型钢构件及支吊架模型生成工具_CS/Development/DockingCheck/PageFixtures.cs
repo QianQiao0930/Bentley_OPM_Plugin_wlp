@@ -9,6 +9,8 @@ namespace SteelSectionProbe {
  internal sealed class MagneticGaugePage : TestPage { internal MagneticGaugePage() : base("magnetic-level-gauge") { } }
  internal sealed class EquipmentLevelPage : TestPage, IWorkspaceBusyPage { internal EquipmentLevelPage() : base("equipment-level") { } public bool IsBusy { get; set; } }
  internal sealed class CelLibraryPage : TestPage { internal CelLibraryPage() : base("cel-library") { } }
+ internal sealed class ValveActuatorPage : TestPage { internal ValveActuatorPage() : base("valve-actuator") { } }
+ internal static class ValveActuatorPlacement { internal static bool HasNativeObjects; internal static void OnHostShutdown() { } }
  internal sealed class PipeAlignmentPage : TestPage { internal PipeAlignmentPage() : base("pipe-alignment") { } }
  internal sealed class ComponentPropertiesPage : TestPage { internal ComponentPropertiesPage() : base("component-properties") { } }
  internal sealed class LineCoordinatesPage : TestPage { internal LineCoordinatesPage() : base("line-coordinates") { } }

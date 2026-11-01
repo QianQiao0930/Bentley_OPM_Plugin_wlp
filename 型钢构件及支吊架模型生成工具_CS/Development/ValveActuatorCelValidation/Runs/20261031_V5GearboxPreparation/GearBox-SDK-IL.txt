@@ -1,0 +1,284 @@
+TYPE Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.GearBoxOperatorScript base=Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.ValveOperator
+Public, Virtual, HideBySig Void Setup() []
+  0000 ldarg.0 
+  0001 ldarg.0 
+  0002 ldfld _bmECObject
+  0007 ldstr DF-02-00-70
+  000C callvirt GetDoubleValueInMM
+  0011 ldarg.0 
+  0012 ldfld _bmECObject
+  0017 ldstr A3-0D-00-70
+  001C callvirt GetDoubleValueInMM
+  0021 sub 
+  0022 stfld BaseHeight
+  0027 ldarg.0 
+  0028 ldarg.0 
+  0029 ldfld _bmECObject
+  002E ldstr C3-0D-00-70
+  0033 callvirt GetDoubleValueInMM
+  0038 stfld LenToHandle
+  003D ldarg.0 
+  003E ldarg.0 
+  003F ldfld _bmECObject
+  0044 ldstr DF-0D-00-70
+  0049 callvirt GetDoubleValueInMM
+  004E stfld WheelDiameter
+  0053 ldarg.0 
+  0054 ldarg.0 
+  0055 ldfld _bmECObject
+  005A ldstr 3B-0D-00-70
+  005F callvirt GetDoubleValueInMM
+  0064 stfld HorCylinderLen
+  0069 ldarg.0 
+  006A ldarg.0 
+  006B ldfld _bmECObject
+  0070 ldstr F9-0D-00-70
+  0075 callvirt GetDoubleValueInMM
+  007A stfld HorCylinderDia
+  007F ldarg.0 
+  0080 ldarg.0 
+  0081 ldfld _bmECObject
+  0086 ldstr 1B-0E-00-70
+  008B callvirt GetDoubleValueInMM
+  0090 stfld BoxLength
+  0095 ldarg.0 
+  0096 ldarg.0 
+  0097 ldfld _bmECObject
+  009C ldstr A3-0D-00-70
+  00A1 callvirt GetDoubleValueInMM
+  00A6 stfld BoxHeight
+  00AB ldarg.0 
+  00AC ldarg.0 
+  00AD ldfld _bmECObject
+  00B2 ldstr 39-0E-00-70
+  00B7 callvirt GetDoubleValueInMM
+  00BC stfld BoxThickness
+  00C1 ldarg.0 
+  00C2 ldfld _bmECObject
+  00C7 callvirt get_Instance
+  00CC ldstr 5F-0E-00-70
+  00D1 ldc.i4.0 
+  00D2 ldc.i4.0 
+  00D3 ldc.i4.0 
+  00D4 callvirt FindPropertyValue
+  00D9 stloc.0 
+  00DA ldloc.0 
+  00DB brfalse.s 20
+  00DD ldloc.0 
+  00DE callvirt get_IsNull
+  00E3 brtrue.s 18
+  00E5 ldarg.0 
+  00E6 ldarg.0 
+  00E7 ldfld _bmECObject
+  00EC ldstr 5F-0E-00-70
+  00F1 callvirt GetDoubleValueInMM
+  00F6 stfld HandleOffset
+  00FB br.s 0F
+  00FD ldarg.0 
+  00FE ldc.r8 00-00-00-00-00-00-00-00
+  0107 stfld HandleOffset
+  010C ldarg.0 
+  010D ldc.i4.3 
+  010E stfld _discipline
+  0113 ret 
+Public, Virtual, HideBySig System.Collections.Generic.List`1<Bentley.Building.Mechanical.Components.ElementHolder> Create3DElements() []
+  0000 ldarg.0 
+  0001 ldfld BaseHeight
+  0006 ldarg.0 
+  0007 ldfld LenToHandle
+  000C ldarg.0 
+  000D ldfld WheelDiameter
+  0012 ldarg.0 
+  0013 ldfld HorCylinderLen
+  0018 ldarg.0 
+  0019 ldfld HorCylinderDia
+  001E ldarg.0 
+  001F ldfld BoxLength
+  0024 ldarg.0 
+  0025 ldfld BoxHeight
+  002A ldarg.0 
+  002B ldfld BoxThickness
+  0030 ldarg.0 
+  0031 ldfld HandleOffset
+  0036 newobj .ctor
+  003B callvirt Create3DElements
+  0040 dup 
+  0041 ldc.i4.0 
+  0042 ldc.i4.m1 
+  0043 ldc.i4.0 
+  0044 ldarg.0 
+  0045 ldfld _bmECObject
+  004A call SetSymbologyForElementTypes
+  004F ret 
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor() []
+  0000 ldarg.0 
+  0001 call .ctor
+  0006 ret 
+TYPE Bentley.Building.Mechanical.ComponentLibrary.Common.DrawGeometry.GearBoxOperatorDraw base=System.Object
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor(Double, Double, Double, Double, Double, Double, Double, Double, Double) [1:BaseHeight, 2:LenToHandle, 3:WheelDiameter, 4:HorCylinderLen, 5:HorCylinderDia, 6:BoxLength, 7:BoxHeight, 8:BoxThickness, 9:HandleOffset]
+  0000 ldarg.0 
+  0001 call .ctor
+  0006 ldarg.0 
+  0007 newobj .ctor
+  000C stfld bmApp
+  0011 ldarg.0 
+  0012 ldarg.1 
+  0013 stfld BaseHeight
+  0018 ldarg.0 
+  0019 ldarg.2 
+  001A stfld LenToHandle
+  001F ldarg.0 
+  0020 ldarg.3 
+  0021 stfld WheelDiameter
+  0026 ldarg.0 
+  0027 ldarg.s 04
+  0029 stfld HorCylinderLen
+  002E ldarg.0 
+  002F ldarg.s 05
+  0031 stfld HorCylinderDia
+  0036 ldarg.0 
+  0037 ldarg.s 06
+  0039 stfld BoxLength
+  003E ldarg.0 
+  003F ldarg.s 07
+  0041 stfld BoxHeight
+  0046 ldarg.0 
+  0047 ldarg.s 08
+  0049 stfld BoxThickness
+  004E ldarg.0 
+  004F ldarg.s 09
+  0051 stfld HandleOffset
+  0056 ret 
+Public, HideBySig System.Collections.Generic.List`1<Bentley.Building.Mechanical.Components.ElementHolder> Create3DElements() []
+  0000 newobj .ctor
+  0005 stloc.0 
+  0006 ldarg.0 
+  0007 ldfld BaseHeight
+  000C ldarg.0 
+  000D ldfld LenToHandle
+  0012 add 
+  0013 stloc.1 
+  0014 ldc.r8 00-00-00-00-00-00-00-00
+  001D ldc.r8 00-00-00-00-00-00-00-00
+  0026 ldc.r8 00-00-00-00-00-00-00-00
+  002F call FromXYZ
+  0034 stloc.2 
+  0035 ldloc.2 
+  0036 stloc.3 
+  0037 ldarg.0 
+  0038 newobj .ctor
+  003D stfld bmApp
+  0042 ldarg.0 
+  0043 ldfld bmApp
+  0048 ldloc.3 
+  0049 ldc.r8 00-00-00-00-00-00-F0-BF
+  0052 ldc.r8 00-00-00-00-00-00-00-00
+  005B ldc.r8 00-00-00-00-00-00-00-00
+  0064 call FromXYZ
+  0069 ldc.r8 00-00-00-00-00-00-00-00
+  0072 ldc.r8 00-00-00-00-00-00-00-00
+  007B ldc.r8 00-00-00-00-00-00-F0-3F
+  0084 call FromXYZ
+  0089 callvirt CreatePointStringElement
+  008E stloc.s 04
+  0090 ldloc.0 
+  0091 ldloc.s 04
+  0093 callvirt Add
+  0098 ldc.r8 00-00-00-00-00-00-00-00
+  00A1 ldc.r8 00-00-00-00-00-00-00-00
+  00AA ldc.r8 00-00-00-00-00-00-F0-3F
+  00B3 call FromXYZ
+  00B8 stloc.s 05
+  00BA ldarg.0 
+  00BB ldfld HorCylinderDia
+  00C0 ldarg.0 
+  00C1 ldfld HorCylinderDia
+  00C6 ldarg.0 
+  00C7 ldfld BaseHeight
+  00CC ldc.r8 00-00-00-00-00-00-00-00
+  00D5 ldloc.2 
+  00D6 ldloc.s 05
+  00D8 newobj .ctor
+  00DD stloc.s 06
+  00DF ldloc.0 
+  00E0 ldloc.s 06
+  00E2 callvirt Create3DElements
+  00E7 callvirt AddRange
+  00EC ldc.r8 00-00-00-00-00-00-00-00
+  00F5 ldc.r8 00-00-00-00-00-00-00-00
+  00FE ldc.r8 00-00-00-00-00-00-F0-3F
+  0107 call FromXYZ
+  010C stloc.s 05
+  010E ldc.r8 00-00-00-00-00-00-00-00
+  0117 ldc.r8 00-00-00-00-00-00-00-00
+  0120 ldarg.0 
+  0121 ldfld BaseHeight
+  0126 call FromXYZ
+  012B stloc.2 
+  012C ldarg.0 
+  012D ldfld BoxHeight
+  0132 ldarg.0 
+  0133 ldfld BoxThickness
+  0138 ldarg.0 
+  0139 ldfld BoxLength
+  013E ldc.r8 00-00-00-00-00-00-00-00
+  0147 ldloc.2 
+  0148 ldloc.s 05
+  014A newobj .ctor
+  014F stloc.s 07
+  0151 ldloc.0 
+  0152 ldloc.s 07
+  0154 callvirt Create3DElements
+  0159 callvirt AddRange
+  015E ldc.r8 00-00-00-00-00-00-00-00
+  0167 ldarg.0 
+  0168 ldfld HandleOffset
+  016D ldloc.1 
+  016E call FromXYZ
+  0173 stloc.2 
+  0174 ldarg.0 
+  0175 ldfld WheelDiameter
+  017A ldarg.0 
+  017B ldfld HorCylinderLen
+  0180 ldc.r8 00-00-00-00-00-00-00-00
+  0189 ldc.r8 00-00-00-00-00-00-00-00
+  0192 ldc.r8 00-00-00-00-00-00-00-00
+  019B call FromXYZ
+  01A0 newobj .ctor
+  01A5 callvirt Create3DElements
+  01AA stloc.s 08
+  01AC ldarg.0 
+  01AD ldfld bmApp
+  01B2 ldloc.s 08
+  01B4 ldc.r8 00-00-00-00-00-00-00-00
+  01BD ldc.r8 00-00-00-00-00-00-00-00
+  01C6 ldc.r8 00-00-00-00-00-00-F0-BF
+  01CF call FromXYZ
+  01D4 ldloc.2 
+  01D5 callvirt TranslateElement
+  01DA pop 
+  01DB ldloc.0 
+  01DC ldloc.s 08
+  01DE callvirt AddRange
+  01E3 ldloc.0 
+  01E4 callvirt GetEnumerator
+  01E9 stloc.s 09
+  01EB br.s 0E
+  01ED ldloca.s 09
+  01EF call get_Current
+  01F4 ldc.i4.1 
+  01F5 ldc.i4.0 
+  01F6 callvirt SetGraphicsType
+  01FB ldloca.s 09
+  01FD call MoveNext
+  0202 brtrue.s E9
+  0204 leave.s 0E
+  0206 ldloca.s 09
+  0208 constrained. TypeSpecification
+  020E callvirt Dispose
+  0213 endfinally 
+  0214 leave.s 03
+  0216 pop 
+  0217 leave.s 00
+  0219 ldloc.0 
+  021A ret 

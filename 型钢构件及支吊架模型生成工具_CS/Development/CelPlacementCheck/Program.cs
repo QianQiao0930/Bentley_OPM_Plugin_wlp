@@ -39,6 +39,22 @@ namespace SteelSectionProbe {
    Fixture.FailRedraw=true;tool.Click(p);Check(Session.Instance.Model.Elements.Count==3&&CelComponentStore.Read().TotalQuantity==3,"refresh failure never rolls back committed cell or metadata");Fixture.FailRedraw=false;
    tool.Dynamic(p);Fixture.FailReset=true;tool.Reset();Check(!CelPlacementTool.IsActive&&CelPlacementTool.NeedsCleanup&&Fixture.BaseCleanupCalls>0,"native reset catches clear failure and retains owner");Check(ended==1,"ended once");
    Fixture.FailReset=false;CelPlacementTool.End();Check(!CelPlacementTool.NeedsCleanup,"explicit end retries pending display");Check(!AccuSnap.SnapEnabled&&!AccuSnap.LocateEnabled,"capture restored");Check(ended==1,"retry no duplicate ended");CelPlacementTool.Ended-=onEnd;
+    // Single-shot placement: one left click commits one cell, then the tool ends without resuming dynamics.
+    Fixture.Reset();int singles=0;Action onSingleEnd=()=>singles++;CelPlacementTool.Ended+=onSingleEnd;
+    CelPlacementTool.Begin(make,Meta(),true);var singleTool=DgnPrimitiveTool.Installed;singleTool.Dynamic(p);
+    Check(CelPlacementTool.IsActive&&Session.Instance.Model.Elements.Count==0,"single mode installs with preview and no write");
+    singleTool.Click(p);
+    Check(Session.Instance.Model.Elements.Count==1&&CelComponentStore.Read().TotalQuantity==1,"single left click commits exactly one cell");
+    Check(!CelPlacementTool.IsActive&&!CelPlacementTool.NeedsCleanup&&singles==1,"single placement ends the tool after one click with one ended event");
+    Check(!singleTool.DynamicsStarted,"single placement never resumes continuous dynamics");
+    CelPlacementTool.Begin(make,Meta());var nextTool=DgnPrimitiveTool.Installed;nextTool.Dynamic(p);nextTool.Click(p);nextTool.Click(p);
+    Check(Session.Instance.Model.Elements.Count==3&&CelPlacementTool.IsActive&&nextTool.DynamicsStarted,"continuous placement still works after a single run");
+    CelPlacementTool.End();
+    // A failed single placement must stay armed with its moving preview so the user can retry.
+    Fixture.Reset();CelPlacementTool.Begin(make,Meta(),true);var retryTool=DgnPrimitiveTool.Installed;retryTool.Dynamic(p);Fixture.FailAdd=true;retryTool.Click(p);
+    Check(CelPlacementTool.IsActive&&retryTool.DynamicsStarted&&Session.Instance.Model.Elements.Count==0,"failed single placement stays armed and resumes preview");
+    Fixture.FailAdd=false;retryTool.Click(p);Check(Session.Instance.Model.Elements.Count==1&&!CelPlacementTool.IsActive,"single retry places once and ends");
+    CelPlacementTool.Ended-=onSingleEnd;
    Fixture.Reset();LicenseService.IsActivated=false;Throws(()=>CelPlacementTool.Begin(make,Meta()),"unlicensed cannot begin");Check(!CelPlacementTool.IsActive,"license failure no install");
    Fixture.Reset();Session.Instance.Model.IsReadOnly=true;Throws(()=>CelPlacementWriter.Place(Make,Meta(),p),"read only blocked");Check(Session.Instance.Model.Elements.Count==0,"readonly no model mutation");
    Console.WriteLine("CEL placement: "+checks+" assertions passed using real writer/store/tool with host API fakes. Native Bentley rendering/transactions require host acceptance.");return 0;

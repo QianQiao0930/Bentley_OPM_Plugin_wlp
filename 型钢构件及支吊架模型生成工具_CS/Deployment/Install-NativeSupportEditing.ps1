@@ -2,19 +2,22 @@
 # 正式支吊架工作集 Schema 的唯一安装实现：
 #   - Trunnion  : 自带耳轴三类(SINGLE/DOUBLE_PIPE_TRUNNION、SIMPLE_ELBOW_SUPPORT) 参数化
 #   - PipeClamp : 新增隔离类 SSP_PIPE_CLAMP（继承 SUPPORT_LOCATION）
+#   - ValveActuator : 新增隔离类 SSP_CEL_VALVE_ACTUATOR（继承 GEARBOX_OPERATOR，CEL 快照字段）
 # 其它 Install-*.ps1 只是本脚本的薄入口（转发 -Features），不要再各自实现一份备份/替换逻辑。
+# Deployment/SchemaPatcher 的界面工具按同一规则实现，修改规则时两边同步。
 # 关闭 OPM 后 -Apply；默认只读预览。
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)][string]$SchemaDirectory,
-    [ValidateSet('All','Trunnion','PipeClamp')][string]$Features='All',
+    [ValidateSet('All','Trunnion','PipeClamp','ValveActuator')][string]$Features='All',
     [string]$BackupDirectory,
     [switch]$Apply
 )
 $ErrorActionPreference='Stop'
 $directory=(Resolve-Path -LiteralPath $SchemaDirectory).ProviderPath
-$doTrunnion=$Features -ne 'PipeClamp'
-$doPipeClamp=$Features -ne 'Trunnion'
+$doTrunnion=$Features -in @('All','Trunnion')
+$doPipeClamp=$Features -in @('All','PipeClamp')
+$doValveActuator=$Features -in @('All','ValveActuator')
 $names=@('OpenPlant_3D','OpenPlant_3D_Supplemental_Modeling','OpenPlant_3D_Supplemental_Isometrics_Isoextractor')
 $trunnionClasses=@('SINGLE_PIPE_TRUNNION','DOUBLE_PIPE_TRUNNION','SIMPLE_ELBOW_SUPPORT')
 $plans=@()
@@ -126,6 +129,42 @@ function BuildPipeClampNode($doc,$root,$ns,$ecns,$schemaName) {
     return $node
 }
 
+# —— 自定义执行机构隔离类 SSP_CEL_VALVE_ACTUATOR 的节点；Isoextractor 不改，返回 $null ——
+# displayLabel 沿用已安装工作集中的原值，改动会使已装工作集被判为冲突。
+function BuildValveActuatorNode($doc,$root,$ns,$ecns,$schemaName) {
+    if($schemaName -eq 'OpenPlant_3D_Supplemental_Isometrics_Isoextractor'){return $null}
+    $node=$doc.CreateElement('ECClass',$ecns)
+    $node.SetAttribute('typeName','SSP_CEL_VALVE_ACTUATOR')
+    if($schemaName -eq 'OpenPlant_3D') {
+        if($null -eq $root.SelectSingleNode('ec:ECClass[@typeName="GEARBOX_OPERATOR"]',$ns)){throw 'GEARBOX_OPERATOR base class missing.'}
+        $node.SetAttribute('isDomainClass','True')
+        $node.SetAttribute('displayLabel','CEL GEARBOX_OPERATOR Callback Check')
+        NewChild $doc $node 'BaseClass' 'GEARBOX_OPERATOR' $ecns
+        foreach($entry in @(@('SSP_CEL_VERSION','int'),@('SSP_CEL_NAME','string'),@('SSP_CEL_SOURCE','string'),@('SSP_CEL_SHA256','string'),@('SSP_CEL_DATA','binary'),@('SSP_CEL_TOKEN','string'))) {
+            $p=$doc.CreateElement('ECProperty',$ecns)
+            $p.SetAttribute('propertyName',$entry[0]); $p.SetAttribute('typeName',$entry[1])
+            [void]$node.AppendChild($p)
+        }
+    } else {
+        $node.SetAttribute('isDomainClass','False')
+        $creation=$root.SelectSingleNode('ec:ECClass[@typeName="GEARBOX_OPERATOR"]/ec:ECCustomAttributes/op:CREATION_ATTRIBUTE',$ns)
+        if($null -eq $creation){throw 'GEARBOX_OPERATOR creation attribute missing.'}
+        $creation=$creation.CloneNode($true)
+        foreach($entry in @(@('ASSEMBLY_NAME','SteelSectionProbe'),@('NAMESPACE','SteelSectionProbe'),@('CLASS_NAME','CelValveActuatorComponent'))) {
+            $field=$creation.SelectSingleNode('op:'+$entry[0],$ns)
+            if($null -eq $field){throw ('Creation attribute missing: '+$entry[0])}
+            $field.InnerText=$entry[1]
+        }
+        $handler=$creation.SelectSingleNode('op:HANDLER_TYPE',$ns); $tool=$creation.SelectSingleNode('op:PLACEMENT_TOOL',$ns)
+        if($null -eq $handler -or $handler.InnerText -ne 'Topwork' -or $null -eq $tool -or $tool.InnerText -ne 'TopworksPlacementTool'){
+            throw 'GEARBOX_OPERATOR is not the expected native Topwork/TopworksPlacementTool contract.'
+        }
+        $attrs=$doc.CreateElement('ECCustomAttributes',$ecns); [void]$node.AppendChild($attrs)
+        [void]$attrs.AppendChild($creation)
+    }
+    return $node
+}
+
 foreach($name in $names) {
     $path=Join-Path $directory ($name+'.01.08.ecschema.xml')
     if(-not [IO.File]::Exists($path)){throw "缺少 Schema：$path"}
@@ -153,6 +192,22 @@ foreach($name in $names) {
             [void]$root.AppendChild($doc.CreateWhitespace("`r`n"))
             $changed=$true
             $preview+="将写入：SSP_PIPE_CLAMP（$name）"
+        }
+    }
+    if($doValveActuator) {
+        $expected=BuildValveActuatorNode $doc $root $ns $ecns $name
+        if($null -ne $expected) {
+            $existing=$root.SelectSingleNode('ec:ECClass[@typeName="SSP_CEL_VALVE_ACTUATOR"]',$ns)
+            if($null -ne $existing) {
+                if($existing.OuterXml -ne $expected.OuterXml){throw "Existing SSP_CEL_VALVE_ACTUATOR conflicts in $path; manual review required."}
+                $preview+="已安装：SSP_CEL_VALVE_ACTUATOR（$name）"
+            } else {
+                [void]$root.AppendChild($doc.CreateWhitespace("`r`n    "))
+                [void]$root.AppendChild($expected)
+                [void]$root.AppendChild($doc.CreateWhitespace("`r`n"))
+                $changed=$true
+                $preview+="将写入：SSP_CEL_VALVE_ACTUATOR（$name）"
+            }
         }
     }
     if($changed){$plans+=@{Path=$path;Document=$doc;BeforeSHA256=$beforeHash}}

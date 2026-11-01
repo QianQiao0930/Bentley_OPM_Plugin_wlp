@@ -1,0 +1,88 @@
+{
+  "Release": "Selectable CEL UI validation V6",
+  "ProductVersion": "1.0.0.0",
+  "MVID": "5d1af1f8-140e-4148-8099-16db4f7801fe",
+  "Assembly": "SteelSectionProbe",
+  "Licensed": true,
+  "PageId": "valve-actuator",
+  "Commands": [
+    "STEELPROBE SHOW",
+    "STEELPROBE PLACE",
+    "STEELPROBE QUERY",
+    "STEELPROBE EQLEVEL",
+    "STEELPROBE EQPROBE",
+    "STEELPROBE ACTUATOR",
+    "STEELPROBE ACTUATORCHECK"
+  ],
+  "UiResources": [
+    "ui/valveactuator/valveactuatorpage.baml"
+  ],
+  "NewClass": "SSP_CEL_VALVE_ACTUATOR",
+  "NativeBase": "GEARBOX_OPERATOR",
+  "Handler": "SteelSectionProbe.CelValveActuatorComponent",
+  "CelSource": "User-selected file and model, frozen at Start, stored per instance in SSP_CEL_DATA",
+  "FixedValveCelEmbedded": false,
+  "AssetAndUiChecks": 38,
+  "HomeUiChecks": 83,
+  "DockingChecks": 68,
+  "HomePureChecks": "passed",
+  "LicensedBuild": "0 warnings, 0 errors",
+  "UnlicensedBuild": "0 warnings, 0 errors (separate output)",
+  "HostStartedByAgent": false,
+  "HostPersistenceVerified": false,
+  "NativePlacementVerified": false,
+  "InstalledSchemasModified": false,
+  "InstalledDllReplaced": false,
+  "OldCallbackDllModified": false,
+  "SchemaReceipt": "PreparedSchemas/preparation-receipt.json",
+  "Files": [
+    {
+      "Path": "地面冲洗水盘管.cel",
+      "Sha256": "C077227732E2ACDA49D53D84D834312A14B69B5AF8879FF02E8FCCBA19BA93DD"
+    },
+    {
+      "Path": "Prepare-TestSchema.ps1",
+      "Sha256": "F3E4A22EFF2FD0E8EB33404DCCEC28E3E189AB5092DBCAFBEDD139BE6FCD2C12"
+    },
+    {
+      "Path": "README.md",
+      "Sha256": "188E24D43D0493501066187694015276CAF717AE8FBD44551DEADAA7E4B6BD84"
+    },
+    {
+      "Path": "SteelSectionProbe.dll",
+      "Sha256": "0DA10EE1D16810005C718D1617B7782F86BDBF544E307006854A5C403CECA25D"
+    },
+    {
+      "Path": "SteelSectionProbe.pdb",
+      "Sha256": "B8DBA20972ED802A0EEDBCCFFDD10A76D7781990FEF3E076426FE15E43D29A37"
+    },
+    {
+      "Path": "OriginalSchemas\\OpenPlant_3D_Supplemental_Modeling.01.08.ecschema.xml",
+      "Sha256": "A7AC745C93E497886F635C5DB8A306D0EB428CE2A4DA60A807656ADBC1D4FDF3"
+    },
+    {
+      "Path": "OriginalSchemas\\OpenPlant_3D.01.08.ecschema.xml",
+      "Sha256": "DFBFD32A9687F94B8921064FB6923A5D543F39628AA8771E50DC026041C1C4F0"
+    },
+    {
+      "Path": "PreparedSchemas\\OpenPlant_3D_Supplemental_Modeling.01.08.ecschema.xml",
+      "Sha256": "748B42E0978D435113012A2E9D32F2B3A495831D645BC4A306D82CDE5D4FC883"
+    },
+    {
+      "Path": "PreparedSchemas\\OpenPlant_3D.01.08.ecschema.xml",
+      "Sha256": "0DF3DE74DBBBF110F7428EEF06B444F18B17DBF6249FF812B47554A569DA3241"
+    },
+    {
+      "Path": "PreparedSchemas\\preparation-receipt.json",
+      "Sha256": "9DF61F8BE90251011C404A4C0215603664477AC4FE1C351B1DEF64175EAFD0D0"
+    },
+    {
+      "Path": "Rollback\\SteelSectionProbe.dll",
+      "Sha256": "9140BADEBAC5D77C9409A66927165FA85C5ADA1ED7C1AE64E8988A949FF8DC2B"
+    },
+    {
+      "Path": "Rollback\\SteelSectionProbe.pdb",
+      "Sha256": "371C7850E2AD995ECD9B6624EF9C9DD87116D1FB65E25A1AF73CF002909CE9D8"
+    }
+  ]
+}

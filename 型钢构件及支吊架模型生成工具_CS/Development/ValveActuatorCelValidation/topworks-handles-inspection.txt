@@ -1,0 +1,376 @@
+TYPE Bentley.Building.Mechanical.TopworksPlacementTool base=Bentley.Building.Mechanical.BasePlacementTool
+Family, Virtual, HideBySig Void _OnDataButton(Bentley.DgnPlatformNET.DgnButtonEvent) [1:e]
+  0000 call get_Instance
+  0005 stloc.0 
+  0006 ldarg.1 
+  0007 call get_ViewNumber
+  000C stloc.2 
+  000D ldarg.1 
+  000E call get_Point
+  0013 stloc.s 0A
+  0015 ldloca.s 09
+  0017 ldloca.s 0A
+  0019 call get_X
+  001E stind.r8 
+  001F ldarg.1 
+  0020 call get_Point
+  0025 stloc.s 08
+  0027 ldloca.s 09
+  0029 ldc.i4.8 
+  002A add 
+  002B ldloca.s 08
+  002D call get_Y
+  0032 stind.r8 
+  0033 ldarg.1 
+  0034 call get_Point
+  0039 stloc.s 07
+  003B ldloca.s 09
+  003D ldc.i4.s 10
+  003F add 
+  0040 ldloca.s 07
+  0042 call get_Z
+  0047 stind.r8 
+  0048 ldarg.0 
+  0049 ldfld _selectValve
+  004E brtrue D7-00-00-00
+  0053 ldarg.0 
+  0054 ldloca.s 09
+  0056 ldloc.2 
+  0057 call SelectValve
+  005C stloc.1 
+  005D ldarg.0 
+  005E ldloc.1 
+  005F stfld _valve
+  0064 ldnull 
+  0065 ldloc.1 
+  0066 beq BA-00-00-00
+  006B ldloc.0 
+  006C ldloc.1 
+  006D call GetComponentStatus
+  0072 stloc.s 06
+  0074 ldc.i4.3 
+  0075 ldloc.s 06
+  0077 bne.un.s 11
+  0079 ldstr 2A-6B-00-70
+  007E ldc.i4.s 0A
+  0080 call ShowMessage
+  0085 leave 8A-01-00-00
+  008A ldarg.0 
+  008B ldc.i4.1 
+  008C stfld _selectValve
+  0091 ldarg.0 
+  0092 call BeginComplexDynamics
+  0097 ldloc.0 
+  0098 ldarg.0 
+  0099 callvirt get_ECObject
+  009E callvirt get_Instance
+  00A3 ldstr 06-69-00-70
+  00A8 ldc.i4.1 
+  00A9 call InstanceDefinedAsClass
+  00AE brfalse.s 19
+  00B0 ldarg.0 
+  00B1 dup 
+  00B2 ldfld _valve
+  00B7 ldarg.0 
+  00B8 callvirt get_ECObject
+  00BD newobj .ctor
+  00C2 stfld _topworksScript
+  00C7 br.s 49
+  00C9 ldloc.0 
+  00CA ldarg.0 
+  00CB callvirt get_ECObject
+  00D0 callvirt get_Instance
+  00D5 ldstr E3-9F-00-70
+  00DA ldc.i4.1 
+  00DB call InstanceDefinedAsClass
+  00E0 brfalse.s 19
+  00E2 ldarg.0 
+  00E3 dup 
+  00E4 ldfld _valve
+  00E9 ldarg.0 
+  00EA callvirt get_ECObject
+  00EF newobj .ctor
+  00F4 stfld _topworksScript
+  00F9 br.s 17
+  00FB ldarg.0 
+  00FC dup 
+  00FD ldfld _valve
+  0102 ldarg.0 
+  0103 callvirt get_ECObject
+  0108 newobj .ctor
+  010D stfld _topworksScript
+  0112 ldarg.0 
+  0113 ldfld _topworksScript
+  0118 ldloca.s 09
+  011A ldloc.2 
+  011B callvirt ManageInputs
+  0120 br B3-00-00-00
+  0125 leave EA-00-00-00
+  012A ldarg.0 
+  012B ldfld _topworksScript
+  0130 ldloca.s 09
+  0132 ldloc.2 
+  0133 callvirt ManageInputs
+  0138 ldarg.0 
+  0139 ldfld _topworksScript
+  013E call get_Completed
+  0143 brfalse 90-00-00-00
+  0148 newobj .ctor
+  014D stloc.s 04
+  014F ldloc.s 04
+  0151 ldarg.0 
+  0152 callvirt get_ECObject
+  0157 call Copy
+  015C ldloc.0 
+  015D ldarg.0 
+  015E ldfld _valve
+  0163 callvirt get_Instance
+  0168 ldarg.0 
+  0169 callvirt get_ECObject
+  016E callvirt get_Instance
+  0173 call AddOperatorToValve
+  0178 stloc.s 05
+  017A ldloc.s 05
+  017C brfalse.s 3B
+  017E ldarg.0 
+  017F ldfld _valve
+  0184 callvirt get_Instance
+  0189 ldstr 05-A0-00-70
+  018E callvirt get_Item
+  0193 ldarg.0 
+  0194 callvirt get_ECObject
+  0199 callvirt get_Instance
+  019E callvirt get_ClassDefinition
+  01A3 callvirt get_Name
+  01A8 callvirt set_StringValue
+  01AD ldarg.0 
+  01AE ldfld _valve
+  01B3 call Create
+  01B8 pop 
+  01B9 ldarg.0 
+  01BA ldloc.s 04
+  01BC callvirt set_ECObject
+  01C1 ldarg.0 
+  01C2 ldc.i4.0 
+  01C3 stfld _selectValve
+  01C8 ldarg.0 
+  01C9 call EndComplexDynamics
+  01CE ldstr 17-A0-00-70
+  01D3 call ShowPrompt
+  01D8 leave.s 3A
+  01DA stloc.3 
+  01DB ldloc.3 
+  01DC callvirt get_Message
+  01E1 ldstr 20-69-00-70
+  01E6 call Concat
+  01EB call get_Instance
+  01F0 ldstr 2E-69-00-70
+  01F5 call GetLocalizedString
+  01FA call Concat
+  01FF ldloc.3 
+  0200 callvirt get_StackTrace
+  0205 call Concat
+  020A call Show
+  020F pop 
+  0210 rethrow 
+  0212 leave.s 00
+  0214 ret 
+Family, Virtual, HideBySig Void _OnResetButton(Bentley.DgnPlatformNET.DgnButtonEvent) [1:e]
+  0000 ldarg.0 
+  0001 callvirt ExitTool
+  0006 ret 
+Family, Virtual, HideBySig Void _OnComplexDynamics(Bentley.DgnPlatformNET.DgnButtonEvent) [1:e]
+  0000 ldarg.1 
+  0001 call get_ViewNumber
+  0006 stloc.0 
+  0007 ldarg.1 
+  0008 call get_Point
+  000D stloc.s 04
+  000F ldloca.s 03
+  0011 ldloca.s 04
+  0013 call get_X
+  0018 stind.r8 
+  0019 ldarg.1 
+  001A call get_Point
+  001F stloc.2 
+  0020 ldloca.s 03
+  0022 ldc.i4.8 
+  0023 add 
+  0024 ldloca.s 02
+  0026 call get_Y
+  002B stind.r8 
+  002C ldarg.1 
+  002D call get_Point
+  0032 stloc.1 
+  0033 ldloca.s 03
+  0035 ldc.i4.s 10
+  0037 add 
+  0038 ldloca.s 01
+  003A call get_Z
+  003F stind.r8 
+  0040 ldarg.0 
+  0041 ldfld _selectValve
+  0046 brfalse.s 20
+  0048 ldnull 
+  0049 ldarg.0 
+  004A ldfld _topworksScript
+  004F beq.s 17
+  0051 ldnull 
+  0052 ldarg.0 
+  0053 callvirt get_ECObject
+  0058 beq.s 0E
+  005A ldarg.0 
+  005B ldfld _topworksScript
+  0060 ldloca.s 03
+  0062 ldloc.0 
+  0063 callvirt ManageDynamics
+  0068 ret 
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor(Bentley.Building.Mechanical.TopworksPlacementTool) [1:topworksTool]
+  0000 ldarg.0 
+  0001 ldarg.1 
+  0002 call .ctor
+  0007 ldarg.0 
+  0008 ldc.i4.0 
+  0009 stfld _selectValve
+  000E leave.s 08
+  0010 ldarg.0 
+  0011 ldc.i4.1 
+  0012 call Dispose
+  0017 endfinally 
+  0018 ret 
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor(Bentley.MstnPlatformNET.AddIn, Int32) [1:addIn, 2:cmdNumber]
+  0000 ldarg.0 
+  0001 ldarg.1 
+  0002 ldarg.2 
+  0003 call .ctor
+  0008 ldarg.0 
+  0009 ldc.i4.0 
+  000A stfld _selectValve
+  000F leave.s 08
+  0011 ldarg.0 
+  0012 ldc.i4.1 
+  0013 call Dispose
+  0018 endfinally 
+  0019 ret 
+Private, HideBySig Void ~TopworksPlacementTool() []
+  0000 ldarg.0 
+  0001 ldnull 
+  0002 callvirt set_ECObject
+  0007 ret 
+Public, Virtual, HideBySig Void CreateTool() []
+  0000 ldarg.0 
+  0001 newobj .ctor
+  0006 callvirt InstallTool
+  000B pop 
+  000C ret 
+Public, Virtual, HideBySig Boolean OnInstall() [0:value]
+  0000 call get_Instance
+  0005 ldarg.0 
+  0006 call set_CurrentPlacementTool
+  000B call hvacUtil_initAccudraw
+  0010 ldarg.0 
+  0011 call KeepAlive
+  0016 ldc.i4.1 
+  0017 ret 
+Public, Virtual, HideBySig Void OnRestartCommand() []
+  0000 ldarg.0 
+  0001 dup 
+  0002 newobj .ctor
+  0007 call RestartCommand
+  000C ret 
+Public, Virtual, HideBySig Void OnPostInstall() []
+  0000 ldarg.0 
+  0001 call OnPostInstall
+  0006 ldstr 49-A0-00-70
+  000B call ShowCommand
+  0010 ldstr 17-A0-00-70
+  0015 call ShowPrompt
+  001A ret 
+Public, HideBySig Bentley.OpenPlant.Modeler.Api.BMECObject SelectValve(Bentley.DPoint3d*, Int32) [1:point, 2:viewNum]
+  0000 call get_Instance
+  0005 stloc.2 
+  0006 ldnull 
+  0007 stloc.3 
+  0008 ldloc.2 
+  0009 ldc.i4.0 
+  000A conv.i8 
+  000B ldarg.1 
+  000C ldarg.2 
+  000D call LocateObjectAtPoint
+  0012 stloc.0 
+  0013 ldnull 
+  0014 ldloc.0 
+  0015 beq 86-00-00-00
+  001A ldloc.2 
+  001B ldloc.0 
+  001C callvirt get_Instance
+  0021 ldstr 63-9F-00-70
+  0026 ldc.i4.1 
+  0027 call InstanceDefinedAsClass
+  002C brfalse.s 64
+  002E ldloc.2 
+  002F ldloc.0 
+  0030 callvirt get_Instance
+  0035 call CheckInstanceLocked
+  003A brtrue.s 56
+  003C ldloc.0 
+  003D stloc.3 
+  003E ldloc.0 
+  003F callvirt get_Instance
+  0044 callvirt GetRelationshipInstances
+  0049 callvirt GetEnumerator
+  004E stloc.1 
+  004F ldloc.1 
+  0050 callvirt MoveNext
+  0055 brfalse.s 2F
+  0057 ldloc.1 
+  0058 callvirt get_Current
+  005D callvirt get_ClassDefinition
+  0062 callvirt get_Name
+  0067 ldstr A4-67-00-70
+  006C callvirt Equals
+  0071 brfalse.s 11
+  0073 ldstr 6F-9F-00-70
+  0078 ldc.i4.s 0A
+  007A call ShowMessage
+  007F ldnull 
+  0080 stloc.s 04
+  0082 leave.s 1E
+  0084 br.s C9
+  0086 leave.s 18
+  0088 ldloc.1 
+  0089 brfalse.s 06
+  008B ldloc.1 
+  008C callvirt Dispose
+  0091 endfinally 
+  0092 ldstr A9-9F-00-70
+  0097 ldc.i4.s 0A
+  0099 call ShowMessage
+  009E ldnull 
+  009F ret 
+  00A0 ldloc.3 
+  00A1 ret 
+  00A2 ldloc.s 04
+  00A4 ret 
+Public, Virtual, HideBySig Bentley.ApplicationFramework.Interfaces.IPropertyContainerView CreateContainerView() []
+  0000 ldarg.0 
+  0001 call get_AddIn
+  0006 call get_Instance
+  000B ldstr 4B-14-00-70
+  0010 call GetLocalizedString
+  0015 newobj .ctor
+  001A ret 
+Family, Virtual, HideBySig Void Dispose(Boolean) [1:A_0]
+  0000 ldarg.1 
+  0001 brfalse.s 10
+  0003 ldarg.0 
+  0004 call ~TopworksPlacementTool
+  0009 leave.s 0F
+  000B ldarg.0 
+  000C ldc.i4.1 
+  000D call Dispose
+  0012 endfinally 
+  0013 ldarg.0 
+  0014 ldc.i4.0 
+  0015 call Dispose
+  001A ret 

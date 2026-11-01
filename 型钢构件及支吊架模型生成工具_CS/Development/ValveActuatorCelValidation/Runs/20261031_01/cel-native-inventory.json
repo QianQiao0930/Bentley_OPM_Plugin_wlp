@@ -1,0 +1,16 @@
+﻿{
+    "StartedUtc":  "2026-10-31T11:36:18.6588097Z",
+    "SourcePath":  "C:\\ProgramData\\Bentley\\OpenPlant 2024\\Configuration\\Organization\\Cell\\阀门执行机构.cel",
+    "SourceSha256Before":  "4DD17E6A4F44542380CB82DBCC60A32D1EA836DD99EA1987575F84458275FF6C",
+    "SourceBytes":  81920,
+    "Executable":  "D:\\Program Files\\Bentley\\OpenPlant 2024\\OpenPlantModeler\\OpenPlantModeler.exe",
+    "Status":  "Failed",
+    "Models":  [
+
+               ],
+    "StartedProcessId":  62572,
+    "Error":  "System.Management.Automation.RuntimeException: Bentley automation was unavailable after 50 seconds; no CEL was opened.",
+    "ScriptStack":  "at \u003cScriptBlock\u003e, E:\\Code\\Bentley_Python_plugin\\型钢构件及支吊架模型生成工具_CS\\Development\\ValveActuatorCelValidation\\Inspect-ActuatorCel.ps1: line 102",
+    "SourceSha256After":  "4DD17E6A4F44542380CB82DBCC60A32D1EA836DD99EA1987575F84458275FF6C",
+    "FinishedUtc":  "2026-10-31T11:37:08.7781450Z"
+}

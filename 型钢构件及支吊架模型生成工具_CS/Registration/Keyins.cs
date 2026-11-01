@@ -32,6 +32,17 @@ namespace SteelSectionProbe
             }
         }
 
+        public static void Actuator(string args)
+        {
+            MainWindow.ShowWindow();
+            MainWindow.Current?.ShowValveActuatorPage();
+        }
+
+        public static void ActuatorCheck(string args)
+        {
+            ValveActuatorInspection.Run();
+        }
+
         /// <summary>
         /// 把选中设备的图形图元批量改到当前活动图层。
         /// 只处理 ElementType = Equipment 的普通单元，其余元素一律跳过。

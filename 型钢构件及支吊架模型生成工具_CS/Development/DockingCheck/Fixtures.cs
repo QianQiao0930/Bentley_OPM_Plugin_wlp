@@ -14,10 +14,12 @@ namespace Bentley.MstnPlatformNET
     internal sealed class AddInAttribute : Attribute { public string MdlTaskID { get; set; } }
     public class AddIn
     {
+        public enum UnloadReasons { Command, LibraryUnload, Shutdown }
         public sealed class UnloadingEventArgs : EventArgs
         {
             public enum Response { UnloadProceed, UnloadAbort }
             public Response ResponseCode;
+            public UnloadReasons UnloadKind;
         }
         public delegate void UnloadingEventHandler(AddIn sender, UnloadingEventArgs args);
         public event UnloadingEventHandler UnloadingEvent;
@@ -27,6 +29,8 @@ namespace Bentley.MstnPlatformNET
         { var args = new UnloadingEventArgs(); UnloadingEvent?.Invoke(this, args); return args.ResponseCode; }
     }
 }
+namespace Bentley.DgnPlatformNET
+{ internal static class NotificationManager { internal static void OutputPrompt(string message) { } } }
 namespace Bentley.Windowing
 {
     internal enum DockLocation { Left, Right }

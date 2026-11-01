@@ -1,6 +1,6 @@
 # CEL 阀门执行机构验证方案
 
-日期：2026-10-31。状态：方案与磁盘 Schema 盘点完成；用户 CEL 尚未提供，原生执行机构接入、宿主操作及崩溃验证均未执行。
+日期：2026-10-31。当前状态：用户确认V4官方流程能放置，随后要求GEARBOX基准与“先选择CEL、再放置”的UI。当前V6在主插件新增停靠选择页面及按实例保存资源的新类，编译和离线检查通过；Schema仅准备副本，真实DGN二进制保存、原生按钮/关联/随动/重开仍由用户验证。详见第18节。V3手工Create路线已停用。
 
 ## 1. 目标与基线
 
@@ -8,7 +8,7 @@
 
 改动前基线提交：`9dc12b952410abab4d32cf43bfa7352c7e6871e8`（短号 `9dc12b9`），提交信息 `chore: checkpoint before CEL valve actuator validation`。提交前工作区干净，基线为空提交，其源码树与上一提交 `ba63b08` 一致。
 
-本次交付仅增加方案、盘点证据及文档入口，不安装 DLL、不修改工作集 Schema、不操作当前打开的 DGN。后续实现先限定一个执行机构单元、一种实际阀门类，在测试工作集和测试 DGN 副本中验证。
+初版交付仅增加方案、盘点证据及文档入口。当前接续记录见第 12 节；后续实现先限定一个执行机构单元、一种实际阀门类，在测试工作集和测试 DGN 副本中验证。
 
 ## 2. 已确认的基础与待查入口
 
@@ -21,16 +21,17 @@
 | 气动执行机构 | `PNEUMATIC_VALVE_ACTUATOR` → `PnematicActuatorScript` | 类名保留磁盘配置的原始拼写；后续再扩大覆盖范围 |
 | 创建配置 | `HANDLER_TYPE=Topwork`、`PLACEMENT_TOOL=TopworksPlacementTool` | 父阀门关联、安装架、创建顺序须单独核实 |
 | 单元字段 | 创建配置含 `CELL_LIBRARY=TopWorksPreview.cel` 和 `DIAGRAM_CELL_NAME` | 不能直接认定改这两个字段就能替换正式三维几何 |
-| 几何属性候选 | `MANUAL_VALVE_OPERATING_DEVICE` 有 `Geometry/binary` | 仅是候选；电动执行机构不沿此手动类继承，不能直接套用 |
+| 几何属性候选 | `MANUAL_VALVE_OPERATING_DEVICE` 和 `VALVE_ACTUATOR` 均有 `Geometry/binary` | 手轮继承前者；电动执行机构继承后者。字段存在仍不代表几何持久化及重生成已验证 |
 | 项目已有 CEL 能力 | `CelLibraryReader` 只读枚举；`CelLibraryGeometry` 创建离线普通单元 | 可复用库读取、单位检查；现有工厂只提供世界 Z 旋转，三维安装架须扩展 |
 
-首个技术关口是核实本机 SDK 的公开 Topwork 创建、关联和几何接口。尚未确认具体关系类名、端口来源、基类回调及几何持久化方式，不预填猜测的 API，也不将 `DEVICE_HAS_SUPPORT` 用于执行机构。
+本机磁盘现已核对关联类名 `VALVE_HAS_VALVE_OPERATING_DEVICE`，原生手轮处理器为 `Handwheel`；接口原型见第 13 节。实际 DGN 中的关系、安装架和几何持久化仍需用户运行验证，不将磁盘结构视为宿主已通过，也不将 `DEVICE_HAS_SUPPORT` 用于执行机构。
 
 ## 3. 用户提供的 CEL 与测试输入
 
 首轮一个普通三维图形单元即可，保留真实尺寸及颜色。约定如下：
 
-- 原点为执行机构与阀杆的安装连接中心。
+- 原点为用户新增圆柱的底部圆心，业务含义是执行机构连接杆与阀门外表面的交点（用户于 2026-10-31 明确）。新增圆柱已属于 CEL 几何，不再额外重复生成连接杆。
+- 安装轴采用该圆柱的轴线。阀门侧目标点必须与上述表面交点对应；原生接口若返回阀杆端点或其他 Topwork 基点，须核对并转换到此接触基准，不直接混用，也不用包围盒中心替代。
 - 局部 `+Z` 从阀门指向执行机构，沿安装轴。
 - 局部 `+X` 指向明确的电机或手轮特征；`+Y` 按右手坐标系确定。对称模型可另附方向说明，无须为测试更改正式外形。
 - 提供单元名称、型号、源单位和至少一项可核对的实际尺寸，例如总高或手轮外径；不同型号使用不同单元名称。
@@ -129,11 +130,11 @@ Git 基线只保护已跟踪源码，不保护已安装 DLL、Schema、CEL 或 D
 
 ## 10. 当前完成与下一步
 
-已完成：改动前基线提交、现有 CEL/支架代码复用盘点、本机执行机构磁盘 Schema 只读盘点、分阶段方案及验收/回滚定义。
+已完成：改动前基线提交、现有 CEL/支架代码复用盘点、本机执行机构磁盘 Schema 只读盘点、分阶段方案及验收/回滚定义；CEL 只读结构盘点；用户确认普通放置没有问题，并明确表面接触安装原点。
 
-尚未完成：用户 CEL 导入、SDK Topwork 几何与关联入口验证、原型代码、DLL 编译部署、任何 OPM 执行机构操作及崩溃测试。当前打开的 OPM 会话未被本方案操作。
+已准备独立手轮换外形验证代码及 DLL，SDK 编译通过。尚未完成：真实父阀门和默认执行机构探查、原型在宿主加载、原生替换/随动/重生成及完整稳定性验收。公开方法签名与编译结果不代表运行契约或持久化已通过。
 
-CEL 提供后从 A 阶段开始，先做只读样本探查和原生对照，再做单一型号的最小接入。记录证据后再决定扩大到替换现有执行机构、不同阀门类和完整产品页面。
+下一步从 A 阶段的原生阀门/默认执行机构对照继续，重点核对原生安装架与用户指定表面接触基准的差值，再做单一型号最小接入。宿主操作由用户执行；普通放置成功不扩展认定为 B 阶段全部或 C～E 阶段通过。
 
 ## 11. 换设备接续记录（2026-10-31）
 
@@ -148,3 +149,87 @@ CEL 提供后从 A 阶段开始，先做只读样本探查和原生对照，再�
 5. 从只读原生样本探查及最小原型开始，按本方案逐阶段验证，不将磁盘 Schema 盘点或普通 CEL 放置成功视为 Topwork 接入通过。
 
 Git 推送只同步已跟踪文件；本机已安装 DLL/Schema、未提供的 CEL、正在运行的 OPM 会话和未纳入版本控制的 DGN 不随仓库迁移。本次换设备交接未关闭或修改当前 OPM 会话。
+
+## 12. CEL 到位与用户验证记录（2026-10-31）
+
+- 用户提供库：`C:\ProgramData\Bentley\OpenPlant 2024\Configuration\Organization\Cell\阀门执行机构.cel`，81920 字节，SHA256 `4DD17E6A4F44542380CB82DBCC60A32D1EA836DD99EA1987575F84458275FF6C`。
+- 只读盘点见 `Development/ValveActuatorCelValidation/Runs/20261031_02/cel-native-inventory.json`：一个可放置三维图形单元“气动执行-DN800”，主单位定义为 mm，11 个 SmartSolid 和 3 个 Cone，模型无参考附件。仅枚举到的结构通过，不据此证明材质/所有外部资源或实体内核有效性。
+- 无活动模型时 COM 范围读数的单位上下文尚未校准，不将该次范围原始值作为毫米尺寸结论。后续采用只读副本建立活动坐标上下文时出现 RPC 失败，记录于 `Runs/20261031_03`，不能判该项通过；按用户要求停止自行宿主测试，保留证据。
+- 用户确认：“放置本身没有问题”。此为用户实测反馈，仅确认普通放置，不推定不同角度、尺寸、Undo/Redo、保存重开或原生关联全部通过。
+- 用户明确：“安装原点是我自己增加那个圆柱的底部圆心，我将其视为执行结构连接杆与阀门外表面的交点”。后续零偏移定位应使该圆心与阀门侧对应接触点重合，绕安装轴调整朝向时该点保持固定。
+- 用户确认 CEL 基于刚才制作的型号。原 STEP 的 770 × 700 × 444 mm 仅为原执行机构包络；新增连接几何后的总高不沿用 444 mm。原 STEP 的厂家安装面尺寸仍未核实；用户现指定的是本项目使用的定位约定，不作为厂家连接尺寸认证。
+- 库内“气动”命名与原模型“电动装置”描述不一致，原始文件保留，不能依据该单元名自动选择原生气动/电动 EC 类。
+- 测试分工：Agent 准备代码、方法和预期效果；用户执行 OPM 宿主测试并反馈。未重新授权前不自行启动或操作宿主测试。
+
+## 13. 原生手轮换外形验证原型（2026-10-31）
+
+用户指定优先验证“常规手轮保留原生交互、外形改成 CEL”。已实现独立开发 AddIn `ValveActuatorCelCheck.dll`，不修改已有 `HAND_WHEEL` Schema/处理器、不部署到宿主目录、不替换主插件。主工程仅增加本验证目录的源码排除项。
+
+磁盘契约脚本 `Development/ValveActuatorCelValidation/Check-HandwheelContract.ps1` 的 13 项检查通过，证据见同目录 `handwheel-contract.json`：`HAND_WHEEL → MANUAL_VALVE_OPERATING_DEVICE → VALVE_OPERATING_DEVICE`；手动基类含 `Geometry/binary`；手轮使用 `Handwheel`/`TopworksPlacementTool`/`Topwork`；`VALVE_HAS_VALVE_OPERATING_DEVICE` 为前向 embedding 关系，源 PIPING_COMPONENT、目标 VALVE_OPERATING_DEVICE，双方基数均 `(0,1)`。这些仅为本机磁盘 Schema 契约。
+
+原型两条命令：
+
+- `ACTUATORCHECK PROBE`：读取所选件及正反向关系、实例 ID、类名、安装变换、Geometry 长度/哈希和图形范围；不写模型。
+- `ACTUATORCHECK SWAP`：选择已关联父阀门的普通 HAND_WHEEL 独立实例和已正确摆放的当前 CEL；把源 CEL 的直接图形转到原手轮局部坐标，尝试 `SetNonParametricElement` + `BMECObjectWriter.Serialize` 原位保存。保留实例及原关联；不调用 Create、不新增关系。若宿主不允许切换几何模式则拒绝。成功重读后才在同一撤销事务删除输入 CEL，避免叠图；失败回滚并核对原件、Geometry 和源 CEL。
+
+使用现有原生安装架，手动摆好的 CEL 表达相对该架的实际局部偏移；本轮不自动把阀杆端点当作用户定义的外表面交点。若手轮与阀体共用根元素，则停止该独立实例路线并要求保留日志，而不覆盖阀体图形。
+
+本原型刻意保留 HAND_WHEEL 业务身份，只用于交互试验，不能作为正式电动/气动分类、ISO 或材料统计已经正确的证明。句柄所有权未取得公开文档保证，验证包固定保留每次提交的描述符至进程退出，最多 8 次，禁止提交后单独卸载 DLL，允许 OPM 正常退出。正式产品须进一步验证并收敛此生命周期。
+
+验证包与主工程独立输出的 Release 编译均为 0 警告、0 错误；未运行 OPM 宿主、未修改安装目录、Schema 或业务 DGN。完整用户步骤和逐项预期效果见 [手轮验证包说明](../Development/ValveActuatorCelValidation/Prototype/README.md)。
+
+## 14. 用户 V1 实测失败及 V2 接续（2026-10-31 20:34）
+
+用户已运行 V1。日志及备份位于 `Development/ValveActuatorCelValidation/Runs/20261031_UserHandwheelSwapFailed/`；[失败分析](../Development/ValveActuatorCelValidation/Runs/20261031_UserHandwheelSwapFailed/结论.md)记录实例、范围和精确阶段。加载 DLL 的 MVID 与日志一致。
+
+真实样本为手轮 HAND_WHEEL/图元5727、父蝶阀 BUTTERFLY_VALVE/图元1713，关系 `VALVE_HAS_VALVE_OPERATING_DEVICE` 已读到；两者独立根。CEL/图元4417的14直接图形和局部转换已通过本次命令的前置检查。关键失败为 `AfterSetNonParametricElement.IsParametric=True`，保护分支在 Serialize 之前停止，随后 `RollbackVerified=true`。本轮没有执行几何序列化或源CEL删除，不能解释为CEL导入失败或关联失败，也未测到移动/重生成/重开。
+
+原假设“给现有参数化对象设置几何即可切换模式”已被该样本否定，不重复要求用户运行 V1、不删除该保护继续写。两基点在本次阀门局部约相差235mm，仍不能直接把手轮原点视作用户定义的表面接触点。
+
+V2 采用公开构造入口 `new BMECObject(existingHandwheelInstance, true)`，在构造时明确指定非参数化模式，保留原手轮变换。仍不调用 Create、不新增关联、不修改Schema。V2分别记录构造、设置几何、序列化、默认重读、文档缓存重读状态；只有持久 Geometry、模式、身份、父关系和包络均符合才消耗源CEL并提交，任一失败回滚。显式包装器能显示几何不代表模式已保存，默认/缓存重读回到参数化时必须拒绝。
+
+V2 为独立 `ValveActuatorCelCheckV2.dll`、命令 `ACTUATORCHECK2 PROBE/SWAP`、独立日志目录 `ValveActuatorCelCheckV2`；编译0警告0错误，未启动或操作宿主。PROBE补充显式构造只读模式及端口点坐标。若V2仍不接受持久非参数化模式，再研究独立测试执行机构类的Create3DElements回调，不全局替换原手轮处理器。新版[操作说明](../Development/ValveActuatorCelValidation/Prototype/README.md)要求退出OPM释放V1资源后重开验证。
+
+## 15. 按现行管夹机制改用参数化几何回调（V3）
+
+用户要求对照“支架位置外形改为自建模型”的方案。已核实两代实现区别：旧版存在非参数化SUPPORT_LOCATION；现行管夹采用继承SUPPORT_LOCATION的SSP_PIPE_CLAMP，并在`NativePipeSupportComponent : Supports`中重写`Create3DElements()`，保留原生参数化交互，通过Modeling创建属性指定自定义处理器。V1/V2的非参数化模式切换没有复用这个现行机制，V2暂缓。
+
+本机SDK的`Handwheel.Create3DElements()`同样为public virtual。已新增`Development/ValveActuatorCelValidation/CallbackPrototype/`：公开`CelHandwheelComponent : Handwheel`，继承原生Setup，只覆盖三维几何回调，返回嵌入DLL的固定版本CEL的原生ElementHolder克隆。组件本身不调用SetNonParametricElement、不转非参数化。模板按文档/模型上下文缓存，初次通过BMApplication.GetCellElement读入固定资源，以后回调克隆；不逐次附加切换外部CEL库。
+
+隔离测试类`SSP_CEL_HAND_WHEEL`继承HAND_WHEEL，保留Topwork/TopworksPlacementTool和VALVE_HAS_VALVE_OPERATING_DEVICE关系。`Prepare-TestSchema.ps1`仅在工作区生成两个Schema副本，只新增测试类和资源版本属性；检查全部原有节点及HAND_WHEEL定义不变并记录源文件哈希。当前未修改原工作集、未在OPM加载新类；XML预检不是Bentley加载验收。
+
+独立DLL`ValveActuatorCallbackCheck.dll`提供`ACTUATORCALLBACK CREATE/PROBE`。CREATE首轮接受没有执行机构的原生阀门和已定位CEL；以CEL底部原点和方向创建参数化测试Topwork。新实例、唯一父关系、处理器、参数化状态和外形包络重读成功后才同事务删除输入CEL，失败回滚核验。现有手轮不被代码删除或全局改造，本轮先验证继承的手轮机制，已有执行机构替换留待后续。
+
+CEL原始SHA256与DLL嵌入资源一致，编译元数据确认派生Handwheel并重写Create3DElements；V3及主工程独立输出Release均0警告0错误。测试环境定义、DLL加载、创建、父阀门随动、重生成、Undo/Redo、退出重开仍由用户验证，不提前判通过。完整步骤及预期见[参数化回调验证说明](../Development/ValveActuatorCelValidation/CallbackPrototype/README.md)。
+
+## 16. V3回调已运行，V4直接使用官方放置工具
+
+用户21:08、21:09日志证实V3参数化CEL几何回调已成功返回，NativeCreateStatus=0；随后关系检查失败并RollbackVerified=true。因此看起来没有新件保留。原日志未分别记正反向数量，不能排除查询范围/缓存因素，更不能把结果解释为CEL回调未运行。日志、源码/DLL备份及[分析结论](../Development/ValveActuatorCelValidation/Runs/20261031_V3CallbackSucceededRelationFailed/结论.md)已保留。
+
+用户明确要求“激活命令，然后选择阀门”的官方操作。V4使用本机公开SDK入口`BMECApi.Instance.StartPlacement(component)`，component由既有测试类解析为TopworksPlacementTool及CelHandwheelComponent。只提供待放实例和外形，点选阀门、安装架、关系、方向确认及取消交由官方工具；插件代码不再设置RelatedInstance、不手工Create/Serialize、不安装自定义点取工具、不删除普通CEL。旧CREATE命令仅为PLACE别名，旧两件预选流程已移除。
+
+启动命令`ACTUATORCALLBACK PLACE`先清空旧选择集，保留官方操作提示；命令返回仅表示启动请求返回。放置后再用PROBE从图元加载完整关系，六参数查询明确包含派生类，同时记录正反向数量和RawRelation。后续必须由实际交互及持久化关系判通过，不把place启动日志作为关联成功证明。
+
+DLL程序集名/处理器类名保持V3兼容，版本升至4.0.0，无Schema修改需求。V4及主工程独立输出Release均0警告0错误；未操作宿主。用户只需退出OPM更新同名验证DLL，再激活命令点阀门。详细[官方放置V4操作说明](../Development/ValveActuatorCelValidation/CallbackPrototype/README-V4.md)。原生安装架是否与用户指定外表面交点一致，仍需根据新交互结果校核偏移。
+
+## 17. 用户确认 V4 放置成功，V5 改以齿轮箱为基准
+
+用户反馈“nice，成功了，是可以放置的”，同时指出手轮只有一个位置调整按钮，要求改用 GEARBOX_OPERATOR。该反馈仅确认官方流程能够放置，没有将双向关联、随动、Undo/Redo、重生成与重开全部判通过。成功版本源码、DLL、启动日志和反馈备份于 `Runs/20261031_V4PlacementUserConfirmed`。
+
+本机 Schema 确认 GEARBOX_OPERATOR 同样继承 MANUAL_VALVE_OPERATING_DEVICE，使用 `GearBoxOperatorScript`、Topwork 和 TopworksPlacementTool；包含 TOTAL_HEIGHT、箱体三项尺寸、手轮四项尺寸及 HANDLE_OFFSET 九个原生字段。SDK 元数据确认 Setup 和 Create3DElements 可覆写，GearBoxOperatorDraw 在原点生成方向(-1,0,0)、朝向(0,0,1)的点串标记，然后生成实体。
+
+V5新增 `CelGearboxComponent : GearBoxOperatorScript`，继承Setup，三维回调返回固定CEL克隆及上述原生标记，不生成原生箱体/手轮实体。新增 `SSP_CEL_GEARBOX_OPERATOR` 继承 GEARBOX_OPERATOR；保留此前手轮类与处理器，已有手轮件不会自动转换。PLACE/CREATE默认齿轮箱，GEARBOX显式同路，HANDWHEEL保留旧路线；全部继续通过官方StartPlacement点阀门。
+
+本版为固定整体CEL，不响应原生箱体尺寸或局部手轮偏移变形。原生字段初始化为1、HANDLE_OFFSET及ANGLE为0，仅满足Setup输入，不作为实际执行机构尺寸。若某个原生按钮只修改这些尺寸而不修改整体安装变换，需要后续明确映射；不能宣称仅继承齿轮箱基类就已获得全部按钮及效果。PROBE增加九项参数和ANGLE等记录，用于比较操作前后。
+
+Prepare-TestSchema新增BaseClassName参数，齿轮箱副本只追加新类，全部旧节点（包括原生齿轮箱和已装手轮测试定义）保持；记录源哈希并在保存回读后再次核对旧节点。未改实际工作集Schema、已加载DLL或DGN。V5和主工程独立输出Release均0警告0错误，资源仍为原CEL哈希。用户更新DLL及两份Schema后，核验原生齿轮箱对照按钮、位置/方向实际变化、安装圆柱底部圆心、关联及随动，具体步骤见[V5说明](../Development/ValveActuatorCelValidation/CallbackPrototype/README-V5.md)。
+
+## 18. V6：先选 CEL 再安装的停靠界面
+
+用户要求先选择哪个CEL再放置。新功能接入主插件首页valve-actuator，复用现有停靠工作区、ModelingTheme、PrototypeChrome、CelLibraryReader和真实预览；选择文件及库内单元后，点击开始冻结整个文件快照并校核模型，官方StartPlacement负责点阀门、方向与确认。放置中锁选项，结束后可换选。旧ACTUATORCALLBACK命令仍为历史固定资源路线。
+
+新增SSP_CEL_VALVE_ACTUATOR继承GEARBOX_OPERATOR，主插件处理器CelValveActuatorComponent保留GearBoxOperatorScript.Setup，回调返回该实例的CEL及原生方向标记。每实例保存SSP_CEL_VERSION/NAME/SOURCE/SHA256/DATA/TOKEN；DATA为完整库文件binary，SOURCE只追溯，回调从DATA恢复哈希缓存，不读全局当前选择、不回退固定CEL。当前16MiB及单位/原点限制见[操作说明](阀门执行机构CEL选择界面.md)。整个库按件保存会增加DGN体积，正式驱动类型与BOM/ISO分类尚未据此确认。
+
+STEELPROBE ACTUATOR打开界面；ACTUATORCHECK从所选图元加载完整关系并含派生类查询，记持久数据哈希/单元名/字节数、参数化状态/处理器、变换与原生参数。退出本页只结束带本请求Token的工具，失败保留页面；验证期原生包装/模板有界保留，持有资源时拒绝命令卸载，正常宿主退出不调用销毁中的放置API。
+
+准备脚本-SelectableCel只追加新类至两份Schema副本，旧节点及保存回读保持，未安装实际Schema/DLL。主插件不内嵌固定阀门CEL。38项快照/属性协议/真实XAML及四档DPI检查、首页纯计算/83项WPF、68项停靠检查通过；EC/CAD用替身，不代表实际二进制保存或官方放置通过。授权/无授权主工程独立编译均0警告0错误，Agent未运行OPM。用户更新主插件及两份Schema后，验证不同CEL互不影响、原文件移走后重开/重生成、关联/随动/调整及Undo/Redo。

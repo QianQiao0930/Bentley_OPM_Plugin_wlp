@@ -2,6 +2,8 @@
 
 本目录存放 `SteelSupportModeler.csproj` 的**编译产物部署**与**工作集 Schema 安装**脚本。它们只负责"把编译好的 DLL 放到该放的地方"和"改造工作集 schema"，不包含业务逻辑。
 
+`SteelSectionProbe-Autoload.cfg` 是主插件搜索路径与 DGN 打开时自动加载配置，当前路径按本机标准 net48 目录填写，需手动复制到活动 Configuration/Organization 根目录。适用于已保存的自定义参数化组件在重开后按程序集名创建处理器；验证和安装方法见[执行机构重开后程序集加载错误](../Docs/执行机构重开后程序集加载错误.md)。仅复制 DLL、仅当次 mdl load 都不能替代下次启动时的加载配置。
+
 ## 通用约定（所有 Schema 安装脚本都遵守）
 
 - **默认只读预览**：不加 `-Apply` 时只打印将要写入的内容，不改任何文件。
@@ -37,7 +39,13 @@
 
 | 文件 | 参数 | 作用 |
 | --- | --- | --- |
-| `Install-NativeSupportEditing.ps1` | `-SchemaDirectory [-Features All\|Trunnion\|PipeClamp] -BackupDirectory -Apply` | **唯一的 Schema 修改实现**（2026-10-15 由原两个核心脚本合并）。一次遍历三份 schema，共用一份备份/替换/回滚/收据：`Trunnion` 改造自带耳轴三类（各加 `SSP_RECIPE`；Modeling `CREATION_ATTRIBUTE` 指向本插件 `NativePipeSupportComponent`，否则没操作柄；Isoextractor `IE_TAG=this.ALIAS`，保留原 `ClassMap`）；`PipeClamp` 新增隔离类 `SSP_PIPE_CLAMP`（继承 `SUPPORT_LOCATION`）；默认 `All` 两者都做。 |
+| `Install-NativeSupportEditing.ps1` | `-SchemaDirectory [-Features All\|Trunnion\|PipeClamp\|ValveActuator] -BackupDirectory -Apply` | **唯一的 Schema 修改实现**（2026-10-15 由原两个核心脚本合并）。一次遍历三份 schema，共用一份备份/替换/回滚/收据：`Trunnion` 改造自带耳轴三类（各加 `SSP_RECIPE`；Modeling `CREATION_ATTRIBUTE` 指向本插件 `NativePipeSupportComponent`，否则没操作柄；Isoextractor `IE_TAG=this.ALIAS`，保留原 `ClassMap`）；`PipeClamp` 新增隔离类 `SSP_PIPE_CLAMP`（继承 `SUPPORT_LOCATION`）；`ValveActuator`（2026-11-01 由开发期 `Prepare-TestSchema.ps1` 正式化）在 OpenPlant_3D 与 Modeling 新增隔离类 `SSP_CEL_VALVE_ACTUATOR`（继承 `GEARBOX_OPERATOR`，6 个 CEL 快照字段，处理器 `CelValveActuatorComponent`），Isoextractor 不改；默认 `All` 三者都做。 |
+
+### 2.3 界面工具 SchemaPatcher.exe
+
+`SchemaPatcher/` 是上面两个脚本的图形界面版（Python/tkinter，PyInstaller 打包为单文件 exe）：选 Schema 目录、备份文件夹和修改内容（增加耳轴 / 增加正式管夹 / 修改轴测图出图 / 增加自定义执行机构 / 全部），先只读检查，再备份并写入，输出逐处改动记录；已全部具备时提示无需修改。判定规则与脚本一致、装出的内容双向互认，但只在插入点写字节，不整份重写。详见 [SchemaPatcher/README.md](SchemaPatcher/README.md)。
+
+`SchemaPatcherFluent/` 是同一引擎的 Fluent 风格界面版（PySide6 + FluentQt，“增补台账”布局：按文件分组的行号台账 + 改前改后详情），tkinter 版保留。详见 [SchemaPatcherFluent/README.md](SchemaPatcherFluent/README.md)。
 
 ### 2.2 其它（针对单个 schema 文件）
 
@@ -57,7 +65,9 @@
 | 给工作集装正式功能（耳轴 + 管夹一起） | `Install-NativeSupportEditing.ps1`（默认 `-Features All`） |
 | 只装正式管夹 `SSP_PIPE_CLAMP` | `Install-NativeSupportEditing.ps1 -Features PipeClamp` |
 | 只装自带耳轴三类参数化 | `Install-NativeSupportEditing.ps1 -Features Trunnion` |
+| 只装自定义执行机构 `SSP_CEL_VALVE_ACTUATOR` | `Install-NativeSupportEditing.ps1 -Features ValveActuator` |
 | 修旧非参数化管夹件的 ISO 引注 | `Install-PipeClampIsoTag.ps1 -SchemaPath <Isoextractor.xml>` |
+| 新工作空间、想用界面一次补齐 | `SchemaPatcher\dist\SchemaPatcher.exe`（没有 exe 时先跑 `SchemaPatcher\build_exe.ps1`） |
 
 ---
 
@@ -105,6 +115,8 @@ OpenPlant_3D_Supplemental_Isometrics_Isoextractor.01.08.ecschema.xml
 
 - `Development\PipeClampIsoCheck\Check-NativeEditingSchema.ps1 -Mode PipeClamp`（`Trunnion` 模式转调下面那个）
 - `Development\PipeClampIsoCheck\Check-TrunnionStockIsoTag.ps1`
+- `Development\PipeClampIsoCheck\Check-ValveActuatorSchema.ps1`（`-Features ValveActuator`）
+- `Development\SchemaPatcherCheck\test_schema_patcher.py`、`gui_smoke.py`（界面工具；含真实原始 Schema 与上面脚本的结果比对和互认）
 
 因此这些脚本名与参数被检查引用，**改名/改参数需同步更新对应检查**。
 

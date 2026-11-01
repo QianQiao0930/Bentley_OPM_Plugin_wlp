@@ -40,6 +40,7 @@ namespace SteelSectionProbe
             RegisterPage(new MagneticGaugePage());
             RegisterPage(new EquipmentLevelPage());
             RegisterPage(new CelLibraryPage());
+            RegisterPage(new ValveActuatorPage());
             RegisterPage(new PipeAlignmentPage());
             RegisterPage(new ComponentPropertiesPage());
             RegisterPage(new LineCoordinatesPage());
@@ -162,6 +163,11 @@ namespace SteelSectionProbe
         internal void ShowComponentPropertiesPage()
         {
             OpenPage("component-properties");
+        }
+
+        internal void ShowValveActuatorPage()
+        {
+            OpenPage("valve-actuator");
         }
 
         internal void ShowHome()

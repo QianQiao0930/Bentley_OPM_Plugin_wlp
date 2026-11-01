@@ -8,12 +8,13 @@ using Com = Bentley.Interop.MicroStationDGN;
 
 namespace SteelSectionProbe
 {
-    /// <summary>持续光标预览；左键一次放置一套，右键结束。动态单元始终离线。</summary>
+    /// <summary>光标预览；连续模式左键放置后继续，单次模式放置一套后自动结束。动态单元始终离线。</summary>
     internal sealed class CelPlacementTool : DgnPrimitiveTool
     {
         private static CelPlacementTool active;
         private Func<DPoint3d, Com.CellElement> factory;
         private CelPlacementMetadata metadata;
+        private bool singleShot;
         private Com.CellElement prototype;
         private Com.TransientElementContainer display;
         private static readonly System.Collections.Generic.List<CelPlacementTool> Pending = new System.Collections.Generic.List<CelPlacementTool>();
@@ -30,7 +31,7 @@ namespace SteelSectionProbe
         internal static event Action<string> Failed;
         internal static event Action Ended;
 
-        internal static void Begin(Func<DPoint3d, Com.CellElement> createElement, CelPlacementMetadata source)
+        internal static void Begin(Func<DPoint3d, Com.CellElement> createElement, CelPlacementMetadata source, bool singleShot = false)
         {
             if (!LicenseService.IsActivated) throw new InvalidOperationException("请先激活软件。");
             if (createElement == null || source == null) throw new InvalidOperationException("请先选择 CEL 单元。");
@@ -43,13 +44,13 @@ namespace SteelSectionProbe
             {
                 CelPlacementWriter.ValidateContext(active.model, active.file);
                 active.ClearPrototype();
-                active.factory = createElement; active.metadata = options; active.lastError = null;
+                active.factory = createElement; active.metadata = options; active.singleShot = singleShot; active.lastError = null;
                 AccuSnap.SnapEnabled = true; AccuSnap.LocateEnabled = true;
-                Prompt();
+                active.Prompt();
                 return;
             }
-            var tool = new CelPlacementTool { factory = createElement, metadata = options, model = target, file = targetFile,
-                oldSnap = AccuSnap.SnapEnabled, oldLocate = AccuSnap.LocateEnabled };
+            var tool = new CelPlacementTool { factory = createElement, metadata = options, singleShot = singleShot,
+                model = target, file = targetFile, oldSnap = AccuSnap.SnapEnabled, oldLocate = AccuSnap.LocateEnabled };
             active = tool;
             try
             {
@@ -103,8 +104,12 @@ namespace SteelSectionProbe
             Prompt();
         }
 
-        private static void Prompt()
-        { NotificationManager.OutputPrompt("移动光标预览 CEL 构件；中心轴固定向上，绕 Z 角度按面板输入；左键放置一套，右键结束。"); }
+        private void Prompt()
+        {
+            NotificationManager.OutputPrompt(singleShot
+                ? "移动光标预览 CEL 构件；左键放置一套后自动结束，右键取消。"
+                : "移动光标预览 CEL 构件；中心轴固定向上，绕 Z 角度按面板输入；左键放置一套，右键结束。");
+        }
 
         protected override void OnDynamicFrame(DgnButtonEvent ev)
         {
@@ -149,6 +154,8 @@ namespace SteelSectionProbe
             if (!ReferenceEquals(active, this)) return true;
             CelPlacementResult result;
             bool paused = false;
+            bool oneShot = singleShot;
+            bool committed = false;
             string displayWarning = null;
             try
             {
@@ -156,6 +163,7 @@ namespace SteelSectionProbe
                 ClearDisplay();
                 EndDynamics(); paused = true;
                 result = CelPlacementWriter.Place(factory, metadata, ev.Point);
+                committed = true;
                 // Commit and redraw in normal display mode; dynamics otherwise defer the new graphics
                 // until the placement tool exits. Refresh failures must never undo a committed cell.
                 try
@@ -172,7 +180,9 @@ namespace SteelSectionProbe
             catch (Exception ex) { ReportFailure(ex.Message); return true; }
             finally
             {
-                if (paused && ReferenceEquals(active, this))
+                // A failed placement keeps the tool alive, so restore the moving preview for retry; a committed
+                // single-shot placement ends below and must not restart dynamics.
+                if (paused && ReferenceEquals(active, this) && (!oneShot || !committed))
                     try { BeginDynamics(); }
                     catch (Exception ex)
                     {
@@ -181,12 +191,25 @@ namespace SteelSectionProbe
                     }
             }
             // User callbacks occur after a completed transaction; a UI exception cannot turn success into a write failure.
-            try { NotificationManager.OutputPrompt("已放置“" + result.CellName + "”；左键继续放置，右键结束。"); } catch { }
+            try
+            {
+                NotificationManager.OutputPrompt(oneShot
+                    ? "已放置“" + result.CellName + "”；单次放置完成。"
+                    : "已放置“" + result.CellName + "”；左键继续放置，右键结束。");
+            }
+            catch { }
             var placed = Placed;
             if (placed != null)
                 foreach (Action<CelPlacementResult> handler in placed.GetInvocationList())
                     try { handler(result); } catch (Exception ex) { ReportFailure("构件已放置，界面通知失败：" + ex.Message); }
             if (displayWarning != null) ReportFailure(displayWarning);
+            if (oneShot && ReferenceEquals(active, this))
+            {
+                // Single-shot placement: the transaction and page notification are complete, so end the tool
+                // instead of resuming dynamics. ExitTool is designed to be called from within a tool callback.
+                try { End(); }
+                catch (Exception ex) { ReportFailure("单次放置已提交，但结束工具失败，请点击结束重试：" + ex.Message); }
+            }
             return true;
         }
 

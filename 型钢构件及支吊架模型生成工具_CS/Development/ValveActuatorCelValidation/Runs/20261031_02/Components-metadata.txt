@@ -1,0 +1,28 @@
+TYPE Bentley.Building.Mechanical.Components.ElementHolder base=System.Object
+Private, HideBySig Void FreeNativeResources(Boolean) [1:disposing]
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor(Bentley.DgnPlatform.MSElementDescr*) [1:objectDescriptor]
+Private, HideBySig Void ~ElementHolder() []
+Private, HideBySig Void !ElementHolder() []
+Public, Virtual, HideBySig, VtableLayoutMask Object Clone() []
+Public, HideBySig Void Reverse() []
+Public, HideBySig Void SetGraphicsType(Bentley.Building.Mechanical.Components.BMdGraphicsType, Boolean) [1:graphicsType, 2:is2d]
+Public, HideBySig Bentley.Building.Mechanical.Components.BMdGraphicsType GetGraphicsType() []
+Public, HideBySig Void SetElementSymbology(String, String) [1:symboloyDefinition, 2:symboloyExt]
+Public, HideBySig Void SetElementHandleSymbology(Bentley.DgnPlatform.EditElementHandle*, String, String) [1:elemHandle, 2:symboloyDefinition, 3:symbologyExt]
+Public, HideBySig Void SetName(String) [1:name]
+Public, HideBySig Bentley.DgnPlatform.MSElementDescr* GetElementDescr(Boolean) [1:duplicate]
+Public, HideBySig Void Transform(Bentley.GeometryNET.DTransform3d, Boolean) [1:transform, 2:inverse]
+Public, HideBySig, SpecialName Boolean get_Construction() [0:value]
+Public, HideBySig, SpecialName Void set_Construction(Boolean) [1:construction]
+Public, HideBySig, SpecialName Void set_LineWeight(UInt32) [1:weight]
+Public, HideBySig, SpecialName Void set_Color(UInt32) [1:color]
+Public, HideBySig, SpecialName Void set_LineStyle(Int32) [1:style]
+Public, HideBySig, SpecialName Void set_Visible(Int32) [1:visible]
+Family, Virtual, HideBySig, VtableLayoutMask Void Dispose(Boolean) [1:A_0]
+Public, Final, Virtual, HideBySig Void Dispose() []
+Family, Virtual, HideBySig Void Finalize() []
+PROP Int32 Visible
+PROP Int32 LineStyle
+PROP UInt32 Color
+PROP UInt32 LineWeight
+PROP Boolean Construction

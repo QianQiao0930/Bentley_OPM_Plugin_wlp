@@ -66,6 +66,7 @@ namespace SteelSectionProbe
                 Expect(() => CelLibraryGeometry.CreatePreview(entry, 0), "restore failure never returns success"); scenarios++;
                 app = Reset(); app.AttachedCellLibrary = new Com.CellLibrary { FullName = oldLibraryPath }; app.FailAttachPath = oldLibraryPath;
                 Expect(() => CelLibraryGeometry.CreatePreview(entry, 0), "old-library restore failure reported"); scenarios++;
+
                 app = Reset(); app.ReturnWrongOrigin = true;
                 Expect(() => CelLibraryGeometry.CreatePreview(entry, 0), "wrong CEL insertion point rejected"); Check(!app.IsCellLibraryAttached, "origin failure restores library"); scenarios++;
                 app = Reset(); Expect(() => CelLibraryGeometry.CreatePreview(entry, double.PositiveInfinity), "invalid angle rejected"); Check(app.AttachCalls == 0, "invalid angle does not attach"); scenarios++;

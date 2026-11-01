@@ -1,0 +1,46 @@
+{
+  "Release": "V6.1 separated native Topwork controls",
+  "ProductVersion": "1.0.0.0",
+  "MVID": "414c6fc8-da5e-48f1-b014-6910013262fd",
+  "Class": "SSP_CEL_VALVE_ACTUATOR",
+  "NativeControlBranch": "generic actual-class-name branch",
+  "Layout": "O; O+(0,0,LENGTH); O+(DIAMETER/2,0,LENGTH), transformed by installation frame",
+  "BoundsSource": "immutable selected CEL snapshot, existing true-scale orphan factory",
+  "UnitSetter": "BMECObject.SetDoubleValueFromMM with readback",
+  "CelTransformedForControls": false,
+  "SchemaUpdateRequired": false,
+  "ExistingInstancesAutomaticallyModified": false,
+  "LicensedBuild": "0 warnings, 0 errors",
+  "UnlicensedBuild": "0 warnings, 0 errors",
+  "OfflineChecks": 46,
+  "HostStartedByAgent": false,
+  "HostControlsVerified": false,
+  "InstalledDllReplaced": false,
+  "InstalledSchemasModified": false,
+  "Files": [
+    {
+      "Path": "原因说明.md",
+      "Sha256": "06538A061C40C0B125A2E258326A9139FF4573CAE4A65DAD2349376FCC97A503"
+    },
+    {
+      "Path": "README.md",
+      "Sha256": "87D40CD3AC595F969E655759E44912FA0C3B30B2756C7C6BE37F2D999A62E302"
+    },
+    {
+      "Path": "SteelSectionProbe.dll",
+      "Sha256": "3C72F11BB930F0FC94DD582F52B6096759C60FCA82179EE248F9DD943AB872A4"
+    },
+    {
+      "Path": "SteelSectionProbe.pdb",
+      "Sha256": "43BE6980032215CC43B7B30397BAA029BF65CA4212FA994556A9F18E5051AB61"
+    },
+    {
+      "Path": "Rollback\\SteelSectionProbe.dll",
+      "Sha256": "0DA10EE1D16810005C718D1617B7782F86BDBF544E307006854A5C403CECA25D"
+    },
+    {
+      "Path": "Rollback\\SteelSectionProbe.pdb",
+      "Sha256": "B8DBA20972ED802A0EEDBCCFFDD10A76D7781990FEF3E076426FE15E43D29A37"
+    }
+  ]
+}

@@ -1,5 +1,23 @@
 # 型钢构件及支吊架模型生成工具：OpenPlant Modeler 2024 C# 版
 
+2026-10-31 执行机构V6.1修正三个调节柄重叠：官方调节器按实际类名判断原生齿轮箱，派生类走LENGTH/DIAMETER；此前均为1mm，使三柄重叠。新增件按所选CEL范围设置控制距离并用原生毫米接口回读，不改变CEL外形或安装原点。只更新主插件DLL，无需改Schema；旧件参数保持，先在另一只空阀门新放验证。46项离线检查与授权/无授权编译通过，真实三柄显示/拖动仍待用户实测。[原因与测试步骤](Development/ValveActuatorCelValidation/Runs/20261031_GripOverlap/原因及V6.1测试.md)。
+
+2026-10-31 新增“建模类→阀门执行机构”CEL选择界面（V6验证版）：选择CEL文件及库内三维单元、预览、开始放置，再按官方工具点选阀门。新入口`STEELPROBE ACTUATOR`，`ACTUATORCHECK`只读校核所选件。每实例独立保存CEL快照及单元名，回调从实例读取，源路径只追溯；旧验证DLL保持原固定外形。38项新离线检查、首页纯计算/83项WPF、68项停靠检查通过，授权/无授权编译零警告零错误；真实DGN二进制保存、原生按钮/关联/重开仍待用户验证，未启动OPM或安装文件。[更新及测试方法](Docs/阀门执行机构CEL选择界面.md)。当前36可用+1占位（建模15、支吊架18、查询3）。
+
+2026-10-31 用户已确认V4官方流程能够放置。按新要求新增齿轮箱候选V5：以`GEARBOX_OPERATOR / GearBoxOperatorScript`为基准，三维外形换成固定CEL并保留原生方向标记；`ACTUATORCALLBACK PLACE`默认齿轮箱，仍先激活再点阀门，`HANDWHEEL`可对照原手轮路线。DLL5.0.0及主工程独立输出编译零警告零错误；两份Schema只准备副本，未安装或运行宿主。按钮数量、按钮对整体CEL的实际作用、关联与随动仍需用户核验；固定CEL不随原生尺寸参数自动变形。[V5更新和测试步骤](Development/ValveActuatorCelValidation/CallbackPrototype/README-V5.md)。
+
+2026-10-31 V4执行机构官方交互：用户V3日志已证实CEL参数化回调成功、Create返回0，但关系检查失败后回滚。按用户要求改为`ACTUATORCALLBACK PLACE`→官方TopworksPlacementTool点选阀门→方向/确认；通过BMECApi.StartPlacement启动，不再手工Create/Serialize/RelatedInstance或预选阀门+CEL。沿用V3测试定义，只更新同名DLL至4.0.0，未改Schema；V4及主工程独立输出编译零警告零错误，尚未宿主验证。[操作及预期](Development/ValveActuatorCelValidation/CallbackPrototype/README-V4.md)。
+
+2026-10-31 用户要求复用管夹方案后，执行机构改以参数化几何回调V3为主线，V2暂缓。`CelHandwheelComponent : Handwheel`重写Create3DElements返回嵌入CEL，测试类SSP_CEL_HAND_WHEEL继承原生手轮并保留Topwork关联体系；对照现行SSP_PIPE_CLAMP的处理器机制实现。V3及主工程独立输出均0警告0错误，Schema只准备副本且全部旧节点保持，原工作集未安装/修改，宿主未测试。[V3操作与预期](Development/ValveActuatorCelValidation/CallbackPrototype/README.md)。
+
+2026-10-31 20:34用户验证反馈：手轮换CEL的V1在SetNonParametricElement后仍IsParametric=True，保护分支未执行Serialize，RollbackVerified=true；关联与14个CEL直接图形前置检查正常。已保留[失败分析](Development/ValveActuatorCelValidation/Runs/20261031_UserHandwheelSwapFailed/结论.md)。V2改用显式非参数化构造入口，DLL为ValveActuatorCelCheckV2、命令ACTUATORCHECK2，保留默认/缓存重读与回滚保护；编译零警告零错误，未运行宿主。[V2操作说明](Development/ValveActuatorCelValidation/Prototype/README.md)。
+
+2026-10-31 原生手轮换 CEL 外形原型：按用户指定路线准备独立 `ValveActuatorCelCheck.dll`，提供 `ACTUATORCHECK PROBE` 只读探查和 `ACTUATORCHECK SWAP` 原位外形替换试验。沿用已存在的 HAND_WHEEL 与阀门关联；不修改全局 Schema/处理器，不部署主插件。磁盘契约13项检查通过，原型与主工程独立输出均0警告0错误；宿主替换/随动/重生成/重开由用户验证，尚未判通过。[操作及预期效果](Development/ValveActuatorCelValidation/Prototype/README.md)。
+
+2026-10-31 执行机构 CEL 接续：用户已提供“阀门执行机构.cel”并确认普通放置没有问题；安装原点为用户新增圆柱的底部圆心，表示连接杆与阀门外表面的交点。后续阀门侧定位须匹配该接触基准，不能直接套用未核实的阀杆端点；CEL 已含连接圆柱，不重复生成。原生关联/随动/重生成尚未验证，宿主测试按用户要求由用户执行。当前证据和边界见[验证方案第 12 节](Docs/CEL阀门执行机构验证方案.md)。下方“CEL 尚未提供”为初版历史记录。
+
+2026-10-31 CEL单次放置：CEL构件库放置页底部改为“单次放置”“连续放置”“结束”。单次模式仍先进入光标预览，左键提交一套后自动结束工具、不恢复动态预览，页面提示单次完成并恢复按钮；连续模式保持原有每次左键一套、右键结束。两种模式共用同一事务、附加项、视图刷新和失败回退；单次结束失败只提示点击“结束”重试，不回滚已提交构件。CelPlacementCheck 52断言、CelLibraryUiCheck 96断言通过，主工程0警告0错误；OPM宿主实际点击节奏与工具自动结束仍需试放验证。
+
 2026-10-31 CEL阀门执行机构验证准备：改动前建立基线提交 `9dc12b9`（工作区干净，空提交检查点）。新增[CEL阀门执行机构验证方案](Docs/CEL阀门执行机构验证方案.md)，包含Topwork接入探查、CEL安装架、原生替换/随动/重生成、旧件兼容和环境回滚；本机磁盘Schema只读盘点见 `Development/ValveActuatorCelValidation/schema-inventory.json`。本轮仅文档与证据，CEL尚未提供，未实现或验证原生执行机构替换，未修改已安装DLL、Schema或当前DGN。
 
 2026-10-30 CEL方向预览与连续放置实时显示：用户宿主日志已确认ID15770/16088均在工具退出前完成根与附加项提交，且原COM IsNew仍true，因此此前IsNew假阴性修复有宿主证据；本次未将该成功扩大为预览/刷新已验证。预览移除AxHost/GDI+ Metafile包装，按标准IPicture/IUnknown vtable在自有HDC上Render，两次黑/白绘制恢复透明度，保持白底居中与比例；不接管或释放宿主WMF/EMF句柄。方向切换失败保留上张冻结图、恢复方向状态，可重复点击重试，完整记录异常。页面开始放置只依赖真实库条目/有限角度/离线工厂验证，图片错误不再结束工具或锁住放置。每次左键先清暂态、EndDynamics，再事务放置与View.Redraw，随后BeginDynamics继续；显示刷新失败只报警，不回滚已提交根或丢成功通知。改前源码/DLL/宿主日志/截图在迁移备份/CEL预览方向及实时显示修正_20261030。
@@ -386,6 +404,8 @@ dotnet build .\SteelSupportModeler.csproj -c Release
 MDL LOAD SteelSectionProbe
 STEELPROBE SHOW
 ```
+
+包含本插件自定义参数化组件的 DGN 还需配置打开文件时自动加载主插件：`MS_DGNAPPS > SteelSectionProbe`。已准备 `Deployment/SteelSectionProbe-Autoload.cfg`，先核对其中安装路径，再手动部署；详见[重开后程序集加载错误及验证方法](Docs/执行机构重开后程序集加载错误.md)。
 
 `STEELPROBE PLACE` 打开“型钢生成”页面；`STEELPROBE QUERY` 打开“构件特性查询”页面。两个命令只导航页面，由用户在页面内启动放置或点取，沿用工作区授权检查。
 

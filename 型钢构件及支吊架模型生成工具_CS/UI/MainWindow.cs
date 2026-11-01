@@ -196,6 +196,11 @@ namespace SteelSectionProbe
             workspace.ShowComponentPropertiesPage();
         }
 
+        internal void ShowValveActuatorPage()
+        {
+            workspace.ShowValveActuatorPage();
+        }
+
         internal void ShowHome()
         {
             workspace.ShowHome();

@@ -1,0 +1,28 @@
+{
+  "InspectedUtc": "2026-10-31T11:59:11.8269520Z",
+  "EvidenceScope": "Disk schema only; not the active host or embedded DGN schema; not runtime acceptance.",
+  "BaseSchema": "C:\\ProgramData\\Bentley\\OpenPlant 2024\\Configuration\\WorkSpaces\\CINF_International_Projects_Workspace\\WorkSets\\CINF_F1263AA\\Standards\\OpenPlant\\Schemas\\OpenPlant_3D.01.08.ecschema.xml",
+  "BaseSha256": "4F1177AA7B298B092860FAC1BD881994930A2183E8EC822000A364A47D733FD8",
+  "ModelingSchema": "C:\\ProgramData\\Bentley\\OpenPlant 2024\\Configuration\\WorkSpaces\\CINF_International_Projects_Workspace\\WorkSets\\CINF_F1263AA\\Standards\\OpenPlant\\Schemas\\OpenPlant_3D_Supplemental_Modeling.01.08.ecschema.xml",
+  "ModelingSha256": "1D909E12290354C7685C33F54F1D5AB703920D6965EF45897DCBA13278CF8730",
+  "Checks": {
+    "HandwheelInheritsManual": true,
+    "ManualInheritsOperatingDevice": true,
+    "ManualHasBinaryGeometry": true,
+    "ActuatorAlsoHasBinaryGeometry": true,
+    "HandwheelHandler": true,
+    "HandwheelHandlerNamespace": true,
+    "TopworkHandlerType": true,
+    "NativePlacementTool": true,
+    "RelationshipExists": true,
+    "EmbeddingForward": true,
+    "SourcePipingComponent": true,
+    "TargetOperatingDevice": true,
+    "RelationshipCardinality": true
+  },
+  "Passed": true,
+  "HandwheelBaseXml": "<ECClass typeName=\"HAND_WHEEL\" description=\"A physical object that typically consists of a rim connected to a hub by spokes, which is used to manually operate another physical object, requiring the wheel to be turned.\" displayLabel=\"Hand Wheel\" isDomainClass=\"True\" xmlns=\"http://www.bentley.com/schemas/Bentley.ECXML.2.0\"><BaseClass>MANUAL_VALVE_OPERATING_DEVICE</BaseClass></ECClass>",
+  "ManualBaseXml": "<ECClass typeName=\"MANUAL_VALVE_OPERATING_DEVICE\" description=\"A valve operating device that is intended to be driven by human power.\" displayLabel=\"Manual Valve Operating Device\" isDomainClass=\"True\" xmlns=\"http://www.bentley.com/schemas/Bentley.ECXML.2.0\"><BaseClass>VALVE_OPERATING_DEVICE</BaseClass><ECProperty propertyName=\"Geometry\" typeName=\"binary\" description=\"Array property to store Element Byte data as string\" displayLabel=\"Element Geometry\" /></ECClass>",
+  "HandwheelModelingXml": "<ECClass typeName=\"HAND_WHEEL\" isDomainClass=\"False\" xmlns=\"http://www.bentley.com/schemas/Bentley.ECXML.2.0\"><ECCustomAttributes><OpenPlant_3D_Catalogue_ClassProperties xmlns=\"OpenPlant_CustomAttributes.08.11\"><Table>TOPWORKS</Table><ClassMapping><OpenPlant_3D_Catalogue_Class_Map_Struct><ClassName>AT_TOPWORKS_HANDWHEEL</ClassName></OpenPlant_3D_Catalogue_Class_Map_Struct></ClassMapping></OpenPlant_3D_Catalogue_ClassProperties><CREATION_ATTRIBUTE xmlns=\"OpenPlant_CustomAttributes.08.11\"><ASSEMBLY_NAME>Bentley.Building.Mechanical.ComponentLibrary</ASSEMBLY_NAME><CLASS_NAME>Handwheel</CLASS_NAME><NAMESPACE>Bentley.Building.Mechanical.ComponentLibrary.ValveOperator</NAMESPACE><PLACEMENT_TOOL>TopworksPlacementTool</PLACEMENT_TOOL><HANDLER_TYPE>Topwork</HANDLER_TYPE><DIAGRAM_CELL_NAME>HAND_WHEEL</DIAGRAM_CELL_NAME><CELL_LIBRARY>TopWorksPreview.cel</CELL_LIBRARY></CREATION_ATTRIBUTE></ECCustomAttributes><ECProperty propertyName=\"ANGLE\" typeName=\"string\"><ECCustomAttributes><OpenPlant_3D_Catalogue_AttributeProperties xmlns=\"OpenPlant_CustomAttributes.08.11\"><PropertyName>TOPWORK_ANGLE</PropertyName><ECExpression /></OpenPlant_3D_Catalogue_AttributeProperties></ECCustomAttributes></ECProperty><ECProperty propertyName=\"DIAMETER\" typeName=\"string\"><ECCustomAttributes><OpenPlant_3D_Catalogue_AttributeProperties xmlns=\"OpenPlant_CustomAttributes.08.11\"><PropertyName>HANDWL_OD</PropertyName><ECExpression /></OpenPlant_3D_Catalogue_AttributeProperties></ECCustomAttributes></ECProperty><ECProperty propertyName=\"LENGTH\" typeName=\"string\"><ECCustomAttributes><OpenPlant_3D_Catalogue_AttributeProperties xmlns=\"OpenPlant_CustomAttributes.08.11\"><PropertyName>HANDWL_LEN</PropertyName><ECExpression /></OpenPlant_3D_Catalogue_AttributeProperties></ECCustomAttributes></ECProperty></ECClass>",
+  "RelationshipXml": "<ECRelationshipClass typeName=\"VALVE_HAS_VALVE_OPERATING_DEVICE\" displayLabel=\"Valve Has Valve Operating Device\" isDomainClass=\"True\" strength=\"embedding\" strengthDirection=\"forward\" xmlns=\"http://www.bentley.com/schemas/Bentley.ECXML.2.0\"><ECCustomAttributes><ReferenceTypeRelationship xmlns=\"Bentley_Standard_CustomAttributes.01.02\" /></ECCustomAttributes><Source cardinality=\"(0,1)\" roleLabel=\"Valve Has Valve Operating Device\" polymorphic=\"True\"><Class class=\"PIPING_COMPONENT\" /></Source><Target cardinality=\"(0,1)\" roleLabel=\"Valve Has Valve Operating Device (reversed)\" polymorphic=\"True\"><Class class=\"VALVE_OPERATING_DEVICE\" /></Target></ECRelationshipClass>"
+}

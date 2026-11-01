@@ -1,0 +1,520 @@
+﻿{
+    "StartedUtc":  "2026-10-31T11:37:54.7567474Z",
+    "SourcePath":  "C:\\ProgramData\\Bentley\\OpenPlant 2024\\Configuration\\Organization\\Cell\\阀门执行机构.cel",
+    "SourceSha256Before":  "4DD17E6A4F44542380CB82DBCC60A32D1EA836DD99EA1987575F84458275FF6C",
+    "SourceBytes":  81920,
+    "Executable":  "D:\\Program Files\\Bentley\\OpenPlant 2024\\OpenPlantModeler\\OpenPlantModeler.exe",
+    "Status":  "ReadOnlyInspectionPassed",
+    "Models":  [
+                   {
+                       "Name":  "Default",
+                       "Description":  "主模型",
+                       "Is3D":  true,
+                       "Placeable":  false,
+                       "Annotation":  false,
+                       "CellType":  "8",
+                       "Attachments":  0,
+                       "RootCount":  5,
+                       "UorPerMaster":  1000,
+                       "UorPerStorage":  1000,
+                       "GlobalOrigin":  [
+                                            0,
+                                            0,
+                                            0
+                                        ],
+                       "Low":  null,
+                       "High":  null,
+                       "MasterUnit":  {
+                                          "Label":  "mm",
+                                          "Base":  "Meter",
+                                          "System":  "Metric",
+                                          "Numerator":  1000,
+                                          "Denominator":  1
+                                      },
+                       "StorageUnit":  {
+                                           "Label":  "",
+                                           "Base":  "Meter",
+                                           "System":  "Metric",
+                                           "Numerator":  1000,
+                                           "Denominator":  1
+                                       },
+                       "Items":  [
+                                     {
+                                         "Id":  "91",
+                                         "Type":  "DesignFileHeader",
+                                         "CellName":  null,
+                                         "Graphical":  false,
+                                         "SmartSolid":  false,
+                                         "SharedCell":  false,
+                                         "SharedDefinition":  false,
+                                         "Color":  0,
+                                         "Depth":  0,
+                                         "Low":  null,
+                                         "High":  null
+                                     },
+                                     {
+                                         "Id":  "93",
+                                         "Type":  "Table",
+                                         "CellName":  null,
+                                         "Graphical":  false,
+                                         "SmartSolid":  false,
+                                         "SharedCell":  false,
+                                         "SharedDefinition":  false,
+                                         "Color":  0,
+                                         "Depth":  0,
+                                         "Low":  null,
+                                         "High":  null
+                                     },
+                                     {
+                                         "Id":  "96",
+                                         "Type":  "Table",
+                                         "CellName":  null,
+                                         "Graphical":  false,
+                                         "SmartSolid":  false,
+                                         "SharedCell":  false,
+                                         "SharedDefinition":  false,
+                                         "Color":  0,
+                                         "Depth":  0,
+                                         "Low":  null,
+                                         "High":  null
+                                     },
+                                     {
+                                         "Id":  "98",
+                                         "Type":  "Table",
+                                         "CellName":  null,
+                                         "Graphical":  false,
+                                         "SmartSolid":  false,
+                                         "SharedCell":  false,
+                                         "SharedDefinition":  false,
+                                         "Color":  0,
+                                         "Depth":  0,
+                                         "Low":  null,
+                                         "High":  null
+                                     },
+                                     {
+                                         "Id":  "92",
+                                         "Type":  "MicroStation",
+                                         "CellName":  null,
+                                         "Graphical":  false,
+                                         "SmartSolid":  false,
+                                         "SharedCell":  false,
+                                         "SharedDefinition":  false,
+                                         "Color":  0,
+                                         "Depth":  0,
+                                         "Low":  null,
+                                         "High":  null
+                                     }
+                                 ]
+                   },
+                   {
+                       "Name":  "气动执行-DN800",
+                       "Description":  "气动蝶阀执行机构-DN800",
+                       "Is3D":  true,
+                       "Placeable":  true,
+                       "Annotation":  false,
+                       "CellType":  "Graphic",
+                       "Attachments":  0,
+                       "RootCount":  19,
+                       "UorPerMaster":  1000,
+                       "UorPerStorage":  1000,
+                       "GlobalOrigin":  [
+                                            0,
+                                            0,
+                                            0
+                                        ],
+                       "Low":  [
+                                   -203001,
+                                   -190000,
+                                   -1
+                               ],
+                       "High":  [
+                                    567000,
+                                    510001,
+                                    779768
+                                ],
+                       "MasterUnit":  {
+                                          "Label":  "mm",
+                                          "Base":  "Meter",
+                                          "System":  "Metric",
+                                          "Numerator":  1000,
+                                          "Denominator":  1
+                                      },
+                       "StorageUnit":  {
+                                           "Label":  "",
+                                           "Base":  "Meter",
+                                           "System":  "Metric",
+                                           "Numerator":  1000,
+                                           "Denominator":  1
+                                       },
+                       "Items":  [
+                                     {
+                                         "Id":  "91",
+                                         "Type":  "DesignFileHeader",
+                                         "CellName":  null,
+                                         "Graphical":  false,
+                                         "SmartSolid":  false,
+                                         "SharedCell":  false,
+                                         "SharedDefinition":  false,
+                                         "Color":  0,
+                                         "Depth":  0,
+                                         "Low":  null,
+                                         "High":  null
+                                     },
+                                     {
+                                         "Id":  "93",
+                                         "Type":  "Table",
+                                         "CellName":  null,
+                                         "Graphical":  false,
+                                         "SmartSolid":  false,
+                                         "SharedCell":  false,
+                                         "SharedDefinition":  false,
+                                         "Color":  0,
+                                         "Depth":  0,
+                                         "Low":  null,
+                                         "High":  null
+                                     },
+                                     {
+                                         "Id":  "96",
+                                         "Type":  "Table",
+                                         "CellName":  null,
+                                         "Graphical":  false,
+                                         "SmartSolid":  false,
+                                         "SharedCell":  false,
+                                         "SharedDefinition":  false,
+                                         "Color":  0,
+                                         "Depth":  0,
+                                         "Low":  null,
+                                         "High":  null
+                                     },
+                                     {
+                                         "Id":  "98",
+                                         "Type":  "Table",
+                                         "CellName":  null,
+                                         "Graphical":  false,
+                                         "SmartSolid":  false,
+                                         "SharedCell":  false,
+                                         "SharedDefinition":  false,
+                                         "Color":  0,
+                                         "Depth":  0,
+                                         "Low":  null,
+                                         "High":  null
+                                     },
+                                     {
+                                         "Id":  "95",
+                                         "Type":  "MicroStation",
+                                         "CellName":  null,
+                                         "Graphical":  false,
+                                         "SmartSolid":  false,
+                                         "SharedCell":  false,
+                                         "SharedDefinition":  false,
+                                         "Color":  0,
+                                         "Depth":  0,
+                                         "Low":  null,
+                                         "High":  null
+                                     },
+                                     {
+                                         "Id":  "100",
+                                         "Type":  "CellHeader",
+                                         "CellName":  null,
+                                         "Graphical":  true,
+                                         "SmartSolid":  true,
+                                         "SharedCell":  false,
+                                         "SharedDefinition":  false,
+                                         "Color":  111,
+                                         "Depth":  0,
+                                         "Low":  [
+                                                     -185001,
+                                                     -190000,
+                                                     465767
+                                                 ],
+                                         "High":  [
+                                                      255000,
+                                                      190001,
+                                                      625768
+                                                  ]
+                                     },
+                                     {
+                                         "Id":  "114",
+                                         "Type":  "CellHeader",
+                                         "CellName":  null,
+                                         "Graphical":  true,
+                                         "SmartSolid":  true,
+                                         "SharedCell":  false,
+                                         "SharedDefinition":  false,
+                                         "Color":  79,
+                                         "Depth":  0,
+                                         "Low":  [
+                                                     -185001,
+                                                     -190000,
+                                                     625767
+                                                 ],
+                                         "High":  [
+                                                      255000,
+                                                      190001,
+                                                      655768
+                                                  ]
+                                     },
+                                     {
+                                         "Id":  "128",
+                                         "Type":  "CellHeader",
+                                         "CellName":  null,
+                                         "Graphical":  true,
+                                         "SmartSolid":  true,
+                                         "SharedCell":  false,
+                                         "SharedDefinition":  false,
+                                         "Color":  111,
+                                         "Depth":  0,
+                                         "Low":  [
+                                                     -145001,
+                                                     -145000,
+                                                     419767
+                                                 ],
+                                         "High":  [
+                                                      145000,
+                                                      145001,
+                                                      465768
+                                                  ]
+                                     },
+                                     {
+                                         "Id":  "142",
+                                         "Type":  "CellHeader",
+                                         "CellName":  null,
+                                         "Graphical":  true,
+                                         "SmartSolid":  true,
+                                         "SharedCell":  false,
+                                         "SharedDefinition":  false,
+                                         "Color":  207,
+                                         "Depth":  0,
+                                         "Low":  [
+                                                     -203001,
+                                                     -94000,
+                                                     546767
+                                                 ],
+                                         "High":  [
+                                                      -185000,
+                                                      -65999,
+                                                      574768
+                                                  ]
+                                     },
+                                     {
+                                         "Id":  "151",
+                                         "Type":  "CellHeader",
+                                         "CellName":  null,
+                                         "Graphical":  true,
+                                         "SmartSolid":  true,
+                                         "SharedCell":  false,
+                                         "SharedDefinition":  false,
+                                         "Color":  79,
+                                         "Depth":  0,
+                                         "Low":  [
+                                                     122999,
+                                                     190000,
+                                                     513767
+                                                 ],
+                                         "High":  [
+                                                      207000,
+                                                      290001,
+                                                      597768
+                                                  ]
+                                     },
+                                     {
+                                         "Id":  "160",
+                                         "Type":  "CellHeader",
+                                         "CellName":  null,
+                                         "Graphical":  true,
+                                         "SmartSolid":  true,
+                                         "SharedCell":  false,
+                                         "SharedDefinition":  false,
+                                         "Color":  111,
+                                         "Depth":  0,
+                                         "Low":  [
+                                                     24999,
+                                                     290000,
+                                                     355767
+                                                 ],
+                                         "High":  [
+                                                      305000,
+                                                      440001,
+                                                      695768
+                                                  ]
+                                     },
+                                     {
+                                         "Id":  "174",
+                                         "Type":  "CellHeader",
+                                         "CellName":  null,
+                                         "Graphical":  true,
+                                         "SmartSolid":  true,
+                                         "SharedCell":  false,
+                                         "SharedDefinition":  false,
+                                         "Color":  79,
+                                         "Depth":  0,
+                                         "Low":  [
+                                                     64999,
+                                                     265000,
+                                                     695767
+                                                 ],
+                                         "High":  [
+                                                      265000,
+                                                      465001,
+                                                      755768
+                                                  ]
+                                     },
+                                     {
+                                         "Id":  "183",
+                                         "Type":  "CellHeader",
+                                         "CellName":  null,
+                                         "Graphical":  true,
+                                         "SmartSolid":  true,
+                                         "SharedCell":  false,
+                                         "SharedDefinition":  false,
+                                         "Color":  79,
+                                         "Depth":  0,
+                                         "Low":  [
+                                                     22999,
+                                                     343000,
+                                                     695767
+                                                 ],
+                                         "High":  [
+                                                      67000,
+                                                      387001,
+                                                      779768
+                                                  ]
+                                     },
+                                     {
+                                         "Id":  "192",
+                                         "Type":  "CellHeader",
+                                         "CellName":  null,
+                                         "Graphical":  true,
+                                         "SmartSolid":  true,
+                                         "SharedCell":  false,
+                                         "SharedDefinition":  false,
+                                         "Color":  79,
+                                         "Depth":  0,
+                                         "Low":  [
+                                                     262999,
+                                                     343000,
+                                                     695767
+                                                 ],
+                                         "High":  [
+                                                      307000,
+                                                      387001,
+                                                      779768
+                                                  ]
+                                     },
+                                     {
+                                         "Id":  "201",
+                                         "Type":  "CellHeader",
+                                         "CellName":  null,
+                                         "Graphical":  true,
+                                         "SmartSolid":  true,
+                                         "SharedCell":  false,
+                                         "SharedDefinition":  false,
+                                         "Color":  111,
+                                         "Depth":  0,
+                                         "Low":  [
+                                                     304999,
+                                                     300000,
+                                                     405767
+                                                 ],
+                                         "High":  [
+                                                      567000,
+                                                      430001,
+                                                      535768
+                                                  ]
+                                     },
+                                     {
+                                         "Id":  "210",
+                                         "Type":  "CellHeader",
+                                         "CellName":  null,
+                                         "Graphical":  true,
+                                         "SmartSolid":  true,
+                                         "SharedCell":  false,
+                                         "SharedDefinition":  false,
+                                         "Color":  207,
+                                         "Depth":  0,
+                                         "Low":  [
+                                                     -55001,
+                                                     440000,
+                                                     335767
+                                                 ],
+                                         "High":  [
+                                                      385000,
+                                                      510001,
+                                                      775768
+                                                  ]
+                                     },
+                                     {
+                                         "Id":  "307",
+                                         "Type":  "Cone",
+                                         "CellName":  null,
+                                         "Graphical":  true,
+                                         "SmartSolid":  false,
+                                         "SharedCell":  false,
+                                         "SharedDefinition":  false,
+                                         "Color":  -1,
+                                         "Depth":  0,
+                                         "Low":  [
+                                                     -102375,
+                                                     -102375,
+                                                     316375
+                                                 ],
+                                         "High":  [
+                                                      102375,
+                                                      102375,
+                                                      419768
+                                                  ]
+                                     },
+                                     {
+                                         "Id":  "308",
+                                         "Type":  "Cone",
+                                         "CellName":  null,
+                                         "Graphical":  true,
+                                         "SmartSolid":  false,
+                                         "SharedCell":  false,
+                                         "SharedDefinition":  false,
+                                         "Color":  -1,
+                                         "Depth":  0,
+                                         "Low":  [
+                                                     -145444,
+                                                     -145444,
+                                                     271480
+                                                 ],
+                                         "High":  [
+                                                      145444,
+                                                      145444,
+                                                      316376
+                                                  ]
+                                     },
+                                     {
+                                         "Id":  "309",
+                                         "Type":  "Cone",
+                                         "CellName":  null,
+                                         "Graphical":  true,
+                                         "SmartSolid":  false,
+                                         "SharedCell":  false,
+                                         "SharedDefinition":  false,
+                                         "Color":  -1,
+                                         "Depth":  0,
+                                         "Low":  [
+                                                     -49258,
+                                                     -49258,
+                                                     -1
+                                                 ],
+                                         "High":  [
+                                                      49258,
+                                                      49258,
+                                                      271481
+                                                  ]
+                                     }
+                                 ]
+                   }
+               ],
+    "StartedProcessId":  63152,
+    "HostVersion":  "版本 24.00.03.53",
+    "HadActiveFile":  false,
+    "ActiveFileBefore":  null,
+    "ActiveFileAfter":  null,
+    "SourceSha256After":  "4DD17E6A4F44542380CB82DBCC60A32D1EA836DD99EA1987575F84458275FF6C",
+    "OwnAutomationClosed":  true,
+    "FinishedUtc":  "2026-10-31T11:37:57.4154604Z"
+}

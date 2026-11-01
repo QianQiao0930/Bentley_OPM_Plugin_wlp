@@ -1,0 +1,1046 @@
+TYPE Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.ValveOperator base=Bentley.Building.Mechanical.ComponentLibrary.Common.PipingComponent
+Public, Virtual, HideBySig Void Setup() []
+  0000 ldarg.0 
+  0001 ldc.i4.3 
+  0002 stfld _discipline
+  0007 ret 
+Public, Virtual, HideBySig Boolean Convert() []
+  0000 ldc.i4.1 
+  0001 ret 
+Family, HideBySig, SpecialName, RTSpecialName Void .ctor() []
+  0000 ldarg.0 
+  0001 call .ctor
+  0006 ret 
+TYPE Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.Handwheel base=Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.ValveOperator
+Public, Virtual, HideBySig Void Setup() []
+  0000 ldarg.0 
+  0001 call Setup
+  0006 ldarg.0 
+  0007 ldarg.0 
+  0008 ldfld _bmECObject
+  000D ldstr 07-0D-00-70
+  0012 callvirt GetDoubleValueInMM
+  0017 stfld operatorDiameter
+  001C ldarg.0 
+  001D ldarg.0 
+  001E ldfld _bmECObject
+  0023 ldstr AD-01-00-70
+  0028 callvirt GetDoubleValueInMM
+  002D stfld operatorLength
+  0032 ldarg.0 
+  0033 ldarg.0 
+  0034 ldfld _bmECObject
+  0039 ldstr 19-0D-00-70
+  003E callvirt GetDoubleValueInDegrees
+  0043 stfld operatorAngle
+  0048 ret 
+Public, Virtual, HideBySig System.Collections.Generic.List`1<Bentley.Building.Mechanical.Components.ElementHolder> Create3DElements() []
+  0000 ldc.r8 00-00-00-00-00-00-00-00
+  0009 ldc.r8 00-00-00-00-00-00-00-00
+  0012 ldc.r8 00-00-00-00-00-00-00-00
+  001B call FromXYZ
+  0020 stloc.0 
+  0021 ldarg.0 
+  0022 ldfld operatorDiameter
+  0027 ldarg.0 
+  0028 ldfld operatorLength
+  002D ldarg.0 
+  002E ldfld operatorAngle
+  0033 ldloc.0 
+  0034 newobj .ctor
+  0039 callvirt Create3DElements
+  003E dup 
+  003F ldc.i4.0 
+  0040 ldc.i4.m1 
+  0041 ldc.i4.0 
+  0042 ldarg.0 
+  0043 ldfld _bmECObject
+  0048 call SetSymbologyForElementTypes
+  004D ret 
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor() []
+  0000 ldarg.0 
+  0001 call .ctor
+  0006 ret 
+TYPE Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.ValveWrench base=Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.ValveOperator
+Public, Virtual, HideBySig Void Setup() []
+  0000 ldarg.0 
+  0001 ldarg.0 
+  0002 ldfld _bmECObject
+  0007 ldstr 07-0D-00-70
+  000C callvirt GetDoubleValueInMM
+  0011 stfld operatorDiameter
+  0016 ldarg.0 
+  0017 ldarg.0 
+  0018 ldfld _bmECObject
+  001D ldstr AD-01-00-70
+  0022 callvirt GetDoubleValueInMM
+  0027 stfld operatorLength
+  002C ldarg.0 
+  002D ldarg.0 
+  002E ldfld _bmECObject
+  0033 ldstr 19-0D-00-70
+  0038 callvirt GetDoubleValueInDegrees
+  003D stfld operatorAngle
+  0042 ret 
+Public, Virtual, HideBySig System.Collections.Generic.List`1<Bentley.Building.Mechanical.Components.ElementHolder> Create3DElements() []
+  0000 ldc.r8 00-00-00-00-00-00-00-00
+  0009 ldc.r8 00-00-00-00-00-00-00-00
+  0012 ldc.r8 00-00-00-00-00-00-00-00
+  001B call FromXYZ
+  0020 stloc.0 
+  0021 ldarg.0 
+  0022 ldfld operatorDiameter
+  0027 ldarg.0 
+  0028 ldfld operatorLength
+  002D ldloc.0 
+  002E newobj .ctor
+  0033 callvirt Create3DElements
+  0038 dup 
+  0039 ldc.i4.0 
+  003A ldc.i4.m1 
+  003B ldc.i4.0 
+  003C ldarg.0 
+  003D ldfld _bmECObject
+  0042 call SetSymbologyForElementTypes
+  0047 ret 
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor() []
+  0000 ldarg.0 
+  0001 call .ctor
+  0006 ret 
+TYPE Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.TBarHandle base=Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.ValveOperator
+Public, Virtual, HideBySig Void Setup() []
+  0000 ldarg.0 
+  0001 call Setup
+  0006 ldarg.0 
+  0007 ldarg.0 
+  0008 ldfld _bmECObject
+  000D ldstr AD-01-00-70
+  0012 callvirt GetDoubleValueInMM
+  0017 stfld verticalLength
+  001C ldarg.0 
+  001D ldarg.0 
+  001E ldfld _bmECObject
+  0023 ldstr 07-0D-00-70
+  0028 callvirt GetDoubleValueInMM
+  002D stfld handleLength
+  0032 ret 
+Public, Virtual, HideBySig System.Collections.Generic.List`1<Bentley.Building.Mechanical.Components.ElementHolder> Create3DElements() []
+  0000 ldc.r8 00-00-00-00-00-00-00-00
+  0009 ldc.r8 00-00-00-00-00-00-00-00
+  0012 ldc.r8 00-00-00-00-00-00-00-00
+  001B call FromXYZ
+  0020 stloc.0 
+  0021 ldarg.0 
+  0022 ldfld verticalLength
+  0027 ldarg.0 
+  0028 ldfld handleLength
+  002D ldloc.0 
+  002E newobj .ctor
+  0033 callvirt Create3DElements
+  0038 dup 
+  0039 ldc.i4.0 
+  003A ldc.i4.m1 
+  003B ldc.i4.0 
+  003C ldarg.0 
+  003D ldfld _bmECObject
+  0042 call SetSymbologyForElementTypes
+  0047 ret 
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor() []
+  0000 ldarg.0 
+  0001 call .ctor
+  0006 ret 
+TYPE Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.BarHandle base=Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.ValveOperator
+Public, Virtual, HideBySig Void Setup() []
+  0000 ldarg.0 
+  0001 ldarg.0 
+  0002 ldfld _bmECObject
+  0007 ldstr 25-0D-00-70
+  000C callvirt GetDoubleValueInMM
+  0011 stfld verticalLength
+  0016 ldarg.0 
+  0017 ldarg.0 
+  0018 ldfld _bmECObject
+  001D ldstr 3B-0D-00-70
+  0022 callvirt GetDoubleValueInMM
+  0027 stfld horrizontalLength
+  002C ldarg.0 
+  002D ldarg.0 
+  002E ldfld _bmECObject
+  0033 ldstr 07-0D-00-70
+  0038 callvirt GetDoubleValueInMM
+  003D stfld barDiameter
+  0042 ldarg.0 
+  0043 ldc.i4.3 
+  0044 stfld _discipline
+  0049 ret 
+Public, Virtual, HideBySig System.Collections.Generic.List`1<Bentley.Building.Mechanical.Components.ElementHolder> Create3DElements() []
+  0000 ldc.r8 00-00-00-00-00-00-00-00
+  0009 ldc.r8 00-00-00-00-00-00-00-00
+  0012 ldc.r8 00-00-00-00-00-00-00-00
+  001B call FromXYZ
+  0020 stloc.0 
+  0021 ldarg.0 
+  0022 ldfld verticalLength
+  0027 ldarg.0 
+  0028 ldfld horrizontalLength
+  002D ldarg.0 
+  002E ldfld barDiameter
+  0033 ldloc.0 
+  0034 newobj .ctor
+  0039 callvirt Create3DElements
+  003E dup 
+  003F ldc.i4.0 
+  0040 ldc.i4.m1 
+  0041 ldc.i4.0 
+  0042 ldarg.0 
+  0043 ldfld _bmECObject
+  0048 call SetSymbologyForElementTypes
+  004D ret 
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor() []
+  0000 ldarg.0 
+  0001 call .ctor
+  0006 ret 
+TYPE Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.CubeOperator base=Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.ValveOperator
+Public, Virtual, HideBySig Void Setup() []
+  0000 ldarg.0 
+  0001 ldarg.0 
+  0002 ldfld _bmECObject
+  0007 ldstr 57-0D-00-70
+  000C callvirt GetDoubleValueInMM
+  0011 stfld lengthOfCube
+  0016 ldarg.0 
+  0017 ldarg.0 
+  0018 ldfld _bmECObject
+  001D ldstr 6F-0D-00-70
+  0022 callvirt GetDoubleValueInMM
+  0027 stfld thicknessOfCube
+  002C ldarg.0 
+  002D ldarg.0 
+  002E ldfld _bmECObject
+  0033 ldstr 8D-0D-00-70
+  0038 callvirt GetDoubleValueInMM
+  003D stfld widthOfCube
+  0042 ldarg.0 
+  0043 ldarg.0 
+  0044 ldfld _bmECObject
+  0049 ldstr AD-01-00-70
+  004E callvirt GetDoubleValueInMM
+  0053 stfld lengthOfCylinder
+  0058 ldarg.0 
+  0059 ldarg.0 
+  005A ldfld _bmECObject
+  005F ldstr 07-0D-00-70
+  0064 callvirt GetDoubleValueInMM
+  0069 stfld diameterOfCylinder
+  006E ldarg.0 
+  006F ldarg.0 
+  0070 ldfld _bmECObject
+  0075 ldstr 65-09-00-70
+  007A callvirt GetDoubleValueInMM
+  007F stfld offsetInX
+  0084 ldarg.0 
+  0085 ldarg.0 
+  0086 ldfld _bmECObject
+  008B ldstr 77-09-00-70
+  0090 callvirt GetDoubleValueInMM
+  0095 stfld offsetInY
+  009A ret 
+Public, Virtual, HideBySig System.Collections.Generic.List`1<Bentley.Building.Mechanical.Components.ElementHolder> Create3DElements() []
+  0000 newobj .ctor
+  0005 pop 
+  0006 ldc.r8 00-00-00-00-00-00-00-00
+  000F ldc.r8 00-00-00-00-00-00-00-00
+  0018 ldc.r8 00-00-00-00-00-00-00-00
+  0021 call FromXYZ
+  0026 stloc.0 
+  0027 ldarg.0 
+  0028 ldfld lengthOfCube
+  002D ldarg.0 
+  002E ldfld widthOfCube
+  0033 ldarg.0 
+  0034 ldfld thicknessOfCube
+  0039 ldarg.0 
+  003A ldfld diameterOfCylinder
+  003F ldarg.0 
+  0040 ldfld lengthOfCylinder
+  0045 ldarg.0 
+  0046 ldfld offsetInX
+  004B ldarg.0 
+  004C ldfld offsetInY
+  0051 ldloc.0 
+  0052 newobj .ctor
+  0057 callvirt Create3DElements
+  005C dup 
+  005D ldc.i4.0 
+  005E ldc.i4.m1 
+  005F ldc.i4.0 
+  0060 ldarg.0 
+  0061 ldfld _bmECObject
+  0066 call SetSymbologyForElementTypes
+  006B ret 
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor() []
+  0000 ldarg.0 
+  0001 call .ctor
+  0006 ret 
+TYPE Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.ConeOperatorScript base=Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.ValveOperator
+Public, Virtual, HideBySig Void Setup() []
+  0000 ldarg.0 
+  0001 ldarg.0 
+  0002 ldfld _bmECObject
+  0007 ldstr 9F-06-00-70
+  000C callvirt GetDoubleValueInMM
+  0011 stfld ConeHeight
+  0016 ldarg.0 
+  0017 ldarg.0 
+  0018 ldfld _bmECObject
+  001D ldstr 07-0D-00-70
+  0022 callvirt GetDoubleValueInMM
+  0027 stfld DiameterOfCone
+  002C ldarg.0 
+  002D ldc.i4.3 
+  002E stfld _discipline
+  0033 ret 
+Public, Virtual, HideBySig System.Collections.Generic.List`1<Bentley.Building.Mechanical.Components.ElementHolder> Create3DElements() []
+  0000 ldarg.0 
+  0001 ldfld ConeHeight
+  0006 ldarg.0 
+  0007 ldfld DiameterOfCone
+  000C newobj .ctor
+  0011 callvirt Create3DElements
+  0016 dup 
+  0017 ldc.i4.0 
+  0018 ldc.i4.m1 
+  0019 ldc.i4.0 
+  001A ldarg.0 
+  001B ldfld _bmECObject
+  0020 call SetSymbologyForElementTypes
+  0025 ret 
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor() []
+  0000 ldarg.0 
+  0001 call .ctor
+  0006 ret 
+TYPE Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.SealCapOperatorScript base=Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.ValveOperator
+Public, Virtual, HideBySig Void Setup() []
+  0000 ldarg.0 
+  0001 ldarg.0 
+  0002 ldfld _bmECObject
+  0007 ldstr 9F-06-00-70
+  000C callvirt GetDoubleValueInMM
+  0011 stfld LenOfCylinder
+  0016 ldarg.0 
+  0017 ldarg.0 
+  0018 ldfld _bmECObject
+  001D ldstr 07-0D-00-70
+  0022 callvirt GetDoubleValueInMM
+  0027 stfld DiaOfCylinder
+  002C ldarg.0 
+  002D ldc.i4.3 
+  002E stfld _discipline
+  0033 ret 
+Public, Virtual, HideBySig System.Collections.Generic.List`1<Bentley.Building.Mechanical.Components.ElementHolder> Create3DElements() []
+  0000 ldarg.0 
+  0001 ldfld LenOfCylinder
+  0006 ldarg.0 
+  0007 ldfld DiaOfCylinder
+  000C newobj .ctor
+  0011 callvirt Create3DElements
+  0016 dup 
+  0017 ldc.i4.0 
+  0018 ldc.i4.m1 
+  0019 ldc.i4.0 
+  001A ldarg.0 
+  001B ldfld _bmECObject
+  0020 call SetSymbologyForElementTypes
+  0025 ret 
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor() []
+  0000 ldarg.0 
+  0001 call .ctor
+  0006 ret 
+TYPE Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.GearBoxOperatorScript base=Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.ValveOperator
+Public, Virtual, HideBySig Void Setup() []
+  0000 ldarg.0 
+  0001 ldarg.0 
+  0002 ldfld _bmECObject
+  0007 ldstr DF-02-00-70
+  000C callvirt GetDoubleValueInMM
+  0011 ldarg.0 
+  0012 ldfld _bmECObject
+  0017 ldstr A3-0D-00-70
+  001C callvirt GetDoubleValueInMM
+  0021 sub 
+  0022 stfld BaseHeight
+  0027 ldarg.0 
+  0028 ldarg.0 
+  0029 ldfld _bmECObject
+  002E ldstr C3-0D-00-70
+  0033 callvirt GetDoubleValueInMM
+  0038 stfld LenToHandle
+  003D ldarg.0 
+  003E ldarg.0 
+  003F ldfld _bmECObject
+  0044 ldstr DF-0D-00-70
+  0049 callvirt GetDoubleValueInMM
+  004E stfld WheelDiameter
+  0053 ldarg.0 
+  0054 ldarg.0 
+  0055 ldfld _bmECObject
+  005A ldstr 3B-0D-00-70
+  005F callvirt GetDoubleValueInMM
+  0064 stfld HorCylinderLen
+  0069 ldarg.0 
+  006A ldarg.0 
+  006B ldfld _bmECObject
+  0070 ldstr F9-0D-00-70
+  0075 callvirt GetDoubleValueInMM
+  007A stfld HorCylinderDia
+  007F ldarg.0 
+  0080 ldarg.0 
+  0081 ldfld _bmECObject
+  0086 ldstr 1B-0E-00-70
+  008B callvirt GetDoubleValueInMM
+  0090 stfld BoxLength
+  0095 ldarg.0 
+  0096 ldarg.0 
+  0097 ldfld _bmECObject
+  009C ldstr A3-0D-00-70
+  00A1 callvirt GetDoubleValueInMM
+  00A6 stfld BoxHeight
+  00AB ldarg.0 
+  00AC ldarg.0 
+  00AD ldfld _bmECObject
+  00B2 ldstr 39-0E-00-70
+  00B7 callvirt GetDoubleValueInMM
+  00BC stfld BoxThickness
+  00C1 ldarg.0 
+  00C2 ldfld _bmECObject
+  00C7 callvirt get_Instance
+  00CC ldstr 5F-0E-00-70
+  00D1 ldc.i4.0 
+  00D2 ldc.i4.0 
+  00D3 ldc.i4.0 
+  00D4 callvirt FindPropertyValue
+  00D9 stloc.0 
+  00DA ldloc.0 
+  00DB brfalse.s 20
+  00DD ldloc.0 
+  00DE callvirt get_IsNull
+  00E3 brtrue.s 18
+  00E5 ldarg.0 
+  00E6 ldarg.0 
+  00E7 ldfld _bmECObject
+  00EC ldstr 5F-0E-00-70
+  00F1 callvirt GetDoubleValueInMM
+  00F6 stfld HandleOffset
+  00FB br.s 0F
+  00FD ldarg.0 
+  00FE ldc.r8 00-00-00-00-00-00-00-00
+  0107 stfld HandleOffset
+  010C ldarg.0 
+  010D ldc.i4.3 
+  010E stfld _discipline
+  0113 ret 
+Public, Virtual, HideBySig System.Collections.Generic.List`1<Bentley.Building.Mechanical.Components.ElementHolder> Create3DElements() []
+  0000 ldarg.0 
+  0001 ldfld BaseHeight
+  0006 ldarg.0 
+  0007 ldfld LenToHandle
+  000C ldarg.0 
+  000D ldfld WheelDiameter
+  0012 ldarg.0 
+  0013 ldfld HorCylinderLen
+  0018 ldarg.0 
+  0019 ldfld HorCylinderDia
+  001E ldarg.0 
+  001F ldfld BoxLength
+  0024 ldarg.0 
+  0025 ldfld BoxHeight
+  002A ldarg.0 
+  002B ldfld BoxThickness
+  0030 ldarg.0 
+  0031 ldfld HandleOffset
+  0036 newobj .ctor
+  003B callvirt Create3DElements
+  0040 dup 
+  0041 ldc.i4.0 
+  0042 ldc.i4.m1 
+  0043 ldc.i4.0 
+  0044 ldarg.0 
+  0045 ldfld _bmECObject
+  004A call SetSymbologyForElementTypes
+  004F ret 
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor() []
+  0000 ldarg.0 
+  0001 call .ctor
+  0006 ret 
+TYPE Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.GearOperatorScript base=Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.ValveOperator
+Public, Virtual, HideBySig Void Setup() []
+  0000 ldarg.0 
+  0001 ldarg.0 
+  0002 ldfld _bmECObject
+  0007 ldstr 7B-0E-00-70
+  000C callvirt GetDoubleValueInMM
+  0011 stfld BaseCylinderLen
+  0016 ldarg.0 
+  0017 ldarg.0 
+  0018 ldfld _bmECObject
+  001D ldstr 9F-0E-00-70
+  0022 callvirt GetDoubleValueInMM
+  0027 stfld HeightFromCenter
+  002C ldarg.0 
+  002D ldarg.0 
+  002E ldfld _bmECObject
+  0033 ldstr C5-0E-00-70
+  0038 callvirt GetDoubleValueInMM
+  003D stfld WheelDiameter
+  0042 ldarg.0 
+  0043 ldarg.0 
+  0044 ldfld _bmECObject
+  0049 ldstr E3-0E-00-70
+  004E callvirt GetDoubleValueInMM
+  0053 stfld HorCylinderLen
+  0058 ldarg.0 
+  0059 ldarg.0 
+  005A ldfld _bmECObject
+  005F ldstr 05-0F-00-70
+  0064 callvirt GetDoubleValueInMM
+  0069 stfld HorCylinderDia
+  006E ldarg.0 
+  006F ldarg.0 
+  0070 ldfld _bmECObject
+  0075 ldstr AB-05-00-70
+  007A callvirt GetDoubleValueInMM
+  007F stfld BoxLength
+  0084 ldarg.0 
+  0085 ldarg.0 
+  0086 ldfld _bmECObject
+  008B ldstr C3-00-00-70
+  0090 callvirt GetDoubleValueInMM
+  0095 stfld BoxHeight
+  009A ldarg.0 
+  009B ldarg.0 
+  009C ldfld _bmECObject
+  00A1 ldstr D9-00-00-70
+  00A6 callvirt GetDoubleValueInMM
+  00AB stfld BoxThickness
+  00B0 ldarg.0 
+  00B1 ldc.i4.3 
+  00B2 stfld _discipline
+  00B7 ret 
+Public, Virtual, HideBySig System.Collections.Generic.List`1<Bentley.Building.Mechanical.Components.ElementHolder> Create3DElements() []
+  0000 ldarg.0 
+  0001 ldfld BaseCylinderLen
+  0006 ldarg.0 
+  0007 ldfld HeightFromCenter
+  000C ldarg.0 
+  000D ldfld WheelDiameter
+  0012 ldarg.0 
+  0013 ldfld HorCylinderLen
+  0018 ldarg.0 
+  0019 ldfld HorCylinderDia
+  001E ldarg.0 
+  001F ldfld BoxLength
+  0024 ldarg.0 
+  0025 ldfld BoxHeight
+  002A ldarg.0 
+  002B ldfld BoxThickness
+  0030 newobj .ctor
+  0035 callvirt Create3DElements
+  003A dup 
+  003B ldc.i4.0 
+  003C ldc.i4.m1 
+  003D ldc.i4.0 
+  003E ldarg.0 
+  003F ldfld _bmECObject
+  0044 call SetSymbologyForElementTypes
+  0049 ret 
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor() []
+  0000 ldarg.0 
+  0001 call .ctor
+  0006 ret 
+TYPE Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.DiaphramOperatorScript base=Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.ValveOperator
+Public, Virtual, HideBySig Void Setup() []
+  0000 ldarg.0 
+  0001 ldarg.0 
+  0002 ldfld _bmECObject
+  0007 ldstr 27-0F-00-70
+  000C callvirt GetDoubleValueInMM
+  0011 stfld DiaOfBottomCylinder
+  0016 ldarg.0 
+  0017 ldarg.0 
+  0018 ldfld _bmECObject
+  001D ldstr 55-0F-00-70
+  0022 callvirt GetDoubleValueInMM
+  0027 stfld DiaOfTopCylinder
+  002C ldarg.0 
+  002D ldarg.0 
+  002E ldfld _bmECObject
+  0033 ldstr 81-0F-00-70
+  0038 callvirt GetDoubleValueInMM
+  003D stfld LenOfTopCylinder
+  0042 ldarg.0 
+  0043 ldarg.0 
+  0044 ldfld _bmECObject
+  0049 ldstr DF-02-00-70
+  004E callvirt GetDoubleValueInMM
+  0053 stfld TotalHeight
+  0058 ldarg.0 
+  0059 ldc.i4.3 
+  005A stfld _discipline
+  005F ret 
+Public, Virtual, HideBySig System.Collections.Generic.List`1<Bentley.Building.Mechanical.Components.ElementHolder> Create3DElements() []
+  0000 ldarg.0 
+  0001 ldfld DiaOfBottomCylinder
+  0006 ldarg.0 
+  0007 ldfld DiaOfTopCylinder
+  000C ldarg.0 
+  000D ldfld LenOfTopCylinder
+  0012 ldarg.0 
+  0013 ldfld TotalHeight
+  0018 newobj .ctor
+  001D callvirt Create3DElements
+  0022 dup 
+  0023 ldc.i4.0 
+  0024 ldc.i4.m1 
+  0025 ldc.i4.0 
+  0026 ldarg.0 
+  0027 ldfld _bmECObject
+  002C call SetSymbologyForElementTypes
+  0031 ret 
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor() []
+  0000 ldarg.0 
+  0001 call .ctor
+  0006 ret 
+TYPE Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.PnematicActuatorScript base=Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.ValveOperator
+Public, Virtual, HideBySig Void Setup() []
+  0000 ldarg.0 
+  0001 ldarg.0 
+  0002 ldfld _bmECObject
+  0007 ldstr DF-02-00-70
+  000C callvirt GetDoubleValueInMM
+  0011 stfld TotalLen
+  0016 ldarg.0 
+  0017 ldarg.0 
+  0018 ldfld _bmECObject
+  001D ldstr 55-0F-00-70
+  0022 callvirt GetDoubleValueInMM
+  0027 stfld TopCylinderDia
+  002C ldarg.0 
+  002D ldarg.0 
+  002E ldfld _bmECObject
+  0033 ldstr 27-0F-00-70
+  0038 callvirt GetDoubleValueInMM
+  003D stfld BaseCylinderDia
+  0042 ldarg.0 
+  0043 ldc.i4.3 
+  0044 stfld _discipline
+  0049 ret 
+Public, Virtual, HideBySig System.Collections.Generic.List`1<Bentley.Building.Mechanical.Components.ElementHolder> Create3DElements() []
+  0000 ldarg.0 
+  0001 ldfld TotalLen
+  0006 ldarg.0 
+  0007 ldfld TopCylinderDia
+  000C ldarg.0 
+  000D ldfld BaseCylinderDia
+  0012 newobj .ctor
+  0017 callvirt Create3DElements
+  001C dup 
+  001D ldc.i4.0 
+  001E ldc.i4.m1 
+  001F ldc.i4.0 
+  0020 ldarg.0 
+  0021 ldfld _bmECObject
+  0026 call SetSymbologyForElementTypes
+  002B ret 
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor() []
+  0000 ldarg.0 
+  0001 call .ctor
+  0006 ret 
+TYPE Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.ElectricActuatorScript base=Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.ValveOperator
+Public, Virtual, HideBySig Void Setup() []
+  0000 ldarg.0 
+  0001 ldarg.0 
+  0002 ldfld _bmECObject
+  0007 ldstr DF-02-00-70
+  000C callvirt GetDoubleValueInMM
+  0011 stfld TotalLen
+  0016 ldarg.0 
+  0017 ldarg.0 
+  0018 ldfld _bmECObject
+  001D ldstr A9-0F-00-70
+  0022 callvirt GetDoubleValueInMM
+  0027 stfld TopBoxLen
+  002C ldarg.0 
+  002D ldarg.0 
+  002E ldfld _bmECObject
+  0033 ldstr 27-0F-00-70
+  0038 callvirt GetDoubleValueInMM
+  003D stfld BaseCylinderDia
+  0042 ldarg.0 
+  0043 ldc.i4.3 
+  0044 stfld _discipline
+  0049 ret 
+Public, Virtual, HideBySig System.Collections.Generic.List`1<Bentley.Building.Mechanical.Components.ElementHolder> Create3DElements() []
+  0000 ldarg.0 
+  0001 ldfld TotalLen
+  0006 ldarg.0 
+  0007 ldfld TopBoxLen
+  000C ldarg.0 
+  000D ldfld BaseCylinderDia
+  0012 newobj .ctor
+  0017 callvirt Create3DElements
+  001C dup 
+  001D ldc.i4.0 
+  001E ldc.i4.m1 
+  001F ldc.i4.0 
+  0020 ldarg.0 
+  0021 ldfld _bmECObject
+  0026 call SetSymbologyForElementTypes
+  002B ret 
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor() []
+  0000 ldarg.0 
+  0001 call .ctor
+  0006 ret 
+TYPE Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.ReliefOperatorScript base=Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.ValveOperator
+Public, Virtual, HideBySig Void Setup() []
+  0000 ldarg.0 
+  0001 ldarg.0 
+  0002 ldfld _bmECObject
+  0007 ldstr DF-02-00-70
+  000C callvirt GetDoubleValueInMM
+  0011 stfld BaseCylinderLen
+  0016 ldarg.0 
+  0017 ldarg.0 
+  0018 ldfld _bmECObject
+  001D ldstr 27-0F-00-70
+  0022 callvirt GetDoubleValueInMM
+  0027 stfld BaseCylinderDia
+  002C ldarg.0 
+  002D ldc.i4.3 
+  002E stfld _discipline
+  0033 ret 
+Public, Virtual, HideBySig System.Collections.Generic.List`1<Bentley.Building.Mechanical.Components.ElementHolder> Create3DElements() []
+  0000 ldarg.0 
+  0001 ldfld BaseCylinderLen
+  0006 ldarg.0 
+  0007 ldfld BaseCylinderDia
+  000C newobj .ctor
+  0011 callvirt Create3DElements
+  0016 dup 
+  0017 ldc.i4.0 
+  0018 ldc.i4.m1 
+  0019 ldc.i4.0 
+  001A ldarg.0 
+  001B ldfld _bmECObject
+  0020 call SetSymbologyForElementTypes
+  0025 ret 
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor() []
+  0000 ldarg.0 
+  0001 call .ctor
+  0006 ret 
+TYPE Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.DiaphragmGearOperatorScript base=Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.ValveOperator
+Public, Virtual, HideBySig Void Setup() []
+  0000 ldarg.0 
+  0001 ldarg.0 
+  0002 ldfld _bmECObject
+  0007 ldstr C7-0F-00-70
+  000C callvirt GetDoubleValueInMM
+  0011 stfld BaseCylinderLen
+  0016 ldarg.0 
+  0017 ldarg.0 
+  0018 ldfld _bmECObject
+  001D ldstr DF-02-00-70
+  0022 callvirt GetDoubleValueInMM
+  0027 stfld HeightFromCenter
+  002C ldarg.0 
+  002D ldarg.0 
+  002E ldfld _bmECObject
+  0033 ldstr 07-0D-00-70
+  0038 callvirt GetDoubleValueInMM
+  003D stfld WheelDiameter
+  0042 ldarg.0 
+  0043 ldarg.0 
+  0044 ldfld _bmECObject
+  0049 ldstr AD-01-00-70
+  004E callvirt GetDoubleValueInMM
+  0053 stfld HorCylinderLen
+  0058 ldarg.0 
+  0059 ldarg.0 
+  005A ldfld _bmECObject
+  005F ldstr 27-0F-00-70
+  0064 callvirt GetDoubleValueInMM
+  0069 stfld HorCylinderDia
+  006E ldarg.0 
+  006F ldarg.0 
+  0070 ldfld _bmECObject
+  0075 ldstr 1B-0E-00-70
+  007A callvirt GetDoubleValueInMM
+  007F stfld BoxLength
+  0084 ldarg.0 
+  0085 ldarg.0 
+  0086 ldfld _bmECObject
+  008B ldstr A3-0D-00-70
+  0090 callvirt GetDoubleValueInMM
+  0095 stfld BoxHeight
+  009A ldarg.0 
+  009B ldarg.0 
+  009C ldfld _bmECObject
+  00A1 ldstr 39-0E-00-70
+  00A6 callvirt GetDoubleValueInMM
+  00AB stfld BoxThickness
+  00B0 ldarg.0 
+  00B1 ldc.i4.3 
+  00B2 stfld _discipline
+  00B7 ret 
+Public, Virtual, HideBySig System.Collections.Generic.List`1<Bentley.Building.Mechanical.Components.ElementHolder> Create3DElements() []
+  0000 ldarg.0 
+  0001 ldfld BaseCylinderLen
+  0006 ldarg.0 
+  0007 ldfld HeightFromCenter
+  000C ldarg.0 
+  000D ldfld WheelDiameter
+  0012 ldarg.0 
+  0013 ldfld HorCylinderLen
+  0018 ldarg.0 
+  0019 ldfld HorCylinderDia
+  001E ldarg.0 
+  001F ldfld BoxLength
+  0024 ldarg.0 
+  0025 ldfld BoxHeight
+  002A ldarg.0 
+  002B ldfld BoxThickness
+  0030 newobj .ctor
+  0035 callvirt Create3DElements
+  003A dup 
+  003B ldc.i4.0 
+  003C ldc.i4.m1 
+  003D ldc.i4.0 
+  003E ldarg.0 
+  003F ldfld _bmECObject
+  0044 call SetSymbologyForElementTypes
+  0049 ret 
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor() []
+  0000 ldarg.0 
+  0001 call .ctor
+  0006 ret 
+TYPE Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.DiaphragmActuatorScript base=Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.ValveOperator
+Public, Virtual, HideBySig Void Setup() []
+  0000 ldarg.0 
+  0001 ldarg.0 
+  0002 ldfld _bmECObject
+  0007 ldstr F1-0F-00-70
+  000C callvirt GetDoubleValueInMM
+  0011 stfld DistanceToPlate
+  0016 ldarg.0 
+  0017 ldarg.0 
+  0018 ldfld _bmECObject
+  001D ldstr 15-10-00-70
+  0022 callvirt GetDoubleValueInMM
+  0027 stfld HalfLenOfPlate
+  002C ldarg.0 
+  002D ldarg.0 
+  002E ldfld _bmECObject
+  0033 ldstr 39-10-00-70
+  0038 callvirt GetDoubleValueInMM
+  003D stfld DistanceToActuator
+  0042 ldarg.0 
+  0043 ldarg.0 
+  0044 ldfld _bmECObject
+  0049 ldstr 63-10-00-70
+  004E callvirt GetDoubleValueInMM
+  0053 stfld ActuatorDiameter
+  0058 ldarg.0 
+  0059 ldarg.0 
+  005A ldfld _bmECObject
+  005F ldstr 87-10-00-70
+  0064 callvirt GetDoubleValueInMM
+  0069 stfld Distance1FromCylinder
+  006E ldarg.0 
+  006F ldarg.0 
+  0070 ldfld _bmECObject
+  0075 ldstr B7-10-00-70
+  007A callvirt GetDoubleValueInMM
+  007F stfld Distance2FromCylinder
+  0084 ldarg.0 
+  0085 ldc.i4.3 
+  0086 stfld _discipline
+  008B ret 
+Public, Virtual, HideBySig System.Collections.Generic.List`1<Bentley.Building.Mechanical.Components.ElementHolder> Create3DElements() []
+  0000 ldarg.0 
+  0001 ldfld DistanceToPlate
+  0006 ldarg.0 
+  0007 ldfld HalfLenOfPlate
+  000C ldarg.0 
+  000D ldfld DistanceToActuator
+  0012 ldarg.0 
+  0013 ldfld ActuatorDiameter
+  0018 ldarg.0 
+  0019 ldfld Distance1FromCylinder
+  001E ldarg.0 
+  001F ldfld Distance2FromCylinder
+  0024 newobj .ctor
+  0029 callvirt Create3DElements
+  002E dup 
+  002F ldc.i4.0 
+  0030 ldc.i4.m1 
+  0031 ldc.i4.0 
+  0032 ldarg.0 
+  0033 ldfld _bmECObject
+  0038 call SetSymbologyForElementTypes
+  003D ret 
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor() []
+  0000 ldarg.0 
+  0001 call .ctor
+  0006 ret 
+TYPE Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.ChainOperator base=Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.ValveOperator
+Public, Virtual, HideBySig Void Setup() []
+  0000 ldarg.0 
+  0001 call Setup
+  0006 ldarg.0 
+  0007 ldarg.0 
+  0008 ldfld _bmECObject
+  000D ldstr 07-0D-00-70
+  0012 callvirt GetDoubleValueInMM
+  0017 stfld operatorDiameter
+  001C ldarg.0 
+  001D ldarg.0 
+  001E ldfld _bmECObject
+  0023 ldstr AD-01-00-70
+  0028 callvirt GetDoubleValueInMM
+  002D stfld operatorLength
+  0032 ret 
+Public, Virtual, HideBySig System.Collections.Generic.List`1<Bentley.Building.Mechanical.Components.ElementHolder> Create3DElements() []
+  0000 ldarg.0 
+  0001 ldfld operatorDiameter
+  0006 ldarg.0 
+  0007 ldfld operatorLength
+  000C newobj .ctor
+  0011 callvirt Create3DElements
+  0016 dup 
+  0017 ldc.i4.0 
+  0018 ldc.i4.m1 
+  0019 ldc.i4.0 
+  001A ldarg.0 
+  001B ldfld _bmECObject
+  0020 call SetSymbologyForElementTypes
+  0025 ret 
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor() []
+  0000 ldarg.0 
+  0001 call .ctor
+  0006 ret 
+TYPE Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.CylinderOperator base=Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.ValveOperator
+Public, Virtual, HideBySig Void Setup() []
+  0000 ldarg.0 
+  0001 call Setup
+  0006 ldarg.0 
+  0007 ldarg.0 
+  0008 ldfld _bmECObject
+  000D ldstr 07-0D-00-70
+  0012 callvirt GetDoubleValueInMM
+  0017 stfld operatorDiameter
+  001C ldarg.0 
+  001D ldarg.0 
+  001E ldfld _bmECObject
+  0023 ldstr AD-01-00-70
+  0028 callvirt GetDoubleValueInMM
+  002D stfld operatorLength
+  0032 ret 
+Public, Virtual, HideBySig System.Collections.Generic.List`1<Bentley.Building.Mechanical.Components.ElementHolder> Create3DElements() []
+  0000 ldarg.0 
+  0001 ldfld operatorDiameter
+  0006 ldarg.0 
+  0007 ldfld operatorLength
+  000C newobj .ctor
+  0011 callvirt Create3DElements
+  0016 dup 
+  0017 ldc.i4.0 
+  0018 ldc.i4.m1 
+  0019 ldc.i4.0 
+  001A ldarg.0 
+  001B ldfld _bmECObject
+  0020 call SetSymbologyForElementTypes
+  0025 ret 
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor() []
+  0000 ldarg.0 
+  0001 call .ctor
+  0006 ret 
+TYPE Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.MotorOperatedValveActuator base=Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.ValveOperator
+Public, Virtual, HideBySig Void Setup() []
+  0000 ldarg.0 
+  0001 call Setup
+  0006 ldarg.0 
+  0007 ldfld _bmECObject
+  000C ldstr E7-10-00-70
+  0011 callvirt GetDoubleValueInMM
+  0016 stloc.0 
+  0017 ldarg.0 
+  0018 ldarg.0 
+  0019 ldfld _bmECObject
+  001E ldstr 07-0D-00-70
+  0023 callvirt GetDoubleValueInMM
+  0028 stfld operatorWidth
+  002D ldarg.0 
+  002E ldfld operatorWidth
+  0033 ldc.r8 00-00-00-00-00-00-00-00
+  003C bne.un.s 11
+  003E ldarg.0 
+  003F ldloc.0 
+  0040 ldc.r8 7B-14-AE-47-E1-7A-B4-3F
+  0049 mul 
+  004A stfld operatorWidth
+  004F ldarg.0 
+  0050 ldarg.0 
+  0051 ldfld _bmECObject
+  0056 ldstr AD-01-00-70
+  005B callvirt GetDoubleValueInMM
+  0060 stfld operatorLength
+  0065 ldarg.0 
+  0066 ldfld operatorLength
+  006B ldc.r8 00-00-00-00-00-00-00-00
+  0074 bne.un.s 11
+  0076 ldarg.0 
+  0077 ldloc.0 
+  0078 ldc.r8 33-33-33-33-33-33-C3-3F
+  0081 mul 
+  0082 stfld operatorLength
+  0087 ldarg.0 
+  0088 ldarg.0 
+  0089 ldfld _bmECObject
+  008E ldstr 09-11-00-70
+  0093 callvirt GetDoubleValueInMM
+  0098 stfld rodDiameter
+  009D ldarg.0 
+  009E ldfld rodDiameter
+  00A3 ldc.r8 00-00-00-00-00-00-00-00
+  00AC bne.un.s 11
+  00AE ldarg.0 
+  00AF ldloc.0 
+  00B0 ldc.r8 7B-14-AE-47-E1-7A-84-3F
+  00B9 mul 
+  00BA stfld rodDiameter
+  00BF ret 
+Public, Virtual, HideBySig System.Collections.Generic.List`1<Bentley.Building.Mechanical.Components.ElementHolder> Create3DElements() []
+  0000 newobj .ctor
+  0005 ldarg.0 
+  0006 ldfld operatorWidth
+  000B ldarg.0 
+  000C ldfld operatorLength
+  0011 ldarg.0 
+  0012 ldfld rodDiameter
+  0017 newobj .ctor
+  001C stloc.0 
+  001D dup 
+  001E ldloc.0 
+  001F callvirt Create3DElements
+  0024 callvirt AddRange
+  0029 dup 
+  002A ldc.i4.0 
+  002B ldc.i4.m1 
+  002C ldc.i4.0 
+  002D ldarg.0 
+  002E ldfld _bmECObject
+  0033 call SetSymbologyForElementTypes
+  0038 ret 
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor() []
+  0000 ldarg.0 
+  0001 call .ctor
+  0006 ret 

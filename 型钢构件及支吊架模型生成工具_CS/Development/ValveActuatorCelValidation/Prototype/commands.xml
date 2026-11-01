@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<KeyinTree xmlns="http://www.bentley.com/schemas/1.0/MicroStation/AddIn/KeyinTree.xsd">
+  <RootKeyinTable ID="root"><Keyword SubtableRef="Check" CommandClass="MacroCommand" CommandWord="ACTUATORCHECK2"><Options Required="true"/></Keyword></RootKeyinTable>
+  <SubKeyinTables><KeyinTable ID="Check"><Keyword CommandWord="PROBE"/><Keyword CommandWord="SWAP"/></KeyinTable></SubKeyinTables>
+  <KeyinHandlers>
+    <KeyinHandler Keyin="ACTUATORCHECK2 PROBE" Function="ValveActuatorCelCheck.Commands.Probe"/>
+    <KeyinHandler Keyin="ACTUATORCHECK2 SWAP" Function="ValveActuatorCelCheck.Commands.Swap"/>
+  </KeyinHandlers>
+</KeyinTree>

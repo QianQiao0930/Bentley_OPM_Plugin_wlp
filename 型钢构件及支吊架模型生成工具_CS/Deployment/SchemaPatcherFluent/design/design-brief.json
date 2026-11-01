@@ -1,0 +1,687 @@
+{
+  "contract_version": 4,
+  "application": "OpenPlant Schema 增补工具",
+  "profile": "full",
+  "author_id": "agent-cursor",
+  "recipe_id": "focused-utility",
+  "identity": {
+    "primary_object": "一个 OpenPlant 工作集的三份 ecschema.xml 及其中待增补的类与字段",
+    "dominant_time_model": "snapshot：一次只读检查得到的改动快照，确认后一次性备份并写入",
+    "core_outcome": "三份 Schema 被安全增补，原文件已备份，留下逐处改动记录",
+    "hero_interaction": "先只读检查看清每一处改动和冲突，再确认备份并写入",
+    "signature_surface": "改动清单：每一处改动落在哪个文件、哪一行、改成什么"
+  },
+  "references": {
+    "aligned": {
+      "name": "Git 提交前的差异审阅（diff 边栏 + 文件分组）",
+      "fit": "同样是“写入前逐处核对、确认后一次提交”的节奏",
+      "transferred_traits": [
+        "按文件分组、行号边栏、改前改后对照"
+      ],
+      "rejected_traits": [
+        "满屏代码行与语法高亮，本工具只需要定位与结论"
+      ]
+    },
+    "contrast": {
+      "name": "Windows 安装向导（分步、下一步按钮）",
+      "fit": "暴露“分步关卡”这种更保守的组织方式，适合不熟悉 Schema 的人",
+      "transferred_traits": [
+        "写入步骤在前置条件满足前上锁并说明原因"
+      ],
+      "rejected_traits": [
+        "为凑步骤而拆出只有一个输入框的页面"
+      ]
+    }
+  },
+  "taste_context": {
+    "user_signals": [
+      "用户明确要求：选目录、选备份文件夹、下拉选修改内容、显示状态、可保存日志、记录在哪个文件哪里改了什么",
+      "用户要求已具备时明确提醒“无需修改”",
+      "用户要求 Fluent 风格，并保留原 tkinter 版本不删除"
+    ],
+    "project_signals": [
+      "插件主界面 UI 规范 v4：蓝色主按钮、34 高字段、圆角 6、状态双行限高",
+      "现有 tkinter 版的状态配色：绿=已具备、蓝=待修改、红=冲突"
+    ],
+    "non_ui_reference": {
+      "name": "工程图纸的修订记录表（修订号、位置、内容、审核）",
+      "source": "设计院施工图修订栏惯例",
+      "transferred_traits": [
+        "每一处修订都有位置和前后内容，可追溯"
+      ],
+      "rejected_traits": [
+        "图框、签章等纯装饰元素"
+      ]
+    },
+    "recent_patterns_to_avoid": [
+      "左侧导航栏 + 右侧设置卡片堆叠的通用 Windows 设置页",
+      "每一行都包进圆角卡片的仪表盘式布局"
+    ]
+  },
+  "subject_vernacular": {
+    "materials": [
+      "XML 文本与行号",
+      "备份副本与 SHA256 指纹"
+    ],
+    "artifacts": [
+      "三份 .01.08.ecschema.xml",
+      "SchemaPatch.log 与 receipt.json"
+    ],
+    "instruments": [
+      "目录选择器",
+      "只读检查（干跑）"
+    ],
+    "verbs": [
+      "检查",
+      "备份",
+      "写入",
+      "回滚"
+    ],
+    "tempo": "低频、谨慎：每个新工作空间做一次，写入前必须看清再动手"
+  },
+  "art_direction": {
+    "desired_impression": [
+      "写入前一切可见、可核对",
+      "冲突时明确停下并说清原因",
+      "像审阅一份修订记录而不是填表"
+    ],
+    "visual_world": "一份待签的修订记录：每一行都标明落在哪个文件哪一行、改成什么，签字（执行修改）之前什么都没动",
+    "signature_element": "带行号的改动清单：等宽行号 + 状态色条 + 文件分组",
+    "typography_voice": "正文用 Fluent Body；定位信息（行号、类名路径）用等宽字体，结论用 BodyStrong",
+    "palette_strategy": "中性底色为主；语义色只用于状态：蓝=新增、琥珀=修改、红=冲突、绿=已具备；主按钮为系统强调色",
+    "motion_voice": "几乎静止；只有检查/写入进行中显示进度，完成后不做庆祝动画",
+    "aesthetic_risk": {
+      "move": "用等宽行号与状态色条构成清单主体，让界面读起来像 diff 审阅",
+      "evidence": "工具的核心价值是写入前看清每一处改动，日志本身就以文件/行号/XPath 记录",
+      "quiet_zone": "输入区与底部操作区保持标准 Fluent 控件，不加装饰",
+      "usability_guard": "行号与路径可截断但悬停显示全文；颜色之外同时有状态文字和图标；键盘可遍历行",
+      "fallback": "若等宽字体在中文环境下难读，改为正文字体加固定列宽"
+    },
+    "anti_goals": [
+      "通用设置页卡片堆叠",
+      "无意义的渐变、发光和大标题",
+      "只靠颜色区分状态"
+    ],
+    "content_fixture": {
+      "id": "new-workset-all-with-conflict",
+      "source": "基于仓库原始 Schema 备份的真实检查结果（15 处），并把轴测图引注一项设为冲突，模拟带项目定制的新工作空间",
+      "scenario": "新工作空间 CINF_F1301BB 选择“全部”做只读检查，14 处待修改、1 处冲突，执行修改被锁定",
+      "required_strings": [
+        "OpenPlant_3D_Supplemental_Modeling.01.08.ecschema.xml",
+        "ASSEMBLY_NAME：Bentley.Building.Mechanical.ComponentLibrary → SteelSectionProbe",
+        "SUPPORT_LOCATION 已有项目自定义 BOM 标签，禁止覆盖"
+      ],
+      "required_states": [
+        "检查完成：14处待修改（11新增、3修改）",
+        "1处冲突，执行修改已锁定"
+      ]
+    }
+  },
+  "genericity_review": {
+    "default_solution": "左侧导航 + 一张设置卡片 + 底部大按钮 + 一个多行日志文本框",
+    "detected_cliches": [
+      "把检查结果塞进一个滚动文本框",
+      "三份文件做成三张一样的统计卡片（数字 + 图标）"
+    ],
+    "revisions": [
+      {
+        "from": "滚动日志文本框",
+        "to": "结构化改动清单，每行带文件、行号、位置、前后值",
+        "reason": "用户要求知道“在哪个文件的哪里改了什么”，文本框无法定位和对照"
+      },
+      {
+        "from": "三张统计卡片",
+        "to": "三联文件栏带文件位置标尺（方案 C）或按文件分组的台账（方案 B）",
+        "reason": "数字卡片可放进任何产品，标尺/行号表达的是这份 XML 本身"
+      }
+    ],
+    "recognizable_without_brand": "去掉标题和强调色后，行号边栏、文件分组和“冲突即锁定写入”的关系仍然只属于这个工具"
+  },
+  "tuning_axes": {
+    "density": {
+      "value": 4,
+      "note": "一屏放下 15 行改动与详情，行高 32"
+    },
+    "contrast": {
+      "value": 3,
+      "note": "中性为主，只有状态色和主按钮突出"
+    },
+    "material_depth": {
+      "value": 2,
+      "note": "Mica 底 + 一层卡片，不叠加阴影"
+    },
+    "corner_softness": {
+      "value": 2,
+      "note": "沿用 Fluent 控件圆角，不额外加大"
+    },
+    "motion_energy": {
+      "value": 1,
+      "note": "只在检查/写入时显示进度"
+    },
+    "visual_expressiveness": {
+      "value": 2,
+      "note": "克制；唯一的表达是行号清单或文件标尺"
+    }
+  },
+  "concepts": [
+    {
+      "id": "guided-flow",
+      "title": "关卡三步",
+      "topology": "linear-step-flow",
+      "primary_surface": "当前步骤：只读检查结果按“修改内容”分组折叠",
+      "hero_interaction": "检查通过后解锁第三步备份并写入",
+      "layout_regions": [
+        {
+          "id": "progress",
+          "placement": "top",
+          "lifetime": "persistent",
+          "priority": "supporting"
+        },
+        {
+          "id": "step-content",
+          "placement": "center",
+          "lifetime": "persistent",
+          "priority": "hero"
+        },
+        {
+          "id": "step-help",
+          "placement": "right",
+          "lifetime": "transient",
+          "priority": "supporting"
+        },
+        {
+          "id": "navigation-actions",
+          "placement": "bottom",
+          "lifetime": "persistent",
+          "priority": "primary"
+        }
+      ],
+      "narrow_behavior": "右侧说明收起为提示气泡，分组与操作纵向堆叠。",
+      "failure_risk": "老手每次都要点三步，比一屏完成更慢。",
+      "preferred_components": [
+        "stepper",
+        "expander",
+        "info-bar",
+        "button"
+      ],
+      "scores": {
+        "workflow_fit": 3,
+        "state_visibility": 4,
+        "responsiveness": 4,
+        "component_semantics": 4,
+        "implementation_risk": 4,
+        "distinctiveness": 3
+      },
+      "visual_direction": {
+        "name": "关卡三步",
+        "composition_character": "自上而下：步骤条 → 大标题 → 冲突提示 → 分组折叠",
+        "palette_strategy": "步骤状态色（完成绿、当前错误红、未开放灰）主导，清单内少量状态色",
+        "type_strategy": "TitleLarge 步骤标题对比 Body 正文，层级感强、信息密度低",
+        "icon_strategy": "Segoe Fluent 字形：锁表示未开放的写入步骤，加号/铅笔/错误表示条目状态",
+        "subject_translation": "把“先检查后写入”的安全约束变成看得见的步骤关卡",
+        "signature_move": "第三步上锁，右侧写明解锁条件和写入时的四个动作",
+        "aesthetic_risk": "大标题占据较多纵向空间",
+        "risk_guard": "分组默认只展开冲突和最大一组，长列表在组内滚动",
+        "restraint_rule": "不为每个功能单独开步骤"
+      },
+      "visual_scores": {
+        "workflow_fit": {
+          "score": 3,
+          "note": "对首次使用者友好，但目录/备份输入被藏在第一步，回头修改要倒退"
+        },
+        "product_signature": {
+          "score": 3,
+          "note": "锁定的写入步骤有辨识度，其余接近通用向导"
+        },
+        "visual_hierarchy": {
+          "score": 4,
+          "note": "冲突提示与步骤状态一眼可见"
+        },
+        "density_and_typography": {
+          "score": 3,
+          "note": "大标题与折叠面板偏松，一屏只露出部分条目"
+        },
+        "theme_and_material": {
+          "score": 4,
+          "note": "标准控件，Light/Dark 都容易保持"
+        },
+        "iconography": {
+          "score": 4,
+          "note": "单一 Fluent 字形族，状态图标与文字并列"
+        },
+        "surface_composition": {
+          "score": 3,
+          "note": "右侧说明卡占宽但内容固定，后期可能显得空"
+        },
+        "responsive_quality": {
+          "score": 4,
+          "note": "单列结构天然适合窄窗口"
+        },
+        "state_and_interaction_polish": {
+          "score": 4,
+          "note": "完成/当前错误/未开放三态清楚"
+        }
+      },
+      "comp": {
+        "path": "concepts/guided-flow.png",
+        "fidelity": "high",
+        "source_kind": "raster",
+        "theme": "light",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "content_fixture_id": "new-workset-all-with-conflict"
+      }
+    },
+    {
+      "id": "single-canvas",
+      "title": "增补台账",
+      "topology": "single-surface-command",
+      "primary_surface": "按文件分组、带等宽行号边栏的改动台账，右侧显示选中行改前改后",
+      "hero_interaction": "在同一屏检查、逐行核对并执行修改",
+      "layout_regions": [
+        {
+          "id": "utility-header",
+          "placement": "top",
+          "lifetime": "persistent",
+          "priority": "supporting"
+        },
+        {
+          "id": "utility-canvas",
+          "placement": "center",
+          "lifetime": "persistent",
+          "priority": "hero"
+        },
+        {
+          "id": "advanced-options",
+          "placement": "right",
+          "lifetime": "transient",
+          "priority": "supporting"
+        },
+        {
+          "id": "primary-action",
+          "placement": "bottom",
+          "lifetime": "persistent",
+          "priority": "primary"
+        }
+      ],
+      "narrow_behavior": "右侧详情改为点击行后弹出的抽屉，台账隐藏“功能”列。",
+      "failure_risk": "等宽路径过长时需要截断，信息密集对新手有压力。",
+      "preferred_components": [
+        "field",
+        "line-edit",
+        "combo-box",
+        "card",
+        "info-bar",
+        "button"
+      ],
+      "scores": {
+        "workflow_fit": 5,
+        "state_visibility": 5,
+        "responsiveness": 3,
+        "component_semantics": 4,
+        "implementation_risk": 3,
+        "distinctiveness": 4
+      },
+      "visual_direction": {
+        "name": "增补台账",
+        "composition_character": "横向输入条 + 大面积台账 + 右侧对照，阅读节奏像审 diff",
+        "palette_strategy": "行首状态色条（蓝/琥珀/红）+ 详情区红减绿加",
+        "type_strategy": "等宽字体承载行号与类路径，正文字体承载说明，结论用 BodyStrong",
+        "icon_strategy": "Segoe Fluent 字形只用于文件分组头和底部计数，行内用色条与文字表达状态",
+        "subject_translation": "直接呈现日志里的“文件 / 行号 / XPath / 前后值”四要素",
+        "signature_move": "等宽行号边栏 + 改前改后对照",
+        "aesthetic_risk": "等宽字体与中文混排",
+        "risk_guard": "等宽仅用于 ASCII 定位信息；路径中间截断，悬停看全文",
+        "restraint_rule": "行不包卡片，只有选中行有底色"
+      },
+      "visual_scores": {
+        "workflow_fit": {
+          "score": 5,
+          "note": "输入、检查、核对、写入在一屏完成，与工具一次性操作节奏一致"
+        },
+        "product_signature": {
+          "score": 4,
+          "note": "行号边栏和前后对照只属于 Schema 增补"
+        },
+        "visual_hierarchy": {
+          "score": 4,
+          "note": "冲突行红色在底部可见，选中行与详情联动清楚"
+        },
+        "density_and_typography": {
+          "score": 4,
+          "note": "15 行一屏放下；等宽列略宽，需要截断"
+        },
+        "theme_and_material": {
+          "score": 4,
+          "note": "卡片层级简单，Dark 下色条需复核对比度"
+        },
+        "iconography": {
+          "score": 4,
+          "note": "图标克制，状态以色条加文字双重表达"
+        },
+        "surface_composition": {
+          "score": 4,
+          "note": "台账与详情两块，层级明确无多余容器"
+        },
+        "responsive_quality": {
+          "score": 3,
+          "note": "窄窗口需要把详情改抽屉、隐藏列"
+        },
+        "state_and_interaction_polish": {
+          "score": 4,
+          "note": "选中、冲突、锁定写入三态都有表达"
+        }
+      },
+      "comp": {
+        "path": "concepts/single-canvas.png",
+        "fidelity": "high",
+        "source_kind": "raster",
+        "theme": "light",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "content_fixture_id": "new-workset-all-with-conflict"
+      }
+    },
+    {
+      "id": "queue-first",
+      "title": "三联文件",
+      "topology": "bounded-work-queue",
+      "primary_surface": "三份 Schema 并排三栏，每栏带文件位置标尺；底部是检查→备份→写入→自检流水线",
+      "hero_interaction": "看三份文件各自的改动，并跟踪写入流水线",
+      "layout_regions": [
+        {
+          "id": "queue-command",
+          "placement": "top",
+          "lifetime": "persistent",
+          "priority": "primary"
+        },
+        {
+          "id": "work-queue",
+          "placement": "center",
+          "lifetime": "persistent",
+          "priority": "hero"
+        },
+        {
+          "id": "item-details",
+          "placement": "right",
+          "lifetime": "transient",
+          "priority": "supporting"
+        },
+        {
+          "id": "aggregate-progress",
+          "placement": "bottom",
+          "lifetime": "persistent",
+          "priority": "primary"
+        }
+      ],
+      "narrow_behavior": "三栏改为可切换的单栏（文件选择条），标尺与流水线保留。",
+      "failure_risk": "只选“执行机构”时只有两份文件有内容，三栏会留出空栏。",
+      "preferred_components": [
+        "card",
+        "progress-bar",
+        "divider",
+        "button",
+        "combo-box"
+      ],
+      "scores": {
+        "workflow_fit": 4,
+        "state_visibility": 4,
+        "responsiveness": 3,
+        "component_semantics": 3,
+        "implementation_risk": 3,
+        "distinctiveness": 5
+      },
+      "visual_direction": {
+        "name": "三联文件",
+        "composition_character": "三栏等宽并列，标尺纵贯栏高，底部横向流水线收束",
+        "palette_strategy": "标尺刻度用状态色，栏头徽标用蓝/红，流水线完成段为强调色",
+        "type_strategy": "Subtitle 文件名、BodyStrong 类路径、Caption 说明，等宽仅用于行号",
+        "icon_strategy": "Segoe Fluent 字形：文件、复制（备份）、保存（写入）、盾牌（自检）贯穿流水线",
+        "subject_translation": "把“三份文件”和“改动在文件中的位置”变成空间结构",
+        "signature_move": "文件长度标尺：刻度位置 = 改动行号 / 文件总行数",
+        "aesthetic_risk": "标尺是自绘控件，含义需要说明",
+        "risk_guard": "栏底注明刻度含义，刻度悬停显示行号；自绘控件跟随主题色",
+        "restraint_rule": "栏内条目不包卡片，只用图标和缩进"
+      },
+      "visual_scores": {
+        "workflow_fit": {
+          "score": 4,
+          "note": "三份文件的分工一目了然，但逐条前后对照要另开详情"
+        },
+        "product_signature": {
+          "score": 5,
+          "note": "位置标尺与三联结构辨识度最高"
+        },
+        "visual_hierarchy": {
+          "score": 4,
+          "note": "含冲突的文件栏头标红，流水线末尾说明等待原因"
+        },
+        "density_and_typography": {
+          "score": 3,
+          "note": "每栏下方留白较多，长类路径会换行"
+        },
+        "theme_and_material": {
+          "score": 4,
+          "note": "三张同级卡片，层级平整"
+        },
+        "iconography": {
+          "score": 4,
+          "note": "流水线四个动作图标语义一致"
+        },
+        "surface_composition": {
+          "score": 3,
+          "note": "三栏等宽对内容少的文件不经济"
+        },
+        "responsive_quality": {
+          "score": 3,
+          "note": "窄窗口需改为单栏切换"
+        },
+        "state_and_interaction_polish": {
+          "score": 4,
+          "note": "流水线清楚表达等待、进行、完成"
+        }
+      },
+      "comp": {
+        "path": "concepts/queue-first.png",
+        "fidelity": "high",
+        "source_kind": "raster",
+        "theme": "light",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "content_fixture_id": "new-workset-all-with-conflict"
+      }
+    }
+  ],
+  "approval": {
+    "status": "approved",
+    "decision_maker_kind": "human",
+    "decision_maker_id": "ale",
+    "decided_at": "2026-11-01T11:16:13+08:00",
+    "selected_concept_id": "single-canvas",
+    "selection_reason": "用户 ale 在三套对比后选择 B 增补台账；评审时呈现的理由：一屏完成输入、检查、逐行核对与写入，最贴合“在哪个文件哪一行改了什么”的需求。",
+    "rejected_concept_reasons": {
+      "guided-flow": "用户未选择；评审时呈现的取舍：老手每次需走三步，改目录要退回第一步，一屏只露出部分条目。",
+      "queue-first": "用户未选择；评审时呈现的取舍：只改一两份文件时出现空栏，逐条前后对照需另开详情。"
+    }
+  },
+  "density": {
+    "chrome_height": 40,
+    "edge_inset": 24,
+    "related_gap": 8,
+    "section_gap": 16,
+    "control_height": 32,
+    "row_height": 32,
+    "icon_size": 16
+  },
+  "theme": {
+    "material": "mica",
+    "light_strategy": "Mica 浅底 + Layer 卡片；正文主色，次要信息 Secondary；状态色使用 Fluent 浅色语义值",
+    "dark_strategy": "Mica 深底 + Layer 卡片；状态色改用 Fluent 深色语义值以保证对比度",
+    "palette_source": "Fluent 中性基线 + 系统强调色；状态色沿用 tkinter 版的绿/蓝/红约定，增加琥珀表示修改",
+    "palette_derivation": "强调色只用于主按钮、选中行与进行中进度；其余全部语义化",
+    "brand_cues": [
+      "等宽行号与类路径",
+      "写入在冲突时上锁并写明原因"
+    ]
+  },
+  "iconography": {
+    "family": "Segoe Fluent Icons（FluentQt Icons 字形常量）",
+    "provenance": "fluentqt 1.11.0 内置 Icons 映射，系统 Segoe Fluent Icons 字体",
+    "source_strategy": "复用库内字形，不引入其他图标包",
+    "style": "单线描边、方正圆角，与 Windows 11 一致",
+    "base_grid": 20,
+    "compact_glyph_size": 16,
+    "standard_glyph_size": 20,
+    "action_slot_size": 32,
+    "stroke_policy": "统一使用 Segoe Fluent 常规字重",
+    "filled_policy": "不使用实心图标",
+    "color_policy": "默认跟随文字色；状态图标使用对应语义色",
+    "icon_only_policy": "纯图标按钮必须有工具提示和无障碍名称，点击区不小于 32",
+    "application_icon_strategy": "沿用 PyInstaller 默认图标，后续可补多尺寸 ico",
+    "in_app_mark_strategy": "标题栏用 Document 字形加文字“Schema 增补”",
+    "small_size_validation": "在 16 px 与 Light/Dark 下检查字形可辨",
+    "palette_seed": "系统强调色；中性灰；不从图标取色",
+    "prohibited": [
+      "emoji used as an action icon",
+      "mixed icon packs in one hierarchy",
+      "arbitrary Unicode glyphs or scaled raster icons"
+    ]
+  },
+  "copy_policy": {
+    "audience": "做 OpenPlant 工作集配置的设计人员，熟悉工作集但不一定熟悉 XML",
+    "voice": "简短、直接，说明在哪里、改了什么、为什么停下",
+    "locale_strategy": "界面中文；类名、字段名、文件名保持英文原样，不翻译",
+    "allowed_technical_terms": [
+      "Schema",
+      "ECClass",
+      "CREATION_ATTRIBUTE",
+      "BOM_LABELS",
+      "IE_TAG"
+    ],
+    "compression_rules": [
+      "标签用名词：Schema 目录、备份文件夹、修改内容",
+      "删去“点击这里”之类的操作说明，按钮名即动作",
+      "冲突提示只写原因和处理办法两句"
+    ],
+    "state_vocabulary": [
+      "未检查",
+      "检查中",
+      "已具备，无需修改",
+      "修改完成",
+      "冲突，未修改",
+      "写入失败，已回滚"
+    ],
+    "forbidden_patterns": [
+      "raw protocol method names",
+      "unexplained identifiers and filesystem paths",
+      "assistant self-narration such as I will or I can",
+      "unsupported marketing adjectives and duplicated help"
+    ]
+  },
+  "action_inventory": [
+    {
+      "action_id": "check",
+      "owner_region": "utility-header",
+      "primary_entry": "检查按钮",
+      "primary_visible_when": "始终",
+      "responsive_fallback": "none",
+      "fallback_visible_when": "none",
+      "simultaneously_visible": false,
+      "coexistence_reason": "none"
+    },
+    {
+      "action_id": "apply",
+      "owner_region": "primary-action",
+      "primary_entry": "执行修改主按钮",
+      "primary_visible_when": "始终；有冲突或无待修改时禁用并说明原因",
+      "responsive_fallback": "none",
+      "fallback_visible_when": "none",
+      "simultaneously_visible": false,
+      "coexistence_reason": "none"
+    },
+    {
+      "action_id": "save-log",
+      "owner_region": "primary-action",
+      "primary_entry": "保存日志按钮",
+      "primary_visible_when": "始终",
+      "responsive_fallback": "none",
+      "fallback_visible_when": "none",
+      "simultaneously_visible": false,
+      "coexistence_reason": "none"
+    }
+  ],
+  "component_decisions": [
+    {
+      "need": "写入前确认与写入进度",
+      "component_id": "progress-bar",
+      "decision": "must-use",
+      "reason": "备份/写入/自检需要可见进度"
+    },
+    {
+      "need": "冲突与完成提示",
+      "component_id": "info-bar",
+      "decision": "must-use",
+      "reason": "就地说明原因，不弹窗打断"
+    }
+  ],
+  "implementation_spec": {
+    "source_concept_id": "single-canvas",
+    "container_model": "Window（Mica）→ 顶部输入条（Schema 目录 / 备份文件夹 / 修改内容 / 检查）→ 中部左右两块：左为台账 Card（按文件分组的模型/委托列表），右为改动详情 Card（宽 380，可收起）→ 底部状态计数与操作（保存日志、执行修改）",
+    "semantic_tokens": [
+      "状态色：新增=强调蓝、修改=琥珀、冲突=红、已具备=绿；Light/Dark 各有一组对比度达标的值，由 ui/theme 统一提供",
+      "间距 4 px 节奏：外边距 24、区块间距 16、相关间距 8；行高 32；卡片使用 Fluent Layer/LayerAlt，不另加阴影"
+    ],
+    "typography_roles": [
+      "正文 Body、结论与分组头 BodyStrong、详情标题 Subtitle、次要信息 Caption",
+      "定位信息（行号 Lxxxxx、类路径、前后值）使用等宽字体，仅限 ASCII 内容"
+    ],
+    "component_families": [
+      "fluentqt：Window、Field + LineEdit/ComboBox、Button（Accent/Standard/Subtle/IconOnly）、Card、InfoBar、ProgressBar、Divider、Label、FontIcon",
+      "台账：QAbstractListModel + 自绘委托（文件分组头行与改动行两种行型）"
+    ],
+    "state_grammar": [
+      "行首 3 px 状态色条 + 状态文字双重表达；冲突行说明文字为红色",
+      "执行修改：有冲突或无待修改时禁用，旁边写明原因；写入中显示不确定进度条并禁用所有输入",
+      "全部已具备：台账全绿并在底部和提示条写“当前选择的 Schema 文件已经具备这些字段，无需修改”"
+    ],
+    "motion_cues": [
+      "仅检查/写入期间显示进度条；尊重系统减少动画设置，不做其他动画"
+    ],
+    "responsive_rules": [
+      "窗口宽度小于 1100 时隐藏右侧详情（选中行后用对话框查看），台账隐藏“功能”列",
+      "最小 860×560：输入条换成两行，保证主按钮与台账可见"
+    ],
+    "locked_decisions": [
+      "台账是主体，行不包卡片，只有选中行有底色",
+      "等宽行号边栏 + 状态色条 + 文件分组是标志性元素，不得替换为普通表格或文本框"
+    ],
+    "allowed_adaptations": [
+      "控件高度、圆角、焦点框遵循 FluentQt 原生尺寸；长路径可中间截断并提供悬停全文"
+    ],
+    "known_risks": [
+      "Dark 主题下琥珀/红色条与文字对比度需复核",
+      "自绘委托需处理键盘焦点与无障碍名称"
+    ],
+    "comparison_regions": [
+      "1440×900 全窗口对比 concepts/single-canvas.png",
+      "选中修改行时右侧改前改后详情区"
+    ]
+  },
+  "planned_states": [
+    "normal-light",
+    "normal-dark",
+    "narrow",
+    "minimum",
+    "empty",
+    "long-localized-content",
+    "selected-focus-disabled",
+    "transient-surface"
+  ],
+  "design_board": "design-board.svg"
+}

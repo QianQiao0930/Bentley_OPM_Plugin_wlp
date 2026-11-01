@@ -59,7 +59,9 @@
   <ItemGroup>
     <Content Include="..\资料\地面冲洗水盘管.cel" Link="地面冲洗水盘管.cel" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
-  <ItemGroup><Compile Remove="Development\ComponentPropertiesCheck\**\*.cs" />
+  <ItemGroup><Compile Remove="Development\ValveActuatorCelValidation\**\*.cs" />
+    <Compile Remove="Development\ValveActuatorUiCheck\**\*.cs" />
+    <Compile Remove="Development\ComponentPropertiesCheck\**\*.cs" />
     <Compile Remove="Development\EquipmentLevelCheck\**\*.cs" />
     <Compile Remove="Development\EquipmentLevelUiCheck\**\*.cs" />
     <Compile Remove="Development\PreviewOwnershipCheck\**\*.cs" />

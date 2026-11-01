@@ -71,9 +71,10 @@
             <Border x:Name="OperationCard" Grid.Row="3" Style="{StaticResource CardStyle}" Padding="10,8" Margin="0,6,6,0">
                 <StackPanel>
                     <TextBlock x:Name="PlacementStateText" Text="选择构件后开始放置。" FontSize="11" Foreground="#5B6B7B" Margin="0,0,0,6" TextTrimming="CharacterEllipsis" MaxHeight="28" LineHeight="14" ToolTip="{Binding Text,RelativeSource={RelativeSource Self}}"/>
-                    <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition Width="84"/></Grid.ColumnDefinitions>
-                        <Button x:Name="StartButton" Content="开始连续放置" Style="{StaticResource PrimaryButtonStyle}" Click="Start_Click" IsEnabled="False" Height="36" Margin="0"/>
-                        <Button x:Name="EndButton" Grid.Column="2" Content="结束" Style="{StaticResource SecondaryButtonStyle}" Click="End_Click" IsEnabled="False" Height="36" Margin="0"/>
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition Width="68"/></Grid.ColumnDefinitions>
+                        <Button x:Name="SingleButton" Content="单次放置" Style="{StaticResource PrimaryButtonStyle}" Click="Single_Click" IsEnabled="False" Height="36" Margin="0" ToolTip="进入放置后左键只放一套，随后自动结束。"/>
+                        <Button x:Name="StartButton" Grid.Column="2" Content="连续放置" Style="{StaticResource SecondaryButtonStyle}" Click="Start_Click" IsEnabled="False" Height="36" Margin="0" ToolTip="进入放置后每次左键放一套，可连续放置，右键结束。"/>
+                        <Button x:Name="EndButton" Grid.Column="4" Content="结束" Style="{StaticResource SecondaryButtonStyle}" Click="End_Click" IsEnabled="False" Height="36" Margin="0"/>
                     </Grid>
                 </StackPanel>
             </Border>

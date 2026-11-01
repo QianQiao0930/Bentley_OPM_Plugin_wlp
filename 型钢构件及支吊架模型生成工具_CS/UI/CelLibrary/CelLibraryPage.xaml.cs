@@ -19,12 +19,13 @@ namespace SteelSectionProbe
         private DgnModel model;
         private string libraryPath;
         private bool active, loading = true, busy;
+        private bool singlePlacement;
         private int placedThisRun;
         private readonly DispatcherTimer contextTimer;
         private readonly DispatcherTimer previewTimer;
         public string PageId { get { return "cel-library"; } }
         public string PageTitle { get { return "CEL 构件库放置"; } }
-        public string PageSubtitle { get { return "选取库单元，预览并连续放置，附加项统计数量"; } }
+        public string PageSubtitle { get { return "选取库单元，单次或连续放置，附加项统计数量"; } }
         public FrameworkElement View { get { return this; } }
         public bool IsBusy { get { return busy; } }
 
@@ -64,7 +65,7 @@ namespace SteelSectionProbe
             CelPlacementTool.Failed -= Tool_Failed;
             CelPlacementTool.Ended -= Tool_Ended;
             TransactionManager.OnUndoRedoFinished -= UndoFinished;
-            model = null; placedThisRun = 0;
+            model = null; placedThisRun = 0; singlePlacement = false;
             InvalidateStatistics("离开页面后请重新统计。"); UpdateEnabled();
         }
         public void OnWorkspaceClosing() { OnDeactivated(); }
@@ -165,7 +166,9 @@ namespace SteelSectionProbe
             PreviewInfoText.Text = "预览显示失败，仍可放置：" + error;
             Status(PreviewInfoText.Text, true); UpdateEnabled();
         }
-        private void Start_Click(object sender, RoutedEventArgs e)
+        private void Start_Click(object sender, RoutedEventArgs e) { StartPlacement(false); }
+        private void Single_Click(object sender, RoutedEventArgs e) { StartPlacement(true); }
+        private void StartPlacement(bool single)
         {
             if (!active || busy) return;
             try
@@ -177,11 +180,16 @@ namespace SteelSectionProbe
                 if (selected == null || !TryAngle(out angle)) throw new InvalidOperationException("请选择单元并输入有效角度。");
                 // Validate actual offline cell creation, independently of picture rendering.
                 CelLibraryGeometry.Create(selected, DPoint3d.Zero, angle);
+                singlePlacement = single;
                 StartOrUpdatePlacement();
-                PlacementStateText.Text = "左键放置一套，继续点击可连续放置；右键结束。";
-                Status("已清空旧选择，请在模型中点击 CEL 原点的安装位置。", false);
+                PlacementStateText.Text = single
+                    ? "左键放置一套，放置后自动结束；右键取消。"
+                    : "左键放置一套，继续点击可连续放置；右键结束。";
+                Status(single
+                    ? "请在模型中点击 CEL 原点的安装位置；左键放置一套后自动结束。"
+                    : "已清空旧选择，请在模型中点击 CEL 原点的安装位置。", false);
             }
-            catch (Exception ex) { PlacementStateText.Text = ex.Message; Status(ex.Message, true); }
+            catch (Exception ex) { singlePlacement = false; PlacementStateText.Text = ex.Message; Status(ex.Message, true); }
             UpdateEnabled();
         }
         private void StartOrUpdatePlacement()
@@ -191,7 +199,7 @@ namespace SteelSectionProbe
             if (entry == null || !TryAngle(out angle)) throw new InvalidOperationException("请选择单元并输入有效角度。");
             var metadata = new CelPlacementMetadata { LibraryFileName = Path.GetFileName(entry.LibraryPath), CellName = entry.Name,
                 Category = CategoryText.Text.Trim(), Specification = SpecificationText.Text.Trim(), RotationDegrees = Normalize(angle) };
-            CelPlacementTool.Begin(point => CelLibraryGeometry.Create(entry, point, angle), metadata);
+            CelPlacementTool.Begin(point => CelLibraryGeometry.Create(entry, point, angle), metadata, singlePlacement);
         }
         private void UpdatePlacementIfActive()
         {
@@ -201,13 +209,23 @@ namespace SteelSectionProbe
         }
         private void End_Click(object sender, RoutedEventArgs e) { TryEndPlacement(); UpdateEnabled(); }
         private void Tool_Ended()
-        { PlacementStateText.Text = "已结束放置；本次已放置 " + placedThisRun + " 套。"; UpdateEnabled(); }
+        {
+            string text;
+            if (singlePlacement)
+                text = placedThisRun > 0 ? "单次放置完成；本次已放置 " + placedThisRun + " 套。" : "已取消单次放置；本次已放置 0 套。";
+            else
+                text = "已结束放置；本次已放置 " + placedThisRun + " 套。";
+            singlePlacement = false;
+            PlacementStateText.Text = text; Status(text, false); UpdateEnabled();
+        }
         private void Tool_Failed(string error)
         { PlacementStateText.Text = error; Status(error, true); UpdateEnabled(); }
         private void Tool_Placed(CelPlacementResult result)
         {
             placedThisRun++;
-            PlacementStateText.Text = "已放置 " + result.CellName + "；本次 " + placedThisRun + " 套，继续点击放置。";
+            PlacementStateText.Text = singlePlacement
+                ? "已放置 " + result.CellName + "；单次放置完成，本次 " + placedThisRun + " 套。"
+                : "已放置 " + result.CellName + "；本次 " + placedThisRun + " 套，继续点击放置。";
             InvalidateStatistics("模型已更新，请刷新统计。已放置构件可以撤销。");
             Status(PlacementStateText.Text, false); UpdateEnabled();
         }
@@ -289,9 +307,10 @@ namespace SteelSectionProbe
         private static double Normalize(double angle) { return ((angle % 360) + 360) % 360; }
         private void UpdateEnabled()
         {
-            if (StartButton == null || EndButton == null) return;
+            if (StartButton == null || EndButton == null || SingleButton == null) return;
             double angle;
             StartButton.IsEnabled = active && !busy && CellCombo.SelectedItem is CelLibraryEntry && TryAngle(out angle);
+            SingleButton.IsEnabled = StartButton.IsEnabled;
             EndButton.IsEnabled = active && !busy && CelPlacementTool.NeedsCleanup;
             BrowseButton.IsEnabled = RefreshLibraryButton.IsEnabled = CellCombo.IsEnabled = !busy;
             AngleText.IsEnabled = MinusAngleButton.IsEnabled = PlusAngleButton.IsEnabled = !busy;

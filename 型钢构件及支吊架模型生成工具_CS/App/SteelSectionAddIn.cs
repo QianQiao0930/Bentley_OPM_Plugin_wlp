@@ -1,5 +1,6 @@
 using System;
 using Bentley.MstnPlatformNET;
+using Bentley.DgnPlatformNET;
 
 namespace SteelSectionProbe
 {
@@ -18,6 +19,14 @@ namespace SteelSectionProbe
 
         private void OnUnloading(AddIn sender, AddIn.UnloadingEventArgs eventArgs)
         {
+            if (eventArgs.UnloadKind == AddIn.UnloadReasons.Shutdown) ValveActuatorPlacement.OnHostShutdown();
+            if (ValveActuatorPlacement.HasNativeObjects && (eventArgs.UnloadKind == AddIn.UnloadReasons.Command
+                || eventArgs.UnloadKind == AddIn.UnloadReasons.LibraryUnload))
+            {
+                eventArgs.ResponseCode = AddIn.UnloadingEventArgs.Response.UnloadAbort;
+                NotificationManager.OutputPrompt("执行机构原生资源已被宿主使用，请正常退出 OPM 后更新插件。");
+                return;
+            }
             try { MainWindow.UnloadWindow(); }
             catch (Exception ex)
             {

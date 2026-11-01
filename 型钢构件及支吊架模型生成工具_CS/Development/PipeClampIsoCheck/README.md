@@ -2,7 +2,7 @@
 
 2026-10-15原生编辑正式接入：当前10318项。链接真实NativePipeSupportRecipe/Codec、RecipeGraphics与NativePipeSupportComponentSetup，参数化创建替身在构造期先执行真实Setup、父管绑定后才PrepareGraphics。覆盖九类×3档UOR×3种Schema单位×3种方向的完整配方无损往返、局部重建及当前变换下的采样点、无二次平移和无重复材料，另有配方/重读配方丢失回滚、未知字段/版本/CLR提示/类别混配/非有限嵌套尺寸拒绝。仍不模拟原生操作柄或自动随动，不能代替宿主验收。
 
-Schema检查另运行同目录 `Check-NativeEditingSchema.ps1 -Mode PipeClamp`，31项检查正式类及持久配方字段。该检查复用真实安装入口（转发到Install-NativeSupportEditing.ps1），为obj隔离XML夹具。
+Schema检查另运行同目录 `Check-NativeEditingSchema.ps1 -Mode PipeClamp`，31项检查正式类及持久配方字段。该检查复用真实安装入口（转发到Install-NativeSupportEditing.ps1），为obj隔离XML夹具。2026-11-01新增 `Check-ValveActuatorSchema.ps1`，24项检查 `-Features ValveActuator`：只读预览、无备份拒绝、备份字节一致、原GEARBOX_OPERATOR不变、继承与6个CEL快照字段、处理器及原生Topwork契约、Isoextractor不改、重复幂等与冲突拒绝。
 
 2026-10-15：当前6516项，新增A1/A2三种材料代码×普通/原生来源，验证编号、原材料AssemblyTag及ALIAS/IsoTag一致，A2通过真实参数对象传递代码；链接真实PipeClampLastChoice.Data，检查旧JSON缺材料字段默认C1、两代码独立序列化往返及其他类别值保留，不读写实际偏好文件。下方6484项为上一轮基线。
 

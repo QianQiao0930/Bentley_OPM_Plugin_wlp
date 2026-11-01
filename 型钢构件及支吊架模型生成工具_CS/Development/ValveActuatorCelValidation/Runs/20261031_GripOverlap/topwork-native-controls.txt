@@ -1,0 +1,2789 @@
+TYPE .<Module> base=none
+Assembly, Static Bentley.ModelingFramework.Handlers.TopworkDragManipulator* Bentley.ModelingFramework.Handlers.TopworkDragManipulator.{ctor}(Bentley.ModelingFramework.Handlers.TopworkDragManipulator*, Int32) []
+  0000 ldc.i4.0 
+  0001 stloc.0 
+  0002 ldarg.1 
+  0003 brfalse.s 34
+  0005 ldarg.0 
+  0006 ldc.i4.8 
+  0007 conv.i8 
+  0008 add 
+  0009 ldsflda ??_8TopworkDragManipulator@Handlers@ModelingFramework@Bentley@@7B@
+  000E stind.i8 
+  000F ldarg.0 
+  0010 ldc.i4.s 30
+  0012 conv.i8 
+  0013 add 
+  0014 call Bentley.ModelingFramework.Handlers.ComponentDragManipulator.{ctor}
+  0019 pop 
+  001A ldc.i4.1 
+  001B stloc.0 
+  001C leave.s 1B
+  001E ldloc.0 
+  001F ldc.i4.1 
+  0020 and 
+  0021 brfalse.s 15
+  0023 ldloc.0 
+  0024 ldc.i4.s FE
+  0026 and 
+  0027 stloc.0 
+  0028 ldftn Bentley.ModelingFramework.Handlers.ComponentDragManipulator.{dtor}
+  002E ldarg.0 
+  002F ldc.i4.s 30
+  0031 conv.i8 
+  0032 add 
+  0033 call ___CxxCallUnwindDtor
+  0038 endfinally 
+  0039 nop 
+  003A ldarg.0 
+  003B ldsflda ??_7TopworkDragManipulator@Handlers@ModelingFramework@Bentley@@6B0123@@
+  0040 stind.i8 
+  0041 ldarg.0 
+  0042 ldc.i4.8 
+  0043 conv.i8 
+  0044 add 
+  0045 stloc.1 
+  0046 ldarg.0 
+  0047 ldloc.1 
+  0048 ldind.i8 
+  0049 ldc.i4.4 
+  004A conv.i8 
+  004B add 
+  004C ldind.i4 
+  004D conv.i8 
+  004E add 
+  004F ldc.i4.8 
+  0050 conv.i8 
+  0051 add 
+  0052 ldsflda ??_7TopworkDragManipulator@Handlers@ModelingFramework@Bentley@@6BComponentDragManipulator@123@@
+  0057 stind.i8 
+  0058 ldloc.1 
+  0059 ldind.i8 
+  005A ldc.i4.4 
+  005B conv.i8 
+  005C add 
+  005D ldind.i4 
+  005E conv.i8 
+  005F stloc.2 
+  0060 ldarg.0 
+  0061 ldloc.2 
+  0062 add 
+  0063 ldc.i4.4 
+  0064 conv.i8 
+  0065 add 
+  0066 ldloc.2 
+  0067 ldc.i4.s 28
+  0069 conv.i8 
+  006A sub 
+  006B conv.i4 
+  006C stind.i4 
+  006D ldarg.0 
+  006E ldloc.1 
+  006F ldind.i8 
+  0070 ldc.i4.4 
+  0071 conv.i8 
+  0072 add 
+  0073 ldind.i4 
+  0074 conv.i8 
+  0075 add 
+  0076 ldc.i4 99-00-00-00
+  007B conv.i8 
+  007C add 
+  007D ldc.i4.0 
+  007E stind.i1 
+  007F ldarg.0 
+  0080 ldc.i4.s 30
+  0082 conv.i8 
+  0083 add 
+  0084 call Bentley.ModelingFramework.Handlers.TopworkDragManipulator.LoadDragSprites
+  0089 ldarg.0 
+  008A ldloc.1 
+  008B ldind.i8 
+  008C ldc.i4.4 
+  008D conv.i8 
+  008E add 
+  008F ldind.i4 
+  0090 conv.i8 
+  0091 add 
+  0092 ldc.i4 10-01-00-00
+  0097 conv.i8 
+  0098 add 
+  0099 ldc.i4.0 
+  009A stind.i4 
+  009B leave.s 1B
+  009D ldloc.0 
+  009E ldc.i4.1 
+  009F and 
+  00A0 brfalse.s 15
+  00A2 ldloc.0 
+  00A3 ldc.i4.s FE
+  00A5 and 
+  00A6 stloc.0 
+  00A7 ldftn Bentley.ModelingFramework.Handlers.ComponentDragManipulator.{dtor}
+  00AD ldarg.0 
+  00AE ldc.i4.s 30
+  00B0 conv.i8 
+  00B1 add 
+  00B2 call ___CxxCallUnwindDtor
+  00B7 endfinally 
+  00B8 ldarg.0 
+  00B9 ret 
+Assembly, Static Void Bentley.ModelingFramework.Handlers.TopworkDragManipulator.{dtor}(Bentley.ModelingFramework.Handlers.TopworkDragManipulator*) []
+  0000 ldarg.0 
+  0001 ldc.i4.s 30
+  0003 conv.i8 
+  0004 sub 
+  0005 ldsflda ??_7TopworkDragManipulator@Handlers@ModelingFramework@Bentley@@6B0123@@
+  000A stind.i8 
+  000B ldarg.0 
+  000C dup 
+  000D ldc.i4.s 28
+  000F conv.i8 
+  0010 sub 
+  0011 ldind.i8 
+  0012 ldc.i4.4 
+  0013 conv.i8 
+  0014 add 
+  0015 ldind.i4 
+  0016 conv.i8 
+  0017 add 
+  0018 ldc.i4.s 28
+  001A conv.i8 
+  001B sub 
+  001C ldsflda ??_7TopworkDragManipulator@Handlers@ModelingFramework@Bentley@@6BComponentDragManipulator@123@@
+  0021 stind.i8 
+  0022 ldarg.0 
+  0023 ldc.i4.s 28
+  0025 conv.i8 
+  0026 sub 
+  0027 ldind.i8 
+  0028 ldc.i4.4 
+  0029 conv.i8 
+  002A add 
+  002B ldind.i4 
+  002C conv.i8 
+  002D stloc.0 
+  002E ldarg.0 
+  002F ldloc.0 
+  0030 add 
+  0031 ldc.i4.s 2C
+  0033 conv.i8 
+  0034 sub 
+  0035 ldloc.0 
+  0036 ldc.i4.s 28
+  0038 conv.i8 
+  0039 sub 
+  003A conv.i4 
+  003B stind.i4 
+  003C ret 
+Assembly, Static Bentley.ModelingFramework.Handlers.TopworkDragManipulator* Bentley.ModelingFramework.Handlers.TopworkDragManipulator.Create() []
+  0000 ldc.i4 98-02-00-00
+  0005 conv.i8 
+  0006 call Bentley.RefCounted<Bentley::DgnPlatform::IDragManipulator>.new
+  000B stloc.0 
+  000C ldloc.0 
+  000D brfalse.s 0A
+  000F ldloc.0 
+  0010 ldc.i4.1 
+  0011 call Bentley.ModelingFramework.Handlers.TopworkDragManipulator.{ctor}
+  0016 stloc.1 
+  0017 leave.s 12
+  0019 ldc.i4.0 
+  001A conv.i8 
+  001B stloc.1 
+  001C leave.s 0D
+  001E ldloc.0 
+  001F ldc.i4 98-02-00-00
+  0024 conv.i8 
+  0025 call Bentley.RefCounted<Bentley::DgnPlatform::IDragManipulator>.delete
+  002A endfinally 
+  002B ldloc.1 
+  002C ret 
+Assembly, Static Void* Bentley.ModelingFramework.Handlers.TopworkDragManipulator.__vecDelDtor(Bentley.ModelingFramework.Handlers.TopworkDragManipulator*, UInt32) [2:A_0]
+  0000 ldarg.1 
+  0001 ldc.i4.2 
+  0002 and 
+  0003 brfalse.s 37
+  0005 ldarg.0 
+  0006 ldc.i4.s 38
+  0008 conv.i8 
+  0009 sub 
+  000A stloc.1 
+  000B ldarg.0 
+  000C ldc.i4.s 30
+  000E conv.i8 
+  000F sub 
+  0010 ldc.i4 98-02-00-00
+  0015 conv.i8 
+  0016 ldloc.1 
+  0017 ldind.i8 
+  0018 ldftn Bentley.ModelingFramework.Handlers.TopworkDragManipulator.__vbaseDtor
+  001E call __ehvec_dtor
+  0023 ldarg.1 
+  0024 ldc.i4.1 
+  0025 and 
+  0026 brfalse.s 12
+  0028 ldloc.1 
+  0029 dup 
+  002A ldind.i8 
+  002B ldc.i4 98-02-00-00
+  0030 conv.i8 
+  0031 mul 
+  0032 ldc.i4.8 
+  0033 conv.i8 
+  0034 add 
+  0035 call delete[]
+  003A ldloc.1 
+  003B ret 
+  003C ldarg.0 
+  003D ldc.i4.s 30
+  003F conv.i8 
+  0040 sub 
+  0041 stloc.0 
+  0042 ldloc.0 
+  0043 ldc.i4.s 30
+  0045 conv.i8 
+  0046 add 
+  0047 stloc.2 
+  0048 ldloc.2 
+  0049 call Bentley.ModelingFramework.Handlers.TopworkDragManipulator.{dtor}
+  004E ldloc.2 
+  004F call Bentley.ModelingFramework.Handlers.ComponentDragManipulator.{dtor}
+  0054 ldarg.1 
+  0055 ldc.i4.1 
+  0056 and 
+  0057 brfalse.s 1F
+  0059 ldarg.1 
+  005A ldc.i4.4 
+  005B and 
+  005C brtrue.s 0E
+  005E ldloc.0 
+  005F ldc.i4 98-02-00-00
+  0064 conv.i8 
+  0065 call Bentley.RefCounted<Bentley::DgnPlatform::IDragManipulator>.delete
+  006A br.s 0C
+  006C ldloc.0 
+  006D ldc.i4 98-02-00-00
+  0072 conv.i8 
+  0073 call delete
+  0078 ldloc.0 
+  0079 ret 
+Assembly, Static Void Bentley.ModelingFramework.Handlers.TopworkDragManipulator.__vbaseDtor(Bentley.ModelingFramework.Handlers.TopworkDragManipulator*) []
+  0000 ldarg.0 
+  0001 ldc.i4.s 30
+  0003 conv.i8 
+  0004 add 
+  0005 stloc.0 
+  0006 ldloc.0 
+  0007 call Bentley.ModelingFramework.Handlers.TopworkDragManipulator.{dtor}
+  000C ldloc.0 
+  000D call Bentley.ModelingFramework.Handlers.ComponentDragManipulator.{dtor}
+  0012 ret 
+Assembly, Static Boolean Bentley.ModelingFramework.Handlers.TopworkDragManipulator._OnCreateControls(Bentley.ModelingFramework.Handlers.TopworkDragManipulator*, Bentley.DgnPlatform.ElementHandle*) [0:value, 2:A_0]
+  0000 ldc.i4.s 48
+  0002 conv.i8 
+  0003 call new[]
+  0008 stloc.0 
+  0009 ldarg.0 
+  000A dup 
+  000B ldc.i4.s 28
+  000D conv.i8 
+  000E sub 
+  000F ldind.i8 
+  0010 ldc.i4.4 
+  0011 conv.i8 
+  0012 add 
+  0013 ldind.i4 
+  0014 conv.i8 
+  0015 add 
+  0016 ldc.i4.s 58
+  0018 conv.i8 
+  0019 add 
+  001A ldloc.0 
+  001B stind.i8 
+  001C ldarg.0 
+  001D dup 
+  001E ldc.i4.s 28
+  0020 conv.i8 
+  0021 sub 
+  0022 ldind.i8 
+  0023 ldc.i4.4 
+  0024 conv.i8 
+  0025 add 
+  0026 ldind.i4 
+  0027 conv.i8 
+  0028 add 
+  0029 ldc.i4.s 28
+  002B conv.i8 
+  002C sub 
+  002D ldarg.1 
+  002E call Bentley.ModelingFramework.Handlers.ComponentDragManipulator._OnCreateControls
+  0033 ret 
+Assembly, Static Void Bentley.ModelingFramework.Handlers.TopworkDragManipulator._OnDraw(Bentley.ModelingFramework.Handlers.TopworkDragManipulator*, Bentley.DgnPlatform.ElementHandle*, Bentley.DgnPlatform.Viewport*) [2:A_0, 3:A_1]
+  0000 ldarg.0 
+  0001 dup 
+  0002 ldc.i4.s 28
+  0004 conv.i8 
+  0005 sub 
+  0006 ldind.i8 
+  0007 ldc.i4.4 
+  0008 conv.i8 
+  0009 add 
+  000A ldind.i4 
+  000B conv.i8 
+  000C add 
+  000D ldc.i4.s 28
+  000F conv.i8 
+  0010 sub 
+  0011 ldarg.1 
+  0012 ldarg.2 
+  0013 call Bentley.ModelingFramework.Handlers.ComponentDragManipulator._OnDraw
+  0018 ldarg.0 
+  0019 ldc.i4.s 28
+  001B conv.i8 
+  001C sub 
+  001D ldind.i8 
+  001E ldc.i4.4 
+  001F conv.i8 
+  0020 add 
+  0021 ldind.i4 
+  0022 conv.i8 
+  0023 ldarg.0 
+  0024 add 
+  0025 stloc.3 
+  0026 ldloc.3 
+  0027 ldc.i4.s 6A
+  0029 conv.i8 
+  002A add 
+  002B ldind.u1 
+  002C brfalse 1E-01-00-00
+  0031 ldc.i4.0 
+  0032 conv.i8 
+  0033 ldloc.3 
+  0034 ldc.i4.s 58
+  0036 conv.i8 
+  0037 add 
+  0038 ldind.i8 
+  0039 beq 11-01-00-00
+  003E ldloca.s 05
+  0040 ldloc.3 
+  0041 ldc.i4.s 70
+  0043 conv.i8 
+  0044 add 
+  0045 ldc.i4.0 
+  0046 call mdlRMatrix_getColumnVector
+  004B ldarg.0 
+  004C dup 
+  004D ldc.i4.s 28
+  004F conv.i8 
+  0050 sub 
+  0051 ldind.i8 
+  0052 ldc.i4.4 
+  0053 conv.i8 
+  0054 add 
+  0055 ldind.i4 
+  0056 conv.i8 
+  0057 add 
+  0058 ldc.i4.s 18
+  005A conv.i8 
+  005B sub 
+  005C ldc.i4.0 
+  005D conv.i8 
+  005E call Bentley.Bstdcxx.bvector<Bentley::DgnPlatform::PointDragManipulator::ControlPoint *,Bentley::BentleyAllocator<Bentley::DgnPlatform::PointDragManipulator::ControlPoint *> >.[]
+  0063 ldind.i8 
+  0064 stloc.2 
+  0065 ldloc.2 
+  0066 ldc.i4.s 20
+  0068 conv.i8 
+  0069 add 
+  006A ldind.i4 
+  006B brtrue.s 1B
+  006D ldarg.2 
+  006E call Bentley.DgnPlatform.Viewport.GetIViewDraw
+  0073 ldloc.2 
+  0074 ldc.i4.s 30
+  0076 conv.i8 
+  0077 add 
+  0078 ldind.i8 
+  0079 ldloc.2 
+  007A ldc.i4.8 
+  007B conv.i8 
+  007C add 
+  007D ldloca.s 05
+  007F ldc.i4.0 
+  0080 call Bentley.DgnPlatform.IViewDraw.DrawSprite
+  0085 pop 
+  0086 br.s 19
+  0088 ldarg.2 
+  0089 call Bentley.DgnPlatform.Viewport.GetIViewDraw
+  008E ldloc.2 
+  008F ldc.i4.s 28
+  0091 conv.i8 
+  0092 add 
+  0093 ldind.i8 
+  0094 ldloc.2 
+  0095 ldc.i4.8 
+  0096 conv.i8 
+  0097 add 
+  0098 ldloca.s 05
+  009A ldc.i4.0 
+  009B call Bentley.DgnPlatform.IViewDraw.DrawSprite
+  00A0 pop 
+  00A1 ldarg.0 
+  00A2 dup 
+  00A3 ldc.i4.s 28
+  00A5 conv.i8 
+  00A6 sub 
+  00A7 ldind.i8 
+  00A8 ldc.i4.4 
+  00A9 conv.i8 
+  00AA add 
+  00AB ldind.i4 
+  00AC conv.i8 
+  00AD add 
+  00AE ldc.i4.s 18
+  00B0 conv.i8 
+  00B1 sub 
+  00B2 ldc.i4.1 
+  00B3 conv.i8 
+  00B4 call Bentley.Bstdcxx.bvector<Bentley::DgnPlatform::PointDragManipulator::ControlPoint *,Bentley::BentleyAllocator<Bentley::DgnPlatform::PointDragManipulator::ControlPoint *> >.[]
+  00B9 ldind.i8 
+  00BA stloc.1 
+  00BB ldloc.1 
+  00BC ldc.i4.s 20
+  00BE conv.i8 
+  00BF add 
+  00C0 ldind.i4 
+  00C1 brtrue.s 1B
+  00C3 ldarg.2 
+  00C4 call Bentley.DgnPlatform.Viewport.GetIViewDraw
+  00C9 ldloc.1 
+  00CA ldc.i4.s 30
+  00CC conv.i8 
+  00CD add 
+  00CE ldind.i8 
+  00CF ldloc.1 
+  00D0 ldc.i4.8 
+  00D1 conv.i8 
+  00D2 add 
+  00D3 ldloca.s 05
+  00D5 ldc.i4.0 
+  00D6 call Bentley.DgnPlatform.IViewDraw.DrawSprite
+  00DB pop 
+  00DC br.s 19
+  00DE ldarg.2 
+  00DF call Bentley.DgnPlatform.Viewport.GetIViewDraw
+  00E4 ldloc.1 
+  00E5 ldc.i4.s 28
+  00E7 conv.i8 
+  00E8 add 
+  00E9 ldind.i8 
+  00EA ldloc.1 
+  00EB ldc.i4.8 
+  00EC conv.i8 
+  00ED add 
+  00EE ldloca.s 05
+  00F0 ldc.i4.0 
+  00F1 call Bentley.DgnPlatform.IViewDraw.DrawSprite
+  00F6 pop 
+  00F7 ldarg.0 
+  00F8 dup 
+  00F9 ldc.i4.s 28
+  00FB conv.i8 
+  00FC sub 
+  00FD ldind.i8 
+  00FE ldc.i4.4 
+  00FF conv.i8 
+  0100 add 
+  0101 ldind.i4 
+  0102 conv.i8 
+  0103 add 
+  0104 ldc.i4.s 18
+  0106 conv.i8 
+  0107 sub 
+  0108 ldc.i4.2 
+  0109 conv.i8 
+  010A call Bentley.Bstdcxx.bvector<Bentley::DgnPlatform::PointDragManipulator::ControlPoint *,Bentley::BentleyAllocator<Bentley::DgnPlatform::PointDragManipulator::ControlPoint *> >.[]
+  010F ldind.i8 
+  0110 stloc.0 
+  0111 ldloc.0 
+  0112 ldc.i4.s 20
+  0114 conv.i8 
+  0115 add 
+  0116 ldind.i4 
+  0117 brtrue.s 1B
+  0119 ldarg.2 
+  011A call Bentley.DgnPlatform.Viewport.GetIViewDraw
+  011F ldloc.0 
+  0120 ldc.i4.s 30
+  0122 conv.i8 
+  0123 add 
+  0124 ldind.i8 
+  0125 ldloc.0 
+  0126 ldc.i4.8 
+  0127 conv.i8 
+  0128 add 
+  0129 ldloca.s 05
+  012B ldc.i4.0 
+  012C call Bentley.DgnPlatform.IViewDraw.DrawSprite
+  0131 pop 
+  0132 br.s 32
+  0134 ldarg.2 
+  0135 call Bentley.DgnPlatform.Viewport.GetIViewDraw
+  013A ldloc.0 
+  013B ldc.i4.s 28
+  013D conv.i8 
+  013E add 
+  013F ldind.i8 
+  0140 ldloc.0 
+  0141 ldc.i4.8 
+  0142 conv.i8 
+  0143 add 
+  0144 ldloca.s 05
+  0146 ldc.i4.0 
+  0147 call Bentley.DgnPlatform.IViewDraw.DrawSprite
+  014C pop 
+  014D br.s 17
+  014F ldloc.3 
+  0150 ldc.i4.s 28
+  0152 conv.i8 
+  0153 sub 
+  0154 stloc.s 04
+  0156 ldloc.s 04
+  0158 ldarg.1 
+  0159 ldloc.s 04
+  015B ldind.i8 
+  015C ldc.i4.s 20
+  015E conv.i8 
+  015F add 
+  0160 ldind.i8 
+  0161 calli E7-02-00-11
+  0166 ret 
+Assembly, Static Void Bentley.ModelingFramework.Handlers.TopworkDragManipulator._OnStartDrag(Bentley.ModelingFramework.Handlers.TopworkDragManipulator*, Bentley.DgnPlatform.ElementHandle*, Bentley.DgnPlatform.DgnButtonEvent*) [2:elemHandle, 3:ev]
+  0000 ldarg.0 
+  0001 dup 
+  0002 ldc.i4.s 28
+  0004 conv.i8 
+  0005 sub 
+  0006 ldind.i8 
+  0007 ldc.i4.4 
+  0008 conv.i8 
+  0009 add 
+  000A ldind.i4 
+  000B conv.i8 
+  000C add 
+  000D ldc.i4.s 28
+  000F conv.i8 
+  0010 sub 
+  0011 ldarg.1 
+  0012 ldarg.2 
+  0013 call Bentley.ModelingFramework.Handlers.ComponentDragManipulator._OnStartDrag
+  0018 ldloca.s 0D
+  001A ldarg.0 
+  001B dup 
+  001C ldc.i4.s 28
+  001E conv.i8 
+  001F sub 
+  0020 ldind.i8 
+  0021 ldc.i4.4 
+  0022 conv.i8 
+  0023 add 
+  0024 ldind.i4 
+  0025 conv.i8 
+  0026 add 
+  0027 ldc.i4.s 70
+  0029 conv.i8 
+  002A add 
+  002B call mdlRMatrix_transpose
+  0030 ldarg.0 
+  0031 ldc.i4.s 28
+  0033 conv.i8 
+  0034 sub 
+  0035 ldind.i8 
+  0036 ldc.i4.4 
+  0037 conv.i8 
+  0038 add 
+  0039 ldind.i4 
+  003A conv.i8 
+  003B ldarg.0 
+  003C add 
+  003D stloc.0 
+  003E ldloc.0 
+  003F ldc.i4 98-01-00-00
+  0044 conv.i8 
+  0045 add 
+  0046 ldind.i4 
+  0047 stloc.2 
+  0048 ldc.i4.1 
+  0049 ldloc.2 
+  004A bne.un BB-00-00-00
+  004F ldloca.s 0C
+  0051 ldloc.0 
+  0052 ldc.i4.s 70
+  0054 conv.i8 
+  0055 add 
+  0056 ldc.i4.2 
+  0057 call mdlRMatrix_getColumnVector
+  005C ldarg.0 
+  005D ldc.i4.s 30
+  005F conv.i8 
+  0060 sub 
+  0061 ldloca.s 0B
+  0063 call Bentley.ModelingFramework.Handlers.TopworkDragManipulator.getValveXAxis
+  0068 stloc.s 04
+  006A ldarg.0 
+  006B ldc.i4.s 20
+  006D conv.i8 
+  006E sub 
+  006F stloc.1 
+  0070 ldloc.1 
+  0071 ldloc.s 04
+  0073 ldc.i4.s 18
+  0075 cpblk 
+  0077 ldloca.s 0A
+  0079 ldloca.s 0C
+  007B ldloc.1 
+  007C call mdlVec_crossProduct
+  0081 ldloca.s 0D
+  0083 ldloca.s 0A
+  0085 ldloca.s 0C
+  0087 ldloc.1 
+  0088 call mdlRMatrix_fromRowVectors
+  008D call Bentley.DgnPlatform.AccuDraw.GetInstance
+  0092 ldc.i4.s 15
+  0094 ldarg.0 
+  0095 dup 
+  0096 ldc.i4.s 28
+  0098 conv.i8 
+  0099 sub 
+  009A ldind.i8 
+  009B ldc.i4.4 
+  009C conv.i8 
+  009D add 
+  009E ldind.i4 
+  009F conv.i8 
+  00A0 add 
+  00A1 ldc.i4.s 58
+  00A3 conv.i8 
+  00A4 add 
+  00A5 ldind.i8 
+  00A6 ldloca.s 0D
+  00A8 ldc.i4.0 
+  00A9 conv.i8 
+  00AA ldc.i4.0 
+  00AB conv.i8 
+  00AC ldc.i4.0 
+  00AD conv.i8 
+  00AE ldc.i4.0 
+  00AF conv.i8 
+  00B0 call Bentley.DgnPlatform.AccuDraw.SetContext
+  00B5 pop 
+  00B6 ldarg.0 
+  00B7 dup 
+  00B8 ldc.i4.s 28
+  00BA conv.i8 
+  00BB sub 
+  00BC ldind.i8 
+  00BD ldc.i4.4 
+  00BE conv.i8 
+  00BF add 
+  00C0 ldind.i4 
+  00C1 conv.i8 
+  00C2 add 
+  00C3 ldc.i4 D0-00-00-00
+  00C8 conv.i8 
+  00C9 add 
+  00CA ldind.i8 
+  00CB ldloca.s 09
+  00CD call mdlBMECObject_getTransform
+  00D2 ldarg.0 
+  00D3 dup 
+  00D4 ldc.i4.s 28
+  00D6 conv.i8 
+  00D7 sub 
+  00D8 ldind.i8 
+  00D9 ldc.i4.4 
+  00DA conv.i8 
+  00DB add 
+  00DC ldind.i4 
+  00DD conv.i8 
+  00DE add 
+  00DF ldc.i4.s 70
+  00E1 conv.i8 
+  00E2 add 
+  00E3 ldloca.s 09
+  00E5 call mdlRMatrix_fromTMatrix
+  00EA ldarg.0 
+  00EB dup 
+  00EC ldc.i4.s 28
+  00EE conv.i8 
+  00EF sub 
+  00F0 ldind.i8 
+  00F1 ldc.i4.4 
+  00F2 conv.i8 
+  00F3 add 
+  00F4 ldind.i4 
+  00F5 conv.i8 
+  00F6 add 
+  00F7 ldc.i4 B8-00-00-00
+  00FC conv.i8 
+  00FD add 
+  00FE ldloca.s 09
+  0100 call mdlTMatrix_getTranslation
+  0105 br 05-01-00-00
+  010A ldc.i4.0 
+  010B ldloc.2 
+  010C bne.un 8A-00-00-00
+  0111 ldloca.s 08
+  0113 ldloc.0 
+  0114 ldc.i4.s 70
+  0116 conv.i8 
+  0117 add 
+  0118 ldc.i4.0 
+  0119 call mdlRMatrix_getColumnVector
+  011E ldloca.s 07
+  0120 ldarg.0 
+  0121 dup 
+  0122 ldc.i4.s 28
+  0124 conv.i8 
+  0125 sub 
+  0126 ldind.i8 
+  0127 ldc.i4.4 
+  0128 conv.i8 
+  0129 add 
+  012A ldind.i4 
+  012B conv.i8 
+  012C add 
+  012D ldc.i4.s 70
+  012F conv.i8 
+  0130 add 
+  0131 ldc.i4.2 
+  0132 call mdlRMatrix_getColumnVector
+  0137 ldloca.s 06
+  0139 ldloca.s 08
+  013B ldloca.s 07
+  013D call mdlVec_crossProduct
+  0142 ldloca.s 0D
+  0144 ldloca.s 08
+  0146 ldloca.s 07
+  0148 ldloca.s 06
+  014A call mdlRMatrix_fromRowVectors
+  014F ldarg.0 
+  0150 ldc.i4.s 28
+  0152 conv.i8 
+  0153 sub 
+  0154 ldind.i8 
+  0155 ldc.i4.4 
+  0156 conv.i8 
+  0157 add 
+  0158 ldind.i4 
+  0159 conv.i8 
+  015A ldarg.0 
+  015B add 
+  015C stloc.3 
+  015D call Bentley.DgnPlatform.AccuDraw.GetInstance
+  0162 ldc.i4.s 15
+  0164 ldloc.3 
+  0165 ldc.i4 98-01-00-00
+  016A conv.i8 
+  016B add 
+  016C ldind.i4 
+  016D conv.i8 
+  016E ldc.i4.s 18
+  0170 conv.i8 
+  0171 mul 
+  0172 ldloc.3 
+  0173 ldc.i4.s 58
+  0175 conv.i8 
+  0176 add 
+  0177 ldind.i8 
+  0178 add 
+  0179 ldloca.s 0D
+  017B ldc.i4.0 
+  017C conv.i8 
+  017D ldc.i4.0 
+  017E conv.i8 
+  017F ldc.i4.0 
+  0180 conv.i8 
+  0181 ldc.i4.0 
+  0182 conv.i8 
+  0183 call Bentley.DgnPlatform.AccuDraw.SetContext
+  0188 pop 
+  0189 ldarg.0 
+  018A ldc.i4.s 30
+  018C conv.i8 
+  018D sub 
+  018E dup 
+  018F ldind.i8 
+  0190 ldind.i8 
+  0191 calli 64-00-00-11
+  0196 br 74-00-00-00
+  019B ldc.i4.2 
+  019C ldloc.2 
+  019D bne.un.s 70
+  019F ldloc.0 
+  01A0 ldc.i4 D0-00-00-00
+  01A5 conv.i8 
+  01A6 add 
+  01A7 ldind.i8 
+  01A8 ldloca.s 05
+  01AA call mdlBMECObject_getTransform
+  01AF ldarg.0 
+  01B0 dup 
+  01B1 ldc.i4.s 28
+  01B3 conv.i8 
+  01B4 sub 
+  01B5 ldind.i8 
+  01B6 ldc.i4.4 
+  01B7 conv.i8 
+  01B8 add 
+  01B9 ldind.i4 
+  01BA conv.i8 
+  01BB add 
+  01BC ldc.i4.s 70
+  01BE conv.i8 
+  01BF add 
+  01C0 ldloca.s 05
+  01C2 call mdlRMatrix_fromTMatrix
+  01C7 ldarg.0 
+  01C8 dup 
+  01C9 ldc.i4.s 28
+  01CB conv.i8 
+  01CC sub 
+  01CD ldind.i8 
+  01CE ldc.i4.4 
+  01CF conv.i8 
+  01D0 add 
+  01D1 ldind.i4 
+  01D2 conv.i8 
+  01D3 add 
+  01D4 ldc.i4 B8-00-00-00
+  01D9 conv.i8 
+  01DA add 
+  01DB ldloca.s 05
+  01DD call mdlTMatrix_getTranslation
+  01E2 call Bentley.DgnPlatform.AccuDraw.GetInstance
+  01E7 ldc.i4.s 15
+  01E9 ldarg.0 
+  01EA dup 
+  01EB ldc.i4.s 28
+  01ED conv.i8 
+  01EE sub 
+  01EF ldind.i8 
+  01F0 ldc.i4.4 
+  01F1 conv.i8 
+  01F2 add 
+  01F3 ldind.i4 
+  01F4 conv.i8 
+  01F5 add 
+  01F6 ldc.i4.s 58
+  01F8 conv.i8 
+  01F9 add 
+  01FA ldind.i8 
+  01FB ldc.i4.s 18
+  01FD conv.i8 
+  01FE add 
+  01FF ldloca.s 0D
+  0201 ldc.i4.0 
+  0202 conv.i8 
+  0203 ldc.i4.0 
+  0204 conv.i8 
+  0205 ldc.i4.0 
+  0206 conv.i8 
+  0207 ldc.i4.0 
+  0208 conv.i8 
+  0209 call Bentley.DgnPlatform.AccuDraw.SetContext
+  020E pop 
+  020F ret 
+Assembly, Static Int32 Bentley.ModelingFramework.Handlers.TopworkDragManipulator._OnDrag(Bentley.ModelingFramework.Handlers.TopworkDragManipulator*, Bentley.DgnPlatform.EditElementHandle*, Bentley.DgnPlatform.DgnButtonEvent*) [2:A_0, 3:A_1]
+  0000 ldc.i4.s 18
+  0002 conv.i8 
+  0003 call new
+  0008 stloc.s 06
+  000A ldloc.s 06
+  000C brfalse.s 0D
+  000E ldloc.s 06
+  0010 ldc.i4.0 
+  0011 ldc.i4.s 18
+  0013 conv.i8 
+  0014 initblk 
+  0016 ldloc.s 06
+  0018 stloc.0 
+  0019 br.s 03
+  001B ldc.i4.0 
+  001C conv.i8 
+  001D stloc.0 
+  001E ldarg.2 
+  001F call Bentley.DgnPlatform.DgnButtonEvent.GetPoint
+  0024 stloc.s 10
+  0026 ldloc.0 
+  0027 ldloc.s 10
+  0029 ldind.r8 
+  002A stind.r8 
+  002B ldloc.0 
+  002C ldc.i4.8 
+  002D conv.i8 
+  002E add 
+  002F ldarg.2 
+  0030 call Bentley.DgnPlatform.DgnButtonEvent.GetPoint
+  0035 ldc.i4.8 
+  0036 conv.i8 
+  0037 add 
+  0038 ldind.r8 
+  0039 stind.r8 
+  003A ldloc.0 
+  003B ldc.i4.s 10
+  003D conv.i8 
+  003E add 
+  003F ldarg.2 
+  0040 call Bentley.DgnPlatform.DgnButtonEvent.GetPoint
+  0045 ldc.i4.s 10
+  0047 conv.i8 
+  0048 add 
+  0049 ldind.r8 
+  004A stind.r8 
+  004B ldarg.0 
+  004C ldc.i4.s 28
+  004E conv.i8 
+  004F sub 
+  0050 ldind.i8 
+  0051 ldc.i4.4 
+  0052 conv.i8 
+  0053 add 
+  0054 ldind.i4 
+  0055 conv.i8 
+  0056 stloc.s 05
+  0058 ldloc.s 05
+  005A ldarg.0 
+  005B add 
+  005C stloc.1 
+  005D ldloc.1 
+  005E ldc.i4 98-01-00-00
+  0063 conv.i8 
+  0064 add 
+  0065 stloc.s 0D
+  0067 ldloc.s 0D
+  0069 ldind.i4 
+  006A stloc.s 04
+  006C ldc.i4.1 
+  006D ldloc.s 04
+  006F bne.un 9F-00-00-00
+  0074 ldloca.s 12
+  0076 ldloc.1 
+  0077 ldc.i4.s 70
+  0079 conv.i8 
+  007A add 
+  007B call mdlTMatrix_fromRMatrix
+  0080 ldloca.s 12
+  0082 ldarg.0 
+  0083 dup 
+  0084 ldc.i4.s 28
+  0086 conv.i8 
+  0087 sub 
+  0088 ldind.i8 
+  0089 ldc.i4.4 
+  008A conv.i8 
+  008B add 
+  008C ldind.i4 
+  008D conv.i8 
+  008E add 
+  008F ldc.i4 B8-00-00-00
+  0094 conv.i8 
+  0095 add 
+  0096 call mdlTMatrix_setTranslation
+  009B ldarg.0 
+  009C ldc.i4.s 28
+  009E conv.i8 
+  009F sub 
+  00A0 ldind.i8 
+  00A1 ldc.i4.4 
+  00A2 conv.i8 
+  00A3 add 
+  00A4 ldind.i4 
+  00A5 conv.i8 
+  00A6 ldarg.0 
+  00A7 add 
+  00A8 stloc.s 0C
+  00AA ldloc.s 0C
+  00AC ldc.i4 D0-00-00-00
+  00B1 conv.i8 
+  00B2 add 
+  00B3 ldind.i8 
+  00B4 ldloca.s 12
+  00B6 ldloc.0 
+  00B7 ldc.i4.1 
+  00B8 ldc.i4.0 
+  00B9 ldloc.s 0C
+  00BB ldc.i4.s 60
+  00BD conv.i8 
+  00BE add 
+  00BF ldind.i8 
+  00C0 ldarg.0 
+  00C1 ldc.i4.s 20
+  00C3 conv.i8 
+  00C4 sub 
+  00C5 ldobj DVec3d
+  00CA ldarg.2 
+  00CB call Bentley.DgnPlatform.DgnButtonEvent.GetViewNum
+  00D0 call Bentley.Building.Mechanical.DragUtils.OrientComponentAxisToAxisAboutAxis
+  00D5 ldarg.0 
+  00D6 ldc.i4.s 28
+  00D8 conv.i8 
+  00D9 sub 
+  00DA ldind.i8 
+  00DB ldc.i4.4 
+  00DC conv.i8 
+  00DD add 
+  00DE ldind.i4 
+  00DF conv.i8 
+  00E0 ldarg.0 
+  00E1 add 
+  00E2 stloc.3 
+  00E3 ldloc.3 
+  00E4 ldc.i4.s 28
+  00E6 conv.i8 
+  00E7 sub 
+  00E8 stloc.s 0B
+  00EA ldloc.s 0B
+  00EC ldloc.3 
+  00ED ldc.i4 88-01-00-00
+  00F2 conv.i8 
+  00F3 add 
+  00F4 ldind.i8 
+  00F5 ldloc.3 
+  00F6 ldc.i4 90-01-00-00
+  00FB conv.i8 
+  00FC add 
+  00FD ldind.i8 
+  00FE ldloc.s 0B
+  0100 ldind.i8 
+  0101 ldc.i4 38-01-00-00
+  0106 conv.i8 
+  0107 add 
+  0108 ldind.i8 
+  0109 calli E6-02-00-11
+  010E br 25-01-00-00
+  0113 ldc.i4.0 
+  0114 ldloc.s 04
+  0116 bne.un.s 6D
+  0118 ldloc.1 
+  0119 ldc.i4 D0-00-00-00
+  011E conv.i8 
+  011F add 
+  0120 ldind.i8 
+  0121 ldloc.0 
+  0122 ldloc.s 0D
+  0124 ldloc.1 
+  0125 ldc.i4.s 58
+  0127 conv.i8 
+  0128 add 
+  0129 ldind.i8 
+  012A ldloc.1 
+  012B ldc.i4.s 60
+  012D conv.i8 
+  012E add 
+  012F ldind.i8 
+  0130 ldarg.0 
+  0131 ldloc.s 05
+  0133 add 
+  0134 ldc.i4 88-01-00-00
+  0139 conv.i8 
+  013A add 
+  013B ldind.i8 
+  013C ldarg.0 
+  013D ldloc.s 05
+  013F add 
+  0140 ldc.i4 90-01-00-00
+  0145 conv.i8 
+  0146 add 
+  0147 ldind.i8 
+  0148 call Bentley.Building.Mechanical.DragUtils.SlideComponentToPoint
+  014D ldarg.0 
+  014E ldc.i4.s 28
+  0150 conv.i8 
+  0151 sub 
+  0152 ldind.i8 
+  0153 ldc.i4.4 
+  0154 conv.i8 
+  0155 add 
+  0156 ldind.i4 
+  0157 conv.i8 
+  0158 ldarg.0 
+  0159 add 
+  015A stloc.2 
+  015B ldloc.2 
+  015C ldc.i4.s 28
+  015E conv.i8 
+  015F sub 
+  0160 stloc.s 0A
+  0162 ldloc.s 0A
+  0164 ldloc.2 
+  0165 ldc.i4.s 58
+  0167 conv.i8 
+  0168 add 
+  0169 ldind.i8 
+  016A ldloc.2 
+  016B ldc.i4.s 60
+  016D conv.i8 
+  016E add 
+  016F ldind.i8 
+  0170 ldloc.s 0A
+  0172 ldind.i8 
+  0173 ldc.i4 30-01-00-00
+  0178 conv.i8 
+  0179 add 
+  017A ldind.i8 
+  017B calli E6-02-00-11
+  0180 br B3-00-00-00
+  0185 ldc.i4.2 
+  0186 ldloc.s 04
+  0188 bne.un AB-00-00-00
+  018D ldloca.s 11
+  018F ldloc.1 
+  0190 ldc.i4.s 70
+  0192 conv.i8 
+  0193 add 
+  0194 call mdlTMatrix_fromRMatrix
+  0199 ldloca.s 11
+  019B ldarg.0 
+  019C dup 
+  019D ldc.i4.s 28
+  019F conv.i8 
+  01A0 sub 
+  01A1 ldind.i8 
+  01A2 ldc.i4.4 
+  01A3 conv.i8 
+  01A4 add 
+  01A5 ldind.i4 
+  01A6 conv.i8 
+  01A7 add 
+  01A8 ldc.i4 B8-00-00-00
+  01AD conv.i8 
+  01AE add 
+  01AF call mdlTMatrix_setTranslation
+  01B4 ldloca.s 0F
+  01B6 ldarg.0 
+  01B7 dup 
+  01B8 ldc.i4.s 28
+  01BA conv.i8 
+  01BB sub 
+  01BC ldind.i8 
+  01BD ldc.i4.4 
+  01BE conv.i8 
+  01BF add 
+  01C0 ldind.i4 
+  01C1 conv.i8 
+  01C2 add 
+  01C3 ldc.i4.s 70
+  01C5 conv.i8 
+  01C6 add 
+  01C7 ldc.i4.2 
+  01C8 call mdlRMatrix_getColumnVector
+  01CD ldarg.0 
+  01CE ldc.i4.s 28
+  01D0 conv.i8 
+  01D1 sub 
+  01D2 ldind.i8 
+  01D3 ldc.i4.4 
+  01D4 conv.i8 
+  01D5 add 
+  01D6 ldind.i4 
+  01D7 conv.i8 
+  01D8 ldarg.0 
+  01D9 add 
+  01DA stloc.s 09
+  01DC ldloc.s 09
+  01DE ldc.i4 D0-00-00-00
+  01E3 conv.i8 
+  01E4 add 
+  01E5 ldind.i8 
+  01E6 ldloca.s 11
+  01E8 ldloc.0 
+  01E9 ldc.i4.2 
+  01EA ldc.i4.1 
+  01EB ldloc.s 09
+  01ED ldc.i4.s 60
+  01EF conv.i8 
+  01F0 add 
+  01F1 ldind.i8 
+  01F2 ldloc.s 0F
+  01F4 ldarg.2 
+  01F5 call Bentley.DgnPlatform.DgnButtonEvent.GetViewNum
+  01FA call Bentley.Building.Mechanical.DragUtils.OrientComponentAxisToAxisAboutAxis
+  01FF ldarg.0 
+  0200 ldc.i4.s 28
+  0202 conv.i8 
+  0203 sub 
+  0204 ldind.i8 
+  0205 ldc.i4.4 
+  0206 conv.i8 
+  0207 add 
+  0208 ldind.i4 
+  0209 conv.i8 
+  020A ldarg.0 
+  020B add 
+  020C stloc.s 08
+  020E ldloc.s 08
+  0210 ldc.i4.s 58
+  0212 conv.i8 
+  0213 add 
+  0214 ldind.i8 
+  0215 ldc.i4.s 18
+  0217 conv.i8 
+  0218 add 
+  0219 stloc.s 0E
+  021B ldloc.s 08
+  021D ldc.i4.s 28
+  021F conv.i8 
+  0220 sub 
+  0221 stloc.s 07
+  0223 ldloc.s 07
+  0225 ldloc.s 0E
+  0227 dup 
+  0228 ldloc.s 07
+  022A ldind.i8 
+  022B ldc.i4 38-01-00-00
+  0230 conv.i8 
+  0231 add 
+  0232 ldind.i8 
+  0233 calli E6-02-00-11
+  0238 ldloc.0 
+  0239 ldc.i4.s 18
+  023B conv.i8 
+  023C call delete
+  0241 ldarg.0 
+  0242 dup 
+  0243 ldc.i4.s 28
+  0245 conv.i8 
+  0246 sub 
+  0247 ldind.i8 
+  0248 ldc.i4.4 
+  0249 conv.i8 
+  024A add 
+  024B ldind.i4 
+  024C conv.i8 
+  024D add 
+  024E ldc.i4.s 28
+  0250 conv.i8 
+  0251 sub 
+  0252 ldarg.1 
+  0253 ldarg.2 
+  0254 call Bentley.DgnPlatform.PointDragManipulator._OnDrag
+  0259 ret 
+Assembly, Static Int32 Bentley.ModelingFramework.Handlers.TopworkDragManipulator._OnEndDrag(Bentley.ModelingFramework.Handlers.TopworkDragManipulator*, Bentley.DgnPlatform.EditElementHandle*, Bentley.DgnPlatform.DgnButtonEvent*) [2:A_0, 3:A_1]
+  0000 ldc.i4.s 18
+  0002 conv.i8 
+  0003 call new
+  0008 stloc.s 08
+  000A ldloc.s 08
+  000C brfalse.s 0D
+  000E ldloc.s 08
+  0010 ldc.i4.0 
+  0011 ldc.i4.s 18
+  0013 conv.i8 
+  0014 initblk 
+  0016 ldloc.s 08
+  0018 stloc.1 
+  0019 br.s 03
+  001B ldc.i4.0 
+  001C conv.i8 
+  001D stloc.1 
+  001E ldarg.2 
+  001F call Bentley.DgnPlatform.DgnButtonEvent.GetPoint
+  0024 stloc.s 15
+  0026 ldloc.1 
+  0027 ldloc.s 15
+  0029 ldind.r8 
+  002A stind.r8 
+  002B ldloc.1 
+  002C ldc.i4.8 
+  002D conv.i8 
+  002E add 
+  002F ldarg.2 
+  0030 call Bentley.DgnPlatform.DgnButtonEvent.GetPoint
+  0035 ldc.i4.8 
+  0036 conv.i8 
+  0037 add 
+  0038 ldind.r8 
+  0039 stind.r8 
+  003A ldloc.1 
+  003B ldc.i4.s 10
+  003D conv.i8 
+  003E add 
+  003F ldarg.2 
+  0040 call Bentley.DgnPlatform.DgnButtonEvent.GetPoint
+  0045 ldc.i4.s 10
+  0047 conv.i8 
+  0048 add 
+  0049 ldind.r8 
+  004A stind.r8 
+  004B ldarg.0 
+  004C ldc.i4.s 28
+  004E conv.i8 
+  004F sub 
+  0050 ldind.i8 
+  0051 ldc.i4.4 
+  0052 conv.i8 
+  0053 add 
+  0054 ldind.i4 
+  0055 conv.i8 
+  0056 ldarg.0 
+  0057 add 
+  0058 stloc.0 
+  0059 ldloc.0 
+  005A ldc.i4 98-01-00-00
+  005F conv.i8 
+  0060 add 
+  0061 ldind.i4 
+  0062 stloc.2 
+  0063 ldc.i4.1 
+  0064 ldloc.2 
+  0065 bne.un A3-00-00-00
+  006A ldloca.s 17
+  006C ldloc.0 
+  006D ldc.i4.s 70
+  006F conv.i8 
+  0070 add 
+  0071 call mdlTMatrix_fromRMatrix
+  0076 ldloca.s 17
+  0078 ldarg.0 
+  0079 dup 
+  007A ldc.i4.s 28
+  007C conv.i8 
+  007D sub 
+  007E ldind.i8 
+  007F ldc.i4.4 
+  0080 conv.i8 
+  0081 add 
+  0082 ldind.i4 
+  0083 conv.i8 
+  0084 add 
+  0085 ldc.i4 B8-00-00-00
+  008A conv.i8 
+  008B add 
+  008C call mdlTMatrix_setTranslation
+  0091 ldarg.0 
+  0092 ldc.i4.s 28
+  0094 conv.i8 
+  0095 sub 
+  0096 ldind.i8 
+  0097 ldc.i4.4 
+  0098 conv.i8 
+  0099 add 
+  009A ldind.i4 
+  009B conv.i8 
+  009C ldarg.0 
+  009D add 
+  009E stloc.s 10
+  00A0 ldloc.s 10
+  00A2 ldc.i4 D0-00-00-00
+  00A7 conv.i8 
+  00A8 add 
+  00A9 ldind.i8 
+  00AA ldloca.s 17
+  00AC ldloc.1 
+  00AD ldc.i4.1 
+  00AE ldc.i4.0 
+  00AF ldloc.s 10
+  00B1 ldc.i4.s 60
+  00B3 conv.i8 
+  00B4 add 
+  00B5 ldind.i8 
+  00B6 ldarg.0 
+  00B7 ldc.i4.s 20
+  00B9 conv.i8 
+  00BA sub 
+  00BB ldobj DVec3d
+  00C0 ldarg.2 
+  00C1 call Bentley.DgnPlatform.DgnButtonEvent.GetViewNum
+  00C6 call Bentley.Building.Mechanical.DragUtils.OrientComponentAxisToAxisAboutAxis
+  00CB ldarg.0 
+  00CC ldc.i4.s 28
+  00CE conv.i8 
+  00CF sub 
+  00D0 ldind.i8 
+  00D1 ldc.i4.4 
+  00D2 conv.i8 
+  00D3 add 
+  00D4 ldind.i4 
+  00D5 conv.i8 
+  00D6 ldarg.0 
+  00D7 add 
+  00D8 stloc.s 07
+  00DA ldloc.s 07
+  00DC ldc.i4.s 28
+  00DE conv.i8 
+  00DF sub 
+  00E0 stloc.s 0F
+  00E2 ldloc.s 0F
+  00E4 ldloc.s 07
+  00E6 ldc.i4 88-01-00-00
+  00EB conv.i8 
+  00EC add 
+  00ED ldind.i8 
+  00EE ldloc.s 07
+  00F0 ldc.i4 90-01-00-00
+  00F5 conv.i8 
+  00F6 add 
+  00F7 ldind.i8 
+  00F8 ldloc.s 0F
+  00FA ldind.i8 
+  00FB ldc.i4 48-01-00-00
+  0100 conv.i8 
+  0101 add 
+  0102 ldind.i8 
+  0103 calli E6-02-00-11
+  0108 br A3-01-00-00
+  010D ldc.i4.0 
+  010E ldloc.2 
+  010F bne.un EA-00-00-00
+  0114 ldc.i4.0 
+  0115 stloc.s 06
+  0117 ldc.i4.0 
+  0118 ldloc.0 
+  0119 ldc.i4 24-02-00-00
+  011E conv.i8 
+  011F add 
+  0120 ldind.i4 
+  0121 bge.s 3E
+  0123 ldc.i4.0 
+  0124 conv.i8 
+  0125 stloc.3 
+  0126 ldloc.0 
+  0127 ldc.i4.s 60
+  0129 conv.i8 
+  012A add 
+  012B ldind.i8 
+  012C ldloc.3 
+  012D add 
+  012E ldloc.0 
+  012F ldc.i4.s 58
+  0131 conv.i8 
+  0132 add 
+  0133 ldind.i8 
+  0134 ldloc.3 
+  0135 add 
+  0136 ldc.i4.s 18
+  0138 cpblk 
+  013A ldloc.s 06
+  013C ldc.i4.1 
+  013D add 
+  013E stloc.s 06
+  0140 ldloc.3 
+  0141 ldc.i4.s 18
+  0143 conv.i8 
+  0144 add 
+  0145 stloc.3 
+  0146 ldarg.0 
+  0147 ldc.i4.s 28
+  0149 conv.i8 
+  014A sub 
+  014B ldind.i8 
+  014C ldc.i4.4 
+  014D conv.i8 
+  014E add 
+  014F ldind.i4 
+  0150 conv.i8 
+  0151 ldarg.0 
+  0152 add 
+  0153 stloc.0 
+  0154 ldloc.s 06
+  0156 ldloc.0 
+  0157 ldc.i4 24-02-00-00
+  015C conv.i8 
+  015D add 
+  015E ldind.i4 
+  015F blt.s C5
+  0161 ldarg.0 
+  0162 ldc.i4.s 28
+  0164 conv.i8 
+  0165 sub 
+  0166 ldind.i8 
+  0167 ldc.i4.4 
+  0168 conv.i8 
+  0169 add 
+  016A ldind.i4 
+  016B conv.i8 
+  016C stloc.s 05
+  016E ldloc.s 05
+  0170 ldarg.0 
+  0171 add 
+  0172 stloc.0 
+  0173 ldloc.0 
+  0174 ldc.i4 98-01-00-00
+  0179 conv.i8 
+  017A add 
+  017B stloc.s 0E
+  017D ldloc.s 0E
+  017F ldind.i4 
+  0180 stloc.2 
+  0181 ldloc.2 
+  0182 ldc.i4.0 
+  0183 ceq 
+  0185 stloc.s 14
+  0187 ldloc.0 
+  0188 ldc.i4.s 58
+  018A conv.i8 
+  018B add 
+  018C ldind.i8 
+  018D stloc.s 13
+  018F ldloc.0 
+  0190 ldc.i4 D0-00-00-00
+  0195 conv.i8 
+  0196 add 
+  0197 ldind.i8 
+  0198 ldloc.1 
+  0199 ldloc.s 0E
+  019B ldloc.s 13
+  019D dup 
+  019E ldloc.2 
+  019F conv.i8 
+  01A0 ldc.i4.s 31
+  01A2 conv.i8 
+  01A3 add 
+  01A4 ldc.i4.8 
+  01A5 conv.i8 
+  01A6 mul 
+  01A7 ldloc.s 05
+  01A9 add 
+  01AA ldarg.0 
+  01AB add 
+  01AC ldind.i8 
+  01AD ldloc.s 14
+  01AF conv.i8 
+  01B0 ldc.i4.s 31
+  01B2 conv.i8 
+  01B3 add 
+  01B4 ldc.i4.8 
+  01B5 conv.i8 
+  01B6 mul 
+  01B7 ldloc.s 05
+  01B9 add 
+  01BA ldarg.0 
+  01BB add 
+  01BC ldind.i8 
+  01BD call Bentley.Building.Mechanical.DragUtils.SlideComponentToPoint
+  01C2 ldarg.0 
+  01C3 ldc.i4.s 28
+  01C5 conv.i8 
+  01C6 sub 
+  01C7 ldind.i8 
+  01C8 ldc.i4.4 
+  01C9 conv.i8 
+  01CA add 
+  01CB ldind.i4 
+  01CC conv.i8 
+  01CD ldarg.0 
+  01CE add 
+  01CF stloc.s 04
+  01D1 ldloc.s 04
+  01D3 ldc.i4.s 28
+  01D5 conv.i8 
+  01D6 sub 
+  01D7 stloc.s 0D
+  01D9 ldloc.s 0D
+  01DB ldloc.s 04
+  01DD ldc.i4.s 60
+  01DF conv.i8 
+  01E0 add 
+  01E1 ldind.i8 
+  01E2 ldloc.s 04
+  01E4 ldc.i4.s 58
+  01E6 conv.i8 
+  01E7 add 
+  01E8 ldind.i8 
+  01E9 ldloc.s 0D
+  01EB ldind.i8 
+  01EC ldc.i4 40-01-00-00
+  01F1 conv.i8 
+  01F2 add 
+  01F3 ldind.i8 
+  01F4 calli E6-02-00-11
+  01F9 br B2-00-00-00
+  01FE ldc.i4.2 
+  01FF ldloc.2 
+  0200 bne.un AB-00-00-00
+  0205 ldloca.s 16
+  0207 ldloc.0 
+  0208 ldc.i4.s 70
+  020A conv.i8 
+  020B add 
+  020C call mdlTMatrix_fromRMatrix
+  0211 ldloca.s 16
+  0213 ldarg.0 
+  0214 dup 
+  0215 ldc.i4.s 28
+  0217 conv.i8 
+  0218 sub 
+  0219 ldind.i8 
+  021A ldc.i4.4 
+  021B conv.i8 
+  021C add 
+  021D ldind.i4 
+  021E conv.i8 
+  021F add 
+  0220 ldc.i4 B8-00-00-00
+  0225 conv.i8 
+  0226 add 
+  0227 call mdlTMatrix_setTranslation
+  022C ldloca.s 12
+  022E ldarg.0 
+  022F dup 
+  0230 ldc.i4.s 28
+  0232 conv.i8 
+  0233 sub 
+  0234 ldind.i8 
+  0235 ldc.i4.4 
+  0236 conv.i8 
+  0237 add 
+  0238 ldind.i4 
+  0239 conv.i8 
+  023A add 
+  023B ldc.i4.s 70
+  023D conv.i8 
+  023E add 
+  023F ldc.i4.2 
+  0240 call mdlRMatrix_getColumnVector
+  0245 ldarg.0 
+  0246 ldc.i4.s 28
+  0248 conv.i8 
+  0249 sub 
+  024A ldind.i8 
+  024B ldc.i4.4 
+  024C conv.i8 
+  024D add 
+  024E ldind.i4 
+  024F conv.i8 
+  0250 ldarg.0 
+  0251 add 
+  0252 stloc.s 0C
+  0254 ldloc.s 0C
+  0256 ldc.i4 D0-00-00-00
+  025B conv.i8 
+  025C add 
+  025D ldind.i8 
+  025E ldloca.s 16
+  0260 ldloc.1 
+  0261 ldc.i4.2 
+  0262 ldc.i4.1 
+  0263 ldloc.s 0C
+  0265 ldc.i4.s 58
+  0267 conv.i8 
+  0268 add 
+  0269 ldind.i8 
+  026A ldloc.s 12
+  026C ldarg.2 
+  026D call Bentley.DgnPlatform.DgnButtonEvent.GetViewNum
+  0272 call Bentley.Building.Mechanical.DragUtils.OrientComponentAxisToAxisAboutAxis
+  0277 ldarg.0 
+  0278 ldc.i4.s 28
+  027A conv.i8 
+  027B sub 
+  027C ldind.i8 
+  027D ldc.i4.4 
+  027E conv.i8 
+  027F add 
+  0280 ldind.i4 
+  0281 conv.i8 
+  0282 ldarg.0 
+  0283 add 
+  0284 stloc.s 0B
+  0286 ldloc.s 0B
+  0288 ldc.i4.s 58
+  028A conv.i8 
+  028B add 
+  028C ldind.i8 
+  028D ldc.i4.s 18
+  028F conv.i8 
+  0290 add 
+  0291 stloc.s 11
+  0293 ldloc.s 0B
+  0295 ldc.i4.s 28
+  0297 conv.i8 
+  0298 sub 
+  0299 stloc.s 0A
+  029B ldloc.s 0A
+  029D ldloc.s 11
+  029F dup 
+  02A0 ldloc.s 0A
+  02A2 ldind.i8 
+  02A3 ldc.i4 48-01-00-00
+  02A8 conv.i8 
+  02A9 add 
+  02AA ldind.i8 
+  02AB calli E6-02-00-11
+  02B0 ldloc.1 
+  02B1 ldc.i4.s 18
+  02B3 conv.i8 
+  02B4 call delete
+  02B9 ldarg.0 
+  02BA ldc.i4.s 28
+  02BC conv.i8 
+  02BD sub 
+  02BE ldind.i8 
+  02BF ldc.i4.4 
+  02C0 conv.i8 
+  02C1 add 
+  02C2 ldind.i4 
+  02C3 conv.i8 
+  02C4 ldarg.0 
+  02C5 add 
+  02C6 stloc.s 09
+  02C8 ldloc.s 09
+  02CA ldc.i4.s 6D
+  02CC conv.i8 
+  02CD add 
+  02CE ldind.u1 
+  02CF brfalse.s 0E
+  02D1 ldloc.s 09
+  02D3 ldc.i4.s 28
+  02D5 conv.i8 
+  02D6 sub 
+  02D7 ldarg.1 
+  02D8 ldarg.2 
+  02D9 call Bentley.ModelingFramework.Handlers.ComponentDragManipulator._OnEndDrag
+  02DE ret 
+  02DF ldc.i4 00-80-00-00
+  02E4 ret 
+Assembly, Static Void Bentley.ModelingFramework.Handlers.TopworkDragManipulator._OnCancelDrag(Bentley.ModelingFramework.Handlers.TopworkDragManipulator*, Bentley.DgnPlatform.ElementHandle*, Bentley.DgnPlatform.DgnButtonEvent*) [2:A_0, 3:A_1]
+  0000 ldloca.s 00
+  0002 ldarg.0 
+  0003 dup 
+  0004 ldc.i4.s 28
+  0006 conv.i8 
+  0007 sub 
+  0008 ldind.i8 
+  0009 ldc.i4.4 
+  000A conv.i8 
+  000B add 
+  000C ldind.i4 
+  000D conv.i8 
+  000E add 
+  000F ldc.i4.s 70
+  0011 conv.i8 
+  0012 add 
+  0013 call mdlTMatrix_fromRMatrix
+  0018 ldloca.s 00
+  001A ldarg.0 
+  001B dup 
+  001C ldc.i4.s 28
+  001E conv.i8 
+  001F sub 
+  0020 ldind.i8 
+  0021 ldc.i4.4 
+  0022 conv.i8 
+  0023 add 
+  0024 ldind.i4 
+  0025 conv.i8 
+  0026 add 
+  0027 ldc.i4.s 58
+  0029 conv.i8 
+  002A add 
+  002B ldind.i8 
+  002C call mdlTMatrix_setTranslation
+  0031 ldarg.0 
+  0032 dup 
+  0033 ldc.i4.s 28
+  0035 conv.i8 
+  0036 sub 
+  0037 ldind.i8 
+  0038 ldc.i4.4 
+  0039 conv.i8 
+  003A add 
+  003B ldind.i4 
+  003C conv.i8 
+  003D add 
+  003E ldc.i4 D0-00-00-00
+  0043 conv.i8 
+  0044 add 
+  0045 ldind.i8 
+  0046 ldloca.s 00
+  0048 call mdlBMECObject_setTransform
+  004D ldarg.0 
+  004E dup 
+  004F ldc.i4.s 28
+  0051 conv.i8 
+  0052 sub 
+  0053 ldind.i8 
+  0054 ldc.i4.4 
+  0055 conv.i8 
+  0056 add 
+  0057 ldind.i4 
+  0058 conv.i8 
+  0059 add 
+  005A ldc.i4.s 28
+  005C conv.i8 
+  005D sub 
+  005E ldarg.1 
+  005F ldarg.2 
+  0060 call Bentley.ModelingFramework.Handlers.ComponentDragManipulator._OnCancelDrag
+  0065 ret 
+Assembly, Static Void Bentley.ModelingFramework.Handlers.TopworkDragManipulator.LoadDragSprites(Bentley.ModelingFramework.Handlers.TopworkDragManipulator*) []
+  0000 ldarg.0 
+  0001 dup 
+  0002 ldc.i4.s 28
+  0004 conv.i8 
+  0005 sub 
+  0006 ldind.i8 
+  0007 ldc.i4.4 
+  0008 conv.i8 
+  0009 add 
+  000A ldind.i4 
+  000B conv.i8 
+  000C add 
+  000D ldc.i4 B0-01-00-00
+  0012 conv.i8 
+  0013 add 
+  0014 ldc.i4.s 6B
+  0016 call Bentley.Building.Mechanical.DragUtils.LoadSpriteById
+  001B stind.i8 
+  001C ldarg.0 
+  001D dup 
+  001E ldc.i4.s 28
+  0020 conv.i8 
+  0021 sub 
+  0022 ldind.i8 
+  0023 ldc.i4.4 
+  0024 conv.i8 
+  0025 add 
+  0026 ldind.i4 
+  0027 conv.i8 
+  0028 add 
+  0029 ldc.i4 B8-01-00-00
+  002E conv.i8 
+  002F add 
+  0030 ldc.i4.s 68
+  0032 call Bentley.Building.Mechanical.DragUtils.LoadSpriteById
+  0037 stind.i8 
+  0038 ldarg.0 
+  0039 dup 
+  003A ldc.i4.s 28
+  003C conv.i8 
+  003D sub 
+  003E ldind.i8 
+  003F ldc.i4.4 
+  0040 conv.i8 
+  0041 add 
+  0042 ldind.i4 
+  0043 conv.i8 
+  0044 add 
+  0045 ldc.i4 C0-01-00-00
+  004A conv.i8 
+  004B add 
+  004C ldc.i4.s 6A
+  004E call Bentley.Building.Mechanical.DragUtils.LoadSpriteById
+  0053 stind.i8 
+  0054 ldarg.0 
+  0055 dup 
+  0056 ldc.i4.s 28
+  0058 conv.i8 
+  0059 sub 
+  005A ldind.i8 
+  005B ldc.i4.4 
+  005C conv.i8 
+  005D add 
+  005E ldind.i4 
+  005F conv.i8 
+  0060 add 
+  0061 ldc.i4 C8-01-00-00
+  0066 conv.i8 
+  0067 add 
+  0068 ldc.i4.s 67
+  006A call Bentley.Building.Mechanical.DragUtils.LoadSpriteById
+  006F stind.i8 
+  0070 ldarg.0 
+  0071 dup 
+  0072 ldc.i4.s 28
+  0074 conv.i8 
+  0075 sub 
+  0076 ldind.i8 
+  0077 ldc.i4.4 
+  0078 conv.i8 
+  0079 add 
+  007A ldind.i4 
+  007B conv.i8 
+  007C add 
+  007D ldc.i4 E0-01-00-00
+  0082 conv.i8 
+  0083 add 
+  0084 ldc.i4.s 6A
+  0086 call Bentley.Building.Mechanical.DragUtils.LoadSpriteById
+  008B stind.i8 
+  008C ldarg.0 
+  008D dup 
+  008E ldc.i4.s 28
+  0090 conv.i8 
+  0091 sub 
+  0092 ldind.i8 
+  0093 ldc.i4.4 
+  0094 conv.i8 
+  0095 add 
+  0096 ldind.i4 
+  0097 conv.i8 
+  0098 add 
+  0099 ldc.i4 E8-01-00-00
+  009E conv.i8 
+  009F add 
+  00A0 ldc.i4.s 67
+  00A2 call Bentley.Building.Mechanical.DragUtils.LoadSpriteById
+  00A7 stind.i8 
+  00A8 ret 
+Assembly, Static Void Bentley.ModelingFramework.Handlers.TopworkDragManipulator.ExtractComponentPoints(Bentley.ModelingFramework.Handlers.TopworkDragManipulator*) []
+  0000 ldarg.0 
+  0001 dup 
+  0002 ldc.i4.s 28
+  0004 conv.i8 
+  0005 sub 
+  0006 ldind.i8 
+  0007 ldc.i4.4 
+  0008 conv.i8 
+  0009 add 
+  000A ldind.i4 
+  000B conv.i8 
+  000C add 
+  000D ldc.i4 D0-00-00-00
+  0012 conv.i8 
+  0013 add 
+  0014 ldind.i8 
+  0015 ldloca.s 10
+  0017 call mdlBMECObject_getTransform
+  001C ldarg.0 
+  001D dup 
+  001E ldc.i4.s 28
+  0020 conv.i8 
+  0021 sub 
+  0022 ldind.i8 
+  0023 ldc.i4.4 
+  0024 conv.i8 
+  0025 add 
+  0026 ldind.i4 
+  0027 conv.i8 
+  0028 add 
+  0029 ldc.i4.s 58
+  002B conv.i8 
+  002C add 
+  002D ldind.i8 
+  002E ldloca.s 10
+  0030 call mdlTMatrix_getTranslation
+  0035 ldloca.s 0F
+  0037 ldarg.0 
+  0038 dup 
+  0039 ldc.i4.s 28
+  003B conv.i8 
+  003C sub 
+  003D ldind.i8 
+  003E ldc.i4.4 
+  003F conv.i8 
+  0040 add 
+  0041 ldind.i4 
+  0042 conv.i8 
+  0043 add 
+  0044 ldc.i4 D0-00-00-00
+  0049 conv.i8 
+  004A add 
+  004B ldind.i8 
+  004C call mdlBMECObject_getClassName
+  0051 stloc.s 0B
+  0053 ldloc.s 0B
+  0055 ldsflda ??_C@_1CC@LKOLNJOB@?$AAG?$AAE?$AAA?$AAR?$AAB?$AAO?$AAX?$AA_?$AAO?$AAP?$AAE?$AAR?$AAA?$AAT?$AAO@
+  005A call std.operator==<wchar_t,struct std::char_traits<wchar_t>,class std::allocator<wchar_t> >
+  005F stloc.s 0A
+  0061 leave.s 0E
+  0063 ldftn std.basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >.{dtor}
+  0069 ldloca.s 0F
+  006B call ___CxxCallUnwindDtor
+  0070 endfinally 
+  0071 ldloca.s 0F
+  0073 call std.basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >.{dtor}
+  0078 ldloc.s 0A
+  007A brfalse.s 42
+  007C ldarg.0 
+  007D dup 
+  007E ldc.i4.s 28
+  0080 conv.i8 
+  0081 sub 
+  0082 ldind.i8 
+  0083 ldc.i4.4 
+  0084 conv.i8 
+  0085 add 
+  0086 ldind.i4 
+  0087 conv.i8 
+  0088 add 
+  0089 ldc.i4 D0-00-00-00
+  008E conv.i8 
+  008F add 
+  0090 ldind.i8 
+  0091 ldsflda ??_C@_1BK@GCDFADJL@?$AAT?$AAO?$AAT?$AAA?$AAL?$AA_?$AAH?$AAE?$AAI?$AAG?$AAH?$AAT@
+  0096 call mdlBMECObject_getPropertyDoubleValueInUors
+  009B stloc.1 
+  009C ldarg.0 
+  009D dup 
+  009E ldc.i4.s 28
+  00A0 conv.i8 
+  00A1 sub 
+  00A2 ldind.i8 
+  00A3 ldc.i4.4 
+  00A4 conv.i8 
+  00A5 add 
+  00A6 ldind.i4 
+  00A7 conv.i8 
+  00A8 add 
+  00A9 ldc.i4 D0-00-00-00
+  00AE conv.i8 
+  00AF add 
+  00B0 ldind.i8 
+  00B1 ldsflda ??_C@_1BM@LJIJIBFK@?$AAH?$AAA?$AAN?$AAD?$AAL?$AAE?$AA_?$AAL?$AAE?$AAN?$AAG?$AAT?$AAH@
+  00B6 call mdlBMECObject_getPropertyDoubleValueInUors
+  00BB stloc.0 
+  00BC br.s 4E
+  00BE ldarg.0 
+  00BF dup 
+  00C0 ldc.i4.s 28
+  00C2 conv.i8 
+  00C3 sub 
+  00C4 ldind.i8 
+  00C5 ldc.i4.4 
+  00C6 conv.i8 
+  00C7 add 
+  00C8 ldind.i4 
+  00C9 conv.i8 
+  00CA add 
+  00CB ldc.i4 D0-00-00-00
+  00D0 conv.i8 
+  00D1 add 
+  00D2 ldind.i8 
+  00D3 ldsflda ??_C@_1O@IHFMOGNA@?$AAL?$AAE?$AAN?$AAG?$AAT?$AAH@
+  00D8 call mdlBMECObject_getPropertyDoubleValueInUors
+  00DD stloc.1 
+  00DE ldarg.0 
+  00DF dup 
+  00E0 ldc.i4.s 28
+  00E2 conv.i8 
+  00E3 sub 
+  00E4 ldind.i8 
+  00E5 ldc.i4.4 
+  00E6 conv.i8 
+  00E7 add 
+  00E8 ldind.i4 
+  00E9 conv.i8 
+  00EA add 
+  00EB ldc.i4 D0-00-00-00
+  00F0 conv.i8 
+  00F1 add 
+  00F2 ldind.i8 
+  00F3 ldsflda ??_C@_1BC@DPNAKCEH@?$AAD?$AAI?$AAA?$AAM?$AAE?$AAT?$AAE?$AAR@
+  00F8 call mdlBMECObject_getPropertyDoubleValueInUors
+  00FD stloc.s 09
+  00FF ldloc.s 09
+  0101 ldc.r8 00-00-00-00-00-00-E0-3F
+  010A mul 
+  010B stloc.0 
+  010C ldloca.s 0E
+  010E ldc.r8 00-00-00-00-00-00-00-00
+  0117 ldc.r8 00-00-00-00-00-00-00-00
+  0120 ldloc.1 
+  0121 call mdlVec_fromXYZ
+  0126 ldloca.s 0E
+  0128 ldloca.s 10
+  012A call mdlTMatrix_transformVector
+  012F ldarg.0 
+  0130 dup 
+  0131 ldc.i4.s 28
+  0133 conv.i8 
+  0134 sub 
+  0135 ldind.i8 
+  0136 ldc.i4.4 
+  0137 conv.i8 
+  0138 add 
+  0139 ldind.i4 
+  013A conv.i8 
+  013B add 
+  013C ldc.i4.s 58
+  013E conv.i8 
+  013F add 
+  0140 ldind.i8 
+  0141 stloc.s 04
+  0143 ldloc.s 04
+  0145 ldc.i4.s 18
+  0147 conv.i8 
+  0148 add 
+  0149 ldloc.s 04
+  014B ldloca.s 0E
+  014D call mdlVec_addPoint
+  0152 ldloca.s 0D
+  0154 ldarg.0 
+  0155 dup 
+  0156 ldc.i4.s 28
+  0158 conv.i8 
+  0159 sub 
+  015A ldind.i8 
+  015B ldc.i4.4 
+  015C conv.i8 
+  015D add 
+  015E ldind.i4 
+  015F conv.i8 
+  0160 add 
+  0161 ldc.i4 D0-00-00-00
+  0166 conv.i8 
+  0167 add 
+  0168 ldind.i8 
+  0169 call mdlBMECObject_getClassName
+  016E stloc.s 08
+  0170 ldloc.s 08
+  0172 ldsflda ??_C@_1DA@BHLDNIKM@?$AAD?$AAI?$AAA?$AAP?$AAH?$AAR?$AAA?$AAG?$AAM?$AA_?$AAG?$AAE?$AAA?$AAR?$AA_@
+  0177 call std.operator==<wchar_t,struct std::char_traits<wchar_t>,class std::allocator<wchar_t> >
+  017C stloc.s 07
+  017E leave.s 0E
+  0180 ldftn std.basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >.{dtor}
+  0186 ldloca.s 0D
+  0188 call ___CxxCallUnwindDtor
+  018D endfinally 
+  018E ldloca.s 0D
+  0190 call std.basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >.{dtor}
+  0195 ldloc.s 07
+  0197 brfalse.s 05
+  0199 ldloc.0 
+  019A ldloc.1 
+  019B add 
+  019C neg 
+  019D stloc.0 
+  019E ldc.r8 00-00-00-00-00-00-00-00
+  01A7 stloc.3 
+  01A8 ldloca.s 0C
+  01AA ldarg.0 
+  01AB dup 
+  01AC ldc.i4.s 28
+  01AE conv.i8 
+  01AF sub 
+  01B0 ldind.i8 
+  01B1 ldc.i4.4 
+  01B2 conv.i8 
+  01B3 add 
+  01B4 ldind.i4 
+  01B5 conv.i8 
+  01B6 add 
+  01B7 ldc.i4 D0-00-00-00
+  01BC conv.i8 
+  01BD add 
+  01BE ldind.i8 
+  01BF call mdlBMECObject_getClassName
+  01C4 stloc.s 06
+  01C6 ldloc.s 06
+  01C8 ldsflda ??_C@_1CC@LKOLNJOB@?$AAG?$AAE?$AAA?$AAR?$AAB?$AAO?$AAX?$AA_?$AAO?$AAP?$AAE?$AAR?$AAA?$AAT?$AAO@
+  01CD call std.operator==<wchar_t,struct std::char_traits<wchar_t>,class std::allocator<wchar_t> >
+  01D2 stloc.s 05
+  01D4 leave.s 0E
+  01D6 ldftn std.basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >.{dtor}
+  01DC ldloca.s 0C
+  01DE call ___CxxCallUnwindDtor
+  01E3 endfinally 
+  01E4 ldloca.s 0C
+  01E6 call std.basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >.{dtor}
+  01EB ldloc.s 05
+  01ED brfalse.s 20
+  01EF ldarg.0 
+  01F0 dup 
+  01F1 ldc.i4.s 28
+  01F3 conv.i8 
+  01F4 sub 
+  01F5 ldind.i8 
+  01F6 ldc.i4.4 
+  01F7 conv.i8 
+  01F8 add 
+  01F9 ldind.i4 
+  01FA conv.i8 
+  01FB add 
+  01FC ldc.i4 D0-00-00-00
+  0201 conv.i8 
+  0202 add 
+  0203 ldind.i8 
+  0204 ldsflda ??_C@_1BM@ILBFDAEN@?$AAH?$AAA?$AAN?$AAD?$AAL?$AAE?$AA_?$AAO?$AAF?$AAF?$AAS?$AAE?$AAT@
+  0209 call mdlBMECObject_getPropertyDoubleValueInUors
+  020E stloc.3 
+  020F ldloca.s 0E
+  0211 ldloc.0 
+  0212 ldloc.3 
+  0213 ldloc.1 
+  0214 call mdlVec_fromXYZ
+  0219 ldloca.s 0E
+  021B ldloca.s 10
+  021D call mdlTMatrix_transformVector
+  0222 ldarg.0 
+  0223 dup 
+  0224 ldc.i4.s 28
+  0226 conv.i8 
+  0227 sub 
+  0228 ldind.i8 
+  0229 ldc.i4.4 
+  022A conv.i8 
+  022B add 
+  022C ldind.i4 
+  022D conv.i8 
+  022E add 
+  022F ldc.i4.s 58
+  0231 conv.i8 
+  0232 add 
+  0233 ldind.i8 
+  0234 stloc.2 
+  0235 ldloc.2 
+  0236 ldc.i4.s 30
+  0238 conv.i8 
+  0239 add 
+  023A ldloc.2 
+  023B ldloca.s 0E
+  023D call mdlVec_addPoint
+  0242 ret 
+Assembly, Static Void Bentley.ModelingFramework.Handlers.TopworkDragManipulator.PopulateDragHandleInfos(Bentley.ModelingFramework.Handlers.TopworkDragManipulator*) []
+  0000 ldarg.0 
+  0001 dup 
+  0002 ldc.i4.s 28
+  0004 conv.i8 
+  0005 sub 
+  0006 ldind.i8 
+  0007 ldc.i4.4 
+  0008 conv.i8 
+  0009 add 
+  000A ldind.i4 
+  000B conv.i8 
+  000C add 
+  000D ldc.i4 20-02-00-00
+  0012 conv.i8 
+  0013 add 
+  0014 ldc.i4.0 
+  0015 stind.i4 
+  0016 ldarg.0 
+  0017 dup 
+  0018 ldc.i4.s 28
+  001A conv.i8 
+  001B sub 
+  001C ldind.i8 
+  001D ldc.i4.4 
+  001E conv.i8 
+  001F add 
+  0020 ldind.i4 
+  0021 conv.i8 
+  0022 add 
+  0023 ldc.i4.s 58
+  0025 conv.i8 
+  0026 add 
+  0027 ldind.i8 
+  0028 stloc.s 10
+  002A ldloca.s 13
+  002C ldloc.s 10
+  002E dup 
+  002F ldc.i4.s 18
+  0031 conv.i8 
+  0032 add 
+  0033 call Bentley.DVec3d.FromStartEnd
+  0038 pop 
+  0039 ldarg.0 
+  003A ldc.i4.s 28
+  003C conv.i8 
+  003D sub 
+  003E ldind.i8 
+  003F ldc.i4.4 
+  0040 conv.i8 
+  0041 add 
+  0042 ldind.i4 
+  0043 conv.i8 
+  0044 ldarg.0 
+  0045 add 
+  0046 stloc.s 0C
+  0048 ldloc.s 0C
+  004A ldc.i4.s 28
+  004C conv.i8 
+  004D sub 
+  004E ldloc.s 0C
+  0050 ldc.i4.s 58
+  0052 conv.i8 
+  0053 add 
+  0054 ldind.i8 
+  0055 ldloca.s 13
+  0057 call Bentley.ModelingFramework.Handlers.ComponentDragManipulator.AddControlPoint
+  005C stloc.s 0B
+  005E ldarg.0 
+  005F ldc.i4.s 28
+  0061 conv.i8 
+  0062 sub 
+  0063 ldind.i8 
+  0064 ldc.i4.4 
+  0065 conv.i8 
+  0066 add 
+  0067 ldind.i4 
+  0068 conv.i8 
+  0069 ldarg.0 
+  006A add 
+  006B stloc.s 0A
+  006D ldloc.s 0A
+  006F ldc.i4.s 18
+  0071 conv.i8 
+  0072 sub 
+  0073 ldloc.s 0B
+  0075 call Bentley.Bstdcxx.bvector<Bentley::DgnPlatform::PointDragManipulator::ControlPoint *,Bentley::BentleyAllocator<Bentley::DgnPlatform::PointDragManipulator::ControlPoint *> >.[]
+  007A ldind.i8 
+  007B ldc.i4.s 28
+  007D conv.i8 
+  007E add 
+  007F ldloc.s 0A
+  0081 ldc.i4 B8-01-00-00
+  0086 conv.i8 
+  0087 add 
+  0088 ldind.i8 
+  0089 stind.i8 
+  008A ldarg.0 
+  008B ldc.i4.s 28
+  008D conv.i8 
+  008E sub 
+  008F ldind.i8 
+  0090 ldc.i4.4 
+  0091 conv.i8 
+  0092 add 
+  0093 ldind.i4 
+  0094 conv.i8 
+  0095 ldarg.0 
+  0096 add 
+  0097 stloc.s 09
+  0099 ldloc.s 09
+  009B ldc.i4.s 18
+  009D conv.i8 
+  009E sub 
+  009F ldloc.s 0B
+  00A1 call Bentley.Bstdcxx.bvector<Bentley::DgnPlatform::PointDragManipulator::ControlPoint *,Bentley::BentleyAllocator<Bentley::DgnPlatform::PointDragManipulator::ControlPoint *> >.[]
+  00A6 ldind.i8 
+  00A7 ldc.i4.s 30
+  00A9 conv.i8 
+  00AA add 
+  00AB ldloc.s 09
+  00AD ldc.i4 B0-01-00-00
+  00B2 conv.i8 
+  00B3 add 
+  00B4 ldind.i8 
+  00B5 stind.i8 
+  00B6 ldarg.0 
+  00B7 dup 
+  00B8 ldc.i4.s 28
+  00BA conv.i8 
+  00BB sub 
+  00BC ldind.i8 
+  00BD ldc.i4.4 
+  00BE conv.i8 
+  00BF add 
+  00C0 ldind.i4 
+  00C1 conv.i8 
+  00C2 add 
+  00C3 ldc.i4.s 58
+  00C5 conv.i8 
+  00C6 add 
+  00C7 ldind.i8 
+  00C8 stloc.s 0F
+  00CA ldloca.s 12
+  00CC ldloc.s 0F
+  00CE dup 
+  00CF ldc.i4.s 18
+  00D1 conv.i8 
+  00D2 add 
+  00D3 call Bentley.DVec3d.FromStartEnd
+  00D8 stloc.s 0E
+  00DA ldloca.s 13
+  00DC ldloc.s 0E
+  00DE ldc.i4.s 18
+  00E0 cpblk 
+  00E2 ldarg.0 
+  00E3 ldc.i4.s 28
+  00E5 conv.i8 
+  00E6 sub 
+  00E7 ldind.i8 
+  00E8 ldc.i4.4 
+  00E9 conv.i8 
+  00EA add 
+  00EB ldind.i4 
+  00EC conv.i8 
+  00ED ldarg.0 
+  00EE add 
+  00EF stloc.s 08
+  00F1 ldloc.s 08
+  00F3 ldc.i4.s 28
+  00F5 conv.i8 
+  00F6 sub 
+  00F7 ldloc.s 08
+  00F9 ldc.i4.s 58
+  00FB conv.i8 
+  00FC add 
+  00FD ldind.i8 
+  00FE ldc.i4.s 18
+  0100 conv.i8 
+  0101 add 
+  0102 ldloca.s 13
+  0104 call Bentley.ModelingFramework.Handlers.ComponentDragManipulator.AddControlPoint
+  0109 stloc.s 07
+  010B ldarg.0 
+  010C ldc.i4.s 28
+  010E conv.i8 
+  010F sub 
+  0110 ldind.i8 
+  0111 ldc.i4.4 
+  0112 conv.i8 
+  0113 add 
+  0114 ldind.i4 
+  0115 conv.i8 
+  0116 ldarg.0 
+  0117 add 
+  0118 stloc.s 06
+  011A ldloc.s 06
+  011C ldc.i4.s 18
+  011E conv.i8 
+  011F sub 
+  0120 ldloc.s 07
+  0122 call Bentley.Bstdcxx.bvector<Bentley::DgnPlatform::PointDragManipulator::ControlPoint *,Bentley::BentleyAllocator<Bentley::DgnPlatform::PointDragManipulator::ControlPoint *> >.[]
+  0127 ldind.i8 
+  0128 ldc.i4.s 28
+  012A conv.i8 
+  012B add 
+  012C ldloc.s 06
+  012E ldc.i4 C8-01-00-00
+  0133 conv.i8 
+  0134 add 
+  0135 ldind.i8 
+  0136 stind.i8 
+  0137 ldarg.0 
+  0138 ldc.i4.s 28
+  013A conv.i8 
+  013B sub 
+  013C ldind.i8 
+  013D ldc.i4.4 
+  013E conv.i8 
+  013F add 
+  0140 ldind.i4 
+  0141 conv.i8 
+  0142 ldarg.0 
+  0143 add 
+  0144 stloc.s 05
+  0146 ldloc.s 05
+  0148 ldc.i4.s 18
+  014A conv.i8 
+  014B sub 
+  014C ldloc.s 07
+  014E call Bentley.Bstdcxx.bvector<Bentley::DgnPlatform::PointDragManipulator::ControlPoint *,Bentley::BentleyAllocator<Bentley::DgnPlatform::PointDragManipulator::ControlPoint *> >.[]
+  0153 ldind.i8 
+  0154 ldc.i4.s 30
+  0156 conv.i8 
+  0157 add 
+  0158 ldloc.s 05
+  015A ldc.i4 C0-01-00-00
+  015F conv.i8 
+  0160 add 
+  0161 ldind.i8 
+  0162 stind.i8 
+  0163 ldarg.0 
+  0164 dup 
+  0165 ldc.i4.s 28
+  0167 conv.i8 
+  0168 sub 
+  0169 ldind.i8 
+  016A ldc.i4.4 
+  016B conv.i8 
+  016C add 
+  016D ldind.i4 
+  016E conv.i8 
+  016F add 
+  0170 ldc.i4.s 58
+  0172 conv.i8 
+  0173 add 
+  0174 ldind.i8 
+  0175 stloc.s 04
+  0177 ldloca.s 11
+  0179 ldloc.s 04
+  017B ldc.i4.s 18
+  017D conv.i8 
+  017E add 
+  017F ldloc.s 04
+  0181 ldc.i4.s 30
+  0183 conv.i8 
+  0184 add 
+  0185 call Bentley.DVec3d.FromStartEnd
+  018A stloc.s 0D
+  018C ldloca.s 13
+  018E ldloc.s 0D
+  0190 ldc.i4.s 18
+  0192 cpblk 
+  0194 ldarg.0 
+  0195 ldc.i4.s 28
+  0197 conv.i8 
+  0198 sub 
+  0199 ldind.i8 
+  019A ldc.i4.4 
+  019B conv.i8 
+  019C add 
+  019D ldind.i4 
+  019E conv.i8 
+  019F ldarg.0 
+  01A0 add 
+  01A1 stloc.3 
+  01A2 ldloc.3 
+  01A3 ldc.i4.s 28
+  01A5 conv.i8 
+  01A6 sub 
+  01A7 ldloc.3 
+  01A8 ldc.i4.s 58
+  01AA conv.i8 
+  01AB add 
+  01AC ldind.i8 
+  01AD ldc.i4.s 30
+  01AF conv.i8 
+  01B0 add 
+  01B1 ldloca.s 13
+  01B3 call Bentley.ModelingFramework.Handlers.ComponentDragManipulator.AddControlPoint
+  01B8 stloc.2 
+  01B9 ldarg.0 
+  01BA ldc.i4.s 28
+  01BC conv.i8 
+  01BD sub 
+  01BE ldind.i8 
+  01BF ldc.i4.4 
+  01C0 conv.i8 
+  01C1 add 
+  01C2 ldind.i4 
+  01C3 conv.i8 
+  01C4 ldarg.0 
+  01C5 add 
+  01C6 stloc.1 
+  01C7 ldloc.1 
+  01C8 ldc.i4.s 18
+  01CA conv.i8 
+  01CB sub 
+  01CC ldloc.2 
+  01CD call Bentley.Bstdcxx.bvector<Bentley::DgnPlatform::PointDragManipulator::ControlPoint *,Bentley::BentleyAllocator<Bentley::DgnPlatform::PointDragManipulator::ControlPoint *> >.[]
+  01D2 ldind.i8 
+  01D3 ldc.i4.s 28
+  01D5 conv.i8 
+  01D6 add 
+  01D7 ldloc.1 
+  01D8 ldc.i4 E8-01-00-00
+  01DD conv.i8 
+  01DE add 
+  01DF ldind.i8 
+  01E0 stind.i8 
+  01E1 ldarg.0 
+  01E2 ldc.i4.s 28
+  01E4 conv.i8 
+  01E5 sub 
+  01E6 ldind.i8 
+  01E7 ldc.i4.4 
+  01E8 conv.i8 
+  01E9 add 
+  01EA ldind.i4 
+  01EB conv.i8 
+  01EC ldarg.0 
+  01ED add 
+  01EE stloc.0 
+  01EF ldloc.0 
+  01F0 ldc.i4.s 18
+  01F2 conv.i8 
+  01F3 sub 
+  01F4 ldloc.2 
+  01F5 call Bentley.Bstdcxx.bvector<Bentley::DgnPlatform::PointDragManipulator::ControlPoint *,Bentley::BentleyAllocator<Bentley::DgnPlatform::PointDragManipulator::ControlPoint *> >.[]
+  01FA ldind.i8 
+  01FB ldc.i4.s 30
+  01FD conv.i8 
+  01FE add 
+  01FF ldloc.0 
+  0200 ldc.i4 E0-01-00-00
+  0205 conv.i8 
+  0206 add 
+  0207 ldind.i8 
+  0208 stind.i8 
+  0209 ret 
+Assembly, Static Void Bentley.ModelingFramework.Handlers.TopworkDragManipulator.FreeLocalAllocatedMemory(Bentley.ModelingFramework.Handlers.TopworkDragManipulator*) []
+  0000 ldarg.0 
+  0001 dup 
+  0002 ldc.i4.s 28
+  0004 conv.i8 
+  0005 sub 
+  0006 ldind.i8 
+  0007 ldc.i4.4 
+  0008 conv.i8 
+  0009 add 
+  000A ldind.i4 
+  000B conv.i8 
+  000C add 
+  000D ldc.i4.s 28
+  000F conv.i8 
+  0010 sub 
+  0011 call Bentley.ModelingFramework.Handlers.ComponentDragManipulator.FreeLocalAllocatedMemory
+  0016 ret 
+Assembly, Static Void Bentley.ModelingFramework.Handlers.TopworkDragManipulator.CalculateSlideExtents(Bentley.ModelingFramework.Handlers.TopworkDragManipulator*) []
+  0000 ldarg.0 
+  0001 dup 
+  0002 ldc.i4.8 
+  0003 conv.i8 
+  0004 add 
+  0005 ldind.i8 
+  0006 ldc.i4.4 
+  0007 conv.i8 
+  0008 add 
+  0009 ldind.i4 
+  000A conv.i8 
+  000B add 
+  000C ldc.i4 00-01-00-00
+  0011 conv.i8 
+  0012 add 
+  0013 ldind.i8 
+  0014 ldsflda ??_C@_1EC@CEOBLHBF@?$AAV?$AAA?$AAL?$AAV?$AAE?$AA_?$AAH?$AAA?$AAS?$AA_?$AAV?$AAA?$AAL?$AAV?$AAE@
+  0019 ldc.i4.0 
+  001A call mdlBMECApi_getRelatedInstances
+  001F stloc.s 07
+  0021 ldloc.s 07
+  0023 ldloca.s 08
+  0025 call std.list<void *,std::allocator<void *> >.begin
+  002A pop 
+  002B ldc.i4.s 30
+  002D conv.i8 
+  002E call new[]
+  0033 stloc.0 
+  0034 ldloca.s 08
+  0036 call std._List_iterator<std::_List_val<std::_List_simple_types<void *> > >.*
+  003B stloc.s 06
+  003D ldc.i4.0 
+  003E conv.i8 
+  003F ldloc.s 06
+  0041 ldind.i8 
+  0042 beq 88-00-00-00
+  0047 ldloca.s 08
+  0049 call std._List_iterator<std::_List_val<std::_List_simple_types<void *> > >.*
+  004E ldind.i8 
+  004F ldloc.0 
+  0050 ldc.i4.0 
+  0051 call mdlBMECObject_getNthPoint
+  0056 pop 
+  0057 ldloc.0 
+  0058 ldc.i4.s 18
+  005A conv.i8 
+  005B add 
+  005C stloc.s 05
+  005E ldloca.s 08
+  0060 call std._List_iterator<std::_List_val<std::_List_simple_types<void *> > >.*
+  0065 ldind.i8 
+  0066 ldloc.s 05
+  0068 ldc.i4.1 
+  0069 call mdlBMECObject_getNthPoint
+  006E pop 
+  006F ldc.i4.s 18
+  0071 conv.i8 
+  0072 call new
+  0077 stloc.2 
+  0078 ldloc.2 
+  0079 brfalse.s 0B
+  007B ldloc.2 
+  007C ldloc.0 
+  007D ldc.i4.s 18
+  007F cpblk 
+  0081 ldloc.2 
+  0082 stloc.s 04
+  0084 br.s 04
+  0086 ldc.i4.0 
+  0087 conv.i8 
+  0088 stloc.s 04
+  008A ldarg.0 
+  008B dup 
+  008C ldc.i4.8 
+  008D conv.i8 
+  008E add 
+  008F ldind.i8 
+  0090 ldc.i4.4 
+  0091 conv.i8 
+  0092 add 
+  0093 ldind.i4 
+  0094 conv.i8 
+  0095 add 
+  0096 ldc.i4 B8-01-00-00
+  009B conv.i8 
+  009C add 
+  009D ldloc.s 04
+  009F stind.i8 
+  00A0 ldc.i4.s 18
+  00A2 conv.i8 
+  00A3 call new
+  00A8 stloc.1 
+  00A9 ldloc.1 
+  00AA brfalse.s 0B
+  00AC ldloc.1 
+  00AD ldloc.s 05
+  00AF ldc.i4.s 18
+  00B1 cpblk 
+  00B3 ldloc.1 
+  00B4 stloc.3 
+  00B5 br.s 03
+  00B7 ldc.i4.0 
+  00B8 conv.i8 
+  00B9 stloc.3 
+  00BA ldarg.0 
+  00BB dup 
+  00BC ldc.i4.8 
+  00BD conv.i8 
+  00BE add 
+  00BF ldind.i8 
+  00C0 ldc.i4.4 
+  00C1 conv.i8 
+  00C2 add 
+  00C3 ldind.i4 
+  00C4 conv.i8 
+  00C5 add 
+  00C6 ldc.i4 C0-01-00-00
+  00CB conv.i8 
+  00CC add 
+  00CD ldloc.3 
+  00CE stind.i8 
+  00CF ldloca.s 07
+  00D1 call mdlBMECApi_freeConvertedList
+  00D6 ldloc.0 
+  00D7 call delete[]
+  00DC ret 
+Assembly, Static Bentley.DVec3d* Bentley.ModelingFramework.Handlers.TopworkDragManipulator.getValveXAxis(Bentley.ModelingFramework.Handlers.TopworkDragManipulator*, Bentley.DVec3d*) []
+  0000 ldarg.0 
+  0001 dup 
+  0002 ldc.i4.8 
+  0003 conv.i8 
+  0004 add 
+  0005 ldind.i8 
+  0006 ldc.i4.4 
+  0007 conv.i8 
+  0008 add 
+  0009 ldind.i4 
+  000A conv.i8 
+  000B add 
+  000C ldc.i4 00-01-00-00
+  0011 conv.i8 
+  0012 add 
+  0013 ldind.i8 
+  0014 ldsflda ??_C@_1EC@CEOBLHBF@?$AAV?$AAA?$AAL?$AAV?$AAE?$AA_?$AAH?$AAA?$AAS?$AA_?$AAV?$AAA?$AAL?$AAV?$AAE@
+  0019 ldc.i4.0 
+  001A call mdlBMECApi_getRelatedInstances
+  001F stloc.1 
+  0020 ldloc.1 
+  0021 ldloca.s 04
+  0023 call std.list<void *,std::allocator<void *> >.begin
+  0028 pop 
+  0029 ldloca.s 04
+  002B call std._List_iterator<std::_List_val<std::_List_simple_types<void *> > >.*
+  0030 stloc.0 
+  0031 ldc.i4.0 
+  0032 conv.i8 
+  0033 ldloc.0 
+  0034 ldind.i8 
+  0035 beq.s 21
+  0037 ldloca.s 04
+  0039 call std._List_iterator<std::_List_val<std::_List_simple_types<void *> > >.*
+  003E ldind.i8 
+  003F ldloca.s 03
+  0041 call mdlBMECObject_getTransform
+  0046 ldloca.s 02
+  0048 ldloca.s 03
+  004A call mdlRMatrix_fromTMatrix
+  004F ldarg.1 
+  0050 ldloca.s 02
+  0052 ldc.i4.0 
+  0053 call mdlRMatrix_getColumnVector
+  0058 ldloca.s 01
+  005A call mdlBMECApi_freeConvertedList
+  005F ldarg.1 
+  0060 ret 

@@ -1,0 +1,3 @@
+TYPE SteelSectionProbe.CelValveActuatorComponent base=Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.GearBoxOperatorScript
+Public, Virtual, HideBySig System.Collections.Generic.List`1<Bentley.Building.Mechanical.Components.ElementHolder> Create3DElements() []
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor() []

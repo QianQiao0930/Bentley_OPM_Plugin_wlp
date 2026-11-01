@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<KeyinTree xmlns="http://www.bentley.com/schemas/1.0/MicroStation/AddIn/KeyinTree.xsd">
+  <RootKeyinTable ID="root"><Keyword SubtableRef="Check" CommandClass="MacroCommand" CommandWord="ACTUATORCALLBACK"><Options Required="true"/></Keyword></RootKeyinTable>
+  <SubKeyinTables><KeyinTable ID="Check"><Keyword CommandWord="PLACE"/><Keyword CommandWord="CREATE"/><Keyword CommandWord="GEARBOX"/><Keyword CommandWord="HANDWHEEL"/><Keyword CommandWord="PROBE"/></KeyinTable></SubKeyinTables>
+  <KeyinHandlers>
+    <KeyinHandler Keyin="ACTUATORCALLBACK PLACE" Function="ActuatorCallbackCheck.Commands.Place"/>
+    <KeyinHandler Keyin="ACTUATORCALLBACK CREATE" Function="ActuatorCallbackCheck.Commands.Create"/>
+    <KeyinHandler Keyin="ACTUATORCALLBACK GEARBOX" Function="ActuatorCallbackCheck.Commands.Gearbox"/>
+    <KeyinHandler Keyin="ACTUATORCALLBACK HANDWHEEL" Function="ActuatorCallbackCheck.Commands.Handwheel"/>
+    <KeyinHandler Keyin="ACTUATORCALLBACK PROBE" Function="ActuatorCallbackCheck.Commands.Probe"/>
+  </KeyinHandlers>
+</KeyinTree>

@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "application": "OpenPlant Schema 增补工具（Fluent）",
+  "template": "pyside6-full",
+  "language": "pyside6",
+  "profile": "full",
+  "source_root": "src",
+  "tests_root": "tests",
+  "layers": {
+    "app": [
+      "app"
+    ],
+    "domain": [
+      "domain"
+    ],
+    "application": [
+      "application"
+    ],
+    "infrastructure": [
+      "infrastructure"
+    ],
+    "ui": [
+      "ui"
+    ]
+  },
+  "shell_files": [
+    "ui/shell/main_window.py"
+  ],
+  "allowed_source_root_files": [],
+  "budgets": {
+    "shell_max_lines": 400,
+    "source_file_max_lines": 650,
+    "shell_member_max": 40
+  },
+  "dependency_rules": {
+    "domain_forbids_ui": true,
+    "application_forbids_ui": true,
+    "ui_forbids_process_ownership": true,
+    "app_is_composition_root": true
+  }
+}

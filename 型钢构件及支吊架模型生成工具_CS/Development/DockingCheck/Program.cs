@@ -64,6 +64,10 @@ namespace SteelSectionProbe
                 var timer = (DispatcherTimer)typeof(WorkspaceView).GetField("licenseTimer", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(workspace);
                 Check(timer.IsEnabled, "卸载失败后继续检查授权到期");
                 TestPage.All["steel-sections"].FailClose = false;
+                ValveActuatorPlacement.HasNativeObjects = true;
+                Check(addIn.TryUnload() == Bentley.MstnPlatformNET.AddIn.UnloadingEventArgs.Response.UnloadAbort
+                    && !last.IsDisposed && manager.Removals == 0, "原生执行机构资源仍被使用时拒绝命令卸载");
+                ValveActuatorPlacement.HasNativeObjects = false;
                 Check(addIn.TryUnload() == Bentley.MstnPlatformNET.AddIn.UnloadingEventArgs.Response.UnloadProceed
                     && last.IsDisposed && MainWindow.Current == null && manager.Removals == 1, "卸载解除面板注册并释放工作区");
                 addIn.TryUnload(); Check(manager.Removals == 1, "重复卸载幂等");

@@ -1,0 +1,28 @@
+TYPE Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.PnematicActuatorScript base=Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.ValveOperator
+Public, Virtual, HideBySig Void Setup() []
+Public, Virtual, HideBySig System.Collections.Generic.List`1<Bentley.Building.Mechanical.Components.ElementHolder> Create3DElements() []
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor() []
+TYPE Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.ElectricActuatorScript base=Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.ValveOperator
+Public, Virtual, HideBySig Void Setup() []
+Public, Virtual, HideBySig System.Collections.Generic.List`1<Bentley.Building.Mechanical.Components.ElementHolder> Create3DElements() []
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor() []
+TYPE Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.DiaphragmActuatorScript base=Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.ValveOperator
+Public, Virtual, HideBySig Void Setup() []
+Public, Virtual, HideBySig System.Collections.Generic.List`1<Bentley.Building.Mechanical.Components.ElementHolder> Create3DElements() []
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor() []
+TYPE Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.MotorOperatedValveActuator base=Bentley.Building.Mechanical.ComponentLibrary.ValveOperator.ValveOperator
+Public, Virtual, HideBySig Void Setup() []
+Public, Virtual, HideBySig System.Collections.Generic.List`1<Bentley.Building.Mechanical.Components.ElementHolder> Create3DElements() []
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor() []
+TYPE Bentley.Building.Mechanical.ComponentLibrary.Common.DrawGeometry.PnematicActuatorDraw base=System.Object
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor(Double, Double, Double) [1:TotalLen, 2:TopCylinderDia, 3:BaseCylinderDia]
+Public, HideBySig System.Collections.Generic.List`1<Bentley.Building.Mechanical.Components.ElementHolder> Create3DElements() []
+TYPE Bentley.Building.Mechanical.ComponentLibrary.Common.DrawGeometry.DiaphragmActuatorDraw base=System.Object
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor(Double, Double, Double, Double, Double, Double) [1:DistanceToPlate, 2:HalfLenOfPlate, 3:DistanceToActuator, 4:ActuatorDiameter, 5:Distance1FromCylinder, 6:Distance2FromCylinder]
+Public, HideBySig System.Collections.Generic.List`1<Bentley.Building.Mechanical.Components.ElementHolder> Create3DElements() []
+TYPE Bentley.Building.Mechanical.ComponentLibrary.Common.DrawGeometry.ElectricActuatorDraw base=System.Object
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor(Double, Double, Double) [1:TotalLen, 2:TopBoxLen, 3:BaseCylinderDia]
+Public, HideBySig System.Collections.Generic.List`1<Bentley.Building.Mechanical.Components.ElementHolder> Create3DElements() []
+TYPE Bentley.Building.Mechanical.ComponentLibrary.Common.DrawGeometry.MotorOperatedValveActuatorDraw base=System.Object
+Public, HideBySig, SpecialName, RTSpecialName Void .ctor(Double, Double, Double) [1:operatorWidth, 2:operatorLength, 3:rodDiamter]
+Public, HideBySig System.Collections.Generic.List`1<Bentley.Building.Mechanical.Components.ElementHolder> Create3DElements() []
