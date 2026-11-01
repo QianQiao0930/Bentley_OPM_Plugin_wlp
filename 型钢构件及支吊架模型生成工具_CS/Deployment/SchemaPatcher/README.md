@@ -11,16 +11,17 @@
 | 增加耳轴 | OpenPlant_3D / Modeling / Isoextractor | 自带耳轴三类（SINGLE/DOUBLE_PIPE_TRUNNION、SIMPLE_ELBOW_SUPPORT）加 `SSP_RECIPE`；创建属性改指向本插件 `NativePipeSupportComponent`；`IE_TAG=this.ALIAS` |
 | 增加正式管夹 | 三份 | 新增隔离类 `SSP_PIPE_CLAMP`（继承 `SUPPORT_LOCATION`） |
 | 修改轴测图出图 | Isoextractor | `SUPPORT_LOCATION` 增加 `BOM_LABELS`：`DEVICE_TYPE_CODE=SSPPC` 时引注取 `ALIAS`（管架编号），否则保持原表达式 |
-| 增加自定义执行机构 | OpenPlant_3D / Modeling | 新增 `SSP_CEL_VALVE_ACTUATOR`（继承 `GEARBOX_OPERATOR`，6 个 CEL 快照字段）；创建属性复制自 `GEARBOX_OPERATOR`，处理器改为本插件 `CelValveActuatorComponent` |
-| 全部 | 三份 | 依次执行以上四项 |
+| 增加执行机构 | OpenPlant_3D / Modeling | 新增 `SSP_CEL_VALVE_ACTUATOR`（继承 `GEARBOX_OPERATOR`，6 个 CEL 快照字段）；创建属性复制自 `GEARBOX_OPERATOR`，处理器改为本插件 `CelValveActuatorComponent` |
+| 修复轴测图 Schema | Isoextractor | 按 Bentley KB0098072 检查 `PLANT_BASE_OBJECT` 的 `IE_Mappings`、`L00_LABEL_SECTION_LABELS`、`SPECIFIC_BOM_LABELS`，空壳或缺少子节点时补齐；已有项目自定义子节点一律报冲突 |
+| 全部 | 三份 | 依次执行前四项（不含“修复轴测图 Schema”） |
 
-注意：“增加耳轴”改的是 OPM 自带类，改后该工作集所有耳轴（包括原生工具放的）都要本插件才能编辑；管夹和执行机构是新增隔离类，不影响原生构件。以上三类构件都依赖本插件的处理器，插件不在时编辑会报“找不到 SteelSectionProbe”。
+注意：“增加耳轴”改的是 OPM 自带类，改后该工作集所有耳轴（包括原生工具放的）都要本插件才能编辑；管夹和执行机构是新增隔离类，不影响原生构件。以上三类构件都依赖本插件的处理器，插件不在时编辑会报“找不到 SteelSectionProbe”。“修复轴测图 Schema”只修 Isoextractor 的三个空节点，不装插件能力，也不改命名空间。
 
 ## 使用
 
 1. 保存并关闭 OPM（检测到 `OpenPlantModeler.exe` / `ustation.exe` 在运行会拒绝修改）。
 2. 双击 `dist\SchemaPatcher.exe`。
-3. **Schema 目录**：工作集的 `...\WorkSets\<工作集>\Standards\OpenPlant\Schemas`，里面要有三份 `.01.08.ecschema.xml`。
+3. **Schema 目录**：工作集的 `...\WorkSets\<工作集>\Standards\OpenPlant\Schemas`，里面要有三份 `.01.08.ecschema.xml`（只修“轴测图 Schema”时只需要 Isoextractor 这一份）。工具只读取这个目录，不会去 Backup、Versions 或安装目录找副本。
 4. **备份文件夹**：不能放在 Schema 目录里面。
 5. 选修改内容，点 **检查（只读）** 查看结果：蓝色“新增/修改”是要改的，绿色“已具备”是已经有的，红色“冲突/错误”需要人工处理。
 6. 点 **执行修改**，确认后写入。全部已具备时会提示“当前选择的 Schema 文件已经具备这些字段，无需修改”，不会写文件、也不产生备份。
@@ -58,7 +59,7 @@ python SchemaPatcher.py --schema-dir "<Schemas目录>" --feature all            
 python SchemaPatcher.py --schema-dir "<Schemas目录>" --feature valve_actuator --backup-dir "<备份>" --apply
 ```
 
-`--feature` 可选 `trunnion`、`pipe_clamp`、`iso_tag`、`valve_actuator`、`all`。退出码：0 成功或无需修改，2 有冲突，1 写入失败。
+`--feature` 可选 `trunnion`、`pipe_clamp`、`iso_tag`、`iso_schema`、`valve_actuator`、`all`。退出码：0 成功或无需修改，2 有冲突，1 写入失败。
 
 ## 打包
 

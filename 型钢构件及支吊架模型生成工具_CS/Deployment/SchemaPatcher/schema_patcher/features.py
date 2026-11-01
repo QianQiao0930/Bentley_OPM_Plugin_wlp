@@ -1,8 +1,8 @@
 """各增补项的判定与修改规则，与 Deployment 下 PowerShell 安装脚本保持一致。"""
 from collections import OrderedDict
 
-from .xmlspan import (INDENT, XmlFormatError, append_child, child, children, clone_text, path, same_structure,
-                      set_text, to_element)
+from .xmlspan import (INDENT, Patch, XmlFormatError, append_child, child, children, clone_text, path,
+                      same_structure, set_text, to_element)
 
 OP3D = "OP3D"
 MOD = "MOD"
@@ -26,6 +26,13 @@ ACTUATOR_HANDLER = "CelValveActuatorComponent"
 ACTUATOR_LABEL = "CEL GEARBOX_OPERATOR Callback Check"
 ACTUATOR_PROPERTIES = (("SSP_CEL_VERSION", "int"), ("SSP_CEL_NAME", "string"), ("SSP_CEL_SOURCE", "string"),
                        ("SSP_CEL_SHA256", "string"), ("SSP_CEL_DATA", "binary"), ("SSP_CEL_TOKEN", "string"))
+# KB0098072：PLANT_BASE_OBJECT 上这三个自定义属性必须带子节点，空壳会让 ISO 取属性时拿到 DBNull。
+ISO_SCHEMA_CLASS = "PLANT_BASE_OBJECT"
+ISO_SCHEMA_NODES = (
+    ("IE_Mappings", ("END_POINT_ORDER_MAP", "OVR_END_PREPARATION")),
+    ("L00_LABEL_SECTION_LABELS", ("LBL_SECT_LABELS",)),
+    ("SPECIFIC_BOM_LABELS", ("ATTRIBUTES",)),
+)
 
 INSTALLED = "installed"
 ADD = "add"
@@ -355,6 +362,75 @@ def plan_valve_actuator(ctx):
     _new_root_class(ctx, MOD, ACTUATOR_CLASS, build, build(""))
 
 
+# ---------------------------------------------------------------- 轴测图 Schema（KB0098072）
+
+def _iso_node(type_name, required):
+    """生成一个完整的自定义属性节点；缩进由 append_child 传入的绝对缩进决定。"""
+    def build(indent):
+        inner = "".join("\n%s%s<%s />" % (indent, INDENT, name) for name in required)
+        return '<%s xmlns="%s">%s\n%s</%s>' % (type_name, ISO_NS, inner, indent, type_name)
+    return build
+
+
+def _iso_rebuild(doc, node, required, order):
+    """保留原开始标签（含 xmlns），按官方顺序重建整个节点；调用方已保证没有项目自定义子节点。"""
+    indent = doc.line_indent(node.start)
+    raw = doc.data[node.start:node.start_end].decode("utf-8")
+    start = raw.rstrip()[:-2].rstrip() + ">" if raw.rstrip().endswith("/>") else raw
+    inner = "".join("\n%s<%s />" % (indent + INDENT, name) for name in required)
+    return Patch(node.start, node.end - node.start, start + inner + "\n%s</%s>" % (indent, node.qname), order)
+
+
+def plan_iso_schema(ctx):
+    """只检查所选目录里的 Isoextractor：三个节点缺失或空壳时补必需子节点；项目自定义一律冲突。"""
+    doc = ctx.docs[ISO]
+    base = _class_path(ISO_SCHEMA_CLASS, "ECCustomAttributes")
+    cls = _class(doc, ISO_SCHEMA_CLASS)
+    if cls is None:
+        ctx.add(ISO, base, ERROR, "工作集缺少 %s 类。" % ISO_SCHEMA_CLASS)
+        return
+    attrs = child(cls, "ECCustomAttributes", doc.root.ns)
+    if attrs is None:
+        ctx.add(ISO, base, ERROR, "%s 缺少 ECCustomAttributes。" % ISO_SCHEMA_CLASS)
+        return
+    for type_name, required in ISO_SCHEMA_NODES:
+        target = _class_path(ISO_SCHEMA_CLASS, "ECCustomAttributes", type_name)
+        found = children(attrs, type_name)
+        if len(found) > 1:
+            ctx.add(ISO, target, CONFLICT, "%s 重复出现 %d 次，禁止自动处理。" % (type_name, len(found)))
+            continue
+        if found and found[0].ns != ISO_NS:
+            ctx.add(ISO, target, CONFLICT, "%s 的命名空间不是 %s，禁止改写。" % (type_name, ISO_NS))
+            continue
+        if not found:
+            patch = append_child(doc, attrs, _iso_node(type_name, required), ctx.order())
+            ctx.add(ISO, target, ADD, "新增 %s（%s）" % (type_name, "、".join(required)),
+                    [patch], [patch.text.strip("\r\n")],
+                    [("ECClass", {"typeName": ISO_SCHEMA_CLASS}), ("ECCustomAttributes", {}), (type_name, {})])
+            continue
+        node = found[0]
+        actual = [item.local for item in node.children]
+        extras = [name for name in actual if name not in required]
+        if extras:
+            ctx.add(ISO, target, CONFLICT, "%s 含有非官方子节点 %s，禁止覆盖。" % (type_name, "、".join(extras)))
+            continue
+        if any(item.ns != ISO_NS for item in node.children):
+            ctx.add(ISO, target, CONFLICT, "%s 的子节点命名空间不一致，禁止改写。" % type_name)
+            continue
+        rewritten = [item.local for item in node.children if item.children or item.text.strip()]
+        if rewritten:
+            ctx.add(ISO, target, CONFLICT, "%s 的子节点 %s 已有项目内容，禁止覆盖。" % (type_name, "、".join(rewritten)))
+            continue
+        missing = [name for name in required if name not in actual]
+        if not missing:
+            ctx.add(ISO, target, INSTALLED, "已具备 %s（%s）" % (type_name, "、".join(required)))
+            continue
+        patch = _iso_rebuild(doc, node, required, ctx.order())
+        ctx.add(ISO, target, ADD, "%s 补齐子节点 %s" % (type_name, "、".join(missing)),
+                [patch], [patch.text.strip("\r\n")],
+                [("ECClass", {"typeName": ISO_SCHEMA_CLASS}), ("ECCustomAttributes", {}), (type_name, {})])
+
+
 class Feature(object):
     def __init__(self, key, label, description, files, planners):
         self.key = key
@@ -365,34 +441,41 @@ class Feature(object):
 
 
 _TRUNNION = Feature(
-    "trunnion", "增加耳轴（自带耳轴三类参数化）",
+    "trunnion", "增加耳轴",
     "OpenPlant_3D：SINGLE/DOUBLE_PIPE_TRUNNION、SIMPLE_ELBOW_SUPPORT 各加 SSP_RECIPE 字段；\n"
     "Modeling：这三类的创建属性改为指向本插件 NativePipeSupportComponent；\n"
     "Isoextractor：这三类 IE_TAG=this.ALIAS。\n"
     "注意：改的是 OPM 自带类，改后该工作集所有耳轴（含原生工具放的）都需要本插件才能编辑。",
     (OP3D, MOD, ISO), (plan_trunnion,))
 _PIPE_CLAMP = Feature(
-    "pipe_clamp", "增加正式管夹（SSP_PIPE_CLAMP）",
+    "pipe_clamp", "增加正式管夹",
     "三份 Schema 各新增隔离类 SSP_PIPE_CLAMP（继承 SUPPORT_LOCATION）：\n"
     "OpenPlant_3D 加 SSP_RECIPE 字段；Modeling 创建属性指向本插件 NativePipeSupportComponent；Isoextractor IE_TAG=this.ALIAS。",
     (OP3D, MOD, ISO), (plan_pipe_clamp,))
 _ISO_TAG = Feature(
-    "iso_tag", "修改轴测图出图（管夹引注按管架编号）",
+    "iso_tag", "修改轴测图出图",
     "Isoextractor：SUPPORT_LOCATION 增加 BOM_LABELS，DEVICE_TYPE_CODE=SSPPC 时引注取 ALIAS（管架编号），\n"
     "否则保持原表达式。主要用于旧的非参数化管夹件。",
     (ISO,), (plan_iso_tag,))
+_ISO_SCHEMA = Feature(
+    "iso_schema", "修复轴测图 Schema",
+    "Isoextractor：PLANT_BASE_OBJECT 的 IE_Mappings、L00_LABEL_SECTION_LABELS、SPECIFIC_BOM_LABELS\n"
+    "按 KB0098072 补齐必需子节点（空壳会导致 ISO 取属性时 DBNull）。\n"
+    "只检查所选目录内的这一份 Schema；不改命名空间、不覆盖项目自定义。",
+    (ISO,), (plan_iso_schema,))
 _ACTUATOR = Feature(
-    "valve_actuator", "增加自定义执行机构（SSP_CEL_VALVE_ACTUATOR）",
+    "valve_actuator", "增加执行机构",
     "OpenPlant_3D：新增 SSP_CEL_VALVE_ACTUATOR（继承 GEARBOX_OPERATOR）及 6 个 CEL 快照字段；\n"
     "Modeling：创建属性复制自 GEARBOX_OPERATOR，处理器改为本插件 CelValveActuatorComponent。Isoextractor 不改。",
     (OP3D, MOD), (plan_valve_actuator,))
 _ALL = Feature(
-    "all", "全部（以上四项）", "依次执行：增加耳轴、增加正式管夹、修改轴测图出图、增加自定义执行机构。",
+    "all", "全部", "依次执行：增加耳轴、增加正式管夹、修改轴测图出图、增加执行机构（不含修复轴测图 Schema）。",
     (OP3D, MOD, ISO), (plan_trunnion, plan_pipe_clamp, plan_iso_tag, plan_valve_actuator))
 
-FEATURES = OrderedDict((f.key, f) for f in (_TRUNNION, _PIPE_CLAMP, _ISO_TAG, _ACTUATOR, _ALL))
+FEATURES = OrderedDict((f.key, f) for f in (_TRUNNION, _PIPE_CLAMP, _ISO_TAG, _ISO_SCHEMA, _ACTUATOR, _ALL))
 _PLANNER_LABELS = {plan_trunnion: _TRUNNION.label, plan_pipe_clamp: _PIPE_CLAMP.label,
-                   plan_iso_tag: _ISO_TAG.label, plan_valve_actuator: _ACTUATOR.label}
+                   plan_iso_tag: _ISO_TAG.label, plan_iso_schema: _ISO_SCHEMA.label,
+                   plan_valve_actuator: _ACTUATOR.label}
 
 
 def plan_feature(feature, docs):

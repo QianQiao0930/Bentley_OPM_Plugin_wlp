@@ -9,7 +9,7 @@ from domain.ledger import CONFLICT, ERROR
 from ui.models.ledger_model import ENTRY_ROLE, HEADER_ROLE
 from ui.theme import tokens
 
-LINE_W, STATUS_W, TARGET_W, FEATURE_W, GAP = 64, 44, 340, 84, 12
+LINE_W, STATUS_W, TARGET_W, FEATURE_W, GAP = 64, 44, 340, 112, 12
 HEADER_HEIGHT = 36
 ROW_INSET = 4
 TEXT_START = ROW_INSET + 9 + GAP

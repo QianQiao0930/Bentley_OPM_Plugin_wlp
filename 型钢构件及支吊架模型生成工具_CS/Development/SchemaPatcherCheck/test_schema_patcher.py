@@ -164,7 +164,7 @@ class SyntheticTests(unittest.TestCase):
 
     def test_check_is_read_only(self):
         before = self.ws.snapshot()
-        for feature in ("trunnion", "pipe_clamp", "iso_tag", "valve_actuator", "all"):
+        for feature in ("trunnion", "pipe_clamp", "iso_tag", "iso_schema", "valve_actuator", "all"):
             plan = load_plan(self.ws.schema, feature)
             self.assertFalse(plan.blocked, [i.message for i in plan.items if i.status in ("conflict", "error")])
             self.assertTrue(plan.pending)
@@ -231,7 +231,7 @@ class SyntheticTests(unittest.TestCase):
         self.assertTrue(os.path.isfile(result.receipt_path))
 
     def test_each_feature_then_all_installed(self):
-        for feature in ("valve_actuator", "iso_tag", "pipe_clamp", "trunnion"):
+        for feature in ("valve_actuator", "iso_tag", "iso_schema", "pipe_clamp", "trunnion"):
             _apply(self.ws, feature)
             self.assertTrue(load_plan(self.ws.schema, feature).nothing_to_do, feature)
         self.assertTrue(load_plan(self.ws.schema, "all").nothing_to_do)
@@ -275,6 +275,53 @@ class SyntheticTests(unittest.TestCase):
             stream.write(data[:start] + part)
         plan = load_plan(self.ws.schema, "trunnion")
         self.assertTrue(any(i.status == "conflict" and "SINGLE_PIPE_TRUNNION" in i.message for i in plan.items))
+
+    def test_iso_schema_adds_missing_nodes_and_is_idempotent(self):
+        plan = load_plan(self.ws.schema, "iso_schema")
+        self.assertEqual([(i.file_key, i.status) for i in plan.items], [("ISO", "add")] * 3)
+        _apply(self.ws, "iso_schema")
+        iso = _parse(self.ws.path("ISO"))
+        attrs = _class(iso, "PLANT_BASE_OBJECT").find("{%s}ECCustomAttributes" % EC)
+        expected = {"IE_Mappings": ["END_POINT_ORDER_MAP", "OVR_END_PREPARATION"],
+                    "L00_LABEL_SECTION_LABELS": ["LBL_SECT_LABELS"],
+                    "SPECIFIC_BOM_LABELS": ["ATTRIBUTES"]}
+        for name, children in expected.items():
+            node = attrs.find("{%s}%s" % (ISO, name))
+            self.assertIsNotNone(node, name)
+            self.assertEqual([c.tag.split("}")[-1] for c in node], children)
+        self.assertTrue(load_plan(self.ws.schema, "iso_schema").nothing_to_do)
+
+    def test_iso_schema_conflict_keeps_custom_children(self):
+        _apply(self.ws, "iso_schema")
+        path = self.ws.path("ISO")
+        data = _read(path)
+        start = data.index(b"<IE_Mappings")
+        end = data.index(b"</IE_Mappings>", start)
+        with open(path, "wb") as stream:
+            stream.write(data[:end] + b"<PROJECT_MAP />" + data[end:])
+        before = _read(path)
+        plan = load_plan(self.ws.schema, "iso_schema")
+        self.assertTrue(plan.blocked)
+        self.assertTrue(any(i.status == "conflict" and "IE_Mappings" in i.message for i in plan.items))
+        with self.assertRaises(PatchError):
+            apply_plan(plan, self.ws.backup, check_processes=False)
+        self.assertEqual(before, _read(path))
+
+    def test_iso_schema_repairs_half_filled_node(self):
+        _apply(self.ws, "iso_schema")
+        path = self.ws.path("ISO")
+        data = _read(path)
+        data = data.replace(b"<OVR_END_PREPARATION />", b"", 1)
+        with open(path, "wb") as stream:
+            stream.write(data)
+        plan = load_plan(self.ws.schema, "iso_schema")
+        self.assertEqual([(i.status, i.target.split("/")[-1]) for i in plan.items],
+                         [("add", "IE_Mappings"), ("installed", "L00_LABEL_SECTION_LABELS"),
+                          ("installed", "SPECIFIC_BOM_LABELS")])
+        _apply(self.ws, "iso_schema")
+        iso = _parse(self.ws.path("ISO"))
+        node = _class(iso, "PLANT_BASE_OBJECT").find(".//{%s}IE_Mappings" % ISO)
+        self.assertEqual([c.tag.split("}")[-1] for c in node], ["END_POINT_ORDER_MAP", "OVR_END_PREPARATION"])
 
     def test_backup_folder_rules(self):
         plan = load_plan(self.ws.schema, "all")
@@ -349,6 +396,8 @@ class RealSchemaParityTests(unittest.TestCase):
         original = self.python_ws.snapshot()
         plan, result = _apply(self.python_ws, "all")
         self.assertEqual(len(result.files), 3)
+        self.assertTrue(load_plan(self.python_ws.schema, "iso_schema").nothing_to_do,
+                        "real schema already carries the three Isoextractor nodes")
         for key in NAMES:
             before, after = original[key], _read(self.python_ws.path(key))
             self.assertEqual(after[:3], before[:3], "BOM state preserved")

@@ -43,7 +43,7 @@
 
 ### 2.3 界面工具 SchemaPatcher.exe
 
-`SchemaPatcher/` 是上面两个脚本的图形界面版（Python/tkinter，PyInstaller 打包为单文件 exe）：选 Schema 目录、备份文件夹和修改内容（增加耳轴 / 增加正式管夹 / 修改轴测图出图 / 增加自定义执行机构 / 全部），先只读检查，再备份并写入，输出逐处改动记录；已全部具备时提示无需修改。判定规则与脚本一致、装出的内容双向互认，但只在插入点写字节，不整份重写。详见 [SchemaPatcher/README.md](SchemaPatcher/README.md)。
+`SchemaPatcher/` 是上面两个脚本的图形界面版（Python/tkinter，PyInstaller 打包为单文件 exe）：选 Schema 目录、备份文件夹和修改内容（增加耳轴 / 增加正式管夹 / 修改轴测图出图 / 修复轴测图 Schema / 增加执行机构 / 全部），先只读检查，再备份并写入，输出逐处改动记录；已全部具备时提示无需修改。判定规则与脚本一致、装出的内容双向互认，但只在插入点写字节，不整份重写。详见 [SchemaPatcher/README.md](SchemaPatcher/README.md)。
 
 `SchemaPatcherFluent/` 是同一引擎的 Fluent 风格界面版（PySide6 + FluentQt，“增补台账”布局：按文件分组的行号台账 + 改前改后详情），tkinter 版保留。详见 [SchemaPatcherFluent/README.md](SchemaPatcherFluent/README.md)。
 

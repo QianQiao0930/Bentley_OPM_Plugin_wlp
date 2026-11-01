@@ -31,7 +31,7 @@ class GatewayTests(unittest.TestCase):
     def test_check_apply_recheck(self):
         gateway = PatcherGateway()
         self.assertEqual([f.key for f in gateway.features()],
-                         ["trunnion", "pipe_clamp", "iso_tag", "valve_actuator", "all"])
+                         ["trunnion", "pipe_clamp", "iso_tag", "iso_schema", "valve_actuator", "all"])
         snap, plan = gateway.check(self.schema, "all")
         self.assertEqual((snap.count(ADDED), snap.count(MODIFIED), len(snap.pending)), (12, 3, 15))
         self.assertTrue(all(e.file_lines > 1000 for e in snap.entries))
