@@ -37,17 +37,23 @@ class SummaryFooter(QWidget):
         self.progress.hide()
         row.addWidget(self.progress)
         self.open_backup = self._button("打开备份文件夹", fq.Icons.Folder, self.openBackupRequested)
+        self.open_backup.setFluentStyle(fq.Button.ButtonStyle.Subtle)
         self.save_log = self._button("保存日志", fq.Icons.SaveAs, self.saveLogRequested)
         self.apply = self._button("执行修改", fq.Icons.Save, self.applyRequested)
         self.apply.setFluentStyle(fq.Button.ButtonStyle.Accent)
+        actions = QHBoxLayout()
+        actions.setContentsMargins(0, 0, 0, 0)
+        actions.setSpacing(tokens.RELATED_GAP)
         for button in (self.open_backup, self.save_log, self.apply):
-            row.addWidget(button)
+            actions.addWidget(button)
+        row.addLayout(actions)
 
     @staticmethod
     def _button(text, glyph, signal):
         button = fq.Button(text)
         button.setIconGlyph(glyph)
         button.setFluentLayout(fq.Button.ButtonLayout.IconBefore)
+        button.setAccessibleName(text)
         button.clicked.connect(signal)
         return button
 

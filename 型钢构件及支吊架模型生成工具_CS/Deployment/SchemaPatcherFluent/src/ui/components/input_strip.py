@@ -1,7 +1,8 @@
-"""顶部输入条：Schema 目录、备份文件夹、修改内容、检查。窄窗口时换成两行。"""
+"""顶部输入条：第一行两个目录，第二行修改内容与检查；任何宽度都保持这份分组。"""
 import fluentqt as fq
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QFileDialog, QGridLayout, QHBoxLayout, QWidget
+from PySide6.QtGui import QFontMetrics
+from PySide6.QtWidgets import QFileDialog, QHBoxLayout, QSizePolicy, QVBoxLayout, QWidget
 
 from ui.theme import tokens
 
@@ -62,8 +63,16 @@ class InputStrip(QWidget):
         for i, f in enumerate(features):
             self.combo.setItemData(i, f.description, Qt.ToolTipRole)
         self.combo.setAccessibleName("修改内容")
+        # 下拉框按最长选项取宽，右侧留白用于右对齐的只读提示；不跟随窗口拉伸。
+        metrics = QFontMetrics(tokens.body_font())
+        options_width = max(metrics.horizontalAdvance(f.label) for f in features) + 64
+        self.feature_width = max(220, min(320, options_width))
+        self.combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.feature_field = fq.Field(labelText="修改内容")
         self.feature_field.setEditor(self.combo)
+        self.feature_field.setFixedWidth(self.feature_width)
+        self.hint = fq.Label("只读检查，不改动文件", fluentTypography=fq.FontRole.Caption)
+        self.hint.setTextColorRole(fq.Label.TextColorRole.Secondary)
         self.check = fq.Button("检查")
         self.check.setIconGlyph(fq.Icons.Search)
         self.check.setFluentLayout(fq.Button.ButtonLayout.IconBefore)
@@ -72,36 +81,30 @@ class InputStrip(QWidget):
         self.backup.changed.connect(self.backupDirChanged)
         self.combo.currentIndexChanged.connect(lambda i: self.featureChanged.emit(self._keys[i]) if i >= 0 else None)
         self.check.clicked.connect(self.checkRequested)
-        self._grid = QGridLayout(self)
-        self._grid.setContentsMargins(0, 0, 0, 0)
-        self._grid.setHorizontalSpacing(12)
-        self._grid.setVerticalSpacing(tokens.RELATED_GAP)
-        self._narrow = None
-        self.set_narrow(False)
+        self._narrow = False
+        self._rows = QVBoxLayout(self)
+        self._rows.setContentsMargins(0, 0, 0, 0)
+        self._rows.setSpacing(tokens.RELATED_GAP)
+        self._top = QHBoxLayout()
+        self._top.setContentsMargins(0, 0, 0, 0)
+        self._top.setSpacing(12)
+        self._top.addWidget(self.schema, 1)
+        self._top.addWidget(self.backup, 1)
+        self._bottom = QHBoxLayout()
+        self._bottom.setContentsMargins(0, 0, 0, 0)
+        self._bottom.setSpacing(12)
+        self._bottom.addWidget(self.feature_field, 0)
+        self._bottom.addWidget(self.check, 0, Qt.AlignBottom)
+        self._bottom.addStretch(1)
+        self._bottom.addWidget(self.hint, 0, Qt.AlignBottom)
+        self._rows.addLayout(self._top)
+        self._rows.addLayout(self._bottom)
 
     def set_narrow(self, narrow):
-        if narrow == self._narrow:
-            return
+        """两行分组与窗口宽度无关；窄窗口只收紧行间距，目录仍并排。"""
         self._narrow = narrow
-        for widget in (self.schema, self.backup, self.feature_field, self.check):
-            self._grid.removeWidget(widget)
-        for column in range(4):
-            self._grid.setColumnStretch(column, 0)
-        if narrow:
-            self._grid.addWidget(self.schema, 0, 0, 1, 3)
-            self._grid.addWidget(self.backup, 1, 0)
-            self._grid.addWidget(self.feature_field, 1, 1)
-            self._grid.addWidget(self.check, 1, 2, Qt.AlignBottom)
-            self._grid.setColumnStretch(0, 1)
-            self._grid.setColumnStretch(1, 1)
-        else:
-            self._grid.addWidget(self.schema, 0, 0)
-            self._grid.addWidget(self.backup, 0, 1)
-            self._grid.addWidget(self.feature_field, 0, 2)
-            self._grid.addWidget(self.check, 0, 3, Qt.AlignBottom)
-            self._grid.setColumnStretch(0, 5)
-            self._grid.setColumnStretch(1, 3)
-            self._grid.setColumnStretch(2, 2)
+        self._rows.setSpacing(tokens.RELATED_GAP if narrow else 10)
+        self.hint.setVisible(not narrow)
 
     def render(self, state):
         self.schema.set_text(state.schema_dir)
