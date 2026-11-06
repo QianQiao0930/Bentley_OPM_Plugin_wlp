@@ -959,6 +959,8 @@ Q2编号为`Q2-类型-子项-支撑管DN-被支撑管DN-L`。普通Cell名`Q2_AN
 
 目标图层来自活动 DGN 的真实图层表，默认选中可写的当前活动图层，可手动“刷新图层”。只读、锁定、COM 无法对应的图层标记并禁用。选择目标层不会改变宿主当前活动图层；不创建或改色已有图层。
 
+COM 图层集合刷新（2026-11-06）：`ModelReference.Levels` 是宿主装载时的快照集合，新建、改名、删除图层后不会自动出现；宿主实测为“刚创建的图层显示不可用，完全退出 OPM 重开后恢复”。现在读取与写入都先 `Refresh()` 再置 `IncludeHidden = true`，按名查不到时回退 `FindByNumber(层号)`，两条路径仍要求 `Level.ID` 与 DGN 层号一致；仍不一致才禁用，并把层名、层号、卡在哪一步写入 `EquipmentLevel/latest.log`（此前该分支静默）。
+
 颜色提供三种方式：
 
 - 随目标图层颜色：内部图元设为 ByLevel。
@@ -978,6 +980,6 @@ Q2编号为`Q2-类型-子项-支撑管DN-被支撑管DN-L`。普通Cell名`Q2_AN
 
 日志：`%LOCALAPPDATA%\SteelSectionProbe\logs\EquipmentLevel\latest.log` 与 `tree.log`。计划异常包含阶段、嵌套图元 ID 与完整调用栈。
 
-验证：EquipmentLevelCheck 73 个场景通过（真实读取/写入服务配宿主替身）；EquipmentLevelUiCheck 59 项通过（真实 XAML/页面事件，文档服务用展示替身），覆盖 400×560/600/880/1080、520×720、1/1.25/1.5/2 倍 DPI、固定操作区、颜色输入、忙状态、撤销和模型切换。HomeCheck、HomeUiCheck 83 项、DockingCheck 65 项回归通过。授权/无授权 Release 编译、备用 DLL 校验见本次交付记录。
+验证：EquipmentLevelCheck 86 个场景通过（真实读取/写入服务配宿主替身，含“刷新前快照看不到新层/刷新后可用且层名变化按层号找回”“目标层层名对不上时按层号回退”）；EquipmentLevelUiCheck 76 项通过（真实 XAML/页面事件，文档服务用展示替身），覆盖 400×560/600/880/1080、520×720、1/1.25/1.5/2 倍 DPI、固定操作区、颜色输入、忙状态、撤销和模型切换。HomeCheck、HomeUiCheck 83 项、DockingCheck 65 项回归通过。授权/无授权 Release 编译、备用 DLL 校验见本次交付记录。
 
 用户已确认此前 `EQLEVEL` 基础改层/颜色随层功能在其设备上可用。本次新增 UI、真实文档图层下拉、RGB 色板及进度刷新仍需 OPM 宿主验证；离线替身和布局检查不代替实际模型持久化、保存重开与 Ctrl+Z/Redo 验收。

@@ -98,7 +98,28 @@ namespace Bentley.Interop.MicroStationDGN
     {
         internal Level Target = new Level { ID = 2 };
         internal Dictionary<string, Level> Other = new Dictionary<string, Level>();
-        internal Level Find(string name) { Level value; return name == "equipment" ? Target : Other.TryGetValue(name, out value) ? value : null; }
+        // 真实宿主：Levels 是装载时的快照，新建图层要 Refresh 后才可见。
+        internal Dictionary<string, Level> Pending = new Dictionary<string, Level>();
+        internal bool IncludeHidden, HideTargetFromName;
+        internal int RefreshCount;
+        internal Level Find(string name)
+        {
+            Level value;
+            if (name == "equipment" && !HideTargetFromName) return Target;
+            return Other.TryGetValue(name, out value) ? value : null;
+        }
+        internal Level FindByNumber(int id)
+        {
+            if (Target != null && Target.ID == id) return Target;
+            foreach (Level value in Other.Values) if (value.ID == id) return value;
+            return null;
+        }
+        internal void Refresh()
+        {
+            RefreshCount++;
+            foreach (var pair in Pending) Other[pair.Key] = pair.Value;
+            Pending.Clear();
+        }
     }
     internal sealed class Application
     {

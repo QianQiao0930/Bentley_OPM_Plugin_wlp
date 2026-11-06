@@ -12,6 +12,7 @@
   <ItemGroup>
     <Compile Include="../../Data/EquipmentLevel/EquipmentLevelTree.cs" Link="EquipmentLevelTree.cs" />
     <Compile Include="../../Data/EquipmentLevel/EquipmentLevelUiReader.cs" Link="EquipmentLevelUiReader.cs" />
+    <Compile Include="../../Data/EquipmentLevel/EquipmentLevelLevels.cs" Link="EquipmentLevelLevels.cs" />
     <Compile Include="../../Services/EquipmentLevel/EquipmentLevelApplier.cs" Link="EquipmentLevelApplier.cs" />
     <Compile Include="../../Domain/EquipmentLevel/EquipmentLevelModels.cs" Link="EquipmentLevelModels.cs" />
     <Compile Include="../../Domain/EquipmentLevel/EquipmentAppearanceOptions.cs" Link="EquipmentAppearanceOptions.cs" />

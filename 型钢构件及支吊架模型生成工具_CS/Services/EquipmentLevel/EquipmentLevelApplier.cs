@@ -62,11 +62,16 @@ namespace SteelSectionProbe
                 if (app == null) throw new InvalidOperationException("OPM COM 应用对象不可用。");
                 var active = app.ActiveModelReference;
                 if (active == null) throw new InvalidOperationException("OPM COM 活动模型不可用。");
-                var levels = active.Levels;
-                if (levels == null) throw new InvalidOperationException("OPM COM 图层集合不可用。");
-                comLevel = levels.Find(targetLevelName);
-                if (comLevel == null || (uint)comLevel.ID != options.TargetLevelId)
-                    throw new InvalidOperationException("COM 与活动模型的目标图层不一致。");
+                // COM 图层集合是装载时的快照：新建图层后必须刷新，否则按名查不到会误报“不一致”。
+                string levelsIssue;
+                var levels = EquipmentLevelLevels.Acquire(active, out levelsIssue);
+                if (levels == null) throw new InvalidOperationException("OPM COM 图层集合不可用：" + levelsIssue);
+                if (!string.IsNullOrEmpty(levelsIssue))
+                    EquipmentLevelLog.Write("COM 图层集合刷新不完整：" + levelsIssue);
+                string lookup;
+                comLevel = EquipmentLevelLevels.Find(levels, options.TargetLevelId, targetLevelName, out lookup);
+                if (comLevel == null)
+                    throw new InvalidOperationException("COM 与活动模型的目标图层不一致：" + lookup);
                 if (comLevel.IsLocked) throw new InvalidOperationException("目标图层已锁定。");
                 phase = "解析目标颜色";
                 byLevelColor = options.ColorMode == EquipmentColorMode.ByLevel ? app.ByLevelColor() : 0;

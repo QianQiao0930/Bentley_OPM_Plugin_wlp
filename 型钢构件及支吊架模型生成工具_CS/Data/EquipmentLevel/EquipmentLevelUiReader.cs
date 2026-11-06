@@ -21,6 +21,13 @@ namespace SteelSectionProbe
             if (app == null || app.ActiveModelReference == null)
                 throw new InvalidOperationException("无法读取活动模型的图层。");
             var active = app.ActiveModelReference;
+            // COM 图层集合是快照，新建的图层不 Refresh 就查不到；这里统一刷新并允许按层号回退。
+            string levelsIssue;
+            var comLevels = EquipmentLevelLevels.Acquire(active, out levelsIssue);
+            if (comLevels == null)
+                EquipmentLevelLog.Write("COM 图层集合不可用，全部图层将标记为不可用：" + levelsIssue);
+            else if (!string.IsNullOrEmpty(levelsIssue))
+                EquipmentLevelLog.Write("COM 图层集合已取得但刷新不完整：" + levelsIssue);
             var result = new EquipmentLevelDocument { Model = model, FileName = file.GetFileName(),
                 ModelName = model.GetModelInfo().Name, ActiveLevelId = (uint)Settings.ActiveLevelId };
             foreach (LevelHandle handle in cache.GetHandles())
@@ -31,9 +38,16 @@ namespace SteelSectionProbe
                     Availability = "只读", ColorHex = "未读取" };
                 try
                 {
-                    var com = active.Levels.Find(handle.Name);
-                    if (com == null || (uint)com.ID != level.Id)
-                    { level.IsWritable = false; level.Availability = "不可用"; }
+                    string detail;
+                    var com = EquipmentLevelLevels.Find(comLevels, level.Id, handle.Name, out detail);
+                    if (com == null)
+                    {
+                        // 无法确认 COM 对应图层时不允许写入；不从层名猜 ID。
+                        level.IsWritable = false; level.Availability = "不可用";
+                        EquipmentLevelLog.Write("图层「" + handle.Name + "」ID=" + level.Id +
+                            " 未通过 COM 核对：" + (detail ?? "图层集合不可用") +
+                            (comLevels == null ? "（" + levelsIssue + "）" : string.Empty));
+                    }
                     else
                     {
                         if (com.IsLocked) { level.IsWritable = false; level.Availability = "已锁定"; }
@@ -44,7 +58,6 @@ namespace SteelSectionProbe
                 }
                 catch (Exception ex)
                 {
-                    // 无法确认 COM 对应图层时不允许写入；不从层名猜 ID。
                     level.IsWritable = false; level.Availability = "不可用";
                     EquipmentLevelLog.Write("读取图层「" + handle.Name + "」失败：" + ex.Message);
                 }

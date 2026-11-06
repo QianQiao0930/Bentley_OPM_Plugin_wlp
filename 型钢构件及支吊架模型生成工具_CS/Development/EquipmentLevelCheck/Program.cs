@@ -185,6 +185,13 @@ namespace EquipmentLevelCheck
                 Basic(); Bentley.MstnPlatformNET.InteropServices.Utilities.ComApp.ActiveModelReference.Levels.Target.ID = 3;
                 Assert(!Apply(1).Succeeded && Store.Writes.Count == 0, "不能只按层名误写");
             });
+            Check("目标层层名对不上时按层号回退", () =>
+            {
+                Basic();
+                Bentley.MstnPlatformNET.InteropServices.Utilities.ComApp.ActiveModelReference.Levels.HideTargetFromName = true;
+                var result = Apply(1);
+                Assert(result.Succeeded && Store.Writes.Count > 0, "按层号找回目标层");
+            });
             Check("包含关系成环时明确拒绝", () =>
             {
                 Store.Add(1, true, 2); Store.Add(2, true, 1);
@@ -309,6 +316,19 @@ namespace EquipmentLevelCheck
                 Assert(document.Levels.Where(l => l.Id != 2).All(l => !l.IsWritable), "禁用无权图层");
                 Store.ActiveModel.File.IsReadOnly = true;
                 Assert(EquipmentLevelUiReader.ReadDocument().Levels.All(l => !l.IsWritable), "只读文件禁用全部目标");
+            });
+            Check("新建图层刷新 COM 集合后可用且层名变化按层号找回", () =>
+            {
+                Store.LevelHandles.Add(new LevelHandle { LevelId = new LevelId(7), Name = "newlevel" });
+                Store.LevelHandles.Add(new LevelHandle { LevelId = new LevelId(8), Name = "renamed-in-dgn" });
+                var levels = Bentley.MstnPlatformNET.InteropServices.Utilities.ComApp.ActiveModelReference.Levels;
+                levels.Pending["newlevel"] = new Bentley.Interop.MicroStationDGN.Level { ID = 7 };
+                levels.Other["old-name"] = new Bentley.Interop.MicroStationDGN.Level { ID = 8 };
+                Assert(levels.Find("newlevel") == null, "刷新前快照看不到新层");
+                var document = EquipmentLevelUiReader.ReadDocument();
+                Assert(levels.RefreshCount == 1 && levels.IncludeHidden, "读取时刷新并包含隐藏层");
+                Assert(document.Levels.Single(l => l.Id == 7).IsWritable, "刷新后新层可写");
+                Assert(document.Levels.Single(l => l.Id == 8).IsWritable, "层名对不上时按层号找回");
             });
             Check("选择读取去重设备并拒绝非设备及参考文件", () =>
             {
