@@ -338,7 +338,7 @@ namespace SteelSectionProbe
                 TotalsText.Text = "箱体 " + snapshot.TotalBoxCount + " 箱 · 配置灭火器 " + snapshot.TotalExtinguisherCount +
                     " 具 · 外观模型 " + snapshot.TotalInteriorModelCount + " 具";
                 ExcelButton.IsEnabled = JsonButton.IsEnabled = snapshot.Records.Count > 0;
-                Status("消防统计已更新（当前 DGN 的全部模型）。", false);
+                Status("消防统计已刷新（当前 DGN 的全部模型及一级参考文件）。", false);
                 return true;
             }
             catch (Exception exception)

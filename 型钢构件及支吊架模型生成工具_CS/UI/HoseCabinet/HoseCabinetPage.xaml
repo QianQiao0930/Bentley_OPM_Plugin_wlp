@@ -123,7 +123,7 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="32"/>
                             </Grid.RowDefinitions>
-                            <Button Content="统计当前 DGN" Style="{StaticResource PrimaryButtonStyle}" Click="Statistics_Click" Margin="0" Grid.Column="0" Grid.Row="0" Height="32"/>
+                            <Button Content="刷新统计" ToolTip="重新读取当前 DGN 的全部模型及一级参考文件" Style="{StaticResource PrimaryButtonStyle}" Click="Statistics_Click" Margin="0" Grid.Column="0" Grid.Row="0" Height="32"/>
                             <Button x:Name="ExcelButton" Content="导出 Excel" Style="{StaticResource SecondaryButtonStyle}" Click="Excel_Click" IsEnabled="False" Margin="0" Grid.Column="2" Grid.Row="0" Height="32"/>
                             <Button x:Name="JsonButton" Content="导出 JSON" Style="{StaticResource SecondaryButtonStyle}" Click="Json_Click" IsEnabled="False" Margin="0" Grid.Column="4" Grid.Row="0" Height="32"/>
                         </Grid>

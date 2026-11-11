@@ -134,9 +134,9 @@ namespace SteelSectionProbe
             oldValues["BomJson"] = "malformed";
             var records = new List<FireCabinetRecord>
             {
-                new FireCabinetRecord { ModelName = "Model1", ElementId = "9007199254740993", Properties = normalValues },
-                new FireCabinetRecord { ModelName = "Model1", ElementId = "2", Properties = emptyValues },
-                new FireCabinetRecord { ModelName = "Model2", ElementId = "3", Properties = oldValues }
+                new FireCabinetRecord { ModelName = "Model1", SourceFile = "本工程.dgn", ElementId = "9007199254740993", Properties = normalValues },
+                new FireCabinetRecord { ModelName = "Model1", SourceFile = "参考一.dgn", ElementId = "2", Properties = emptyValues },
+                new FireCabinetRecord { ModelName = "Model2", SourceFile = "参考二.dgn", ElementId = "3", Properties = oldValues }
             };
             var snapshot = HoseCabinetStatisticsCalculator.Summarize(records);
             Check(snapshot.TotalCabinetCount == 5 && snapshot.TotalExtinguisherCount == 10, "跨模型数量及旧柜倍数");
@@ -156,6 +156,7 @@ namespace SteelSectionProbe
                 HoseCabinetExporter.WriteExcel(excel, snapshot);
                 string report = File.ReadAllText(json);
                 Check(report.Contains("9007199254740993"), "64位ID保持字符串精度");
+                Check(report.Contains("SourceFile") && report.Contains("参考一.dgn"), "JSON明细记录文件来源");
                 var payload = serializer.Deserialize<Dictionary<string, object>>(report);
                 Check(Convert.ToInt32(payload["totalExtinguisherCount"]) == 10, "JSON配置数量");
                 using (var archive = ZipFile.OpenRead(excel))

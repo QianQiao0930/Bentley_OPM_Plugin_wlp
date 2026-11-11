@@ -309,7 +309,7 @@ namespace SteelSectionProbe
                 TotalsText.Text = "柜体 " + snapshot.TotalCabinetCount + " 柜 · 配置灭火器 " + snapshot.TotalExtinguisherCount +
                     " 具 · 已记录模型 " + snapshot.TotalActualExtinguisherCount + " 具" + (snapshot.Records.Any(record => !record.Properties.ContainsKey("ActualExtinguisherQuantity")) ? "（旧记录实际数量未记录）" : "");
                 ExcelButton.IsEnabled = JsonButton.IsEnabled = snapshot.Records.Count > 0;
-                Status("消防统计已更新（当前 DGN 的全部模型）。", false);
+                Status("消防统计已刷新（当前 DGN 的全部模型及一级参考文件）。", false);
                 return true;
             }
             catch (Exception exception)

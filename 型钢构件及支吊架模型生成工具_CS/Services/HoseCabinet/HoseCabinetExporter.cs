@@ -42,11 +42,11 @@ namespace SteelSectionProbe
             {
                 materials.Add(new object[] { item.Number, item.Name, item.Material, item.Specification, item.Unit, item.Quantity });
             }
-            var details = new List<object[]> { new object[] { "模型", "元素ID", "宽(mm)", "深(mm)", "高(mm)",
+            var details = new List<object[]> { new object[] { "模型", "文件来源", "元素ID", "宽(mm)", "深(mm)", "高(mm)",
                 "隔板高(mm)", "柜数", "灭火器型号", "配置具数/柜", "实际模型具数/柜", "卷盘模型数/柜", "外观规格", "内部设备", "旋转角度" } };
             foreach (FireCabinetRecord record in snapshot.Records)
             {
-                var values = new List<object> { record.ModelName, record.ElementId };
+                var values = new List<object> { record.ModelName, record.SourceFile, record.ElementId };
                 foreach (string key in new[] { "WidthMm", "DepthMm", "HeightMm", "LowerCompartmentHeightMm",
                     "CabinetQuantity", "ExtinguisherModel", "ExtinguisherQuantity", "ActualExtinguisherQuantity",
                     "ActualReelQuantity", "ExtinguisherVisualSpec", "WithEquipment", "HeadingDegrees" })

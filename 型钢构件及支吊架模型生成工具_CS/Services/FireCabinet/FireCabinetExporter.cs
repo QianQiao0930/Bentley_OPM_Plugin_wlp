@@ -41,7 +41,7 @@ namespace SteelSectionProbe
 
             var details = new List<object[]>
             {
-                new object[] { "模型", "元素ID", "箱型", "灭火器选型", "配置容量", "容量单位",
+                new object[] { "模型", "文件来源", "元素ID", "箱型", "灭火器选型", "配置容量", "容量单位",
                     "宽度(mm)", "深度(mm)", "高度(mm)", "箱体数量", "配置灭火器数量", "外观模型数量", "外观模型规格", "容量说明" }
             };
             foreach (FireCabinetRecord record in snapshot.Records)
@@ -49,7 +49,7 @@ namespace SteelSectionProbe
                 Dictionary<string, object> properties = record.Properties;
                 details.Add(new object[]
                 {
-                    record.ModelName, record.ElementId,
+                    record.ModelName, record.SourceFile, record.ElementId,
                     Value(properties, "BoxModel"), Value(properties, "ExtinguisherModel"),
                     Value(properties, "ExtinguisherCapacity"), Value(properties, "CapacityUnit"),
                     Value(properties, "WidthMm"), Value(properties, "DepthMm"), Value(properties, "HeightMm"),

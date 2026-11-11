@@ -1,5 +1,9 @@
 # 型钢构件及支吊架模型生成工具：OpenPlant Modeler 2024 C# 版
 
+2026-11-11 修复空白文件参考消防构件统计为空：空白 DGN 只参考含灭火器/水龙柜的文件时，参考文件的 `FireProtectionComponents` EC 架构未进入当前会话，统计查不到实例；先在本文件画一个消防构件会创建库并装载架构，所以之前表现为“画了才有”。现在读取每个一级参考附件前先从参考文件加载消防库架构及类定义，再查询附件；统计页按钮改为“刷新统计”，切换统计页签仍自动刷新。FireCabinetCheck 607项、HoseCabinetCheck 690项通过，双版本编译零警告零错误；宿主首扫仍需实测。
+
+2026-11-10 消防统计包含一级参考文件：灭火器箱与轻便消防水龙柜统计在扫描当前 DGN 全部模型后，再读取每个模型的一级参考附件（不递归嵌套），按“源文件+模型+图元ID+类型”去重，同一参考重复附加时不重复计数；活动文件没有消防库时也可统计仅存在于参考文件中的构件。Excel 明细新增“文件来源”列，JSON 增加 SourceFile。FireCabinetCheck 607项、HoseCabinetCheck 690项通过；授权/无授权 Release 均 0 警告 0 错误，net48 与 net48_full 同步。参考文件实际 EC 读取、未加载/嵌套附件及大文件性能仍需 OPM 宿主实测。
+
 2026-10-31 执行机构V6.1修正三个调节柄重叠：官方调节器按实际类名判断原生齿轮箱，派生类走LENGTH/DIAMETER；此前均为1mm，使三柄重叠。新增件按所选CEL范围设置控制距离并用原生毫米接口回读，不改变CEL外形或安装原点。只更新主插件DLL，无需改Schema；旧件参数保持，先在另一只空阀门新放验证。46项离线检查与授权/无授权编译通过，真实三柄显示/拖动仍待用户实测。[原因与测试步骤](Development/ValveActuatorCelValidation/Runs/20261031_GripOverlap/原因及V6.1测试.md)。
 
 2026-10-31 新增“建模类→阀门执行机构”CEL选择界面（V6验证版）：选择CEL文件及库内三维单元、预览、开始放置，再按官方工具点选阀门。新入口`STEELPROBE ACTUATOR`，`ACTUATORCHECK`只读校核所选件。每实例独立保存CEL快照及单元名，回调从实例读取，源路径只追溯；旧验证DLL保持原固定外形。38项新离线检查、首页纯计算/83项WPF、68项停靠检查通过，授权/无授权编译零警告零错误；真实DGN二进制保存、原生按钮/关联/重开仍待用户验证，未启动OPM或安装文件。[更新及测试方法](Docs/阀门执行机构CEL选择界面.md)。当前36可用+1占位（建模15、支吊架18、查询3）。
@@ -810,7 +814,7 @@ D2CantileverCheck 现为 4501 项通过，新增检查直接使用真实轮廓�
 
 预览创建原生 Bentley 元素和嵌套 Cell，确认才写入 ItemTypes；更新失败保留可清理的旧预览，参数变化禁用确认，取消/离开清理预览。两具内置模型须同时建成才加入箱体；若内置建模失败，明确提示空箱，实际模型数量记 0，配置灭火器数量仍记 2。确认写入耗时使用 WriteDuration，低于 100 ms 显示 ms，其余显示 s。
 
-统计使用独立 `FireProtectionComponents` 库及固定 `FireExtinguisherBoxWithModel_CSHARP` 类型，不并入支吊架清单。写入原 31 个字段并增加 ActualInteriorModelQuantity。扫描当前 DGN 的全部模型，兼容原带模型脚本的 `FireExtinguisherBoxWithModel_` 类型前缀；不读取另一普通空箱脚本的不同前缀。汇总箱体数量、配置灭火器数量、实际内置模型数量，支持 Excel（汇总/明细）和 JSON。旧数据没有实际数量字段时，仅依据已存 InteriorModelCell 推断，并在界面说明，不能核实旧模型是否实际生成成功。
+统计使用独立 `FireProtectionComponents` 库及固定 `FireExtinguisherBoxWithModel_CSHARP` 类型，不并入支吊架清单。写入原 31 个字段并增加 ActualInteriorModelQuantity。扫描当前 DGN 的全部模型及每个模型的一级参考附件（不递归嵌套），兼容原带模型脚本的 `FireExtinguisherBoxWithModel_` 类型前缀；不读取另一普通空箱脚本的不同前缀。汇总箱体数量、配置灭火器数量、实际内置模型数量，支持 Excel（汇总/明细）和 JSON。旧数据没有实际数量字段时，仅依据已存 InteriorModelCell 推断，并在界面说明，不能核实旧模型是否实际生成成功。
 
 首页为 26 个可用入口加 1 个占位，支吊架标准数量不变。FireCabinetCheck 的 604 项离线检查覆盖原 Python 29 组选型对照、几何配方、数量和旧数据汇总、Excel/JSON 导出；HomeCheck 和既有 SupportStatisticsCheck 回归通过。OPM 原生几何、文字朝向、点取/取消和 EC 读写仍需宿主试放确认。
 
@@ -823,7 +827,7 @@ D2CantileverCheck 现为 4501 项通过，新增检查直接使用真实轮廓�
 
 新增非有限输入、最大尺寸/数量及观察窗、把手、标识和 P380 的实际包络校验；原脚本仅比较卷盘直径，遗漏了固定中心、柜壁、盘宽和轴盖突出。内部设备任一建模失败会明确报错并阻止确认，不静默改为圆柱或留下部分内件。预览更新先创建后替换，取消/右键/离开清理，确认才写清单；WriteDuration 统计确认写入耗时，低于 100ms 用 ms，其余用 s。
 
-消防库仍为 FireProtectionComponents，固定 ItemType 为 LightHoseCabinet_CSHARP；读写边界提取为 FireComponentStore，由灭火器箱和水龙柜共同使用，各自保留独立前缀和数量契约。统计扫描当前 DGN 的全部模型，兼容原 LightHoseCabinet 前缀。保留原 29 个属性并增加 ActualExtinguisherQuantity、ActualReelQuantity、WithEquipment、HeadingDegrees、GeometryVersion。BomJson 仍按 Python 小写字段写入，C# 属性使用 PascalCase 并显式映射。器材清单保存原八项配套器材及可选第九项灭火器，数量按 CabinetQuantity 倍数汇总；关闭内部设备时清单保留配置，实际数量为 0。旧记录未保存实际数量时，界面和 Excel 标记未记录，不从型号推断生成成功。
+消防库仍为 FireProtectionComponents，固定 ItemType 为 LightHoseCabinet_CSHARP；读写边界提取为 FireComponentStore，由灭火器箱和水龙柜共同使用，各自保留独立前缀和数量契约。统计扫描当前 DGN 的全部模型及每个模型的一级参考附件（不递归嵌套），兼容原 LightHoseCabinet 前缀。保留原 29 个属性并增加 ActualExtinguisherQuantity、ActualReelQuantity、WithEquipment、HeadingDegrees、GeometryVersion。BomJson 仍按 Python 小写字段写入，C# 属性使用 PascalCase 并显式映射。器材清单保存原八项配套器材及可选第九项灭火器，数量按 CabinetQuantity 倍数汇总；关闭内部设备时清单保留配置，实际数量为 0。旧记录未保存实际数量时，界面和 Excel 标记未记录，不从型号推断生成成功。
 
 统计页提供柜型/灭火器汇总，Excel 导出柜型汇总、配置器材、柜体明细三表，JSON 包含逐元素元数据及器材合计。缺失、损坏或格式不匹配的旧 BomJson 按已存尺寸和灭火器配置重建。开发脚本 Development/export_hose_reference.py 通过 AST 白名单生成 98 组原 Python 对照，逐值核对五种共用灭火器配方。HoseCabinetCheck 的 719 项检查覆盖选型、数量、空间边界、螺旋半径误差及 C1 连续性、旧清单自定义数量、空柜、跨模型汇总与 Excel/JSON。
 

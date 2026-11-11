@@ -115,9 +115,9 @@ namespace SteelSectionProbe
             legacy.Remove("ActualInteriorModelQuantity");
             var report = FireCabinetStatisticsCalculator.Summarize(new[]
             {
-                new FireCabinetRecord { ModelName = "模型 1", ElementId = "9007199254740993", Properties = first },
-                new FireCabinetRecord { ModelName = "模型 2", ElementId = "2", Properties = empty },
-                new FireCabinetRecord { ModelName = "Python旧模型", ElementId = "3", Properties = legacy }
+                new FireCabinetRecord { ModelName = "模型 1", SourceFile = "本工程.dgn", ElementId = "9007199254740993", Properties = first },
+                new FireCabinetRecord { ModelName = "模型 2", SourceFile = "参考一.dgn", ElementId = "2", Properties = empty },
+                new FireCabinetRecord { ModelName = "Python旧模型", SourceFile = "参考二.dgn", ElementId = "3", Properties = legacy }
             });
             Check(report.TotalBoxCount == 3 && report.TotalExtinguisherCount == 6, "跨模型配置数量汇总");
             Check(report.TotalInteriorModelCount == 4, "空箱实际数量和旧记录兼容");
@@ -133,6 +133,7 @@ namespace SteelSectionProbe
                 var json = serializer.Deserialize<Dictionary<string, object>>(File.ReadAllText(jsonPath));
                 Check(Convert.ToInt32(json["totalExtinguisherCount"]) == 6, "JSON 配置具数");
                 Check(File.ReadAllText(jsonPath).Contains("9007199254740993"), "元素 ID 作为字符串保留精度");
+                Check(File.ReadAllText(jsonPath).Contains("参考一.dgn") && File.ReadAllText(jsonPath).Contains("SourceFile"), "JSON 明细记录文件来源");
                 using (var zip = ZipFile.OpenRead(excelPath))
                 {
                     Check(zip.GetEntry("xl/worksheets/sheet2.xml") != null, "Excel 两张表");
@@ -144,9 +145,12 @@ namespace SteelSectionProbe
                     var namespaces = new XmlNamespaceManager(document.NameTable);
                     namespaces.AddNamespace("s", "http://schemas.openxmlformats.org/spreadsheetml/2006/main");
                     Check(document.SelectNodes("//s:row", namespaces).Count == 4, "Excel 一箱一行明细");
-                    Check(document.SelectSingleNode("//s:c[@r='L2']/s:v", namespaces).InnerText == "2", "Excel 正常箱模型数量");
-                    Check(document.SelectSingleNode("//s:c[@r='L3']/s:v", namespaces).InnerText == "0", "Excel 空箱模型数量");
-                    Check(document.SelectSingleNode("//s:c[@r='L4']/s:v", namespaces).InnerText == "2", "Excel 旧记录模型数量");
+                    Check(document.SelectSingleNode("//s:c[@r='B1']/s:is/s:t", namespaces).InnerText == "文件来源", "Excel 明细含文件来源列");
+                    Check(document.SelectNodes("//s:c[@r='B2']", namespaces).Count == 1 &&
+                        document.SelectSingleNode("//s:c[@r='B2']", namespaces).InnerText.Contains("本工程.dgn"), "Excel 明细文件来源值");
+                    Check(document.SelectSingleNode("//s:c[@r='M2']/s:v", namespaces).InnerText == "2", "Excel 正常箱模型数量");
+                    Check(document.SelectSingleNode("//s:c[@r='M3']/s:v", namespaces).InnerText == "0", "Excel 空箱模型数量");
+                    Check(document.SelectSingleNode("//s:c[@r='M4']/s:v", namespaces).InnerText == "2", "Excel 旧记录模型数量");
                     foreach (ZipArchiveEntry entry in zip.Entries.Where(item => item.FullName.EndsWith(".xml", StringComparison.Ordinal)))
                     {
                         using (XmlReader reader = XmlReader.Create(entry.Open()))

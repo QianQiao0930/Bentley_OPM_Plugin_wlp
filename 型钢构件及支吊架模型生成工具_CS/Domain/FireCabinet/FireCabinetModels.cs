@@ -237,6 +237,13 @@ namespace SteelSectionProbe
         {
             get; set;
         }
+        /// <summary>
+        /// 记录所在 DGN 文件：活动文件或一级参考文件。
+        /// </summary>
+        public string SourceFile
+        {
+            get; set;
+        }
         public string ElementId
         {
             get; set;
