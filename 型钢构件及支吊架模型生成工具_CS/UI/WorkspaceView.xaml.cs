@@ -68,6 +68,10 @@ namespace SteelSectionProbe
             RegisterPage(new TFramePage());
             RegisterPage(new PadPlatePage());
             RegisterPage(new N8Page());
+            RegisterPage(new TurnbucklePage());
+            RegisterPage(new ConicalVentCapPage());
+            RegisterPage(new ChimneyBasePage());
+            RegisterPage(new ChimneyCablePage());
             ShowHome();
             licenseTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             licenseTimer.Tick += LicenseTimer_Tick;

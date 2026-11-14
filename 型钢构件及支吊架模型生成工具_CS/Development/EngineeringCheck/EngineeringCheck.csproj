@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>7.3</LangVersion>
+    <NoWarn>CS0649</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Domain/Engineering/EngineeringShapes.cs" Link="EngineeringShapes.cs" />
+    <Compile Include="../../Domain/Turnbuckle/TurnbuckleModels.cs" Link="TurnbuckleModels.cs" />
+    <Compile Include="../../Data/Turnbuckle/TurnbuckleCatalog.cs" Link="TurnbuckleCatalog.cs" />
+    <Compile Include="../../Services/Turnbuckle/TurnbuckleCalculator.cs" Link="TurnbuckleCalculator.cs" />
+    <Compile Include="../../Domain/ConicalVentCap/ConicalVentCapModels.cs" Link="ConicalVentCapModels.cs" />
+    <Compile Include="../../Data/ConicalVentCap/ConicalVentCapCatalog.cs" Link="ConicalVentCapCatalog.cs" />
+    <Compile Include="../../Services/ConicalVentCap/ConicalVentCapCalculator.cs" Link="ConicalVentCapCalculator.cs" />
+    <Compile Include="../../Domain/ChimneyBase/ChimneyBaseModels.cs" Link="ChimneyBaseModels.cs" />
+    <Compile Include="../../Data/ChimneyBase/ChimneyBaseCatalog.cs" Link="ChimneyBaseCatalog.cs" />
+    <Compile Include="../../Services/ChimneyBase/ChimneyBaseCalculator.cs" Link="ChimneyBaseCalculator.cs" />
+    <Compile Include="../../Domain/ChimneyCable/ChimneyCableModels.cs" Link="ChimneyCableModels.cs" />
+    <Compile Include="../../Data/ChimneyCable/ChimneyCableCatalog.cs" Link="ChimneyCableCatalog.cs" />
+    <Compile Include="../../Services/ChimneyCable/ChimneyCableCalculator.cs" Link="ChimneyCableCalculator.cs" />
+  </ItemGroup>
+</Project>

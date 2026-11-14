@@ -1,0 +1,68 @@
+﻿<UserControl xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:proto="clr-namespace:SteelSectionProbe" x:Class="SteelSectionProbe.ChimneyCablePage" x:ClassModifier="internal" Background="#F4F7FA" Tag="prototype-v4">
+    <UserControl.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="../Prototype/ModelingTheme.xaml"/></ResourceDictionary.MergedDictionaries></ResourceDictionary></UserControl.Resources>
+    <Grid>
+        <Grid.RowDefinitions><RowDefinition Height="95"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <proto:PrototypeChrome Title="烟囱拉索" Code="HZLS" Caption="HOME / 工程绘图 / 排气筒 · φ16 拉索 · 绳眼装配" Icon="M12,2 A10,10 0 1 0 12,22 A10,10 0 1 0 12,2 M7,21 V9 M17,21 V9 M7,9 H17 M3,21 L7,13 M21,21 L17,13" Accent="#1F6FEB" IconBackground="#EAF2FF" IconBorder="#D3E2FF"/>
+        <Grid Grid.Row="1" Margin="16,12,10,12">
+            <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel>
+                    <Border Style="{StaticResource CardStyle}" Padding="0"><StackPanel>
+                        <Border MinHeight="35" BorderBrush="#E8EDF2" BorderThickness="0,0,0,1" Padding="12,8"><TextBlock Text="01 / 筒身与拉索" Style="{StaticResource SectionTitleStyle}" Margin="0"/></Border>
+                        <StackPanel Margin="12">
+                            <TextBlock Text="排气筒高度 H（m）" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                            <TextBox x:Name="HeightText" Text="30" TextChanged="Parameter_Changed" Style="{StaticResource ModelInput}"/>
+                            <TextBlock Text="1～300；拉索外圆半径按 2H/3 起算。" Foreground="#5B6B7B" FontSize="10.5" Margin="0,3,0,0"/>
+                            <Grid Margin="0,10,0,0">
+                                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="10"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="筒身直径 D（mm）" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,5"/>
+                                    <TextBox x:Name="DiameterText" Text="1000" TextChanged="Parameter_Changed" Style="{StaticResource ModelInput}"/>
+                                    <TextBlock Text="10～20000；R = D/2。" Foreground="#5B6B7B" FontSize="10.5" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="拉索角度（°）" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,5"/>
+                                    <TextBox x:Name="AngleText" Text="30" TextChanged="Parameter_Changed" Style="{StaticResource ModelInput}"/>
+                                    <TextBlock Text="1～89；与竖直方向的夹角。" Foreground="#5B6B7B" FontSize="10.5" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Grid>
+                            <TextBlock Text="绕竖轴旋转角（°）" FontWeight="SemiBold" Margin="0,10,0,5"/>
+                            <TextBox x:Name="HeadingText" Text="0" TextChanged="Parameter_Changed" Style="{StaticResource ModelInput}"/>
+                            <TextBlock Text="局部原点 = 筒身底部圆心，Z 向上；筒身按 min(max(5,R×4%),R/2) 取壁厚空心，拉索为 φ16 钢丝绳，两端带绳眼装配（鸡心环 + 3 只绳夹）；H/(2R) &gt; 35 时在 H/3 补挂中间层拉索。" Margin="0,10,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </StackPanel></Border>
+                    <Border Style="{StaticResource CardStyle}" Padding="0"><StackPanel>
+                        <Border MinHeight="35" BorderBrush="#E8EDF2" BorderThickness="0,0,0,1" Padding="12,8"><TextBlock Text="02 / 当前结果" Style="{StaticResource SectionTitleStyle}" Margin="0"/></Border>
+                        <StackPanel Margin="12">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="96"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="拉索外圆半径" Foreground="#5B6B7B" Margin="0,0,0,4"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="OuterRadiusText" Text="—" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="拉索根数" Foreground="#5B6B7B" Margin="0,0,0,4"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="CableCountText" Text="—" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="中间层拉索" Foreground="#5B6B7B"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="ExtraLayerText" Text="—" FontWeight="SemiBold"/>
+                            </Grid>
+                            <TextBlock x:Name="SpecificationText" TextWrapping="Wrap" Margin="0,10,0,0"/>
+                            <TextBlock Text="整组封装为一个普通模型块，可整体移动、旋转和删除；绳眼为简化示意，保留 φ16 绳、φ38 鸡心环内径、17 带宽、32×63 夹座、M14 U 形螺栓、3 只绳夹与 6.5φ=104 夹距。" Margin="0,10,0,0" Foreground="#5B6B7B" FontSize="10.5" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </StackPanel></Border>
+                </StackPanel>
+            </ScrollViewer>
+            <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,10,0,0" Padding="12"><StackPanel>
+                <TextBlock Text="点取后预览；修改参数后更新预览，再确认生成。" Margin="0,0,0,8"/>
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                    <Button Content="开始点取" Click="Pick_Click" Style="{StaticResource PrimaryButtonStyle}" Height="32" Margin="0"/>
+                    <Button Grid.Column="2" Content="结束点取" Click="End_Click" Style="{StaticResource SecondaryButtonStyle}" Height="32" Margin="0"/>
+                    <Button Grid.Column="4" x:Name="UpdateButton" Content="更新预览" Click="Update_Click" Style="{StaticResource SecondaryButtonStyle}" Height="32" Margin="0"/>
+                </Grid>
+                <TextBlock x:Name="PreviewText" Text="尚未点取筒身底部圆心。" Margin="0,8,0,10" MaxHeight="42" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text,RelativeSource={RelativeSource Self}}"/>
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                    <Button Content="取消预览" Click="Cancel_Click" Style="{StaticResource SecondaryButtonStyle}" Height="36" Margin="0"/>
+                    <Button Grid.Column="2" x:Name="ConfirmButton" Content="确定生成" Click="Confirm_Click" IsEnabled="False" Style="{StaticResource PrimaryButtonStyle}" Height="36" Margin="0"/>
+                </Grid>
+            </StackPanel></Border>
+        </Grid>
+    </Grid>
+</UserControl>

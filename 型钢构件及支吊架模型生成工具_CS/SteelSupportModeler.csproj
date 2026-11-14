@@ -88,6 +88,7 @@
     <Compile Remove="Development\N2CantileverCheck\**\*.cs" />
     <Compile Remove="Development\AxisPlacementCheck\**\*.cs" />
     <Compile Remove="Development\WriteDurationCheck\**\*.cs" />
+    <Compile Remove="Development\EngineeringCheck\**\*.cs" />
     <Compile Remove="Development\D2CantileverCheck\**\*.cs" />
     <Compile Remove="Development\FireCabinetCheck\**\*.cs" />
     <Compile Remove="Development\EquipmentSupportCheck\**\*.cs" />

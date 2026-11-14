@@ -1,0 +1,55 @@
+<UserControl xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:proto="clr-namespace:SteelSectionProbe" x:Class="SteelSectionProbe.TurnbucklePage" x:ClassModifier="internal" Background="#F4F7FA" Tag="prototype-v4">
+    <UserControl.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="../Prototype/ModelingTheme.xaml"/></ResourceDictionary.MergedDictionaries></ResourceDictionary></UserControl.Resources>
+    <Grid>
+        <Grid.RowDefinitions><RowDefinition Height="95"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <proto:PrototypeChrome Title="花篮螺栓" Code="TB" Caption="HOME / 建模 / 拉杆 · 花篮螺母 · U 形卸扣" Icon="M12,2 A10,10 0 1 0 12,22 A10,10 0 1 0 12,2 M2,12 H22 M8,12 A4,4 0 0 1 16,12" Accent="#1F6FEB" IconBackground="#EAF2FF" IconBorder="#D3E2FF"/>
+        <Grid Grid.Row="1" Margin="16,12,10,12">
+            <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel>
+                    <Border Style="{StaticResource CardStyle}" Padding="0"><StackPanel>
+                        <Border MinHeight="35" BorderBrush="#E8EDF2" BorderThickness="0,0,0,1" Padding="12,8"><TextBlock Text="01 / 规格与装配" Style="{StaticResource SectionTitleStyle}" Margin="0"/></Border>
+                        <StackPanel Margin="12">
+                            <TextBlock Text="公称规格" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                            <ComboBox x:Name="SizeCombo" SelectionChanged="Parameter_Changed" Style="{StaticResource ModelCombo}"/>
+                            <Grid Margin="0,10,0,0">
+                                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="10"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="端部间隙（mm）" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,5"/>
+                                    <TextBox x:Name="EndGapText" Text="10" TextChanged="Parameter_Changed" Style="{StaticResource ModelInput}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="伸入叉口（mm）" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,5"/>
+                                    <TextBox x:Name="ProtrusionText" Text="5" TextChanged="Parameter_Changed" Style="{StaticResource ModelInput}"/>
+                                </StackPanel>
+                            </Grid>
+                            <TextBlock Text="绕竖轴旋转角（°）" FontWeight="SemiBold" Margin="0,10,0,5"/>
+                            <TextBox x:Name="HeadingText" Text="0" TextChanged="Parameter_Changed" Style="{StaticResource ModelInput}"/>
+                            <TextBlock Text="拉杆轴竖直向上，销轴朝 +X；花篮螺母、两端拉杆与 U 形卸扣按规格表自动成形。" Margin="0,10,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </StackPanel></Border>
+                    <Border Style="{StaticResource CardStyle}" Padding="0"><StackPanel>
+                        <Border MinHeight="35" BorderBrush="#E8EDF2" BorderThickness="0,0,0,1" Padding="12,8"><TextBlock Text="02 / 当前结果" Style="{StaticResource SectionTitleStyle}" Margin="0"/></Border>
+                        <StackPanel Margin="12">
+                            <TextBlock x:Name="SpecificationText" TextWrapping="Wrap"/>
+                            <TextBlock Text="整组封装为一个普通模型块，可整体移动、旋转和删除；尺寸为规格表名义值。" Margin="0,10,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </StackPanel></Border>
+                </StackPanel>
+            </ScrollViewer>
+            <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,10,0,0" Padding="12"><StackPanel>
+                <TextBlock Text="点取后预览；修改参数后更新预览，再确认生成。" Margin="0,0,0,8"/>
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                    <Button Content="开始点取" Click="Pick_Click" Style="{StaticResource PrimaryButtonStyle}" Height="32" Margin="0"/>
+                    <Button Grid.Column="2" Content="结束点取" Click="End_Click" Style="{StaticResource SecondaryButtonStyle}" Height="32" Margin="0"/>
+                    <Button Grid.Column="4" x:Name="UpdateButton" Content="更新预览" Click="Update_Click" Style="{StaticResource SecondaryButtonStyle}" Height="32" Margin="0"/>
+                </Grid>
+                <TextBlock x:Name="PreviewText" Text="尚未点取花篮螺栓中心。" Margin="0,8,0,10" MaxHeight="42" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text,RelativeSource={RelativeSource Self}}"/>
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                    <Button Content="取消预览" Click="Cancel_Click" Style="{StaticResource SecondaryButtonStyle}" Height="36" Margin="0"/>
+                    <Button Grid.Column="2" x:Name="ConfirmButton" Content="确定生成" Click="Confirm_Click" IsEnabled="False" Style="{StaticResource PrimaryButtonStyle}" Height="36" Margin="0"/>
+                </Grid>
+            </StackPanel></Border>
+        </Grid>
+    </Grid>
+</UserControl>
