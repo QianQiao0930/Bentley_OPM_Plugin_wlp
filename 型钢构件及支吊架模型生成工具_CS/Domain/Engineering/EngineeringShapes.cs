@@ -87,6 +87,12 @@ namespace SteelSectionProbe
         /// <summary>回转/拉伸/扫掠轮廓，或扫掠路径点。</summary>
         internal EngineeringPoint[] Points = new EngineeringPoint[0];
 
+        /// <summary>
+        /// 与 <see cref="Points"/> 等长的圆弧中间点：元素 i 非空表示 Points[i]→Points[i+1]
+        /// 是一段真圆弧（三点定圆），为空表示直线。null 表示整个轮廓/路径全是直线。
+        /// </summary>
+        internal EngineeringPoint?[] ArcMiddles;
+
         internal static EngineeringShape Cone(EngineeringPoint start, EngineeringPoint end, double radiusStart, double radiusEnd)
         {
             return new EngineeringShape
@@ -119,6 +125,19 @@ namespace SteelSectionProbe
             };
         }
 
+        /// <summary>闭合轮廓沿矢量拉伸；<paramref name="arcMiddles"/> 与轮廓点等长，用真圆弧代替折线。</summary>
+        internal static EngineeringShape Extrude(
+            EngineeringPoint[] outline, EngineeringPoint direction, EngineeringPoint?[] arcMiddles)
+        {
+            return new EngineeringShape
+            {
+                Kind = EngineeringShapeKind.Extrude,
+                Points = outline,
+                Direction = direction,
+                ArcMiddles = arcMiddles
+            };
+        }
+
         internal static EngineeringShape HexPrism(EngineeringPoint start, EngineeringPoint end, double acrossFlats)
         {
             return new EngineeringShape
@@ -148,6 +167,19 @@ namespace SteelSectionProbe
                 Kind = EngineeringShapeKind.Sweep,
                 Points = path,
                 RadiusStart = radius
+            };
+        }
+
+        /// <summary>圆截面沿路径扫掠；<paramref name="arcMiddles"/> 与路径点等长，用真圆弧代替折线。</summary>
+        internal static EngineeringShape Sweep(
+            EngineeringPoint[] path, double radius, EngineeringPoint?[] arcMiddles)
+        {
+            return new EngineeringShape
+            {
+                Kind = EngineeringShapeKind.Sweep,
+                Points = path,
+                RadiusStart = radius,
+                ArcMiddles = arcMiddles
             };
         }
     }

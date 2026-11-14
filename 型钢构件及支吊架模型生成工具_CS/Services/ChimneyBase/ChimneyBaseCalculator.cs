@@ -266,8 +266,10 @@ namespace SteelSectionProbe
 
                 var hook = plan.Add("J 形弯钩");
                 hook.Color(MetalRed, MetalGreen, MetalBlue);
-                hook.Add.Add(EngineeringShape.Sweep(
-                    HookPath(x, y, -cosine, -sine, bendCenterZ), rodRadius));
+                EngineeringPoint[] hookPath;
+                EngineeringPoint?[] hookMiddles;
+                HookPath(x, y, -cosine, -sine, bendCenterZ, out hookPath, out hookMiddles);
+                hook.Add.Add(EngineeringShape.Sweep(hookPath, rodRadius, hookMiddles));
             }
         }
 
@@ -275,31 +277,27 @@ namespace SteelSectionProbe
         /// J 形弯钩路径：自直杆下端起的半圆（半径 40，向下 180°，采样 32 段）+
         /// 向上直段 40。弯心沿 inward = (−cosθ, −sinθ, 0) 方向偏移一个弯曲半径。
         /// </summary>
-        private static EngineeringPoint[] HookPath(
-            double x, double y, double inwardX, double inwardY, double startZ)
+        /// <summary>
+        /// J 形弯钩路径：以弯心为圆心的 180° 真圆弧从直杆下端向下绕到对侧，
+        /// 再沿切向向上直段 40；圆弧用三点定圆，不做折线采样。
+        /// </summary>
+        private static void HookPath(
+            double x, double y, double inwardX, double inwardY, double startZ,
+            out EngineeringPoint[] path, out EngineeringPoint?[] arcMiddles)
         {
             double radius = ChimneyBaseConstants.HookBendRadius;
-            int steps = ChimneyBaseConstants.HookSampleCount;
-
             double centerX = x + inwardX * radius;
             double centerY = y + inwardY * radius;
 
-            var path = new EngineeringPoint[steps + 2];
-            for (int sample = 0; sample <= steps; sample++)
-            {
-                double phi = Math.PI + Math.PI * sample / steps;
-                double offset = Math.Cos(phi) * radius;
-                path[sample] = new EngineeringPoint(
-                    centerX + inwardX * offset,
-                    centerY + inwardY * offset,
-                    startZ + Math.Sin(phi) * radius);
-            }
+            var start = new EngineeringPoint(
+                centerX - inwardX * radius, centerY - inwardY * radius, startZ);
+            var middle = new EngineeringPoint(centerX, centerY, startZ - radius);
+            var end = new EngineeringPoint(
+                centerX + inwardX * radius, centerY + inwardY * radius, startZ);
+            var tail = new EngineeringPoint(end.X, end.Y, startZ + ChimneyBaseConstants.AnchorHookLength);
 
-            path[steps + 1] = new EngineeringPoint(
-                centerX + inwardX * radius,
-                centerY + inwardY * radius,
-                startZ + ChimneyBaseConstants.AnchorHookLength);
-            return path;
+            path = new[] { start, end, tail };
+            arcMiddles = new EngineeringPoint?[] { middle, null };
         }
 
         /// <summary>
@@ -370,9 +368,11 @@ namespace SteelSectionProbe
             body.Color(red, green, blue);
             body.BestEffortCut = true;
             double zBottom = zCenter - height / 2.0 - 1.0;
+            EngineeringPoint?[] arcMiddles;
+            EngineeringPoint[] profile = CurvedPatchProfile(
+                innerRadius, outerRadius, width, xCenter, zBottom, out arcMiddles);
             body.Add.Add(EngineeringShape.Extrude(
-                CurvedPatchProfile(innerRadius, outerRadius, width, xCenter, zBottom),
-                new EngineeringPoint(0.0, 0.0, height + 2.0)));
+                profile, new EngineeringPoint(0.0, 0.0, height + 2.0), arcMiddles));
             return body;
         }
 
@@ -391,11 +391,12 @@ namespace SteelSectionProbe
         }
 
         /// <summary>
-        /// 弧形板平面轮廓（XY，z 固定）：y≥0 半环被 x∈[xCenter±width/2] 截出的区域，
-        /// 内外圆弧按约 1.5° 采样，两侧为竖直平面（与 CAD 的“圆环 ∩ 矩形块”一致）。
+        /// 弧形板平面轮廓（XY，z 固定）：y≥0 半环被 x∈[xCenter±width/2] 截出的区域。
+        /// 内外边界各是一段<strong>真圆弧</strong>（中间点落在同一圆上），两侧为竖直平面。
         /// </summary>
         private static EngineeringPoint[] CurvedPatchProfile(
-            double innerRadius, double outerRadius, double width, double xCenter, double z)
+            double innerRadius, double outerRadius, double width, double xCenter, double z,
+            out EngineeringPoint?[] arcMiddles)
         {
             if (outerRadius <= 0.0 || width <= 0.0)
             {
@@ -411,53 +412,45 @@ namespace SteelSectionProbe
 
             double left = Math.Max(xLeft, -outerRadius);
             double right = Math.Min(xRight, outerRadius);
-            double startAngle = Math.Acos(right / outerRadius);
-            double endAngle = Math.Acos(left / outerRadius);
-            int outerSteps = Math.Max(8, (int)Math.Ceiling((endAngle - startAngle) / (1.5 * Math.PI / 180.0)));
+            double outerStart = Math.Acos(right / outerRadius);
+            double outerEnd = Math.Acos(left / outerRadius);
+            double outerMiddle = (outerStart + outerEnd) / 2.0;
+            double outerMiddleY = outerRadius * Math.Sin(outerMiddle);
 
-            var points = new List<EngineeringPoint>(outerSteps + 64);
-            for (int index = 0; index <= outerSteps; index++)
+            double rightInner = InnerBoundaryY(innerRadius, right);
+            double leftInner = InnerBoundaryY(innerRadius, left);
+
+            var points = new[]
             {
-                double angle = startAngle + (endAngle - startAngle) * index / outerSteps;
-                AddUnique(points, new EngineeringPoint(
-                    outerRadius * Math.Cos(angle), outerRadius * Math.Sin(angle), z));
+                new EngineeringPoint(right, Math.Sqrt(outerRadius * outerRadius - right * right), z),
+                new EngineeringPoint(left, Math.Sqrt(outerRadius * outerRadius - left * left), z),
+                new EngineeringPoint(left, leftInner, z),
+                new EngineeringPoint(right, rightInner, z)
+            };
+
+            arcMiddles = new EngineeringPoint?[4];
+            arcMiddles[0] = new EngineeringPoint(
+                outerRadius * Math.Cos(outerMiddle), outerMiddleY, z);
+            if (innerRadius > 0.0 && Math.Abs(left) < innerRadius && Math.Abs(right) < innerRadius)
+            {
+                double innerStart = Math.Acos(left / innerRadius);
+                double innerEnd = Math.Acos(right / innerRadius);
+                double innerMiddle = (innerStart + innerEnd) / 2.0;
+                arcMiddles[2] = new EngineeringPoint(
+                    innerRadius * Math.Cos(innerMiddle), innerRadius * Math.Sin(innerMiddle), z);
             }
 
-            int innerSteps = Math.Max(8, (int)Math.Ceiling(width / 2.0));
-            for (int index = 0; index <= innerSteps; index++)
-            {
-                double x = left + (right - left) * index / innerSteps;
-                double y = 0.0;
-                if (innerRadius > 0.0 && Math.Abs(x) < innerRadius)
-                {
-                    y = Math.Sqrt(innerRadius * innerRadius - x * x);
-                }
-
-                AddUnique(points, new EngineeringPoint(x, y, z));
-            }
-
-            if (points.Count < 3)
-            {
-                throw new InvalidOperationException("清扫口弧形板轮廓点不足。");
-            }
-
-            return points.ToArray();
+            return points;
         }
 
-        private static void AddUnique(List<EngineeringPoint> points, EngineeringPoint point)
+        private static double InnerBoundaryY(double innerRadius, double x)
         {
-            if (points.Count == 0)
+            if (innerRadius <= 0.0 || Math.Abs(x) >= innerRadius)
             {
-                points.Add(point);
-                return;
+                return 0.0;
             }
 
-            EngineeringPoint last = points[points.Count - 1];
-            if (Math.Abs(last.X - point.X) > 1e-9 || Math.Abs(last.Y - point.Y) > 1e-9 ||
-                Math.Abs(last.Z - point.Z) > 1e-9)
-            {
-                points.Add(point);
-            }
+            return Math.Sqrt(innerRadius * innerRadius - x * x);
         }
 
         // ============================================================

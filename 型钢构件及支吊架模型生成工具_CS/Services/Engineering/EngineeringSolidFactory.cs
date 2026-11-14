@@ -223,18 +223,84 @@ namespace SteelSectionProbe
                 throw new InvalidOperationException("拉伸轮廓点不足。");
             }
 
-            EngineeringPoint[] outline = Facing(shape.Points, shape.Direction);
+            EngineeringPoint[] outline;
+            EngineeringPoint?[] middles;
+            Orient(shape.Points, shape.Direction, shape.ArcMiddles, out outline, out middles);
             var profile = CurveVector.Create(CurveVector.BoundaryType.Outer);
             for (int index = 0; index < outline.Length; index++)
             {
-                EngineeringPoint start = outline[index];
-                EngineeringPoint end = outline[(index + 1) % outline.Length];
-                profile.Add(CurvePrimitive.CreateLine(new DSegment3d(P(start, scale), P(end, scale))));
+                AddSegment(profile, outline[index], outline[(index + 1) % outline.Length],
+                    middles == null ? null : middles[index], scale);
             }
 
             var direction = new DVector3d(shape.Direction.X * scale, shape.Direction.Y * scale,
                 shape.Direction.Z * scale);
             return SolidPrimitive.CreateDgnExtrusion(new DgnExtrusionDetail(profile, direction, true));
+        }
+
+        /// <summary>按拉伸方向统一轮廓朝向，并把配套的圆弧中间点一起反向。</summary>
+        private static void Orient(
+            EngineeringPoint[] points, EngineeringPoint direction, EngineeringPoint?[] arcMiddles,
+            out EngineeringPoint[] outline, out EngineeringPoint?[] middles)
+        {
+            outline = points;
+            middles = arcMiddles;
+            double normalX = 0;
+            double normalY = 0;
+            double normalZ = 0;
+            for (int index = 0; index < points.Length; index++)
+            {
+                EngineeringPoint a = points[index];
+                EngineeringPoint b = points[(index + 1) % points.Length];
+                normalX += (a.Y - b.Y) * (a.Z + b.Z);
+                normalY += (a.Z - b.Z) * (a.X + b.X);
+                normalZ += (a.X - b.X) * (a.Y + b.Y);
+            }
+
+            bool reverse = normalX * direction.X + normalY * direction.Y + normalZ * direction.Z < 0;
+            if (!reverse)
+            {
+                return;
+            }
+
+            var reversed = new EngineeringPoint[points.Length];
+            for (int index = 0; index < points.Length; index++)
+            {
+                reversed[index] = points[points.Length - 1 - index];
+            }
+
+            outline = reversed;
+            if (arcMiddles == null)
+            {
+                return;
+            }
+
+            middles = new EngineeringPoint?[points.Length];
+            for (int index = 0; index < points.Length; index++)
+            {
+                middles[index] = arcMiddles[(points.Length - 2 - index + points.Length) % points.Length];
+            }
+        }
+
+        /// <summary>加入一段轮廓：有圆弧中间点时用真圆弧，否则用直线。</summary>
+        private static void AddSegment(
+            CurveVector curve, EngineeringPoint start, EngineeringPoint end,
+            EngineeringPoint? middle, double scale)
+        {
+            if (middle.HasValue)
+            {
+                DEllipse3d arc;
+                if (!DEllipse3d.TryCircularArcFromStartMiddleEnd(
+                    P(start, scale), P(middle.Value, scale), P(end, scale), out arc))
+                {
+                    throw new InvalidOperationException("无法由三点构造真圆弧。");
+                }
+
+                curve.Add(CurvePrimitive.CreateArc(arc));
+                return;
+            }
+
+            curve.Add(CurvePrimitive.CreateLine(new DSegment3d(P(start, scale), P(end, scale))));
         }
 
         private static SolidPrimitive HexPrimitive(EngineeringShape shape, double scale)
@@ -311,8 +377,8 @@ namespace SteelSectionProbe
             var path = CurveVector.Create(CurveVector.BoundaryType.Open);
             for (int index = 0; index + 1 < shape.Points.Length; index++)
             {
-                path.Add(CurvePrimitive.CreateLine(new DSegment3d(
-                    P(shape.Points[index], scale), P(shape.Points[index + 1], scale))));
+                EngineeringPoint? middle = shape.ArcMiddles == null ? null : shape.ArcMiddles[index];
+                AddSegment(path, shape.Points[index], shape.Points[index + 1], middle, scale);
             }
 
             SolidKernelEntity body;
@@ -367,36 +433,6 @@ namespace SteelSectionProbe
             for (int index = 0; index < profile.Length; index++)
             {
                 reversed[index] = profile[profile.Length - 1 - index];
-            }
-
-            return reversed;
-        }
-
-        /// <summary>拉伸轮廓法向调整为与拉伸方向同向，避免拉伸体反向或零体积。</summary>
-        private static EngineeringPoint[] Facing(EngineeringPoint[] outline, EngineeringPoint direction)
-        {
-            double nx = 0;
-            double ny = 0;
-            double nz = 0;
-            for (int index = 0; index < outline.Length; index++)
-            {
-                EngineeringPoint a = outline[index];
-                EngineeringPoint b = outline[(index + 1) % outline.Length];
-                nx += (a.Y - b.Y) * (a.Z + b.Z);
-                ny += (a.Z - b.Z) * (a.X + b.X);
-                nz += (a.X - b.X) * (a.Y + b.Y);
-            }
-
-            double dot = nx * direction.X + ny * direction.Y + nz * direction.Z;
-            if (dot >= 0)
-            {
-                return outline;
-            }
-
-            var reversed = new EngineeringPoint[outline.Length];
-            for (int index = 0; index < outline.Length; index++)
-            {
-                reversed[index] = outline[outline.Length - 1 - index];
             }
 
             return reversed;

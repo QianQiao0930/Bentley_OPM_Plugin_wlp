@@ -61,18 +61,19 @@ namespace SteelSectionProbe
         private static void BuildNutFrame(EngineeringPlan plan, TurnbuckleSpec spec)
         {
             double halfThickness = spec.Thickness / 2.0;
-            List<EngineeringPoint> outline = spec.RoundedStyle
-                ? RoundedRectangle(spec.B, spec.BodyLength, spec.Corner, 0.0, 0.0, 8)
+            Profile outline = spec.RoundedStyle
+                ? RoundedRectangle(spec.B, spec.BodyLength, spec.Corner, 0.0, 0.0)
                 : ShoulderedOutline(spec);
             var body = plan.Add("花篮螺母框体");
             body.Color(SteelRed, SteelGreen, SteelBlue);
+            Profile frame = AtZ(outline, -halfThickness);
             body.Add.Add(EngineeringShape.Extrude(
-                AtZ(outline, -halfThickness), new EngineeringPoint(0, 0, spec.Thickness)));
+                frame.Points, new EngineeringPoint(0, 0, spec.Thickness), frame.Middles));
 
-            List<EngineeringPoint> opening = RoundedRectangle(
-                spec.B - 2.0 * spec.Rail, spec.H, spec.OpeningRadius, 0.0, 0.0, 8);
+            Profile opening = AtZ(RoundedRectangle(
+                spec.B - 2.0 * spec.Rail, spec.H, spec.OpeningRadius, 0.0, 0.0), -halfThickness - 1.0);
             body.Cut.Add(EngineeringShape.Extrude(
-                AtZ(opening, -halfThickness - 1.0), new EngineeringPoint(0, 0, spec.Thickness + 2.0)));
+                opening.Points, new EngineeringPoint(0, 0, spec.Thickness + 2.0), opening.Middles));
 
             double boreEnd = spec.L / 2.0 + 1.0;
             body.Cut.Add(EngineeringShape.Cylinder(
@@ -146,11 +147,12 @@ namespace SteelSectionProbe
 
             double gap = spec.ClevisB - 2.0 * spec.Leg;
             double slotHeight = spec.ClevisH + spec.Clevish + 10.0;
-            List<EngineeringPoint> slot = RoundedRectangle(gap, slotHeight, spec.InsideRadius,
-                0.0, spec.ClevisH - slotHeight / 2.0, 8);
+            Profile slot = RoundedRectangle(gap, slotHeight, spec.InsideRadius,
+                0.0, spec.ClevisH - slotHeight / 2.0);
+            Profile slotAtZ = MapProfile(slot, map, -halfThickness - 1.0);
             body.Cut.Add(EngineeringShape.Extrude(
-                MapPoints(slot, map, -halfThickness - 1.0),
-                vector(new EngineeringPoint(0, 0, spec.ClevisThickness + 2.0))));
+                slotAtZ.Points,
+                vector(new EngineeringPoint(0, 0, spec.ClevisThickness + 2.0)), slotAtZ.Middles));
 
             double pinHoleRadius = (spec.PinDiameter + spec.PinClearance) / 2.0;
             body.Cut.Add(EngineeringShape.Cylinder(
@@ -210,13 +212,26 @@ namespace SteelSectionProbe
             }
         }
 
-        private static List<EngineeringPoint> ShoulderedOutline(TurnbuckleSpec spec)
+        /// <summary>平面轮廓：点列 + 等长的圆弧中间点（null 表示直线）。</summary>
+        private sealed class Profile
+        {
+            internal EngineeringPoint[] Points;
+            internal EngineeringPoint?[] Middles;
+
+            internal Profile(EngineeringPoint[] points, EngineeringPoint?[] middles)
+            {
+                Points = points;
+                Middles = middles;
+            }
+        }
+
+        private static Profile ShoulderedOutline(TurnbuckleSpec spec)
         {
             double halfLength = spec.BodyLength / 2.0;
             double halfB = spec.B / 2.0;
             double halfHex = spec.HexAcrossFlats / 2.0;
             double shoulder = spec.Rail;
-            return new List<EngineeringPoint>
+            return new Profile(new[]
             {
                 new EngineeringPoint(-halfHex, -halfLength, 0),
                 new EngineeringPoint(halfHex, -halfLength, 0),
@@ -226,65 +241,104 @@ namespace SteelSectionProbe
                 new EngineeringPoint(-halfHex, halfLength, 0),
                 new EngineeringPoint(-halfB, halfLength - shoulder, 0),
                 new EngineeringPoint(-halfB, -halfLength + shoulder, 0)
-            };
+            }, null);
         }
 
-        /// <summary>圆角矩形轮廓（XY 平面），圆心可按 centerX/centerY 偏移。</summary>
-        private static List<EngineeringPoint> RoundedRectangle(
-            double width, double height, double radius,
-            double centerX, double centerY, int segments)
+        /// <summary>
+        /// 圆角矩形轮廓（XY 平面）：四个角各为一段真圆弧（三点定圆），
+        /// 四条边为直线；圆心可按 centerX/centerY 偏移。
+        /// </summary>
+        private static Profile RoundedRectangle(
+            double width, double height, double radius, double centerX, double centerY)
         {
             double halfWidth = width / 2.0;
             double halfHeight = height / 2.0;
             radius = Math.Min(radius, Math.Min(halfWidth, halfHeight) - 0.01);
             if (radius <= 0.01)
             {
-                return new List<EngineeringPoint>
+                return new Profile(new[]
                 {
                     new EngineeringPoint(centerX - halfWidth, centerY - halfHeight, 0),
                     new EngineeringPoint(centerX + halfWidth, centerY - halfHeight, 0),
                     new EngineeringPoint(centerX + halfWidth, centerY + halfHeight, 0),
                     new EngineeringPoint(centerX - halfWidth, centerY + halfHeight, 0)
-                };
+                }, null);
             }
 
-            var points = new List<EngineeringPoint>();
-            AddArc(points, centerX + halfWidth - radius, centerY + halfHeight - radius, radius, 0.0, 90.0, segments);
-            AddArc(points, centerX - halfWidth + radius, centerY + halfHeight - radius, radius, 90.0, 180.0, segments);
-            AddArc(points, centerX - halfWidth + radius, centerY - halfHeight + radius, radius, 180.0, 270.0, segments);
-            AddArc(points, centerX + halfWidth - radius, centerY - halfHeight + radius, radius, 270.0, 360.0, segments);
-            return points;
+            double diagonal = radius / Math.Sqrt(2.0);
+            double right = centerX + halfWidth;
+            double left = centerX - halfWidth;
+            double top = centerY + halfHeight;
+            double bottom = centerY - halfHeight;
+
+            var points = new[]
+            {
+                new EngineeringPoint(right - radius, bottom, 0),
+                new EngineeringPoint(left + radius, bottom, 0),
+                new EngineeringPoint(left, bottom + radius, 0),
+                new EngineeringPoint(left, top - radius, 0),
+                new EngineeringPoint(left + radius, top, 0),
+                new EngineeringPoint(right - radius, top, 0),
+                new EngineeringPoint(right, top - radius, 0),
+                new EngineeringPoint(right, bottom + radius, 0)
+            };
+
+            var middles = new EngineeringPoint?[8];
+            middles[1] = new EngineeringPoint(left + radius - diagonal, bottom + radius - diagonal, 0);
+            middles[3] = new EngineeringPoint(left + radius - diagonal, top - radius + diagonal, 0);
+            middles[5] = new EngineeringPoint(right - radius + diagonal, top - radius + diagonal, 0);
+            middles[7] = new EngineeringPoint(right - radius + diagonal, bottom + radius - diagonal, 0);
+            return new Profile(points, middles);
         }
 
-        private static void AddArc(List<EngineeringPoint> points, double centerX, double centerY,
-            double radius, double startDegrees, double endDegrees, int segments)
+        private static Profile AtZ(Profile profile, double z)
         {
-            for (int index = 0; index <= segments; index++)
+            var points = new EngineeringPoint[profile.Points.Length];
+            for (int index = 0; index < points.Length; index++)
             {
-                double angle = (startDegrees + (endDegrees - startDegrees) * index / segments) * Math.PI / 180.0;
-                var point = new EngineeringPoint(
-                    centerX + Math.Cos(angle) * radius, centerY + Math.Sin(angle) * radius, 0);
-                if (points.Count == 0 || !Same(points[points.Count - 1], point))
+                EngineeringPoint point = profile.Points[index];
+                points[index] = new EngineeringPoint(point.X, point.Y, z);
+            }
+
+            EngineeringPoint?[] middles = null;
+            if (profile.Middles != null)
+            {
+                middles = new EngineeringPoint?[profile.Middles.Length];
+                for (int index = 0; index < middles.Length; index++)
                 {
-                    points.Add(point);
+                    EngineeringPoint? middle = profile.Middles[index];
+                    middles[index] = middle.HasValue
+                        ? new EngineeringPoint(middle.Value.X, middle.Value.Y, z)
+                        : (EngineeringPoint?)null;
                 }
             }
+
+            return new Profile(points, middles);
         }
 
-        private static bool Same(EngineeringPoint a, EngineeringPoint b)
+        private static Profile MapProfile(
+            Profile profile, Func<EngineeringPoint, EngineeringPoint> map, double z)
         {
-            return Math.Abs(a.X - b.X) < 1e-9 && Math.Abs(a.Y - b.Y) < 1e-9;
-        }
-
-        private static EngineeringPoint[] AtZ(List<EngineeringPoint> points, double z)
-        {
-            var result = new List<EngineeringPoint>(points.Count);
-            foreach (EngineeringPoint point in points)
+            var points = new EngineeringPoint[profile.Points.Length];
+            for (int index = 0; index < points.Length; index++)
             {
-                result.Add(new EngineeringPoint(point.X, point.Y, z));
+                points[index] = map(new EngineeringPoint(profile.Points[index].X, profile.Points[index].Y, z));
             }
 
-            return result.ToArray();
+            EngineeringPoint?[] middles = null;
+            if (profile.Middles != null)
+            {
+                middles = new EngineeringPoint?[profile.Middles.Length];
+                for (int index = 0; index < middles.Length; index++)
+                {
+                    EngineeringPoint? middle = profile.Middles[index];
+                    middles[index] = middle.HasValue
+                        ? map(new EngineeringPoint(middle.Value.X, middle.Value.Y, z))
+                        : (EngineeringPoint?)null;
+                }
+            }
+
+            return new Profile(points, middles);
         }
 
         private static EngineeringPoint[] MapPoints(
