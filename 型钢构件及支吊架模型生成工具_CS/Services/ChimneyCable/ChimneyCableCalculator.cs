@@ -216,7 +216,7 @@ namespace SteelSectionProbe
         /// 与 CAD <c>RopeEyeAssemblySolidService</c> 的差异（均为简化，但曲线本身是光滑的）：
         /// 1) 鸡心环为内径 φ38、带宽 17、壁厚 1.316 的**光滑环带**，沿泪滴路径以 B 样条
         ///    扫掠矩形截面；不还原槽形截面、唇壁抛物线槽底与端口倒角；
-        /// 2) 绳圈为一条**光滑 B 样条**（MSInterpolationCurve）扫掠 φ16 圆截面，
+        /// 2) 绳圈为**真圆弧链**（每两采样点一段真圆弧，共线处退化为直线）扫掠 φ16 圆截面，
         ///    覆盖“工作段 → 过渡 → 绕鸡心环泪滴 → 过渡 → 尾段”，不再用折线采样；
         /// 3) 绳夹为跨两段绳的真实夹持：鞍座压在 z = −R 的工作段外侧（32×63×20，φ17 绳槽），
         ///    U 形螺栓绕过 z = +R+1 的尾段，两腿穿过鞍座后在另一侧用 M14 螺母拧紧；
@@ -238,31 +238,66 @@ namespace SteelSectionProbe
             //      两直段端点伸入主体 8 mm，与拉索主体同一实体相并（UnionAdd）。
             List<EngineeringPoint> loop = OffsetPath(inner, normals, ChimneyCableCatalog.RopeEyeOffsetMm);
             List<EngineeringPoint> path = RopeEyePath(loop, mouthX);
-            List<EngineeringPoint> fitPoints = Thin(path, 4);
-            var world = new EngineeringPoint[fitPoints.Count];
-            for (int index = 0; index < fitPoints.Count; index++)
+            var knots = new List<int>();
+            var midIndices = new List<int>();
+            ArcChain(path, knots, midIndices);
+
+            var world = new EngineeringPoint[knots.Count];
+            var worldMids = new EngineeringPoint?[knots.Count];
+            for (int index = 0; index < knots.Count; index++)
             {
-                world[index] = frame.Map(fitPoints[index].X, 0.0, fitPoints[index].Z);
+                world[index] = frame.Map(path[knots[index]].X, 0.0, path[knots[index]].Z);
+                worldMids[index] = index < midIndices.Count
+                    ? frame.Map(path[midIndices[index]].X, 0.0, path[midIndices[index]].Z)
+                    : (EngineeringPoint?)null;
             }
 
-            // 绳圈用光滑 B 样条扫掠，曲线本身连续，不再拆成折线。
-            rope.Add.Add(EngineeringShape.SplineSweep(world, ChimneyCableCatalog.RopeRadiusMm));
+            // 绳圈用真圆弧链扫掠（相邻圆弧切向连续），不采样成折线。
+            rope.Add.Add(EngineeringShape.Sweep(
+                world, ChimneyCableCatalog.RopeRadiusMm, worldMids));
 
-            // ---- 鸡心环：内径 φ38、带宽 17、壁厚 1.316 的环带，沿光滑路径扫掠矩形截面。
-            List<EngineeringPoint> bandFit = Thin(inner, 3);
-            var band = new EngineeringPoint[bandFit.Count];
-            for (int index = 0; index < bandFit.Count; index++)
+            // ---- 鸡心环：内径 φ38、带宽 17、壁厚 1.316 的环带；
+            //      内外边界均为真圆弧链，沿带宽方向拉伸。
+            var innerKnots = new List<int>();
+            var innerMidIndices = new List<int>();
+            ArcChain(inner, innerKnots, innerMidIndices);
+            var bandPoints = new EngineeringPoint[2 * innerKnots.Count];
+            var bandMids = new EngineeringPoint?[bandPoints.Length];
+            int knotCount = innerKnots.Count - 1;
+            for (int index = 0; index < innerKnots.Count; index++)
             {
-                band[index] = frame.Map(bandFit[index].X, 0.0, bandFit[index].Z);
+                int knot = innerKnots[index];
+                bandPoints[index] = frame.Map(
+                    inner[knot].X + normals[knot].X * ChimneyCableCatalog.ThimbleWallMm,
+                    0.0,
+                    inner[knot].Z + normals[knot].Z * ChimneyCableCatalog.ThimbleWallMm);
+            }
+
+            for (int index = 0; index < innerKnots.Count; index++)
+            {
+                int knot = innerKnots[innerKnots.Count - 1 - index];
+                bandPoints[innerKnots.Count + index] = frame.Map(
+                    inner[knot].X, 0.0, inner[knot].Z);
+            }
+
+            for (int index = 0; index < knotCount; index++)
+            {
+                int mid = innerMidIndices[index];
+                bandMids[index] = frame.Map(
+                    inner[mid].X + normals[mid].X * ChimneyCableCatalog.ThimbleWallMm,
+                    0.0,
+                    inner[mid].Z + normals[mid].Z * ChimneyCableCatalog.ThimbleWallMm);
+                int reversed = innerMidIndices[knotCount - 1 - index];
+                bandMids[innerKnots.Count + index] = frame.Map(
+                    inner[reversed].X, 0.0, inner[reversed].Z);
             }
 
             var thimble = plan.Add(name + " 鸡心环");
             thimble.Color(FittingRed, FittingGreen, FittingBlue);
-            thimble.Add.Add(EngineeringShape.SplineBand(
-                band,
-                ChimneyCableCatalog.ThimbleWidthMm,
-                ChimneyCableCatalog.ThimbleWallMm,
-                frame.Direction(0.0, 1.0, 0.0)));
+            thimble.Add.Add(EngineeringShape.Extrude(
+                bandPoints,
+                frame.Direction(0.0, ChimneyCableCatalog.ThimbleWidthMm, 0.0),
+                bandMids));
 
             // ---- 3 只绳夹：首只中心距绳眼口 72，其后每 104 等距。
             for (int index = 0; index < ChimneyCableCatalog.ClipCount; index++)
@@ -515,6 +550,28 @@ namespace SteelSectionProbe
             }
 
             path.Add(point);
+        }
+
+        /// <summary>
+        /// 把采样折线转成“真圆弧链”：每两个采样点取一个节点，中间采样点作为圆弧中间点。
+        /// 相邻圆弧在节点处共用切线方向，所以整体是光滑曲线而不是折线。
+        /// </summary>
+        private static void ArcChain(
+            List<EngineeringPoint> samples, List<int> knots, List<int> midIndices)
+        {
+            knots.Clear();
+            midIndices.Clear();
+            for (int index = 0; index + 2 < samples.Count; index += 2)
+            {
+                knots.Add(index);
+                midIndices.Add(index + 1);
+            }
+
+            int last = samples.Count - 1;
+            if (knots.Count == 0 || knots[knots.Count - 1] != last)
+            {
+                knots.Add(last);
+            }
         }
 
         /// <summary>按步长抽稀拟合点，避免高密度点让插值样条在急弯处过冲；首尾点始终保留。</summary>

@@ -289,7 +289,7 @@ namespace SteelSectionProbe
             }
         }
 
-        /// <summary>加入一段轮廓：有圆弧中间点时用真圆弧，否则用直线。</summary>
+        /// <summary>加入一段轮廓：有圆弧中间点时用真圆弧；三点接近共线（直线段）时退回直线。</summary>
         private static void AddSegment(
             CurveVector curve, EngineeringPoint start, EngineeringPoint end,
             EngineeringPoint? middle, double scale)
@@ -297,14 +297,14 @@ namespace SteelSectionProbe
             if (middle.HasValue)
             {
                 DEllipse3d arc;
-                if (!DEllipse3d.TryCircularArcFromStartMiddleEnd(
+                if (DEllipse3d.TryCircularArcFromStartMiddleEnd(
                     P(start, scale), P(middle.Value, scale), P(end, scale), out arc))
                 {
-                    throw new InvalidOperationException("无法由三点构造真圆弧。");
+                    curve.Add(CurvePrimitive.CreateArc(arc));
+                    return;
                 }
 
-                curve.Add(CurvePrimitive.CreateArc(arc));
-                return;
+                // 共线或近共线的三个点构不成圆弧，这一段本来就是直线。
             }
 
             curve.Add(CurvePrimitive.CreateLine(new DSegment3d(P(start, scale), P(end, scale))));
@@ -505,30 +505,19 @@ namespace SteelSectionProbe
                     DEllipse3d.FromCenterRadiusNormal(start, radius, tangent), CurveVector.BoundaryType.Outer);
             }
 
-            MSInterpolationCurve fitCurve;
+            // 直接用控制点构造 B 样条，避免 ConvertToBspline 在宿主内返回空引用。
+            CurvePrimitive spline;
             try
             {
-                fitCurve = MSInterpolationCurve.CreateFromPointsAndEndTangents(
-                    fit, false, 0.0, new DVector3d[0], false, false, false, true);
+                spline = CreateSplinePath(fit);
             }
             catch (Exception error)
             {
-                throw new InvalidOperationException("光滑路径拟合失败：" + error.Message, error);
-            }
-
-            // BodyFromSweep 只接受常规曲线类型：把插值曲线转成 B 样条曲线再扫掠。
-            MSBsplineCurve bspline;
-            try
-            {
-                bspline = fitCurve.ConvertToBspline();
-            }
-            catch (Exception error)
-            {
-                throw new InvalidOperationException("光滑路径转 B 样条失败：" + error.Message, error);
+                throw new InvalidOperationException("光滑路径构造失败：" + error.Message, error);
             }
 
             var path = CurveVector.Create(CurveVector.BoundaryType.Open);
-            path.Add(CurvePrimitive.CreateBsplineCurve(bspline));
+            path.Add(spline);
 
             SolidKernelEntity body;
             BentleyStatus status;
@@ -630,6 +619,54 @@ namespace SteelSectionProbe
             }
 
             throw new InvalidOperationException("路径起点切线无效。");
+        }
+
+        /// <summary>
+        /// 用控制点、单位权重与钳位均匀节点向量直接构造三次 B 样条曲线（clamped，端点过首末控制点）。
+        /// 不经过插值曲线转换，避免宿主内 ConvertToBspline 返回空引用。
+        /// </summary>
+        private static CurvePrimitive CreateSplinePath(IList<DPoint3d> poles)
+        {
+            int count = poles.Count;
+            if (count < 2)
+            {
+                throw new InvalidOperationException("B 样条控制点不足。");
+            }
+
+            int order = Math.Min(4, count);
+            var weights = new List<double>(count);
+            for (int index = 0; index < count; index++)
+            {
+                weights.Add(1.0);
+            }
+
+            int knotCount = count + order;
+            int span = count - order + 1;
+            var knots = new List<double>(knotCount);
+            for (int index = 0; index < knotCount; index++)
+            {
+                if (index < order)
+                {
+                    knots.Add(0.0);
+                }
+                else if (index >= count)
+                {
+                    knots.Add(1.0);
+                }
+                else
+                {
+                    knots.Add((double)(index - order + 1) / span);
+                }
+            }
+
+            var curve = CurvePrimitive.CreateBsplineCurve(
+                new List<DPoint3d>(poles), weights, knots, order, false, false);
+            if (curve == null)
+            {
+                throw new InvalidOperationException("B 样条曲线构造返回空。");
+            }
+
+            return curve;
         }
 
         private static DPoint3d Combine(
