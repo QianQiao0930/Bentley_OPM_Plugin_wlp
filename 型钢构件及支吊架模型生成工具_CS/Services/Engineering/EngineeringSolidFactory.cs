@@ -143,6 +143,9 @@ namespace SteelSectionProbe
                 case EngineeringShapeKind.Torus:
                     primitive = TorusPrimitive(shape, scale);
                     break;
+                case EngineeringShapeKind.TorusArc:
+                    primitive = TorusArcPrimitive(shape, scale);
+                    break;
                 case EngineeringShapeKind.Sweep:
                     return SweepBody(shape, modelRef, scale);
                 default:
@@ -355,6 +358,30 @@ namespace SteelSectionProbe
                 new DVector3d(1, 0, 0), new DVector3d(0, 1, 0), major, minor, 2 * Math.PI, true));
         }
 
+        private static SolidPrimitive TorusArcPrimitive(EngineeringShape shape, double scale)
+        {
+            DPoint3d center = P(shape.Start, scale);
+            double major = shape.MajorRadius * scale;
+            double minor = shape.MinorRadius * scale;
+            double sweep = shape.RadiusStart;
+            if (major <= 0 || minor <= 0 || minor >= major)
+            {
+                throw new InvalidOperationException("圆环半径不匹配。");
+            }
+
+            if (sweep <= 0 || sweep > 2 * Math.PI)
+            {
+                throw new InvalidOperationException("圆环扫掠角无效。");
+            }
+
+            DVector3d xAxis = Normalize(new DVector3d(
+                shape.AxisX.X * scale, shape.AxisX.Y * scale, shape.AxisX.Z * scale));
+            DVector3d yAxis = Normalize(new DVector3d(
+                shape.AxisY.X * scale, shape.AxisY.Y * scale, shape.AxisY.Z * scale));
+            return SolidPrimitive.CreateDgnTorusPipe(new DgnTorusPipeDetail(
+                center, xAxis, yAxis, major, minor, sweep, true));
+        }
+
         private static SolidKernelEntity SweepBody(EngineeringShape shape, DgnModelRef modelRef, double scale)
         {
             if (shape.Points == null || shape.Points.Length < 2)
@@ -369,8 +396,18 @@ namespace SteelSectionProbe
             }
 
             DPoint3d first = P(shape.Points[0], scale);
-            DPoint3d second = P(shape.Points[1], scale);
-            DVector3d tangent = new DVector3d(second.X - first.X, second.Y - first.Y, second.Z - first.Z);
+            DVector3d tangent;
+            if (shape.ArcMiddles != null && shape.ArcMiddles[0].HasValue)
+            {
+                tangent = ArcStartTangent(
+                    first, P(shape.ArcMiddles[0].Value, scale), P(shape.Points[1], scale));
+            }
+            else
+            {
+                DPoint3d second = P(shape.Points[1], scale);
+                tangent = new DVector3d(second.X - first.X, second.Y - first.Y, second.Z - first.Z);
+            }
+
             var disk = CurveVector.CreateDisk(DEllipse3d.FromCenterRadiusNormal(first, radius, tangent),
                 CurveVector.BoundaryType.Outer);
 
@@ -395,6 +432,64 @@ namespace SteelSectionProbe
         private static bool Finite(double value)
         {
             return !double.IsNaN(value) && !double.IsInfinity(value);
+        }
+
+        /// <summary>
+        /// 圆弧起点的真实切向：由三点定出圆心，切向垂直于半径并在圆弧平面内，
+        /// 方向取指向圆弧中间点的一侧。扫掠截面必须按此切向放置，不能用弦方向。
+        /// </summary>
+        private static DVector3d ArcStartTangent(DPoint3d start, DPoint3d middle, DPoint3d end)
+        {
+            double ax = middle.X - start.X;
+            double ay = middle.Y - start.Y;
+            double az = middle.Z - start.Z;
+            double bx = end.X - start.X;
+            double by = end.Y - start.Y;
+            double bz = end.Z - start.Z;
+
+            double nx = ay * bz - az * by;
+            double ny = az * bx - ax * bz;
+            double nz = ax * by - ay * bx;
+            double normalLength = Math.Sqrt(nx * nx + ny * ny + nz * nz);
+            if (normalLength < 1e-12)
+            {
+                throw new InvalidOperationException("圆弧三点共线，无法确定切向。");
+            }
+
+            double aa = ax * ax + ay * ay + az * az;
+            double bb = bx * bx + by * by + bz * bz;
+            double denominator = 2.0 * normalLength * normalLength;
+
+            // center - start = (|a|²·(b×n) + |b|²·(n×a)) / (2|n|²)
+            double cbx = by * nz - bz * ny;
+            double cby = bz * nx - bx * nz;
+            double cbz = bx * ny - by * nx;
+            double cax = ny * az - nz * ay;
+            double cay = nz * ax - nx * az;
+            double caz = nx * ay - ny * ax;
+
+            double rx = (aa * cbx + bb * cax) / denominator;
+            double ry = (aa * cby + bb * cay) / denominator;
+            double rz = (aa * cbz + bb * caz) / denominator;
+
+            // tangent = n × r
+            double tx = ny * rz - nz * ry;
+            double ty = nz * rx - nx * rz;
+            double tz = nx * ry - ny * rx;
+            double length = Math.Sqrt(tx * tx + ty * ty + tz * tz);
+            if (length < 1e-12)
+            {
+                throw new InvalidOperationException("圆弧切向退化。");
+            }
+
+            if (tx * ax + ty * ay + tz * az < 0)
+            {
+                tx = -tx;
+                ty = -ty;
+                tz = -tz;
+            }
+
+            return new DVector3d(tx / length, ty / length, tz / length);
         }
 
         private static DVector3d Cross(DVector3d a, DVector3d b)

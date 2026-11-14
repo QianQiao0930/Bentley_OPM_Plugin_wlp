@@ -264,40 +264,33 @@ namespace SteelSectionProbe
                     new EngineeringPoint(x, y, nutBottom + ChimneyBaseConstants.NutHeight),
                     ChimneyBaseConstants.NutAcrossFlats));
 
-                var hook = plan.Add("J 形弯钩");
-                hook.Color(MetalRed, MetalGreen, MetalBlue);
-                EngineeringPoint[] hookPath;
-                EngineeringPoint?[] hookMiddles;
-                HookPath(x, y, -cosine, -sine, bendCenterZ, out hookPath, out hookMiddles);
-                hook.Add.Add(EngineeringShape.Sweep(hookPath, rodRadius, hookMiddles));
+                double bendRadius = ChimneyBaseConstants.HookBendRadius;
+                double inwardX = -cosine;
+                double inwardY = -sine;
+                var bendCenter = new EngineeringPoint(
+                    x + inwardX * bendRadius, y + inwardY * bendRadius, bendCenterZ);
+
+                var bend = plan.Add("J 形弯钩");
+                bend.Color(MetalRed, MetalGreen, MetalBlue);
+                bend.Add.Add(EngineeringShape.TorusArc(
+                    bendCenter,
+                    new EngineeringPoint(-inwardX, -inwardY, 0.0),
+                    new EngineeringPoint(0.0, 0.0, -1.0),
+                    bendRadius, rodRadius, Math.PI));
+
+                var tail = plan.Add("J 形弯钩尾段");
+                tail.Color(MetalRed, MetalGreen, MetalBlue);
+                tail.Add.Add(EngineeringShape.Cylinder(
+                    new EngineeringPoint(
+                        x + inwardX * 2.0 * bendRadius,
+                        y + inwardY * 2.0 * bendRadius,
+                        bendCenterZ),
+                    new EngineeringPoint(
+                        x + inwardX * 2.0 * bendRadius,
+                        y + inwardY * 2.0 * bendRadius,
+                        bendCenterZ + ChimneyBaseConstants.AnchorHookLength),
+                    rodRadius));
             }
-        }
-
-        /// <summary>
-        /// J 形弯钩路径：自直杆下端起的半圆（半径 40，向下 180°，采样 32 段）+
-        /// 向上直段 40。弯心沿 inward = (−cosθ, −sinθ, 0) 方向偏移一个弯曲半径。
-        /// </summary>
-        /// <summary>
-        /// J 形弯钩路径：以弯心为圆心的 180° 真圆弧从直杆下端向下绕到对侧，
-        /// 再沿切向向上直段 40；圆弧用三点定圆，不做折线采样。
-        /// </summary>
-        private static void HookPath(
-            double x, double y, double inwardX, double inwardY, double startZ,
-            out EngineeringPoint[] path, out EngineeringPoint?[] arcMiddles)
-        {
-            double radius = ChimneyBaseConstants.HookBendRadius;
-            double centerX = x + inwardX * radius;
-            double centerY = y + inwardY * radius;
-
-            var start = new EngineeringPoint(
-                centerX - inwardX * radius, centerY - inwardY * radius, startZ);
-            var middle = new EngineeringPoint(centerX, centerY, startZ - radius);
-            var end = new EngineeringPoint(
-                centerX + inwardX * radius, centerY + inwardY * radius, startZ);
-            var tail = new EngineeringPoint(end.X, end.Y, startZ + ChimneyBaseConstants.AnchorHookLength);
-
-            path = new[] { start, end, tail };
-            arcMiddles = new EngineeringPoint?[] { middle, null };
         }
 
         /// <summary>

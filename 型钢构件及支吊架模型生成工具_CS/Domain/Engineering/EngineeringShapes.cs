@@ -54,6 +54,9 @@ namespace SteelSectionProbe
         /// <summary>圆环（真圆环管）。</summary>
         Torus,
 
+        /// <summary>圆环的一段（真圆环管，按扫掠角截取），用于弯头、弯钩等。</summary>
+        TorusArc,
+
         /// <summary>圆截面沿折线路径扫掠。</summary>
         Sweep
     }
@@ -83,6 +86,12 @@ namespace SteelSectionProbe
 
         /// <summary>圆环管半径。</summary>
         internal double MinorRadius;
+
+        /// <summary>圆环平面基向量（TorusArc 使用；起点 = Start + AxisX×MajorRadius）。</summary>
+        internal EngineeringPoint AxisX;
+
+        /// <summary>圆环平面基向量（TorusArc 使用；扫掠朝 AxisY 方向）。</summary>
+        internal EngineeringPoint AxisY;
 
         /// <summary>回转/拉伸/扫掠轮廓，或扫掠路径点。</summary>
         internal EngineeringPoint[] Points = new EngineeringPoint[0];
@@ -157,6 +166,23 @@ namespace SteelSectionProbe
                 Start = center,
                 MajorRadius = majorRadius,
                 MinorRadius = minorRadius
+            };
+        }
+
+        /// <summary>真圆环的一段：从 center+axisX·major 起，朝 axisY 方向扫过 sweepRadians。</summary>
+        internal static EngineeringShape TorusArc(
+            EngineeringPoint center, EngineeringPoint axisX, EngineeringPoint axisY,
+            double majorRadius, double minorRadius, double sweepRadians)
+        {
+            return new EngineeringShape
+            {
+                Kind = EngineeringShapeKind.TorusArc,
+                Start = center,
+                AxisX = axisX,
+                AxisY = axisY,
+                MajorRadius = majorRadius,
+                MinorRadius = minorRadius,
+                RadiusStart = sweepRadians
             };
         }
 

@@ -129,7 +129,7 @@ namespace SteelSectionProbe
             Equal(ChimneyBaseCatalog.RibAngle(0, 12), 105.0, "底座首块肋板半齿距");
 
             EngineeringPlan plan = ChimneyBaseCalculator.Calculate(parameters);
-            Equal(plan.Bodies.Count, 24 + 5 * parameters.BoltCount, "底座实体数 24+5N");
+            Equal(plan.Bodies.Count, 24 + 6 * parameters.BoltCount, "底座实体数 24+6N");
             Equal(plan.CellName, "CHIMNEY_BASE_D1000", "底座单元名");
             CheckShapes(plan, "底座默认");
             Bounds bounds = Bounds.Of(plan);
@@ -146,7 +146,7 @@ namespace SteelSectionProbe
                 FoundationWidthMm = 2000.0
             };
             EngineeringPlan customPlan = ChimneyBaseCalculator.Calculate(custom);
-            Equal(customPlan.Bodies.Count, 24 + 5 * 6, "底座 6 螺栓实体数");
+            Equal(customPlan.Bodies.Count, 24 + 6 * 6, "底座 6 螺栓实体数");
             CheckShapes(customPlan, "底座 6 螺栓");
 
             string error;
@@ -409,6 +409,7 @@ namespace SteelSectionProbe
 
                         break;
                     case EngineeringShapeKind.Torus:
+                    case EngineeringShapeKind.TorusArc:
                         bounds.Include(new EngineeringPoint(shape.Start.X - shape.MajorRadius - shape.MinorRadius,
                             shape.Start.Y - shape.MajorRadius - shape.MinorRadius, shape.Start.Z - shape.MinorRadius));
                         bounds.Include(new EngineeringPoint(shape.Start.X + shape.MajorRadius + shape.MinorRadius,
