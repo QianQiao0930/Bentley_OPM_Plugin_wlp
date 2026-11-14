@@ -292,6 +292,7 @@ namespace SteelSectionProbe
 
             var seat = plan.Add(name + " 夹座");
             seat.Color(FittingRed, FittingGreen, FittingBlue);
+            seat.BestEffortCut = true;
             seat.Add.Add(EngineeringShape.Extrude(
                 new[]
                 {

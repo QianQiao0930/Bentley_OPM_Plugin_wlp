@@ -181,6 +181,7 @@ namespace SteelSectionProbe
 
             var flange = plan.Add("06 法兰");
             flange.Color(ShellRed, ShellGreen, ShellBlue);
+            flange.BestEffortCut = true;
 
             // L 形截面：横板 50×5 + 竖肢 5×50（= CAD 的圆板与竖环相并）。
             flange.Add.Add(EngineeringShape.Revolve(new[]
@@ -196,7 +197,11 @@ namespace SteelSectionProbe
             for (int index = 0; index < supportCount; index++)
             {
                 double rotation = 360.0 * index / supportCount;
-                flange.Cut.Add(Support07Shape(diameter, dimensions, rotation));
+
+                // 刀体比实际筋板厚 4 mm：让位槽两侧各留 2 mm 余量，避免刀面与
+                // 法兰内圆柱面 r = D/2 同面接触导致 Bentley 布尔直接返回 Error。
+                flange.Cut.Add(Support07Shape(
+                    diameter, dimensions, rotation, Support07ThicknessMm + 4.0));
             }
         }
 
@@ -206,7 +211,8 @@ namespace SteelSectionProbe
         /// 大规格（D≥900）宽 36/直段 80/斜段 102；小规格宽 30/直段 60/斜段 82。
         /// </summary>
         private static EngineeringShape Support07Shape(
-            double diameter, ConicalVentCapDimensions dimensions, double rotationDegrees)
+            double diameter, ConicalVentCapDimensions dimensions, double rotationDegrees,
+            double thickness = Support07ThicknessMm)
         {
             bool large = diameter >= 900.0;
             double width = large ? 36.0 : 30.0;
@@ -232,7 +238,7 @@ namespace SteelSectionProbe
                 new PlanePoint(radius + upperLeg * Math.Sin(angle), bendZ + upperLeg * Math.Cos(angle))
             };
 
-            return BentStrap(path, width, Support07ThicknessMm, rotationDegrees);
+            return BentStrap(path, width, thickness, rotationDegrees);
         }
 
         /// <summary>
@@ -340,6 +346,7 @@ namespace SteelSectionProbe
 
             var body = plan.Add("08 内外锥折弯支架");
             body.Color(SupportRed, SupportGreen, SupportBlue);
+            body.BestEffortCut = true;
 
             var points = new EngineeringPoint[outline.Count];
             for (int index = 0; index < outline.Count; index++)

@@ -95,6 +95,11 @@ namespace SteelSectionProbe
                 var status = Modify.BooleanSubtract(ref target, ref tools, 1);
                 if (status != BentleyStatus.Success)
                 {
+                    if (body.BestEffortCut)
+                    {
+                        continue;
+                    }
+
                     throw new InvalidOperationException("差集失败：" + status);
                 }
             }

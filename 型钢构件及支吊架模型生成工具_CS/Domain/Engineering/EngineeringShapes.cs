@@ -174,6 +174,12 @@ namespace SteelSectionProbe
         /// <summary>为 false 时只把第一个 Add 形状作为基体（其余仍相并，仅为兼容保留）。</summary>
         internal bool UnionAdd = true;
 
+        /// <summary>
+        /// 为 true 时，某个 Cut 刀体与基体不相交或内核拒绝该次布尔时跳过该刀体，
+        /// 不让整个构件失败；用于“让位槽”一类只影响局部的装饰性差集。
+        /// </summary>
+        internal bool BestEffortCut;
+
         internal EngineeringBody(string name)
         {
             Name = name;
