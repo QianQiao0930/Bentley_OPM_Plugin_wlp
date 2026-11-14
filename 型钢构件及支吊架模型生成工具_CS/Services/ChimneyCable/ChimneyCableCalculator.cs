@@ -238,20 +238,22 @@ namespace SteelSectionProbe
             //      两直段端点伸入主体 8 mm，与拉索主体同一实体相并（UnionAdd）。
             List<EngineeringPoint> loop = OffsetPath(inner, normals, ChimneyCableCatalog.RopeEyeOffsetMm);
             List<EngineeringPoint> path = RopeEyePath(loop, mouthX);
-            var world = new EngineeringPoint[path.Count];
-            for (int index = 0; index < path.Count; index++)
+            List<EngineeringPoint> fitPoints = Thin(path, 4);
+            var world = new EngineeringPoint[fitPoints.Count];
+            for (int index = 0; index < fitPoints.Count; index++)
             {
-                world[index] = frame.Map(path[index].X, 0.0, path[index].Z);
+                world[index] = frame.Map(fitPoints[index].X, 0.0, fitPoints[index].Z);
             }
 
-            // 绳圈用光滑插值样条扫掠，曲线本身是 B 样条，不再拆成折线。
+            // 绳圈用光滑 B 样条扫掠，曲线本身连续，不再拆成折线。
             rope.Add.Add(EngineeringShape.SplineSweep(world, ChimneyCableCatalog.RopeRadiusMm));
 
-            // ---- 鸡心环：内径 φ38、带宽 17、壁厚 1.316 的环带，沿同一光滑路径扫掠矩形截面。
-            var band = new EngineeringPoint[inner.Count];
-            for (int index = 0; index < inner.Count; index++)
+            // ---- 鸡心环：内径 φ38、带宽 17、壁厚 1.316 的环带，沿光滑路径扫掠矩形截面。
+            List<EngineeringPoint> bandFit = Thin(inner, 3);
+            var band = new EngineeringPoint[bandFit.Count];
+            for (int index = 0; index < bandFit.Count; index++)
             {
-                band[index] = frame.Map(inner[index].X, 0.0, inner[index].Z);
+                band[index] = frame.Map(bandFit[index].X, 0.0, bandFit[index].Z);
             }
 
             var thimble = plan.Add(name + " 鸡心环");
@@ -513,6 +515,26 @@ namespace SteelSectionProbe
             }
 
             path.Add(point);
+        }
+
+        /// <summary>按步长抽稀拟合点，避免高密度点让插值样条在急弯处过冲；首尾点始终保留。</summary>
+        private static List<EngineeringPoint> Thin(List<EngineeringPoint> points, int step)
+        {
+            if (points == null || points.Count <= 3 || step < 2)
+            {
+                return points == null ? new List<EngineeringPoint>() : new List<EngineeringPoint>(points);
+            }
+
+            var result = new List<EngineeringPoint>(points.Count / step + 2);
+            for (int index = 0; index < points.Count; index++)
+            {
+                if (index == 0 || index == points.Count - 1 || index % step == 0)
+                {
+                    result.Add(points[index]);
+                }
+            }
+
+            return result;
         }
 
         /// <summary>地面锚墩：半径 24、高 16 的圆柱，圆心 = 地面端，z 范围 −4～12（1/4 埋入地面）。</summary>

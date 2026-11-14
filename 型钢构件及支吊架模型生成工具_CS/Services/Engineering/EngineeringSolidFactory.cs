@@ -516,8 +516,19 @@ namespace SteelSectionProbe
                 throw new InvalidOperationException("光滑路径拟合失败：" + error.Message, error);
             }
 
+            // BodyFromSweep 只接受常规曲线类型：把插值曲线转成 B 样条曲线再扫掠。
+            MSBsplineCurve bspline;
+            try
+            {
+                bspline = fitCurve.ConvertToBspline();
+            }
+            catch (Exception error)
+            {
+                throw new InvalidOperationException("光滑路径转 B 样条失败：" + error.Message, error);
+            }
+
             var path = CurveVector.Create(CurveVector.BoundaryType.Open);
-            path.Add(CurvePrimitive.CreateInterpolationCurve(fitCurve));
+            path.Add(CurvePrimitive.CreateBsplineCurve(bspline));
 
             SolidKernelEntity body;
             BentleyStatus status;
@@ -534,7 +545,72 @@ namespace SteelSectionProbe
 
             if (status != BentleyStatus.Success || body == null)
             {
-                throw new InvalidOperationException("光滑路径扫掠失败：" + status);
+                // 内核不接受样条路径扫掠时，用同一组截面放样，表面仍然连续光滑。
+                return LoftBody(shape, modelRef, scale, band);
+            }
+
+            return body;
+        }
+
+        /// <summary>沿拟合点逐点建截面后放样；作为光滑扫掠失败时的后备路径。</summary>
+        private static SolidKernelEntity LoftBody(
+            EngineeringShape shape, DgnModelRef modelRef, double scale, bool band)
+        {
+            int count = shape.Points.Length;
+            if (count < 2)
+            {
+                throw new InvalidOperationException("放样截面不足。");
+            }
+
+            var sections = new CurveVector[count];
+            for (int index = 0; index < count; index++)
+            {
+                DPoint3d center = P(shape.Points[index], scale);
+                int previous = index == 0 ? 0 : index - 1;
+                int next = index == count - 1 ? count - 1 : index + 1;
+                DPoint3d before = P(shape.Points[previous], scale);
+                DPoint3d after = P(shape.Points[next], scale);
+                DVector3d tangent = Normalize(new DVector3d(
+                    after.X - before.X, after.Y - before.Y, after.Z - before.Z));
+
+                if (!band)
+                {
+                    double radius = shape.RadiusStart * scale;
+                    sections[index] = CurveVector.CreateDisk(
+                        DEllipse3d.FromCenterRadiusNormal(center, radius, tangent),
+                        CurveVector.BoundaryType.Outer);
+                    continue;
+                }
+
+                double halfWidth = shape.RadiusStart * scale / 2.0;
+                double thickness = shape.RadiusEnd * scale;
+                DVector3d outOfPlane = Normalize(new DVector3d(
+                    shape.AxisX.X, shape.AxisX.Y, shape.AxisX.Z));
+                DVector3d inPlane = Normalize(Cross(tangent, outOfPlane));
+                var corners = new[]
+                {
+                    Combine(center, inPlane, 0.0, outOfPlane, -halfWidth),
+                    Combine(center, inPlane, thickness, outOfPlane, -halfWidth),
+                    Combine(center, inPlane, thickness, outOfPlane, halfWidth),
+                    Combine(center, inPlane, 0.0, outOfPlane, halfWidth)
+                };
+
+                var section = CurveVector.Create(CurveVector.BoundaryType.Outer);
+                for (int corner = 0; corner < 4; corner++)
+                {
+                    section.Add(CurvePrimitive.CreateLine(new DSegment3d(
+                        corners[corner], corners[(corner + 1) % 4])));
+                }
+
+                sections[index] = section;
+            }
+
+            SolidKernelEntity body;
+            var status = Create.BodyFromLoft(out body, sections, sections.Length,
+                new CurveVector[0], 0, modelRef, false, false);
+            if (status != BentleyStatus.Success || body == null)
+            {
+                throw new InvalidOperationException("光滑路径扫掠与放样均失败：" + status);
             }
 
             return body;
