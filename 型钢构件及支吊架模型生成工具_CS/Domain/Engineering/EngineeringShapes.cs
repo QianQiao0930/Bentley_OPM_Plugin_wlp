@@ -58,7 +58,13 @@ namespace SteelSectionProbe
         TorusArc,
 
         /// <summary>圆截面沿折线路径扫掠。</summary>
-        Sweep
+        Sweep,
+
+        /// <summary>圆截面沿光滑插值样条（B 样条）路径扫掠。</summary>
+        SplineSweep,
+
+        /// <summary>矩形截面（带）沿光滑插值样条路径扫掠，用于鸡心环一类的扁带环。</summary>
+        SplineBand
     }
 
     /// <summary>一个构造形状。不同 <see cref="Kind"/> 只使用其中一部分字段。</summary>
@@ -206,6 +212,34 @@ namespace SteelSectionProbe
                 Points = path,
                 RadiusStart = radius,
                 ArcMiddles = arcMiddles
+            };
+        }
+
+        /// <summary>圆截面沿光滑插值样条路径扫掠（路径点作为拟合点，曲线真正光滑）。</summary>
+        internal static EngineeringShape SplineSweep(EngineeringPoint[] fitPoints, double radius)
+        {
+            return new EngineeringShape
+            {
+                Kind = EngineeringShapeKind.SplineSweep,
+                Points = fitPoints,
+                RadiusStart = radius
+            };
+        }
+
+        /// <summary>
+        /// 矩形截面沿光滑插值样条路径扫掠：带宽沿 <paramref name="outOfPlane"/>，
+        /// 带厚沿路径平面内法向（用于鸡心环环带）。
+        /// </summary>
+        internal static EngineeringShape SplineBand(
+            EngineeringPoint[] fitPoints, double width, double thickness, EngineeringPoint outOfPlane)
+        {
+            return new EngineeringShape
+            {
+                Kind = EngineeringShapeKind.SplineBand,
+                Points = fitPoints,
+                RadiusStart = width,
+                RadiusEnd = thickness,
+                AxisX = outOfPlane
             };
         }
     }

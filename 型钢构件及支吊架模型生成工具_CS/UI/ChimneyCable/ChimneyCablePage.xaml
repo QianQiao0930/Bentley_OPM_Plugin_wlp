@@ -1,4 +1,4 @@
-﻿<UserControl xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:proto="clr-namespace:SteelSectionProbe" x:Class="SteelSectionProbe.ChimneyCablePage" x:ClassModifier="internal" Background="#F4F7FA" Tag="prototype-v4">
+<UserControl xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:proto="clr-namespace:SteelSectionProbe" x:Class="SteelSectionProbe.ChimneyCablePage" x:ClassModifier="internal" Background="#F4F7FA" Tag="prototype-v4">
     <UserControl.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="../Prototype/ModelingTheme.xaml"/></ResourceDictionary.MergedDictionaries></ResourceDictionary></UserControl.Resources>
     <Grid>
         <Grid.RowDefinitions><RowDefinition Height="95"/><RowDefinition Height="*"/></Grid.RowDefinitions>
@@ -45,7 +45,7 @@
                                 <TextBlock Grid.Row="2" Grid.Column="1" x:Name="ExtraLayerText" Text="—" FontWeight="SemiBold"/>
                             </Grid>
                             <TextBlock x:Name="SpecificationText" TextWrapping="Wrap" Margin="0,10,0,0"/>
-                            <TextBlock Text="整组封装为一个普通模型块，可整体移动、旋转和删除；绳眼为简化示意，保留 φ16 绳、φ38 鸡心环内径、17 带宽、32×63 夹座、M14 U 形螺栓、3 只绳夹与 6.5φ=104 夹距。" Margin="0,10,0,0" Foreground="#5B6B7B" FontSize="10.5" TextWrapping="Wrap"/>
+                            <TextBlock Text="整组封装为一个普通模型块，可整体移动、旋转和删除；绳眼为光滑样条：φ16 绳圈与 φ38 鸡心环环带均为 B 样条扫掠；绳夹跨工作段与尾段（32×63 鞍座 + M14 U 形螺栓 + 螺母），夹距 6.5φ=104。" Margin="0,10,0,0" Foreground="#5B6B7B" FontSize="10.5" TextWrapping="Wrap"/>
                         </StackPanel>
                     </StackPanel></Border>
                 </StackPanel>

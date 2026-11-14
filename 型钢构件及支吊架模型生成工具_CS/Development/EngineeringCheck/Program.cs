@@ -256,6 +256,18 @@ namespace SteelSectionProbe
                 True(shape.Points.Length >= 2, label + " 扫掠路径点足够");
                 True(shape.RadiusStart > 0, label + " 扫掠半径正值");
             }
+
+            if (shape.Kind == EngineeringShapeKind.SplineSweep)
+            {
+                True(shape.Points.Length >= 3, label + " 光滑路径拟合点足够");
+                True(shape.RadiusStart > 0, label + " 光滑扫掠半径正值");
+            }
+
+            if (shape.Kind == EngineeringShapeKind.SplineBand)
+            {
+                True(shape.Points.Length >= 3, label + " 环带拟合点足够");
+                True(shape.RadiusStart > 0 && shape.RadiusEnd > 0, label + " 环带宽度与厚度正值");
+            }
         }
 
         private static bool Finite(EngineeringPoint point)
@@ -415,7 +427,19 @@ namespace SteelSectionProbe
                         bounds.Include(new EngineeringPoint(shape.Start.X + shape.MajorRadius + shape.MinorRadius,
                             shape.Start.Y + shape.MajorRadius + shape.MinorRadius, shape.Start.Z + shape.MinorRadius));
                         break;
+                    case EngineeringShapeKind.SplineBand:
+                    {
+                        double extent = Math.Max(shape.RadiusStart, shape.RadiusEnd) / 2.0;
+                        foreach (EngineeringPoint point in shape.Points)
+                        {
+                            bounds.Include(point.Offset(-extent, -extent, -extent));
+                            bounds.Include(point.Offset(extent, extent, extent));
+                        }
+
+                        break;
+                    }
                     case EngineeringShapeKind.Sweep:
+                    case EngineeringShapeKind.SplineSweep:
                         foreach (EngineeringPoint point in shape.Points)
                         {
                             bounds.Include(point.Offset(-shape.RadiusStart, -shape.RadiusStart, -shape.RadiusStart));

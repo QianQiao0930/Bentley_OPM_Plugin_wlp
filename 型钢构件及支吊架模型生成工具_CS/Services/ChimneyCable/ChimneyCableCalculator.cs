@@ -134,7 +134,7 @@ namespace SteelSectionProbe
             ChimneyCableSpec spec = ChimneyCableCatalog.Resolve(parameters);
             return string.Format(CultureInfo.CurrentCulture,
                 "H {0:0.###} m、D {1:0.###} mm（R {2:0.###}、壁厚 {3:0.###}）；拉索外圆半径 {4:0.###} mm；" +
-                "拉索 {5} 根（{6}）、地面锚墩 {7} 个；共 {8} 个实体；绳眼装配为简化示意。",
+                "拉索 {5} 根（{6}）、地面锚墩 {7} 个；共 {8} 个实体；绳眼为光滑样条示意、绳夹跨两段绳。",
                 spec.HeightMm / 1000.0,
                 spec.DiameterMm,
                 spec.RadiusMm,
@@ -213,16 +213,16 @@ namespace SteelSectionProbe
         /// <summary>
         /// 在挂点处放一套绳眼装配，轴向沿拉索、上端向下、下端向上。
         ///
-        /// 绳眼简化项（相对 CAD <c>RopeEyeAssemblySolidService</c>）：
-        /// 1) 鸡心环只保留内径 φ38、带宽 17、壁厚 1.316 的 C 形带，不还原槽形截面、
-        ///    唇壁抛物线槽底、端口倒角与喉部收口曲线；
-        /// 2) 绳圈用一条连续 Sweep（φ16）表示“工作段 → 过渡 → 绕鸡心环泪滴 → 过渡 → 尾段”，
-        ///    不拆成两段直绳 + 独立弯段的三实体并集；
-        /// 3) 绳夹夹座按 32（沿绳）×63（横向）×20（厚）的方块 + φ17 绳槽 + 2 个 M14 过孔，
-        ///    不还原肩部贝塞尔轮廓、绳夹总高 77 的鞍形；
-        /// 4) U 形螺栓 M14 用半圆弧顶 + 两直腿扫掠，六角螺母对边 21、高 11 用正六棱柱，
-        ///    M14 螺纹、弹簧垫圈、绳股捻向均不建；
-        /// 5) 尾段绳比工作段绳多让 1 mm，避免扫掠体自相切（名义中心距仍为 2R = 16）。
+        /// 与 CAD <c>RopeEyeAssemblySolidService</c> 的差异（均为简化，但曲线本身是光滑的）：
+        /// 1) 鸡心环为内径 φ38、带宽 17、壁厚 1.316 的**光滑环带**，沿泪滴路径以 B 样条
+        ///    扫掠矩形截面；不还原槽形截面、唇壁抛物线槽底与端口倒角；
+        /// 2) 绳圈为一条**光滑 B 样条**（MSInterpolationCurve）扫掠 φ16 圆截面，
+        ///    覆盖“工作段 → 过渡 → 绕鸡心环泪滴 → 过渡 → 尾段”，不再用折线采样；
+        /// 3) 绳夹为跨两段绳的真实夹持：鞍座压在 z = −R 的工作段外侧（32×63×20，φ17 绳槽），
+        ///    U 形螺栓绕过 z = +R+1 的尾段，两腿穿过鞍座后在另一侧用 M14 螺母拧紧；
+        ///    不还原肩部贝塞尔轮廓与绳夹总高 77 的鞍形；
+        /// 4) U 形螺栓用真半圆弧顶 + 两直腿扫掠，六角螺母对边 21、高 11 用正六棱柱；
+        /// 5) 尾段绳比工作段绳多让 1 mm，避免扫掠体自相切。
         /// </summary>
         private static void AddRopeEye(
             EngineeringBody rope, EngineeringPlan plan, EngineeringPoint hardPoint,
@@ -244,27 +244,23 @@ namespace SteelSectionProbe
                 world[index] = frame.Map(path[index].X, 0.0, path[index].Z);
             }
 
-            rope.Add.Add(EngineeringShape.Sweep(world, ChimneyCableCatalog.RopeRadiusMm));
+            // 绳圈用光滑插值样条扫掠，曲线本身是 B 样条，不再拆成折线。
+            rope.Add.Add(EngineeringShape.SplineSweep(world, ChimneyCableCatalog.RopeRadiusMm));
 
-            // ---- 鸡心环：内径 φ38、带宽 17、壁厚 1.316 的 C 形带，沿绳眼平面法向拉伸。
-            List<EngineeringPoint> outer = OffsetPath(inner, normals, ChimneyCableCatalog.ThimbleWallMm);
-            double halfWidth = ChimneyCableCatalog.ThimbleWidthMm / 2.0;
-            var band = new EngineeringPoint[outer.Count + inner.Count];
-            for (int index = 0; index < outer.Count; index++)
-            {
-                band[index] = frame.Map(outer[index].X, -halfWidth, outer[index].Z);
-            }
-
+            // ---- 鸡心环：内径 φ38、带宽 17、壁厚 1.316 的环带，沿同一光滑路径扫掠矩形截面。
+            var band = new EngineeringPoint[inner.Count];
             for (int index = 0; index < inner.Count; index++)
             {
-                EngineeringPoint point = inner[inner.Count - 1 - index];
-                band[outer.Count + index] = frame.Map(point.X, -halfWidth, point.Z);
+                band[index] = frame.Map(inner[index].X, 0.0, inner[index].Z);
             }
 
             var thimble = plan.Add(name + " 鸡心环");
             thimble.Color(FittingRed, FittingGreen, FittingBlue);
-            thimble.Add.Add(EngineeringShape.Extrude(
-                band, frame.Direction(0.0, ChimneyCableCatalog.ThimbleWidthMm, 0.0)));
+            thimble.Add.Add(EngineeringShape.SplineBand(
+                band,
+                ChimneyCableCatalog.ThimbleWidthMm,
+                ChimneyCableCatalog.ThimbleWallMm,
+                frame.Direction(0.0, 1.0, 0.0)));
 
             // ---- 3 只绳夹：首只中心距绳眼口 72，其后每 104 等距。
             for (int index = 0; index < ChimneyCableCatalog.ClipCount; index++)
@@ -277,18 +273,20 @@ namespace SteelSectionProbe
         }
 
         /// <summary>
-        /// 一只绳夹：夹座（32×63×20 方块 + 绳槽 + 两个 M14 过孔）、
-        /// U 形螺栓（半圆弧顶 + 两直腿扫掠 φ14）与两只六角螺母（对边 21、高 11）。
-        /// 夹座槽底位于工作段绳轴（局部 z = −R）下方，U 形螺栓弧顶罩住绳。
+        /// 一只绳夹：鞍座压在**工作段**绳（局部 z = −R）外侧，U 形螺栓绕过**尾段**绳
+        /// （z = +R）后两条直腿穿过鞍座，螺母在鞍座外侧拧紧，从而把两段绳扣在一起。
         /// </summary>
         private static void AddClip(EngineeringPlan plan, EyeFrame frame, double clipX, string name)
         {
             double radius = ChimneyCableCatalog.RopeRadiusMm;
+            double liveZ = -radius;
+            double tailZ = radius + StrandGapMm;
             double length = ChimneyCableCatalog.ClipSeatLengthMm;
             double width = ChimneyCableCatalog.ClipSeatWidthMm;
             double thickness = ChimneyCableCatalog.ClipSeatThicknessMm;
-            double top = -2.0 * radius;
-            double bottom = top - thickness;
+            double seatTop = liveZ;
+            double seatBottom = seatTop - thickness;
+            double half = ChimneyCableCatalog.ClipAcrossMm / 2.0;
 
             var seat = plan.Add(name + " 夹座");
             seat.Color(FittingRed, FittingGreen, FittingBlue);
@@ -296,66 +294,65 @@ namespace SteelSectionProbe
             seat.Add.Add(EngineeringShape.Extrude(
                 new[]
                 {
-                    frame.Map(clipX - length / 2.0, -width / 2.0, bottom),
-                    frame.Map(clipX + length / 2.0, -width / 2.0, bottom),
-                    frame.Map(clipX + length / 2.0, width / 2.0, bottom),
-                    frame.Map(clipX - length / 2.0, width / 2.0, bottom)
+                    frame.Map(clipX - length / 2.0, -width / 2.0, seatBottom),
+                    frame.Map(clipX + length / 2.0, -width / 2.0, seatBottom),
+                    frame.Map(clipX + length / 2.0, width / 2.0, seatBottom),
+                    frame.Map(clipX - length / 2.0, width / 2.0, seatBottom)
                 },
                 frame.Direction(0.0, 0.0, thickness)));
 
             seat.Cut.Add(EngineeringShape.Cylinder(
-                frame.Map(clipX - length, 0.0, -radius),
-                frame.Map(clipX + length, 0.0, -radius),
+                frame.Map(clipX - length, 0.0, liveZ),
+                frame.Map(clipX + length, 0.0, liveZ),
                 ChimneyCableCatalog.ClipGrooveRadiusMm));
 
             double holeRadius =
                 (ChimneyCableCatalog.BoltDiameterMm + ChimneyCableCatalog.BoltHoleClearanceMm) / 2.0;
-            double boltOffset = ChimneyCableCatalog.ClipAcrossMm / 2.0;
             foreach (double side in new[] { -1.0, 1.0 })
             {
                 seat.Cut.Add(EngineeringShape.Cylinder(
-                    frame.Map(clipX, side * boltOffset, bottom - 1.0),
-                    frame.Map(clipX, side * boltOffset, top + 1.0),
+                    frame.Map(clipX, side * half, seatBottom - 1.0),
+                    frame.Map(clipX, side * half, seatTop + 1.0),
                     holeRadius));
             }
 
+            double endZ = seatBottom - ChimneyCableCatalog.NutHeightMm + 1.0;
             var bolt = plan.Add(name + " U 形螺栓与螺母");
             bolt.Color(BoltRed, BoltGreen, BoltBlue);
+            EngineeringPoint?[] arcMiddles;
+            EngineeringPoint[] path = UBoltPath(frame, clipX, tailZ, half, endZ, out arcMiddles);
             bolt.Add.Add(EngineeringShape.Sweep(
-                UBoltPath(frame, clipX, top, bottom),
-                ChimneyCableCatalog.BoltDiameterMm / 2.0));
+                path, ChimneyCableCatalog.BoltDiameterMm / 2.0, arcMiddles));
 
             foreach (double side in new[] { -1.0, 1.0 })
             {
                 bolt.Add.Add(EngineeringShape.HexPrism(
-                    frame.Map(clipX, side * boltOffset, bottom - ChimneyCableCatalog.NutHeightMm),
-                    frame.Map(clipX, side * boltOffset, bottom),
+                    frame.Map(clipX, side * half, endZ - 1.0),
+                    frame.Map(clipX, side * half,
+                        endZ - 1.0 + ChimneyCableCatalog.NutHeightMm),
                     ChimneyCableCatalog.NutAcrossFlatsMm));
             }
         }
 
         /// <summary>
-        /// U 形螺栓路径（局部坐标）：两条直腿沿 −Z 穿过夹座，弧顶为半径 A/2 = 15.5 的半圆，
-        /// 弧心在绳底面所在高度；腿端伸入螺母 1 mm，保证并集搭接。
+        /// U 形螺栓路径（局部坐标）：两条直腿沿 Z 穿过鞍座，顶部为绕尾段绳的 180° 真圆弧
+        /// （半径 = 两腿中心距/2），腿端伸入螺母 1 mm 便于并集搭接。
         /// </summary>
         private static EngineeringPoint[] UBoltPath(
-            EyeFrame frame, double clipX, double crownZ, double seatBottom)
+            EyeFrame frame, double clipX, double tailZ, double half, double endZ,
+            out EngineeringPoint?[] arcMiddles)
         {
-            double half = ChimneyCableCatalog.ClipAcrossMm / 2.0;
-            double endZ = seatBottom - ChimneyCableCatalog.NutHeightMm + 1.0;
-
-            var path = new List<EngineeringPoint>();
-            AddUnique(path, frame.Map(clipX, -half, endZ));
-            AddUnique(path, frame.Map(clipX, -half, crownZ));
-            for (int sample = 0; sample <= BoltArcSamples; sample++)
+            var path = new[]
             {
-                double phi = Math.PI - Math.PI * sample / BoltArcSamples;
-                AddUnique(path, frame.Map(
-                    clipX, half * Math.Cos(phi), crownZ + half * Math.Sin(phi)));
-            }
+                frame.Map(clipX, -half, endZ),
+                frame.Map(clipX, -half, tailZ),
+                frame.Map(clipX, half, tailZ),
+                frame.Map(clipX, half, endZ)
+            };
 
-            AddUnique(path, frame.Map(clipX, half, endZ));
-            return path.ToArray();
+            arcMiddles = new EngineeringPoint?[4];
+            arcMiddles[1] = frame.Map(clipX, 0.0, tailZ + half);
+            return path;
         }
 
         /// <summary>
@@ -367,7 +364,7 @@ namespace SteelSectionProbe
         {
             double radius = ChimneyCableCatalog.RopeRadiusMm;
             double blendX = mouthX + BlendRunMm;
-            double bodyX = ChimneyCableCatalog.TerminalSpanMm + BodyPenetrationMm;
+            double bodyX = mouthX + ChimneyCableCatalog.JunctionOffsetMm + BodyPenetrationMm;
             double tailX = mouthX + ChimneyCableCatalog.TailEndOffsetMm;
             double tailZ = radius + StrandGapMm;
 

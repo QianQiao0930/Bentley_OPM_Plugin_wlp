@@ -148,6 +148,10 @@ namespace SteelSectionProbe
                     break;
                 case EngineeringShapeKind.Sweep:
                     return SweepBody(shape, modelRef, scale);
+                case EngineeringShapeKind.SplineSweep:
+                    return SplineBody(shape, modelRef, scale, false);
+                case EngineeringShapeKind.SplineBand:
+                    return SplineBody(shape, modelRef, scale, true);
                 default:
                     throw new InvalidOperationException("未知形状类型：" + shape.Kind);
             }
@@ -432,6 +436,133 @@ namespace SteelSectionProbe
         private static bool Finite(double value)
         {
             return !double.IsNaN(value) && !double.IsInfinity(value);
+        }
+
+        /// <summary>
+        /// 沿“拟合点 → 光滑插值样条”生成的路径扫掠：绳圈用圆截面，鸡心环环带用矩形截面。
+        /// 样条为真正的 B 样条（MSInterpolationCurve），不会把曲线拆成折线。
+        /// </summary>
+        private static SolidKernelEntity SplineBody(
+            EngineeringShape shape, DgnModelRef modelRef, double scale, bool band)
+        {
+            if (shape.Points == null || shape.Points.Length < 3)
+            {
+                throw new InvalidOperationException("光滑路径拟合点不足。");
+            }
+
+            var fit = new List<DPoint3d>(shape.Points.Length);
+            foreach (EngineeringPoint point in shape.Points)
+            {
+                fit.Add(P(point, scale));
+            }
+
+            DPoint3d start = fit[0];
+            DVector3d tangent = StartDirection(fit);
+            CurveVector profile;
+            DVector3d lockDirection = DVector3d.Zero;
+            bool hasLock = false;
+
+            if (band)
+            {
+                double halfWidth = shape.RadiusStart * scale / 2.0;
+                double thickness = shape.RadiusEnd * scale;
+                if (halfWidth <= 0 || thickness <= 0)
+                {
+                    throw new InvalidOperationException("环带宽度或厚度无效。");
+                }
+
+                DVector3d outOfPlane = Normalize(new DVector3d(
+                    shape.AxisX.X, shape.AxisX.Y, shape.AxisX.Z));
+                // 环带贴在路径外侧（厚度沿路径平面外法向指向环外）。
+                DVector3d inPlane = Normalize(Cross(tangent, outOfPlane));
+                var corners = new[]
+                {
+                    Combine(start, inPlane, 0.0, outOfPlane, -halfWidth),
+                    Combine(start, inPlane, thickness, outOfPlane, -halfWidth),
+                    Combine(start, inPlane, thickness, outOfPlane, halfWidth),
+                    Combine(start, inPlane, 0.0, outOfPlane, halfWidth)
+                };
+
+                profile = CurveVector.Create(CurveVector.BoundaryType.Outer);
+                for (int index = 0; index < 4; index++)
+                {
+                    profile.Add(CurvePrimitive.CreateLine(new DSegment3d(
+                        corners[index], corners[(index + 1) % 4])));
+                }
+
+                lockDirection = outOfPlane;
+                hasLock = true;
+            }
+            else
+            {
+                double radius = shape.RadiusStart * scale;
+                if (radius <= 0)
+                {
+                    throw new InvalidOperationException("扫掠圆截面半径无效。");
+                }
+
+                profile = CurveVector.CreateDisk(
+                    DEllipse3d.FromCenterRadiusNormal(start, radius, tangent), CurveVector.BoundaryType.Outer);
+            }
+
+            MSInterpolationCurve fitCurve;
+            try
+            {
+                fitCurve = MSInterpolationCurve.CreateFromPointsAndEndTangents(
+                    fit, false, 0.0, new DVector3d[0], false, false, false, true);
+            }
+            catch (Exception error)
+            {
+                throw new InvalidOperationException("光滑路径拟合失败：" + error.Message, error);
+            }
+
+            var path = CurveVector.Create(CurveVector.BoundaryType.Open);
+            path.Add(CurvePrimitive.CreateInterpolationCurve(fitCurve));
+
+            SolidKernelEntity body;
+            BentleyStatus status;
+            if (hasLock)
+            {
+                status = Create.BodyFromSweep(out body, profile, path, modelRef,
+                    false, true, false, lockDirection, null, null, null);
+            }
+            else
+            {
+                status = Create.BodyFromSweep(out body, profile, path, modelRef,
+                    false, true, false, null, null, null, null);
+            }
+
+            if (status != BentleyStatus.Success || body == null)
+            {
+                throw new InvalidOperationException("光滑路径扫掠失败：" + status);
+            }
+
+            return body;
+        }
+
+        private static DVector3d StartDirection(IList<DPoint3d> points)
+        {
+            DPoint3d first = points[0];
+            for (int index = 1; index < points.Count; index++)
+            {
+                DPoint3d next = points[index];
+                var direction = new DVector3d(next.X - first.X, next.Y - first.Y, next.Z - first.Z);
+                if (direction.Magnitude > 1e-9)
+                {
+                    return Normalize(direction);
+                }
+            }
+
+            throw new InvalidOperationException("路径起点切线无效。");
+        }
+
+        private static DPoint3d Combine(
+            DPoint3d origin, DVector3d axisA, double scaleA, DVector3d axisB, double scaleB)
+        {
+            return new DPoint3d(
+                origin.X + axisA.X * scaleA + axisB.X * scaleB,
+                origin.Y + axisA.Y * scaleA + axisB.Y * scaleB,
+                origin.Z + axisA.Z * scaleA + axisB.Z * scaleB);
         }
 
         /// <summary>
