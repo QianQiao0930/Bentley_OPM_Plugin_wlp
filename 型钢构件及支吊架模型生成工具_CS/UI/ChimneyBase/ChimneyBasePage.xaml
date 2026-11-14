@@ -102,7 +102,7 @@
                             </Border>
                             <StackPanel Margin="12">
                                 <TextBlock x:Name="SpecificationText" TextWrapping="Wrap"/>
-                                <TextBlock Text="含风管（壁厚 10、顶部 175/100 台阶断口）、环形预埋板、梯形加劲肋、J 形地脚螺栓与 +Y 面圆形清扫口；整组封装为一个普通模型块。" Margin="0,10,0,0" TextWrapping="Wrap"/>
+                                <TextBlock Text="含风管（壁厚 10、顶部 175/100 台阶断口）、环形预埋板、梯形加劲肋、J 形地脚螺栓与 +Y 面 400×600 弧形清扫口；整组封装为一个普通模型块。" Margin="0,10,0,0" TextWrapping="Wrap"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>

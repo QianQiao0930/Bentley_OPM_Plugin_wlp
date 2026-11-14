@@ -116,23 +116,50 @@ namespace SteelSectionProbe
         /// <summary>清扫口门底距风管底部的距离（mm）。</summary>
         internal const double CleanoutDoorBottomOffset = 400.0;
 
-        /// <summary>圆形清扫口门板的最大半径（mm）。</summary>
-        internal const double CleanoutMaxDoorRadius = 200.0;
+        /// <summary>清扫口门板宽（mm）。</summary>
+        internal const double CleanoutDoorWidth = 400.0;
 
-        /// <summary>圆形清扫口门板的最小半径（mm）。</summary>
-        internal const double CleanoutMinDoorRadius = 25.0;
+        /// <summary>清扫口门板高（mm）。</summary>
+        internal const double CleanoutDoorHeight = 600.0;
 
-        /// <summary>清扫口接管座壁厚上限（mm）。</summary>
-        internal const double CleanoutCollarWall = 30.0;
+        /// <summary>门框相对门板四周的外扩量（mm）。</summary>
+        internal const double CleanoutFrameMargin = 25.0;
 
-        /// <summary>清扫口接管座壁厚下限（mm）。</summary>
-        internal const double CleanoutMinCollarWall = 6.0;
+        /// <summary>门板相对门洞的重叠量（mm）。</summary>
+        internal const double CleanoutOverlap = 10.0;
 
-        /// <summary>清扫口门板厚度（mm）。</summary>
-        internal const double CleanoutDoorThickness = 6.0;
+        /// <summary>弧形门框板厚（mm）。</summary>
+        internal const double CleanoutFrameThickness = 3.0;
 
-        /// <summary>清扫口铰链轴节半径（mm）。</summary>
-        internal const double CleanoutHingeRadius = 5.0;
+        /// <summary>密封垫厚度（mm）。</summary>
+        internal const double CleanoutGasketThickness = 1.0;
+
+        /// <summary>门板厚度（mm）。</summary>
+        internal const double CleanoutDoorThickness = 3.0;
+
+        /// <summary>合页总长（mm）。</summary>
+        internal const double CleanoutHingeLength = 60.0;
+
+        /// <summary>两组合页距门中心的上下距离（mm）。</summary>
+        internal const double CleanoutHingeOffset = 150.0;
+
+        /// <summary>合页轴节半径（mm）。</summary>
+        internal const double CleanoutKnuckleRadius = 3.5;
+
+        /// <summary>合页销轴半径（mm）。</summary>
+        internal const double CleanoutPinRadius = 1.5;
+
+        /// <summary>压紧锁距门边的距离（mm）。</summary>
+        internal const double CleanoutLockEdgeOffset = 35.0;
+
+        /// <summary>两把压紧锁距门中心的上下距离（mm）。</summary>
+        internal const double CleanoutLockVerticalOffset = 150.0;
+
+        /// <summary>合页五段轴节中固定叶占用的段号。</summary>
+        internal static readonly int[] CleanoutFixedSegments = { 0, 2, 4 };
+
+        /// <summary>合页五段轴节中活动叶占用的段号。</summary>
+        internal static readonly int[] CleanoutMovingSegments = { 1, 3 };
 
         /// <summary>D1 允许范围下限（mm）。</summary>
         internal const double MinDiameterMm = 100.0;
