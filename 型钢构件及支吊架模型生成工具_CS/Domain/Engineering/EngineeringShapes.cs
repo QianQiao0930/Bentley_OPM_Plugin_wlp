@@ -60,6 +60,12 @@ namespace SteelSectionProbe
         /// <summary>圆截面沿折线路径扫掠。</summary>
         Sweep,
 
+        /// <summary>
+        /// 圆截面沿路径逐段放样成**单一**光滑管面（不产生逐段横向棱线）；
+        /// 内核拒绝放样时自动退回 <see cref="Sweep"/>。
+        /// </summary>
+        Loft,
+
         /// <summary>圆截面沿光滑插值样条（B 样条）路径扫掠。</summary>
         SplineSweep,
 
@@ -215,9 +221,27 @@ namespace SteelSectionProbe
             };
         }
 
-        /// <summary>圆截面沿光滑插值样条路径扫掠（路径点作为拟合点，曲线真正光滑）。</summary>
-        internal static EngineeringShape SplineSweep(EngineeringPoint[] fitPoints, double radius)
+        /// <summary>
+        /// 圆截面沿路径放样成单一光滑管面：<paramref name="arcMiddles"/> 与路径点等长，
+        /// 用真圆弧描述路径；<paramref name="outOfPlane"/> 为路径平面法向，
+        /// 用于固定每个截面圆的 0° 方向，保证放样不扭转。放样失败时内核层退回扫掠。
+        /// </summary>
+        internal static EngineeringShape Loft(
+            EngineeringPoint[] path, double radius, EngineeringPoint?[] arcMiddles,
+            EngineeringPoint outOfPlane)
         {
+            return new EngineeringShape
+            {
+                Kind = EngineeringShapeKind.Loft,
+                Points = path,
+                RadiusStart = radius,
+                ArcMiddles = arcMiddles,
+                AxisX = outOfPlane
+            };
+        }
+
+        /// <summary>圆截面沿光滑插值样条路径扫掠（路径点作为拟合点，曲线真正光滑）。</summary>
+        internal static EngineeringShape SplineSweep(EngineeringPoint[] fitPoints, double radius)        {
             return new EngineeringShape
             {
                 Kind = EngineeringShapeKind.SplineSweep,

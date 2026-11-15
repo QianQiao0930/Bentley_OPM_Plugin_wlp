@@ -148,6 +148,8 @@ namespace SteelSectionProbe
                     break;
                 case EngineeringShapeKind.Sweep:
                     return SweepBody(shape, modelRef, scale);
+                case EngineeringShapeKind.Loft:
+                    return LoftBody(shape, modelRef, scale);
                 case EngineeringShapeKind.SplineSweep:
                     return SplineBody(shape, modelRef, scale, false);
                 case EngineeringShapeKind.SplineBand:
@@ -433,11 +435,273 @@ namespace SteelSectionProbe
             return body;
         }
 
+        /// <summary>放样的截面目标间距（mm）：越小越贴合路径，放样行数越多。</summary>
+        private const double LoftStepMm = 2.5;
+
+        /// <summary>单段路径最多细分出的行数，避免长直线段产生上百行。</summary>
+        private const int LoftMaxSubSteps = 24;
+
+        /// <summary>
+        /// 圆截面沿路径放样：每个截面都是真圆，坐标架由路径平面法向显式定死，
+        /// 得到的是**单一**光滑管面，不会像逐段扫掠那样出现一圈圈横向棱线。
+        /// 内核拒绝放样时退回逐段圆弧扫掠（几何相同，只是分段处留下棱线）。
+        /// </summary>
+        private static SolidKernelEntity LoftBody(
+            EngineeringShape shape, DgnModelRef modelRef, double scale)
+        {
+            try
+            {
+                SolidKernelEntity body;
+                if (TryLoftBody(shape, modelRef, scale, out body))
+                {
+                    return body;
+                }
+            }
+            catch (Exception)
+            {
+                // 放样不可用时退回扫掠；扫掠自身的错误由 SweepBody 报出。
+            }
+
+            return SweepBody(shape, modelRef, scale);
+        }
+
+        private static bool TryLoftBody(
+            EngineeringShape shape, DgnModelRef modelRef, double scale, out SolidKernelEntity body)
+        {
+            body = null;
+            if (shape.Points == null || shape.Points.Length < 2)
+            {
+                return false;
+            }
+
+            double radius = shape.RadiusStart * scale;
+            if (!(radius > 0) || !Finite(radius))
+            {
+                return false;
+            }
+
+            var plane = new DVector3d(shape.AxisX.X, shape.AxisX.Y, shape.AxisX.Z);
+            if (plane.Magnitude < 1e-9)
+            {
+                return false;
+            }
+
+            DVector3d planeNormal = Normalize(plane);
+
+            var segments = new List<LoftSegment>(shape.Points.Length - 1);
+            for (int index = 0; index + 1 < shape.Points.Length; index++)
+            {
+                EngineeringPoint? middle = shape.ArcMiddles == null ? null : shape.ArcMiddles[index];
+                DPoint3d start = P(shape.Points[index], scale);
+                DPoint3d end = P(shape.Points[index + 1], scale);
+                segments.Add(middle.HasValue
+                    ? LoftSegment.Arc(start, P(middle.Value, scale), end)
+                    : LoftSegment.Line(start, end));
+            }
+
+            var sections = new List<CurveVector>();
+            double step = LoftStepMm * scale;
+            for (int index = 0; index < segments.Count; index++)
+            {
+                LoftSegment segment = segments[index];
+                int steps = Math.Max(1, (int)Math.Ceiling(segment.Length / step));
+                if (steps > LoftMaxSubSteps)
+                {
+                    steps = LoftMaxSubSteps;
+                }
+
+                // 段终点交给下一段（末段终点单独补），避免出现重复截面使放样退化。
+                for (int sub = 0; sub < steps; sub++)
+                {
+                    DPoint3d center;
+                    DVector3d tangent;
+                    segment.Evaluate((double)sub / steps, out center, out tangent);
+                    CurveVector section = SectionCurve(center, tangent, planeNormal, radius);
+                    if (section == null)
+                    {
+                        return false;
+                    }
+
+                    sections.Add(section);
+                }
+            }
+
+            DPoint3d tail;
+            DVector3d tailTangent;
+            segments[segments.Count - 1].Evaluate(1.0, out tail, out tailTangent);
+            CurveVector tailSection = SectionCurve(tail, tailTangent, planeNormal, radius);
+            if (tailSection == null)
+            {
+                return false;
+            }
+
+            sections.Add(tailSection);
+
+            var status = Create.BodyFromLoft(out body, sections.ToArray(), sections.Count,
+                new CurveVector[0], 0, modelRef, false, false);
+            return status == BentleyStatus.Success && body != null;
+        }
+
+        /// <summary>
+        /// 单个放样截面：圆平面由切向与路径平面法向确定（0° 方向固定，放样不扭转）。
+        /// </summary>
+        private static CurveVector SectionCurve(
+            DPoint3d center, DVector3d tangent, DVector3d planeNormal, double radius)
+        {
+            DVector3d axis = Normalize(tangent);
+
+            // 平面法向去掉沿切向的分量，作为截面的 0° 方向。
+            double along = planeNormal.X * axis.X + planeNormal.Y * axis.Y + planeNormal.Z * axis.Z;
+            var u = new DVector3d(
+                planeNormal.X - axis.X * along,
+                planeNormal.Y - axis.Y * along,
+                planeNormal.Z - axis.Z * along);
+            if (u.Magnitude < 1e-6)
+            {
+                return null;
+            }
+
+            u = Normalize(u);
+            DVector3d v = Cross(axis, u);
+            var ellipse = new DEllipse3d(center,
+                new DVector3d(u.X * radius, u.Y * radius, u.Z * radius),
+                new DVector3d(v.X * radius, v.Y * radius, v.Z * radius));
+            ellipse.SweepAngle = Angle.FromRadians(2.0 * Math.PI);
+            return CurveVector.CreateDisk(ellipse, CurveVector.BoundaryType.Outer);
+        }
+
+        /// <summary>放样用的一段路径：真圆弧（三点定圆）或直线，可按参数取点与切向。</summary>
+        private struct LoftSegment
+        {
+            private bool isLine;
+            private DPoint3d start;
+            private DPoint3d end;
+            private DPoint3d center;
+            private DVector3d radiusAxis;
+            private DVector3d tangentAxis;
+            private double radius;
+            private double sweep;
+
+            internal double Length;
+
+            internal static LoftSegment Line(DPoint3d from, DPoint3d to)
+            {
+                return new LoftSegment
+                {
+                    isLine = true,
+                    start = from,
+                    end = to,
+                    Length = Distance(from, to)
+                };
+            }
+
+            internal static LoftSegment Arc(DPoint3d from, DPoint3d through, DPoint3d to)
+            {
+                var first = new DVector3d(through.X - from.X, through.Y - from.Y, through.Z - from.Z);
+                var second = new DVector3d(to.X - from.X, to.Y - from.Y, to.Z - from.Z);
+                DVector3d normal = Cross(first, second);
+                double normalLength = normal.Magnitude;
+                double firstLength = first.Magnitude;
+                double secondLength = second.Magnitude;
+
+                // 三点共线（或近共线）时本来就该是直线。
+                if (normalLength < 1e-9 || firstLength < 1e-9 || secondLength < 1e-9 ||
+                    normalLength < 1e-6 * firstLength * secondLength)
+                {
+                    return Line(from, to);
+                }
+
+                double aa = firstLength * firstLength;
+                double bb = secondLength * secondLength;
+                double denominator = 2.0 * normalLength * normalLength;
+
+                // center - from = (|first|²·(second×n) + |second|²·(n×first)) / (2|n|²)
+                var secondCrossNormal = Cross(second, normal);
+                var normalCrossFirst = Cross(normal, first);
+                var center = new DPoint3d(
+                    from.X + (aa * secondCrossNormal.X + bb * normalCrossFirst.X) / denominator,
+                    from.Y + (aa * secondCrossNormal.Y + bb * normalCrossFirst.Y) / denominator,
+                    from.Z + (aa * secondCrossNormal.Z + bb * normalCrossFirst.Z) / denominator);
+
+                var unitNormal = Normalize(normal);
+                var radiusAxis = new DVector3d(
+                    (from.X - center.X) / Distance(center, from),
+                    (from.Y - center.Y) / Distance(center, from),
+                    (from.Z - center.Z) / Distance(center, from));
+                double radius = Distance(center, from);
+                DVector3d tangentAxis = Cross(unitNormal, radiusAxis);
+
+                double throughAngle = AngleOf(through, center, radiusAxis, tangentAxis);
+                double endAngle = AngleOf(to, center, radiusAxis, tangentAxis);
+                double sweep = endAngle >= throughAngle ? endAngle : endAngle - 2.0 * Math.PI;
+
+                return new LoftSegment
+                {
+                    isLine = false,
+                    start = from,
+                    end = to,
+                    center = center,
+                    radiusAxis = radiusAxis,
+                    tangentAxis = tangentAxis,
+                    radius = radius,
+                    sweep = sweep,
+                    Length = Math.Abs(sweep) * radius
+                };
+            }
+
+            internal void Evaluate(double t, out DPoint3d point, out DVector3d tangent)
+            {
+                if (isLine)
+                {
+                    point = new DPoint3d(
+                        start.X + (end.X - start.X) * t,
+                        start.Y + (end.Y - start.Y) * t,
+                        start.Z + (end.Z - start.Z) * t);
+                    tangent = Normalize(new DVector3d(
+                        end.X - start.X, end.Y - start.Y, end.Z - start.Z));
+                    return;
+                }
+
+                double angle = sweep * t;
+                double cosine = Math.Cos(angle);
+                double sine = Math.Sin(angle);
+                point = new DPoint3d(
+                    center.X + radius * (radiusAxis.X * cosine + tangentAxis.X * sine),
+                    center.Y + radius * (radiusAxis.Y * cosine + tangentAxis.Y * sine),
+                    center.Z + radius * (radiusAxis.Z * cosine + tangentAxis.Z * sine));
+
+                double direction = sweep >= 0 ? 1.0 : -1.0;
+                tangent = Normalize(new DVector3d(
+                    direction * (-radiusAxis.X * sine + tangentAxis.X * cosine),
+                    direction * (-radiusAxis.Y * sine + tangentAxis.Y * cosine),
+                    direction * (-radiusAxis.Z * sine + tangentAxis.Z * cosine)));
+            }
+
+            private static double AngleOf(
+                DPoint3d point, DPoint3d center, DVector3d radiusAxis, DVector3d tangentAxis)
+            {
+                double x = point.X - center.X;
+                double y = point.Y - center.Y;
+                double z = point.Z - center.Z;
+                double cosine = x * radiusAxis.X + y * radiusAxis.Y + z * radiusAxis.Z;
+                double sine = x * tangentAxis.X + y * tangentAxis.Y + z * tangentAxis.Z;
+                double angle = Math.Atan2(sine, cosine);
+                return angle < 0 ? angle + 2.0 * Math.PI : angle;
+            }
+        }
+
+        private static double Distance(DPoint3d a, DPoint3d b)
+        {
+            double x = a.X - b.X;
+            double y = a.Y - b.Y;
+            double z = a.Z - b.Z;
+            return Math.Sqrt(x * x + y * y + z * z);
+        }
+
         private static bool Finite(double value)
         {
             return !double.IsNaN(value) && !double.IsInfinity(value);
         }
-
         /// <summary>
         /// 沿“拟合点 → 光滑插值样条”生成的路径扫掠：绳圈用圆截面，鸡心环环带用矩形截面。
         /// 样条为真正的 B 样条（MSInterpolationCurve），不会把曲线拆成折线。

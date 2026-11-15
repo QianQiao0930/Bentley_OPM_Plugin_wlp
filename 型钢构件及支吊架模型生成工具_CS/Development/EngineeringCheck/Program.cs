@@ -175,6 +175,27 @@ namespace SteelSectionProbe
 
             EngineeringPlan plan = ChimneyCableCalculator.Calculate(parameters);
             CheckShapes(plan, "拉索默认");
+
+            // 绳圈必须是放样（单一光滑管面），否则逐段扫掠会在每段接缝留下横向棱线。
+            int loftCount = 0;
+            foreach (EngineeringBody body in plan.Bodies)
+            {
+                foreach (EngineeringShape shape in body.Add)
+                {
+                    if (shape.Kind == EngineeringShapeKind.Loft)
+                    {
+                        loftCount++;
+                        True(shape.Points.Length >= 10, "绳圈放样路径点足够");
+                        True(shape.ArcMiddles != null && shape.ArcMiddles.Length >= shape.Points.Length - 1,
+                            "绳圈放样圆弧中点齐全");
+                        True(Math.Abs(shape.AxisX.X) + Math.Abs(shape.AxisX.Y) + Math.Abs(shape.AxisX.Z) > 0.5,
+                            "绳圈放样平面法向为单位向量");
+                    }
+                }
+            }
+
+            Equal(loftCount, 6, "默认拉索 3 根 × 两端绳眼 = 6 个绳圈放样");
+
             Bounds bounds = Bounds.Of(plan);
             Equal(bounds.MaxZ, 30000.0, 1.0, "筒身顶高");
             True(bounds.MinZ <= -ChimneyCableCatalog.AnchorBuriedDepthMm && bounds.MinZ > -200.0,
@@ -255,6 +276,14 @@ namespace SteelSectionProbe
             {
                 True(shape.Points.Length >= 2, label + " 扫掠路径点足够");
                 True(shape.RadiusStart > 0, label + " 扫掠半径正值");
+            }
+
+            if (shape.Kind == EngineeringShapeKind.Loft)
+            {
+                True(shape.Points.Length >= 2, label + " 放样路径点足够");
+                True(shape.RadiusStart > 0, label + " 放样半径正值");
+                True(Math.Abs(shape.AxisX.X) + Math.Abs(shape.AxisX.Y) + Math.Abs(shape.AxisX.Z) > 1e-6,
+                    label + " 放样平面法向非零");
             }
 
             if (shape.Kind == EngineeringShapeKind.SplineSweep)
@@ -439,6 +468,7 @@ namespace SteelSectionProbe
                         break;
                     }
                     case EngineeringShapeKind.Sweep:
+                    case EngineeringShapeKind.Loft:
                     case EngineeringShapeKind.SplineSweep:
                         foreach (EngineeringPoint point in shape.Points)
                         {

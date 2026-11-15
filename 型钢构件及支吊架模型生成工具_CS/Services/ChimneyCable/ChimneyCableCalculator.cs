@@ -134,7 +134,7 @@ namespace SteelSectionProbe
             ChimneyCableSpec spec = ChimneyCableCatalog.Resolve(parameters);
             return string.Format(CultureInfo.CurrentCulture,
                 "H {0:0.###} m、D {1:0.###} mm（R {2:0.###}、壁厚 {3:0.###}）；拉索外圆半径 {4:0.###} mm；" +
-                "拉索 {5} 根（{6}）、地面锚墩 {7} 个；共 {8} 个实体；绳眼为光滑样条示意、绳夹跨两段绳。",
+                "拉索 {5} 根（{6}）、地面锚墩 {7} 个；共 {8} 个实体；绳眼为真圆弧链放样示意、绳夹跨两段绳。",
                 spec.HeightMm / 1000.0,
                 spec.DiameterMm,
                 spec.RadiusMm,
@@ -216,8 +216,9 @@ namespace SteelSectionProbe
         /// 与 CAD <c>RopeEyeAssemblySolidService</c> 的差异（均为简化，但曲线本身是光滑的）：
         /// 1) 鸡心环为内径 φ38、带宽 17、壁厚 1.316 的**光滑环带**，沿泪滴路径以 B 样条
         ///    扫掠矩形截面；不还原槽形截面、唇壁抛物线槽底与端口倒角；
-        /// 2) 绳圈为**真圆弧链**（每两采样点一段真圆弧，共线处退化为直线）扫掠 φ16 圆截面，
-        ///    覆盖“工作段 → 过渡 → 绕鸡心环泪滴 → 过渡 → 尾段”，不再用折线采样；
+        /// 2) 绳圈为**真圆弧链**（每两采样点一段真圆弧，共线处退化为直线）放样成的单一光滑管面，
+        ///    覆盖“工作段 → 过渡 → 绕鸡心环泪滴 → 过渡 → 尾段”，不再用折线采样，
+        ///    也不逐段扫掠（逐段扫掠会在每段接缝留下横向棱线）；放样不可用时退回扫掠；
         /// 3) 绳夹为跨两段绳的真实夹持：鞍座压在 z = −R 的工作段外侧（32×63×20，φ17 绳槽），
         ///    U 形螺栓绕过 z = +R+1 的尾段，两腿穿过鞍座后在另一侧用 M14 螺母拧紧；
         ///    不还原肩部贝塞尔轮廓与绳夹总高 77 的鞍形；
@@ -252,9 +253,11 @@ namespace SteelSectionProbe
                     : (EngineeringPoint?)null;
             }
 
-            // 绳圈用真圆弧链扫掠（相邻圆弧切向连续），不采样成折线。
-            rope.Add.Add(EngineeringShape.Sweep(
-                world, ChimneyCableCatalog.RopeRadiusMm, worldMids));
+            // 绳圈沿同一圆弧链放样成单一光滑管面：截面全为真圆、坐标架由绳眼平面法向定死，
+            // 因而没有逐段扫掠留下的一圈圈横向棱线；内核拒绝放样时自动退回扫掠。
+            rope.Add.Add(EngineeringShape.Loft(
+                world, ChimneyCableCatalog.RopeRadiusMm, worldMids,
+                frame.Direction(0.0, 1.0, 0.0)));
 
             // ---- 鸡心环：内径 φ38、带宽 17、壁厚 1.316 的环带；
             //      内外边界均为真圆弧链，沿带宽方向拉伸。
