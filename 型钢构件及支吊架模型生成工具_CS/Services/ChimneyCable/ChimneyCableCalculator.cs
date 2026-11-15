@@ -383,6 +383,8 @@ namespace SteelSectionProbe
         /// <summary>
         /// 鸡心环：内外边界都是真圆弧链的环带（1.316×17），沿带宽方向普通拉伸。
         /// 用户 2026-11-15 明确要求用这个做法（槽形截面扫掠在宿主里被内核拒绝，反复走后备更慢）。
+        /// **拉伸从 −B/2 起、只拉 +B**：轮廓画在 y=0 再沿 +B 拉伸会让环带整体偏出半个带宽，
+        /// 看上去“鸡心环没跟钢索中心对齐”。
         /// </summary>
         private static EngineeringShape ThimbleBand(
             EyeFrame frame, List<EngineeringPoint> path, List<EngineeringPoint> normals,
@@ -390,6 +392,7 @@ namespace SteelSectionProbe
         {
             int count = knots.Count;
             int segments = count - 1;
+            double halfWidth = -ChimneyCableCatalog.ThimbleWidthMm / 2.0;
             var points = new EngineeringPoint[2 * count];
             var arcMids = new EngineeringPoint?[points.Length];
             for (int index = 0; index < count; index++)
@@ -397,14 +400,14 @@ namespace SteelSectionProbe
                 int knot = knots[index];
                 points[index] = frame.Map(
                     path[knot].X + normals[knot].X * ChimneyCableCatalog.ThimbleWallMm,
-                    0.0,
+                    halfWidth,
                     path[knot].Z + normals[knot].Z * ChimneyCableCatalog.ThimbleWallMm);
             }
 
             for (int index = 0; index < count; index++)
             {
                 int knot = knots[count - 1 - index];
-                points[count + index] = frame.Map(path[knot].X, 0.0, path[knot].Z);
+                points[count + index] = frame.Map(path[knot].X, halfWidth, path[knot].Z);
             }
 
             for (int index = 0; index < segments; index++)
@@ -412,10 +415,10 @@ namespace SteelSectionProbe
                 int mid = mids[index];
                 arcMids[index] = frame.Map(
                     path[mid].X + normals[mid].X * ChimneyCableCatalog.ThimbleWallMm,
-                    0.0,
+                    halfWidth,
                     path[mid].Z + normals[mid].Z * ChimneyCableCatalog.ThimbleWallMm);
                 int reversed = mids[segments - 1 - index];
-                arcMids[count + index] = frame.Map(path[reversed].X, 0.0, path[reversed].Z);
+                arcMids[count + index] = frame.Map(path[reversed].X, halfWidth, path[reversed].Z);
             }
 
             return EngineeringShape.Extrude(

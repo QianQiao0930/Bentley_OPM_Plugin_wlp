@@ -458,6 +458,67 @@ namespace SteelSectionProbe
             // 放样体退化，宿主报“相并失败”。
             True(ChimneyCableCatalog.RopeEyeStubMm - ChimneyCableCatalog.RopeEyeJointMm >= 100.0,
                 label + " 绳眼与主体搭接长度足够");
+
+            // 环带必须与钢索中心（拉索轴线）对齐：轮廓画在 y=0 再沿 +B 拉伸会让环带
+            // 整体偏出半个带宽，宿主里看着就是“鸡心环偏了”。
+            EngineeringBody rope = null;
+            foreach (EngineeringBody body in plan.Bodies)
+            {
+                if (body.Name == "拉索 1（上层）")
+                {
+                    rope = body;
+                    break;
+                }
+            }
+
+            True(rope != null, label + " 有拉索主体");
+            EngineeringShape cone = null;
+            foreach (EngineeringShape shape in rope.Add)
+            {
+                if (shape.Kind == EngineeringShapeKind.Cone)
+                {
+                    cone = shape;
+                    break;
+                }
+            }
+
+            True(cone != null, label + " 拉索主体为圆锥");
+            EngineeringPoint normal = band.Direction;
+            double normalLength = Math.Sqrt(
+                normal.X * normal.X + normal.Y * normal.Y + normal.Z * normal.Z);
+            True(normalLength > 1e-9, label + " 环带拉伸方向非零");
+            Equal(normalLength, ChimneyCableCatalog.ThimbleWidthMm, 1e-6, label + " 环带拉伸长度 = 带宽 17");
+
+            double cx = 0.0, cy = 0.0, cz = 0.0;
+            foreach (EngineeringPoint point in band.Points)
+            {
+                cx += point.X;
+                cy += point.Y;
+                cz += point.Z;
+            }
+
+            int bandPointCount = band.Points.Length;
+            cx /= bandPointCount;
+            cy /= bandPointCount;
+            cz /= bandPointCount;
+
+            // 轮廓画在 −B/2，加上半个带宽才是环带的中心平面。
+            double midX = cx + normal.X * 0.5;
+            double midY = cy + normal.Y * 0.5;
+            double midZ = cz + normal.Z * 0.5;
+
+            double axisX = cone.End.X - cone.Start.X;
+            double axisY = cone.End.Y - cone.Start.Y;
+            double axisZ = cone.End.Z - cone.Start.Z;
+            double axisLength = Math.Sqrt(axisX * axisX + axisY * axisY + axisZ * axisZ);
+            double along = ((midX - cone.Start.X) * axisX + (midY - cone.Start.Y) * axisY +
+                (midZ - cone.Start.Z) * axisZ) / (axisLength * axisLength);
+            double gapX = midX - (cone.Start.X + axisX * along);
+            double gapY = midY - (cone.Start.Y + axisY * along);
+            double gapZ = midZ - (cone.Start.Z + axisZ * along);
+            double planeOffset = Math.Abs((gapX * normal.X + gapY * normal.Y + gapZ * normal.Z) / normalLength);
+            True(planeOffset < 0.5,
+                label + " 鸡心环与钢索中心对齐（平面偏差 " + planeOffset.ToString("0.000") + " mm）");
         }
 
         /// <summary>
