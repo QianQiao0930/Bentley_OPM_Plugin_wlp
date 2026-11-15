@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Text;
 using Bentley.DgnPlatformNET;
 using Bentley.DgnPlatformNET.Elements;
 using Bentley.GeometryNET;
@@ -449,40 +452,47 @@ namespace SteelSectionProbe
         private static SolidKernelEntity LoftBody(
             EngineeringShape shape, DgnModelRef modelRef, double scale)
         {
+            string reason;
             try
             {
                 SolidKernelEntity body;
-                if (TryLoftBody(shape, modelRef, scale, out body))
+                if (TryLoftBody(shape, modelRef, scale, out body, out reason))
                 {
                     return body;
                 }
             }
-            catch (Exception)
+            catch (Exception error)
             {
-                // 放样不可用时退回扫掠；扫掠自身的错误由 SweepBody 报出。
+                reason = error.GetType().Name + "：" + error.Message;
             }
 
+            // 放样不可用时退回扫掠；写一行日志，便于宿主判断到底走了哪条路线。
+            EngineeringLog.Write("圈体放样未成功，退回逐段扫掠：" + reason);
             return SweepBody(shape, modelRef, scale);
         }
 
         private static bool TryLoftBody(
-            EngineeringShape shape, DgnModelRef modelRef, double scale, out SolidKernelEntity body)
+            EngineeringShape shape, DgnModelRef modelRef, double scale,
+            out SolidKernelEntity body, out string reason)
         {
             body = null;
             if (shape.Points == null || shape.Points.Length < 2)
             {
+                reason = "路径点不足";
                 return false;
             }
 
             double radius = shape.RadiusStart * scale;
             if (!(radius > 0) || !Finite(radius))
             {
+                reason = "截面半径无效";
                 return false;
             }
 
             var plane = new DVector3d(shape.AxisX.X, shape.AxisX.Y, shape.AxisX.Z);
             if (plane.Magnitude < 1e-9)
             {
+                reason = "截面基准方向无效";
                 return false;
             }
 
@@ -519,6 +529,7 @@ namespace SteelSectionProbe
                     CurveVector section = SectionCurve(center, tangent, planeNormal, radius);
                     if (section == null)
                     {
+                        reason = "第 " + sections.Count + " 个截面构造失败";
                         return false;
                     }
 
@@ -532,6 +543,7 @@ namespace SteelSectionProbe
             CurveVector tailSection = SectionCurve(tail, tailTangent, planeNormal, radius);
             if (tailSection == null)
             {
+                reason = "末截面构造失败";
                 return false;
             }
 
@@ -539,7 +551,14 @@ namespace SteelSectionProbe
 
             var status = Create.BodyFromLoft(out body, sections.ToArray(), sections.Count,
                 new CurveVector[0], 0, modelRef, false, false);
-            return status == BentleyStatus.Success && body != null;
+            if (status != BentleyStatus.Success || body == null)
+            {
+                reason = "放样返回 " + status + "（共 " + sections.Count + " 个截面）";
+                return false;
+            }
+
+            reason = null;
+            return true;
         }
 
         /// <summary>
@@ -1039,6 +1058,46 @@ namespace SteelSectionProbe
             }
 
             return reversed;
+        }
+    }
+
+    /// <summary>
+    /// 工程三维构造的诊断日志：固定写到
+    /// <c>%LOCALAPPDATA%\SteelSectionProbe\logs\Engineering\latest.log</c>，每次进程启动覆盖，
+    /// 超过 256 KB 自动截断。任何写入异常都被吞掉，绝不影响建模。
+    /// </summary>
+    internal static class EngineeringLog
+    {
+        private static readonly object Gate = new object();
+        private static bool started;
+
+        internal static void Write(string message)
+        {
+            try
+            {
+                lock (Gate)
+                {
+                    string directory = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                        "SteelSectionProbe", "logs", "Engineering");
+                    Directory.CreateDirectory(directory);
+                    string file = Path.Combine(directory, "latest.log");
+                    var info = new FileInfo(file);
+                    if (!started || (info.Exists && info.Length > 256 * 1024))
+                    {
+                        started = true;
+                        File.WriteAllText(file, "", new UTF8Encoding(false));
+                    }
+
+                    File.AppendAllText(file,
+                        DateTime.Now.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture) + "  " + message +
+                        Environment.NewLine, new UTF8Encoding(false));
+                }
+            }
+            catch (Exception)
+            {
+                // 日志失败不影响建模。
+            }
         }
     }
 }
