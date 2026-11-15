@@ -101,7 +101,9 @@ namespace SteelSectionProbe
         /// <summary>拉索根数：3 根，或需要中间层时 6 根。</summary>
         internal int CableCount;
 
-        /// <summary>地面锚墩个数：三个方位角各一个（同方位上下两层共用地面端）。</summary>
+        /// <summary>
+        /// 地面锚墩个数：每个固定点一个。单层时三向各一个（3），两层时上下层各一个（6）。
+        /// </summary>
         internal int AnchorCount;
     }
 }

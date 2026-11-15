@@ -196,8 +196,9 @@ namespace SteelSectionProbe
             }
 
             Equal(loftCount, 6, "默认拉索 3 根 × 两端绳眼 = 6 个绳圈放样");
-            Equal(plan.PartCount, 53, "默认实体数 = 49 + 上端环板 1 + 吊筋 3");
+            Equal(plan.PartCount, 56, "默认实体数 = 49 + 上端环板 1 + 上端吊筋 3 + 地面 U 形钢筋 3");
             CheckCollar(plan, spec, "拉索默认");
+            CheckGroundFixing(plan, spec, "拉索默认", 3);
 
             Bounds bounds = Bounds.Of(plan);
             Equal(bounds.MaxZ, 30000.0, 1.0, "筒身顶高");
@@ -213,8 +214,12 @@ namespace SteelSectionProbe
             EngineeringPlan extraPlan = ChimneyCableCalculator.Calculate(extra);
             CheckShapes(extraPlan, "拉索中间层");
             Equal(CountBodies(extraPlan, "环板"), 2, "中间层 2 圈连接环板");
-            Equal(CountBodies(extraPlan, "吊筋"), 6, "中间层 6 根吊筋");
-            Equal(extraPlan.PartCount, 102, "中间层实体数 = 94 + 环板 2 + 吊筋 6");
+            Equal(CountUpperRebars(extraPlan), 6, "中间层 6 根上端吊筋");
+            Equal(CountBodies(extraPlan, "下端吊筋"), 6, "中间层 6 根地面 U 形钢筋");
+            Equal(CountBodies(extraPlan, "地面锚墩"), 6, "中间层 6 个锚墩（上下层各一）");
+            Equal(extraPlan.PartCount, 111,
+                "中间层实体数 = 94 + 环板 2 + 上端吊筋 6 + 地面钢筋 6 + 锚墩加 3");
+            CheckGroundFixing(extraPlan, extraSpec, "拉索中间层", 6);
 
             string error;
             False(ChimneyCableCatalog.Validate(
@@ -284,12 +289,12 @@ namespace SteelSectionProbe
                 True(hole.Start.Z < bottom && hole.End.Z > top, label + " 孔为通孔");
             }
 
-            Equal(CountBodies(plan, "吊筋"), 3, label + " 3 根上端吊筋");
+            Equal(CountBodies(plan, "上端吊筋"), 3, label + " 3 根上端吊筋");
             double lowestBend = double.MaxValue;
             EngineeringPoint bendPoint = default(EngineeringPoint);
             foreach (EngineeringBody body in plan.Bodies)
             {
-                if (body.Name.IndexOf("吊筋", StringComparison.Ordinal) < 0)
+                if (body.Name.IndexOf("上端吊筋", StringComparison.Ordinal) < 0)
                 {
                     continue;
                 }
@@ -391,6 +396,182 @@ namespace SteelSectionProbe
         private static string Format(double value)
         {
             return value.ToString("0.###", CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>
+        /// 地面端固定：∩ 形 U 钢筋埋入锚墩，弯拱顶点作吊点，绳眼挂在其上；
+        /// 两层吊索时上层固定点比下层外扩 150（两个 U 形钢筋间隔 150）。
+        /// </summary>
+        private static void CheckGroundFixing(
+            EngineeringPlan plan, ChimneyCableSpec spec, string label, int expectedRebars)
+        {
+            Equal(CountBodies(plan, "下端吊筋"), expectedRebars, label + " 地面 U 形钢筋数量");
+            Equal(CountBodies(plan, "地面锚墩"), expectedRebars, label + " 锚墩数量与钢筋一致");
+            True(ChimneyCableCatalog.GroundRebarLegSpacingMm / 2.0 < ChimneyCableCatalog.AnchorRadiusMm,
+                label + " 两腿落在锚墩以内（埋入而非悬空）");
+            True(ChimneyCableCatalog.GroundRebarLegSpacingMm / 2.0 -
+                 ChimneyCableCatalog.RebarDiameterMm / 2.0 > ChimneyCableCatalog.RopeDiameterMm / 2.0,
+                label + " 绳眼能从两腿之间通过");
+
+            foreach (EngineeringBody body in plan.Bodies)
+            {
+                if (body.Name.IndexOf("下端吊筋", StringComparison.Ordinal) < 0)
+                {
+                    continue;
+                }
+
+                EngineeringShape rebar = body.Add[0];
+                True(rebar.Kind == EngineeringShapeKind.Sweep, label + " 地面钢筋为扫掠");
+                Equal(rebar.RadiusStart * 2.0, ChimneyCableCatalog.RebarDiameterMm, 1e-9,
+                    label + " 地面钢筋 φ20");
+                Equal(LowestLegZ(rebar), ChimneyCableCatalog.GroundRebarLegBottomMm, 1e-6,
+                    label + " 两腿埋到锚墩底面");
+                Equal(PointDistance(rebar.Points[0], rebar.Points[3]),
+                    ChimneyCableCatalog.GroundRebarLegSpacingMm, 1e-6, label + " 两腿中心距 50");
+                Equal(CrownZ(rebar), ChimneyCableCatalog.GroundRebarCrownMm, 1e-6,
+                    label + " 弯拱顶点在地面以上 40");
+            }
+
+            // 逐个方位核对“绳眼挂在弯拱顶点上”和“绳眼高于锚墩顶面”
+            double padTop = ChimneyCableCatalog.AnchorHeightMm - ChimneyCableCatalog.AnchorBuriedDepthMm;
+            double upperRadius = 0.0;
+            double lowerRadius = 0.0;
+            for (int index = 1; index <= ChimneyCableCatalog.CableAzimuthDegrees.Length; index++)
+            {
+                foreach (string layer in new[] { "（上层）", "（中间层）" })
+                {
+                    EngineeringBody rope = FindBody(plan, "拉索 " + index + layer);
+                    if (rope == null)
+                    {
+                        continue;
+                    }
+
+                    EngineeringBody rebar = FindBody(plan, "拉索 " + index + " 下端吊筋" +
+                        (expectedRebars > 3 ? layer : ""));
+                    True(rebar != null, label + " 拉索 " + index + layer + " 有地面 U 形钢筋");
+
+                    EngineeringShape loft = null;
+                    double loftLowest = double.MaxValue;
+                    foreach (EngineeringShape shape in rope.Add)
+                    {
+                        if (shape.Kind != EngineeringShapeKind.Loft)
+                        {
+                            continue;
+                        }
+
+                        // 一根拉索两端各一个绳眼，取靠近地面的那个。
+                        double lowestPoint = double.MaxValue;
+                        foreach (EngineeringPoint point in shape.Points)
+                        {
+                            lowestPoint = Math.Min(lowestPoint, point.Z);
+                        }
+
+                        if (lowestPoint < loftLowest)
+                        {
+                            loftLowest = lowestPoint;
+                            loft = shape;
+                        }
+                    }
+
+                    True(loft != null, label + " 拉索 " + index + layer + " 有绳眼");
+                    EngineeringShape ground = rebar.Add[0];
+                    EngineeringPoint crownPoint = CrownPoint(ground);
+                    double nearest = double.MaxValue;
+                    double lowest = double.MaxValue;
+                    foreach (EngineeringPoint point in loft.Points)
+                    {
+                        nearest = Math.Min(nearest, PointDistance(point, crownPoint));
+                        lowest = Math.Min(lowest, point.Z);
+                    }
+
+                    True(nearest > 19.0 && nearest < 20.2,
+                        label + " 拉索 " + index + layer + " 绳眼挂在弯拱顶点（轴距 " + Format(nearest) + "）");
+                    True(lowest - ChimneyCableCatalog.RopeRadiusMm > padTop + 3.0,
+                        label + " 拉索 " + index + layer + " 绳眼高于锚墩顶面");
+
+                    double radius = Math.Sqrt(
+                        crownPoint.X * crownPoint.X + crownPoint.Y * crownPoint.Y);
+                    if (layer == "（上层）")
+                    {
+                        upperRadius = radius;
+                    }
+                    else
+                    {
+                        lowerRadius = radius;
+                    }
+
+                    double expected = layer == "（上层）" && expectedRebars > 3
+                        ? spec.OuterRadiusMm + ChimneyCableCatalog.GroundLayerOffsetMm
+                        : spec.OuterRadiusMm;
+                    Equal(radius, expected, 1e-6, label + " 固定点半径");
+                }
+            }
+
+            if (expectedRebars > 3)
+            {
+                Equal(upperRadius - lowerRadius, ChimneyCableCatalog.GroundLayerOffsetMm, 1e-6,
+                    label + " 上层固定点比下层外扩 150（两个 U 形钢筋间隔 150）");
+            }
+        }
+
+        private static int CountUpperRebars(EngineeringPlan plan)
+        {
+            int count = 0;
+            foreach (EngineeringBody body in plan.Bodies)
+            {
+                if (body.Name.IndexOf("吊筋", StringComparison.Ordinal) >= 0 &&
+                    body.Name.IndexOf("下端吊筋", StringComparison.Ordinal) < 0)
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+        private static EngineeringBody FindBody(EngineeringPlan plan, string name)
+        {
+            foreach (EngineeringBody body in plan.Bodies)
+            {
+                if (body.Name == name)
+                {
+                    return body;
+                }
+            }
+
+            return null;
+        }
+
+        private static EngineeringPoint CrownPoint(EngineeringShape rebar)
+        {
+            EngineeringPoint best = default(EngineeringPoint);
+            double bestZ = double.MinValue;
+            foreach (EngineeringPoint? middle in rebar.ArcMiddles)
+            {
+                if (middle.HasValue && middle.Value.Z > bestZ)
+                {
+                    bestZ = middle.Value.Z;
+                    best = middle.Value;
+                }
+            }
+
+            return best;
+        }
+
+        private static double CrownZ(EngineeringShape rebar)
+        {
+            return CrownPoint(rebar).Z;
+        }
+
+        private static double LowestLegZ(EngineeringShape rebar)
+        {
+            double lowest = double.MaxValue;
+            foreach (EngineeringPoint point in rebar.Points)
+            {
+                lowest = Math.Min(lowest, point.Z);
+            }
+
+            return lowest;
         }
 
         private static void CheckShapes(EngineeringPlan plan, string label)        {

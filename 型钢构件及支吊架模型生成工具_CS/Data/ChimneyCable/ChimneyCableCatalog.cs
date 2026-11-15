@@ -240,6 +240,51 @@ namespace SteelSectionProbe
         }
 
         // ---------------------------------------------------------------
+        // 地面端 U 形钢筋（2026-11-15 用户要求新增）
+        // 锚墩上埋一根 ∩ 形 φ20 钢筋，弯拱顶点即吊点，绳眼挂在上面；
+        // 两根吊索时上层固定点比下层外扩 150（两个 U 形钢筋间隔 150）。
+        // ---------------------------------------------------------------
+
+        /// <summary>两层吊索时上层地面固定点相对下层的外扩量（mm）：两个 U 形钢筋间隔 150。</summary>
+        internal const double GroundLayerOffsetMm = 150.0;
+
+        /// <summary>
+        /// 地面 U 形钢筋两腿中心距（mm）：即弯拱直径，弯曲半径 20。
+        /// 取 40 是为了让两腿都埋在 φ48 锚墩以内（单边 4 mm 保护层），不再沿用上端 100 的孔距。
+        /// </summary>
+        internal const double GroundRebarLegSpacingMm = 40.0;
+
+        /// <summary>
+        /// 地面 U 形钢筋弯拱顶点（= 绳眼吊点中心）高出地面的高度（mm）。
+        /// 绳眼挂在顶点下方约 13，绳表面再低 8，取 48 时绳眼最低点仍比锚墩顶面高约 7。
+        /// </summary>
+        internal const double GroundRebarCrownMm = 48.0;
+
+        /// <summary>地面 U 形钢筋两腿下端标高（mm）：埋到锚墩底面，与 AnchorBuriedDepth 一致。</summary>
+        internal const double GroundRebarLegBottomMm = -AnchorBuriedDepthMm;
+
+        /// <summary>地面 U 形钢筋两腿相对拉索竖直面的角偏移（rad）：由腿距反解，保证腿距 50。</summary>
+        internal static double GroundRebarAngleOffset(double groundRadiusMm)
+        {
+            double ratio = GroundRebarLegSpacingMm / 2.0 / groundRadiusMm;
+            if (ratio >= 1.0)
+            {
+                throw new InvalidOperationException("地面固定点半径过小，U 形钢筋两腿无法布置。");
+            }
+
+            return Math.Asin(ratio);
+        }
+
+        /// <summary>
+        /// 地面绳眼吊点：绳眼局部原点在 U 形钢筋弯拱顶点下方，沿拉索向上游 19.516、
+        /// 沿绳眼平面内法向偏出 8（与上端同一个推导，只是下端绳眼朝上）。
+        /// </summary>
+        internal static double GroundEyeOffsetMm
+        {
+            get { return RebarToEyeOffsetMm; }
+        }
+
+        // ---------------------------------------------------------------
         // 地面锚墩与颜色无关的固定尺寸
         // ---------------------------------------------------------------
 
@@ -305,7 +350,7 @@ namespace SteelSectionProbe
                 OuterRadiusMm = OuterRadius(height, radius, parameters.CableAngleDegrees),
                 WallThicknessMm = WallThickness(radius),
                 NeedsExtraCable = NeedsExtraCable(height, radius),
-                AnchorCount = CableAzimuthDegrees.Length
+                AnchorCount = CableAzimuthDegrees.Length * (NeedsExtraCable(height, radius) ? 2 : 1)
             };
 
             spec.ExtraCableRatio = radius > 0.0 ? height / (2.0 * radius) : 0.0;
