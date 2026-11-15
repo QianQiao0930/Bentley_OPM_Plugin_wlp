@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 
 namespace SteelSectionProbe
 {
@@ -195,6 +196,8 @@ namespace SteelSectionProbe
             }
 
             Equal(loftCount, 6, "默认拉索 3 根 × 两端绳眼 = 6 个绳圈放样");
+            Equal(plan.PartCount, 53, "默认实体数 = 49 + 上端环板 1 + 吊筋 3");
+            CheckCollar(plan, spec, "拉索默认");
 
             Bounds bounds = Bounds.Of(plan);
             Equal(bounds.MaxZ, 30000.0, 1.0, "筒身顶高");
@@ -209,6 +212,9 @@ namespace SteelSectionProbe
             Equal(extraSpec.CableCount, 6, "中间层拉索 6 根");
             EngineeringPlan extraPlan = ChimneyCableCalculator.Calculate(extra);
             CheckShapes(extraPlan, "拉索中间层");
+            Equal(CountBodies(extraPlan, "环板"), 2, "中间层 2 圈连接环板");
+            Equal(CountBodies(extraPlan, "吊筋"), 6, "中间层 6 根吊筋");
+            Equal(extraPlan.PartCount, 102, "中间层实体数 = 94 + 环板 2 + 吊筋 6");
 
             string error;
             False(ChimneyCableCatalog.Validate(
@@ -219,8 +225,151 @@ namespace SteelSectionProbe
                 new ChimneyCableParameters { CableAngleDegrees = 90.0 }, out error), "拒绝拉索角度 90°");
         }
 
-        private static void CheckShapes(EngineeringPlan plan, string label)
+        private static int CountBodies(EngineeringPlan plan, string fragment)
         {
+            int count = 0;
+            foreach (EngineeringBody body in plan.Bodies)
+            {
+                if (body.Name.IndexOf(fragment, StringComparison.Ordinal) >= 0)
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+        /// <summary>
+        /// 上端连接环板 + U 形吊筋：尺寸与“不得有明显干涉”的离线校核。
+        /// 绳眼整体挂在环板下方，绳表面距板底 &gt; 6 mm；拉索本体距环板 &gt; 6 mm。
+        /// </summary>
+        private static void CheckCollar(EngineeringPlan plan, ChimneyCableSpec spec, string label)
+        {
+            double radius = spec.RadiusMm;
+            double top = 2.0 * spec.HeightMm / 3.0;
+            double bottom = top - ChimneyCableCatalog.CollarThicknessMm;
+            double inner = radius - ChimneyCableCatalog.CollarEmbedMm;
+            double outer = radius + ChimneyCableCatalog.CollarWidthMm;
+            double holeRadius = ChimneyCableCatalog.CollarHoleRadiusMm(radius);
+
+            Equal(outer - holeRadius, ChimneyCableCatalog.CollarHoleEdgeOffsetMm, 1e-9,
+                label + " 孔心距环板外缘 50");
+
+            EngineeringBody collar = null;
+            EngineeringBody rope = null;
+            foreach (EngineeringBody body in plan.Bodies)
+            {
+                if (body.Name == "上端连接环板")
+                {
+                    collar = body;
+                }
+                else if (body.Name == "拉索 1（上层）")
+                {
+                    rope = body;
+                }
+            }
+
+            True(collar != null, label + " 有上端连接环板");
+            Equal(collar.Add.Count, 1, label + " 环板为单个回转体");
+            True(collar.Add[0].Kind == EngineeringShapeKind.Revolve, label + " 环板为回转环形板");
+            Equal(collar.Cut.Count, 6, label + " 环板 6 个孔（3 个方向 × 2）");
+            foreach (EngineeringShape hole in collar.Cut)
+            {
+                double r = Math.Sqrt(hole.Start.X * hole.Start.X + hole.Start.Y * hole.Start.Y);
+                Equal(r, holeRadius, 1e-6, label + " 孔心半径 = R+100");
+                Equal(hole.RadiusStart * 2.0, ChimneyCableCatalog.CollarHoleDiameterMm, 1e-9,
+                    label + " 孔径 φ40");
+                True(hole.Start.Z < bottom && hole.End.Z > top, label + " 孔为通孔");
+            }
+
+            Equal(CountBodies(plan, "吊筋"), 3, label + " 3 根上端吊筋");
+            double lowestBend = double.MaxValue;
+            EngineeringPoint bendPoint = default(EngineeringPoint);
+            foreach (EngineeringBody body in plan.Bodies)
+            {
+                if (body.Name.IndexOf("吊筋", StringComparison.Ordinal) < 0)
+                {
+                    continue;
+                }
+
+                EngineeringShape rebar = body.Add[0];
+                True(rebar.Kind == EngineeringShapeKind.Sweep, label + " 吊筋为扫掠");
+                Equal(rebar.RadiusStart * 2.0, ChimneyCableCatalog.RebarDiameterMm, 1e-9,
+                    label + " 吊筋 φ20");
+                Equal(rebar.Points[0].Z, top + ChimneyCableCatalog.RebarAboveCollarMm, 1e-6,
+                    label + " 吊筋高出板面 30");
+                foreach (EngineeringPoint? middle in rebar.ArcMiddles)
+                {
+                    if (middle.HasValue && middle.Value.Z < lowestBend)
+                    {
+                        lowestBend = middle.Value.Z;
+                        bendPoint = middle.Value;
+                    }
+                }
+            }
+
+            Equal(lowestBend, top - ChimneyCableCatalog.RebarBendDepthMm, 1e-6,
+                label + " 吊筋弯钩最低点 = 板面下 60");
+
+            True(rope != null, label + " 有上层拉索");
+            double eyeClear = double.MaxValue;
+            double strandClear = double.MaxValue;
+            double nearest = double.MaxValue;
+            foreach (EngineeringShape shape in rope.Add)
+            {
+                if (shape.Kind == EngineeringShapeKind.Loft)
+                {
+                    foreach (EngineeringPoint point in shape.Points)
+                    {
+                        double r = Math.Sqrt(point.X * point.X + point.Y * point.Y);
+                        double clearance = SlabClearance(r, point.Z, 8.0, inner, outer, bottom, top);
+                        eyeClear = Math.Min(eyeClear, clearance);
+                        nearest = Math.Min(nearest, PointDistance(point, bendPoint));
+                    }
+                }
+                else if (shape.Kind == EngineeringShapeKind.Cone)
+                {
+                    for (int index = 0; index <= 40; index++)
+                    {
+                        double t = index / 40.0;
+                        double x = shape.Start.X + (shape.End.X - shape.Start.X) * t;
+                        double y = shape.Start.Y + (shape.End.Y - shape.Start.Y) * t;
+                        double z = shape.Start.Z + (shape.End.Z - shape.Start.Z) * t;
+                        strandClear = Math.Min(strandClear,
+                            SlabClearance(Math.Sqrt(x * x + y * y), z, 8.0, inner, outer, bottom, top));
+                    }
+                }
+            }
+
+            True(eyeClear > 6.0, label + " 绳眼与环板净距 > 6 mm（实测 " + Format(eyeClear) + "）");
+            True(strandClear > 6.0, label + " 拉索本体与环板净距 > 6 mm（实测 " + Format(strandClear) + "）");
+            True(nearest > 19.0 && nearest < 20.2,
+                label + " 绳眼挂在吊筋上且不穿绳（轴距 " + Format(nearest) + "）");
+        }
+
+        /// <summary>点到轴对环形板实料的最短距离，已按绳半径扣除。</summary>
+        private static double SlabClearance(
+            double r, double z, double tubeRadius, double inner, double outer, double bottom, double top)
+        {
+            double dr = Math.Max(Math.Max(inner - r, 0.0), r - outer);
+            double dz = Math.Max(Math.Max(bottom - z, 0.0), z - top);
+            return Math.Sqrt(dr * dr + dz * dz) - tubeRadius;
+        }
+
+        private static double PointDistance(EngineeringPoint a, EngineeringPoint b)
+        {
+            double dx = a.X - b.X;
+            double dy = a.Y - b.Y;
+            double dz = a.Z - b.Z;
+            return Math.Sqrt(dx * dx + dy * dy + dz * dz);
+        }
+
+        private static string Format(double value)
+        {
+            return value.ToString("0.###", CultureInfo.InvariantCulture);
+        }
+
+        private static void CheckShapes(EngineeringPlan plan, string label)        {
             foreach (EngineeringBody body in plan.Bodies)
             {
                 True(body.Add.Count > 0, label + " " + body.Name + " 有基体");

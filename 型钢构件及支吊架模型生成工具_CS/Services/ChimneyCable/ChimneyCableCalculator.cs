@@ -89,6 +89,13 @@ namespace SteelSectionProbe
             AddShell(plan, spec);
 
             double[] azimuths = ChimneyCableCatalog.CableAzimuthDegrees;
+            double upperHeight = 2.0 * spec.HeightMm / 3.0;
+            AddCollar(plan, spec, azimuths, upperHeight, "上端连接环板");
+            if (spec.NeedsExtraCable)
+            {
+                AddCollar(plan, spec, azimuths, spec.HeightMm / 3.0, "中间层连接环板");
+            }
+
             for (int index = 0; index < azimuths.Length; index++)
             {
                 double angle = Radians(azimuths[index]);
@@ -96,17 +103,17 @@ namespace SteelSectionProbe
                 double sine = Math.Sin(angle);
                 string label = "拉索 " + (index + 1).ToString(CultureInfo.InvariantCulture);
 
-                var top = new EngineeringPoint(
-                    spec.RadiusMm * cosine, spec.RadiusMm * sine, 2.0 * spec.HeightMm / 3.0);
                 var ground = new EngineeringPoint(
                     spec.OuterRadiusMm * cosine, spec.OuterRadiusMm * sine, 0.0);
 
-                AddStrand(plan, top, ground, label + "（上层）");
+                AddRebar(plan, spec, angle, upperHeight, label + " 上端吊筋");
+                AddStrand(plan, EyeHardPoint(spec, angle, upperHeight, ground), ground, label + "（上层）");
                 if (spec.NeedsExtraCable)
                 {
-                    var middleTop = new EngineeringPoint(
-                        spec.RadiusMm * cosine, spec.RadiusMm * sine, spec.HeightMm / 3.0);
-                    AddStrand(plan, middleTop, ground, label + "（中间层）");
+                    double middleHeight = spec.HeightMm / 3.0;
+                    AddRebar(plan, spec, angle, middleHeight, label + " 中间层吊筋");
+                    AddStrand(plan, EyeHardPoint(spec, angle, middleHeight, ground), ground,
+                        label + "（中间层）");
                 }
 
                 AddAnchor(plan, ground, "地面锚墩 " + (index + 1).ToString(CultureInfo.InvariantCulture));
@@ -134,7 +141,7 @@ namespace SteelSectionProbe
             ChimneyCableSpec spec = ChimneyCableCatalog.Resolve(parameters);
             return string.Format(CultureInfo.CurrentCulture,
                 "H {0:0.###} m、D {1:0.###} mm（R {2:0.###}、壁厚 {3:0.###}）；拉索外圆半径 {4:0.###} mm；" +
-                "拉索 {5} 根（{6}）、地面锚墩 {7} 个；共 {8} 个实体；绳眼为真圆弧链放样示意、绳夹跨两段绳。",
+                "拉索 {5} 根（{6}）、地面锚墩 {7} 个；共 {8} 个实体；上端经连接环板（比筒身半径宽 150、板上 φ40 孔）与 U 形吊筋挂接，绳眼为真圆弧链放样示意、绳夹跨两段绳。",
                 spec.HeightMm / 1000.0,
                 spec.DiameterMm,
                 spec.RadiusMm,
@@ -172,6 +179,117 @@ namespace SteelSectionProbe
             var body = plan.Add("筒身");
             body.Color(ShellRed, ShellGreen, ShellBlue);
             body.Add.Add(EngineeringShape.Revolve(profile));
+        }
+
+        /// <summary>
+        /// 拉索与筒身的连接环板：内缘嵌入筒壁 3 mm、外缘比筒身半径宽 150 的环形板（厚 20），
+        /// 上表面与拉索原始切点同高；每个拉索方向开两个 φ40 竖直孔，
+        /// 孔心半径 = R + 100（距外缘 50），两孔对称于拉索竖直面、中心距 100，用来穿 U 形吊筋。
+        /// </summary>
+        private static void AddCollar(
+            EngineeringPlan plan, ChimneyCableSpec spec, double[] azimuths,
+            double heightMm, string name)
+        {
+            double inner = spec.RadiusMm - ChimneyCableCatalog.CollarEmbedMm;
+            double outer = spec.RadiusMm + ChimneyCableCatalog.CollarWidthMm;
+            double bottom = heightMm - ChimneyCableCatalog.CollarThicknessMm;
+            if (inner <= 0.0 || outer <= inner)
+            {
+                throw new InvalidOperationException(name + "尺寸无效，请检查筒身直径。");
+            }
+
+            var body = plan.Add(name);
+            body.Color(FittingRed, FittingGreen, FittingBlue);
+
+            // 径向矩形绕 Z 轴回转 360°，得到上下端面都保留的环形板。
+            body.Add.Add(EngineeringShape.Revolve(new[]
+            {
+                new EngineeringPoint(inner, 0.0, bottom),
+                new EngineeringPoint(outer, 0.0, bottom),
+                new EngineeringPoint(outer, 0.0, heightMm),
+                new EngineeringPoint(inner, 0.0, heightMm)
+            }));
+
+            double holeRadius = ChimneyCableCatalog.CollarHoleRadiusMm(spec.RadiusMm);
+            double hole = ChimneyCableCatalog.CollarHoleDiameterMm / 2.0;
+            double step = ChimneyCableCatalog.CollarHoleAngleOffset(spec.RadiusMm);
+            foreach (double azimuth in azimuths)
+            {
+                double angle = Radians(azimuth);
+                foreach (double side in new[] { -1.0, 1.0 })
+                {
+                    body.Cut.Add(EngineeringShape.Cylinder(
+                        CollarPoint(angle + side * step, holeRadius, bottom - 1.0),
+                        CollarPoint(angle + side * step, holeRadius, heightMm + 1.0),
+                        hole));
+                }
+            }
+        }
+
+        /// <summary>
+        /// U 形吊筋：两腿垂直穿过环板的两个 φ40 孔并高出板面 30 与板焊接，
+        /// 板下用半径 = 孔距/2 的半圆弯钩相连（肩部仍在孔内），弯钩最低点吊住鸡心环。
+        /// 绳眼整体位于环板下方，与板底留有约 11 mm 净距，不会与板相交。
+        /// </summary>
+        private static void AddRebar(
+            EngineeringPlan plan, ChimneyCableSpec spec, double radians, double heightMm, string name)
+        {
+            double holeRadius = ChimneyCableCatalog.CollarHoleRadiusMm(spec.RadiusMm);
+            double step = ChimneyCableCatalog.CollarHoleAngleOffset(spec.RadiusMm);
+            double top = heightMm + ChimneyCableCatalog.RebarAboveCollarMm;
+            double shoulder = heightMm - ChimneyCableCatalog.RebarShoulderBelowTopMm;
+            double bend = heightMm - ChimneyCableCatalog.RebarBendDepthMm;
+
+            var path = new[]
+            {
+                CollarPoint(radians + step, holeRadius, top),
+                CollarPoint(radians + step, holeRadius, shoulder),
+                CollarPoint(radians - step, holeRadius, shoulder),
+                CollarPoint(radians - step, holeRadius, top)
+            };
+            var middles = new EngineeringPoint?[4];
+            middles[1] = CollarPoint(radians, holeRadius * Math.Cos(step), bend);
+
+            var body = plan.Add(name);
+            body.Color(BoltRed, BoltGreen, BoltBlue);
+            body.Add.Add(EngineeringShape.Sweep(
+                path, ChimneyCableCatalog.RebarDiameterMm / 2.0, middles));
+        }
+
+        /// <summary>
+        /// 绳眼挂点：鸡心环挂在吊筋弯钩最低点上，绳眼局部原点（绳眼顶）在弯钩中心
+        /// 沿拉索向上游 19.516 mm、并沿绳眼平面内法向偏出 8 mm——因为绳眼坐标架把
+        /// 工作段绳放在局部 z = −R 上（即拉索轴线本身），绳眼开孔中心在局部 z = 0。
+        /// 挂点与拉索方向互相依赖，迭代 4 次即可收敛（角度变化 &lt; 0.3°）。
+        /// </summary>
+        private static EngineeringPoint EyeHardPoint(
+            ChimneyCableSpec spec, double radians, double heightMm, EngineeringPoint ground)
+        {
+            double holeRadius = ChimneyCableCatalog.CollarHoleRadiusMm(spec.RadiusMm);
+            double step = ChimneyCableCatalog.CollarHoleAngleOffset(spec.RadiusMm);
+            EngineeringPoint bend = CollarPoint(
+                radians, holeRadius * Math.Cos(step),
+                heightMm - ChimneyCableCatalog.RebarBendDepthMm);
+            double along = ChimneyCableCatalog.RebarToEyeOffsetMm;
+            var top = new EngineeringPoint(
+                spec.RadiusMm * Math.Cos(radians), spec.RadiusMm * Math.Sin(radians), heightMm);
+            for (int iteration = 0; iteration < 4; iteration++)
+            {
+                EngineeringPoint unit = Normalize(Subtract(ground, top));
+                EngineeringPoint side = Normalize(Cross(new EngineeringPoint(0.0, 0.0, 1.0), unit));
+                EngineeringPoint inPlane = Normalize(Cross(unit, side));
+                top = Subtract(bend, Sum(
+                    Scale(unit, along),
+                    Scale(inPlane, ChimneyCableCatalog.RopeRadiusMm)));
+            }
+
+            return top;
+        }
+
+        /// <summary>环板/吊筋上的一点（世界坐标）：方位角 <paramref name="radians"/>、半径、高度。</summary>
+        private static EngineeringPoint CollarPoint(double radians, double radius, double z)
+        {
+            return new EngineeringPoint(radius * Math.Cos(radians), radius * Math.Sin(radians), z);
         }
 
         /// <summary>
