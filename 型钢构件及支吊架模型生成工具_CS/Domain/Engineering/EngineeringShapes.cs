@@ -108,6 +108,11 @@ namespace SteelSectionProbe
         /// <summary>圆环平面基向量（TorusArc 使用；扫掠朝 AxisY 方向）。</summary>
         internal EngineeringPoint AxisY;
 
+        /// <summary>
+        /// 备用几何：主几何被内核拒绝时改用它（目前只用于鸡心环槽形截面 → 环带拉伸）。
+        /// </summary>
+        internal EngineeringShape Fallback;
+
         /// <summary>回转/拉伸/扫掠轮廓，或扫掠路径点。</summary>
         internal EngineeringPoint[] Points = new EngineeringPoint[0];
 

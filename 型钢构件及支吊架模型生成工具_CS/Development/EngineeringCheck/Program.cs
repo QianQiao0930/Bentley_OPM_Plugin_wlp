@@ -447,6 +447,11 @@ namespace SteelSectionProbe
             True(ChimneyCableCatalog.RopeEyeOffsetMm - ChimneyCableCatalog.RopeRadiusMm >
                 0.1 + ChimneyCableCatalog.ThimbleWallMm,
                 label + " 槽底与绳内缘留间隙");
+
+            // 绳眼工作段与主体圆柱的搭接必须够长：改成短搭接时放样截面间距只有 0.8，
+            // 放样体退化，宿主报“相并失败”。
+            True(ChimneyCableCatalog.RopeEyeStubMm - ChimneyCableCatalog.RopeEyeJointMm >= 100.0,
+                label + " 绳眼与主体搭接长度足够");
         }
 
         /// <summary>

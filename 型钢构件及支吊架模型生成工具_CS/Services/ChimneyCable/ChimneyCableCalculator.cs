@@ -354,7 +354,7 @@ namespace SteelSectionProbe
                 return;
             }
 
-            double span = ChimneyCableCatalog.RopeEyeJointMm;
+            double span = ChimneyCableCatalog.TerminalSpanMm;
             body.Add.Add(EngineeringShape.Cylinder(
                 Offset(top, unit, span),
                 Offset(bottom, unit, -span),
@@ -378,6 +378,50 @@ namespace SteelSectionProbe
             return Sum(crown, Sum(
                 Scale(unit, ChimneyCableCatalog.GroundEyeOffsetMm),
                 Scale(inPlane, ChimneyCableCatalog.RopeRadiusMm)));
+        }
+
+        /// <summary>
+        /// 鸡心环的备用几何：旧做法——内外边界都是真圆弧链的环带拉伸（1.316×17 平板）。
+        /// 平板在绳圈里会挡住绳子（用户误认为断绳），只在槽形截面扫掠被内核拒绝时使用。
+        /// </summary>
+        private static EngineeringShape ThimbleBandFallback(
+            EyeFrame frame, List<EngineeringPoint> path, List<EngineeringPoint> normals,
+            List<int> knots, List<int> mids)
+        {
+            int count = knots.Count;
+            int segments = count - 1;
+            var points = new EngineeringPoint[2 * count];
+            var arcMids = new EngineeringPoint?[points.Length];
+            for (int index = 0; index < count; index++)
+            {
+                int knot = knots[index];
+                points[index] = frame.Map(
+                    path[knot].X + normals[knot].X * ChimneyCableCatalog.ThimbleWallMm,
+                    0.0,
+                    path[knot].Z + normals[knot].Z * ChimneyCableCatalog.ThimbleWallMm);
+            }
+
+            for (int index = 0; index < count; index++)
+            {
+                int knot = knots[count - 1 - index];
+                points[count + index] = frame.Map(path[knot].X, 0.0, path[knot].Z);
+            }
+
+            for (int index = 0; index < segments; index++)
+            {
+                int mid = mids[index];
+                arcMids[index] = frame.Map(
+                    path[mid].X + normals[mid].X * ChimneyCableCatalog.ThimbleWallMm,
+                    0.0,
+                    path[mid].Z + normals[mid].Z * ChimneyCableCatalog.ThimbleWallMm);
+                int reversed = mids[segments - 1 - index];
+                arcMids[count + index] = frame.Map(path[reversed].X, 0.0, path[reversed].Z);
+            }
+
+            return EngineeringShape.Extrude(
+                points,
+                frame.Direction(0.0, ChimneyCableCatalog.ThimbleWidthMm, 0.0),
+                arcMids);
         }
 
         /// <summary>
@@ -597,12 +641,14 @@ namespace SteelSectionProbe
 
             var thimble = plan.Add(name + " 鸡心环");
             thimble.Color(FittingRed, FittingGreen, FittingBlue);
-            thimble.Add.Add(EngineeringShape.ProfileSweep(
+            EngineeringShape thimbleShape = EngineeringShape.ProfileSweep(
                 bandWorld,
                 ThimbleChannelProfile(),
                 bandMids,
                 frame.Direction(0.0, 1.0, 0.0),
-                frame.Direction(bandNormals[innerKnots[0]].X, 0.0, bandNormals[innerKnots[0]].Z)));
+                frame.Direction(bandNormals[innerKnots[0]].X, 0.0, bandNormals[innerKnots[0]].Z));
+            thimbleShape.Fallback = ThimbleBandFallback(frame, bandPath, bandNormals, innerKnots, innerMidIndices);
+            thimble.Add.Add(thimbleShape);
 
             // ---- 3 只绳夹：首只中心距绳眼口 72，其后每 104 等距。
             for (int index = 0; index < ChimneyCableCatalog.ClipCount; index++)

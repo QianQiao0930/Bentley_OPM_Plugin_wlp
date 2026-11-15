@@ -152,7 +152,17 @@ namespace SteelSectionProbe
                 case EngineeringShapeKind.Sweep:
                     return SweepBody(shape, modelRef, scale);
                 case EngineeringShapeKind.ProfileSweep:
-                    return ProfileSweepBody(shape, modelRef, scale);
+                    try
+                    {
+                        return ProfileSweepBody(shape, modelRef, scale);
+                    }
+                    catch (Exception exception) when (shape.Fallback != null)
+                    {
+                        // 槽形截面扫掠被内核拒绝时退回环带拉伸，至少保住整套模型；
+                        // 环带是三片平板，视觉上会挡住绳子（见 2026-11-15 记录）。
+                        EngineeringLog.Write("鸡心环槽形截面扫掠失败，退回环带拉伸：" + exception.Message);
+                        return Shape(shape.Fallback, modelRef, scale);
+                    }
                 case EngineeringShapeKind.Loft:
                     return LoftBody(shape, modelRef, scale);
                 case EngineeringShapeKind.SplineSweep:

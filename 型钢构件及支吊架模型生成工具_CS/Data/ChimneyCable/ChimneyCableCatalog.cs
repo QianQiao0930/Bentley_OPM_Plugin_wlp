@@ -246,15 +246,15 @@ namespace SteelSectionProbe
         }
 
         /// <summary>
-        /// 绳眼弯段工作段伸入绳轴的长度（mm）：绳眼只画到这一处，再往上由主体圆柱承担，
-        /// 两者只搭接约 12 mm（CAD 也是直段与弯段各自成体、搭接 4 mm）。
-        /// 早期把工作段一直画到 525 与主体同轴重叠 195 mm，同轴同径面片相互重叠，
-        /// 布尔后管面容易出破面，看起来像“绳子断了”。
+        /// 绳眼弯段工作段伸入绳轴的长度（mm）：绳眼从挂点起画到这一处，与主体圆柱同轴重叠，
+        /// 由布尔并集合成一根绳。**不要缩短**：试过改成 150（与主体只搭 12），绳眼路径首段
+        /// 由 392 变 20，放样按 24 段采样后相邻截面只差 0.8 mm，放样体退化，
+        /// 宿主在“拉索 1（上层）”报 `相并失败：Error`；525 是宿主已验证可用的长度。
         /// </summary>
-        internal const double RopeEyeStubMm = 150.0;
+        internal const double RopeEyeStubMm = 525.0;
 
-        /// <summary>主体圆柱端头距绳眼挂点的距离（mm）：比绳眼伸入量少 12，形成短搭接。</summary>
-        internal const double RopeEyeJointMm = RopeEyeStubMm - 12.0;
+        /// <summary>主体圆柱端头距绳眼挂点的距离（mm）：留出与绳眼搭接的长度。</summary>
+        internal const double RopeEyeJointMm = RopeEyeStubMm - 195.0;
 
         // ---------------------------------------------------------------
         // 地面端 U 形钢筋（2026-11-15 用户要求新增）
