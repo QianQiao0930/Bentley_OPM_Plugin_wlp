@@ -478,8 +478,18 @@ namespace SteelSectionProbe
                 reason = error.GetType().Name + "：" + error.Message;
             }
 
-            // 放样不可用时退回扫掠；写一行日志，便于宿主判断到底走了哪条路线。
-            EngineeringLog.Write("圈体放样未成功，退回逐段扫掠：" + reason);
+            // 放样不可用时先试“真 B 样条路径扫掠”——同样只有一个光滑管面、没有分段棱线。
+            EngineeringLog.Write("圈体放样未成功，改试光滑样条扫掠：" + reason);
+            try
+            {
+                return SplineBody(shape, modelRef, scale, false);
+            }
+            catch (Exception error)
+            {
+                EngineeringLog.Write("光滑样条扫掠也未成功，退回逐段扫掠："
+                    + error.GetType().Name + "：" + error.Message);
+            }
+
             return SweepBody(shape, modelRef, scale);
         }
 
@@ -561,8 +571,9 @@ namespace SteelSectionProbe
 
             sections.Add(tailSection);
 
+            // 引导线必须传 null：传空数组时内核 wrapper 会去解引用第 0 条，抛 NullReferenceException。
             var status = Create.BodyFromLoft(out body, sections.ToArray(), sections.Count,
-                new CurveVector[0], 0, modelRef, false, false);
+                null, 0, modelRef, false, false);
             if (status != BentleyStatus.Success || body == null)
             {
                 reason = "放样返回 " + status + "（共 " + sections.Count + " 个截面）";
@@ -743,11 +754,7 @@ namespace SteelSectionProbe
                 throw new InvalidOperationException("截面扫掠的路径或截面点不足。");
             }
 
-            double radius = shape.RadiusStart * scale;
-            if (!(radius > 0))
-            {
-                throw new InvalidOperationException("截面扫掠的截面半径无效。");
-            }
+            // 截面轮廓自带尺寸，不需要 RadiusStart；带零半径校验会把它直接挡掉。
 
             DPoint3d first = P(shape.Points[0], scale);
             DVector3d tangent;
@@ -769,10 +776,22 @@ namespace SteelSectionProbe
                 shape.AxisY.X, shape.AxisY.Y, shape.AxisY.Z));
 
             var profile = CurveVector.Create(CurveVector.BoundaryType.Outer);
-            var points = new DPoint3d[shape.Profile.Length];
+
+            // 截面点必须按逆时针给出（正面积），否则内核可能把它当成自交轮廓而拒绝扫掠。
+            double area = 0.0;
             for (int index = 0; index < shape.Profile.Length; index++)
             {
-                points[index] = Combine(first, depth, shape.Profile[index].X, width, shape.Profile[index].Z);
+                EngineeringPoint current = shape.Profile[index];
+                EngineeringPoint next = shape.Profile[(index + 1) % shape.Profile.Length];
+                area += current.X * next.Z - next.X * current.Z;
+            }
+
+            int count = shape.Profile.Length;
+            var points = new DPoint3d[count];
+            for (int index = 0; index < count; index++)
+            {
+                EngineeringPoint item = shape.Profile[area < 0.0 ? count - 1 - index : index];
+                points[index] = Combine(first, depth, item.X, width, item.Z);
             }
 
             for (int index = 0; index < points.Length; index++)
