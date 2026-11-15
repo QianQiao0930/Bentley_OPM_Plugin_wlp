@@ -141,7 +141,7 @@ namespace SteelSectionProbe
             ChimneyCableSpec spec = ChimneyCableCatalog.Resolve(parameters);
             return string.Format(CultureInfo.CurrentCulture,
                 "H {0:0.###} m、D {1:0.###} mm（R {2:0.###}、壁厚 {3:0.###}）；拉索外圆半径 {4:0.###} mm；" +
-                "拉索 {5} 根（{6}）、地面锚墩 {7} 个；共 {8} 个实体；上端经连接环板（比筒身半径宽 150、板上 φ40 孔）与 U 形吊筋挂接，绳眼为真圆弧链放样示意、绳夹跨两段绳。",
+                "拉索 {5} 根（{6}）、地面锚墩 {7} 个；共 {8} 个实体；上端经连接环板（比筒身半径宽 100、板上 φ24 孔）与 M20 U 形螺栓（两腿各一个螺母）挂接，绳眼为真圆弧链放样示意、绳夹跨两段绳。",
                 spec.HeightMm / 1000.0,
                 spec.DiameterMm,
                 spec.RadiusMm,
@@ -182,9 +182,9 @@ namespace SteelSectionProbe
         }
 
         /// <summary>
-        /// 拉索与筒身的连接环板：内缘嵌入筒壁 3 mm、外缘比筒身半径宽 150 的环形板（厚 20），
-        /// 上表面与拉索原始切点同高；每个拉索方向开两个 φ40 竖直孔，
-        /// 孔心半径 = R + 100（距外缘 50），两孔对称于拉索竖直面、中心距 100，用来穿 U 形吊筋。
+        /// 拉索与筒身的连接环板：内缘嵌入筒壁 3 mm、外缘比筒身半径宽 100 的环形板（厚 20），
+        /// 上表面与拉索原始切点同高；每个拉索方向开两个 φ24 竖直孔，
+        /// 孔心半径 = R + 50（距外缘 50），两孔对称于拉索竖直面、中心距 100，用来穿 U 形螺栓。
         /// </summary>
         private static void AddCollar(
             EngineeringPlan plan, ChimneyCableSpec spec, double[] azimuths,
@@ -227,8 +227,9 @@ namespace SteelSectionProbe
         }
 
         /// <summary>
-        /// U 形吊筋：两腿垂直穿过环板的两个 φ40 孔并高出板面 30 与板焊接，
-        /// 板下用半径 = 孔距/2 的半圆弯钩相连（肩部仍在孔内），弯钩最低点吊住鸡心环。
+        /// U 形吊筋（M20 U 形螺栓）：两腿垂直穿过环板的两个 φ24 孔，板下用半径 = 孔距/2 的
+        /// 半圆弯钩相连（肩部仍在孔内），弯钩最低点吊住鸡心环；两腿在板面以上各用一个
+        /// M20 六角螺母（对边 30、厚 16）压紧，螺母上方露出约 14 mm 螺纹。
         /// 绳眼整体位于环板下方，与板底留有约 11 mm 净距，不会与板相交。
         /// </summary>
         private static void AddRebar(
@@ -254,6 +255,16 @@ namespace SteelSectionProbe
             body.Color(BoltRed, BoltGreen, BoltBlue);
             body.Add.Add(EngineeringShape.Sweep(
                 path, ChimneyCableCatalog.RebarDiameterMm / 2.0, middles));
+
+            // 两个螺母压在环板上表面，把 U 形螺栓固定在板上。
+            double nutTop = heightMm + ChimneyCableCatalog.CollarNutHeightMm;
+            foreach (double side in new[] { -1.0, 1.0 })
+            {
+                body.Add.Add(EngineeringShape.HexPrism(
+                    CollarPoint(radians + side * step, holeRadius, heightMm),
+                    CollarPoint(radians + side * step, holeRadius, nutTop),
+                    ChimneyCableCatalog.CollarNutAcrossFlatsMm));
+            }
         }
 
         /// <summary>

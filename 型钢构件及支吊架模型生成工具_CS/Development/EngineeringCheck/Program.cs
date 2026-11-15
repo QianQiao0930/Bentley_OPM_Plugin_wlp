@@ -276,9 +276,11 @@ namespace SteelSectionProbe
             foreach (EngineeringShape hole in collar.Cut)
             {
                 double r = Math.Sqrt(hole.Start.X * hole.Start.X + hole.Start.Y * hole.Start.Y);
-                Equal(r, holeRadius, 1e-6, label + " 孔心半径 = R+100");
+                Equal(r, holeRadius, 1e-6, label + " 孔心半径 = R+50");
                 Equal(hole.RadiusStart * 2.0, ChimneyCableCatalog.CollarHoleDiameterMm, 1e-9,
-                    label + " 孔径 φ40");
+                    label + " 孔径 φ24");
+                True(hole.RadiusStart * 2.0 < ChimneyCableCatalog.CollarNutAcrossFlatsMm,
+                    label + " 孔径小于螺母对边，螺母能压住孔口");
                 True(hole.Start.Z < bottom && hole.End.Z > top, label + " 孔为通孔");
             }
 
@@ -306,6 +308,28 @@ namespace SteelSectionProbe
                         bendPoint = middle.Value;
                     }
                 }
+
+                // 两条腿各一个 M20 螺母，压在环板上表面。
+                Equal(body.Add.Count, 3, label + " 吊筋 = 1 个 U 形螺栓 + 2 个螺母");
+                double maxNutTop = 0.0;
+                foreach (EngineeringShape nut in body.Add)
+                {
+                    if (nut.Kind != EngineeringShapeKind.HexPrism)
+                    {
+                        continue;
+                    }
+
+                    Equal(nut.RadiusStart * Math.Sqrt(3.0), ChimneyCableCatalog.CollarNutAcrossFlatsMm,
+                        1e-6, label + " 螺母对边 30");
+                    Equal(Math.Abs(nut.End.Z - nut.Start.Z), ChimneyCableCatalog.CollarNutHeightMm,
+                        1e-9, label + " 螺母厚 16");
+                    Equal(Math.Min(nut.Start.Z, nut.End.Z), top, 1e-9,
+                        label + " 螺母压在环板上表面");
+                    maxNutTop = Math.Max(maxNutTop, Math.Max(nut.Start.Z, nut.End.Z));
+                }
+
+                True(maxNutTop + 10.0 <= top + ChimneyCableCatalog.RebarAboveCollarMm,
+                    label + " 螺母上方露出至少 10 mm 螺纹");
             }
 
             Equal(lowestBend, top - ChimneyCableCatalog.RebarBendDepthMm, 1e-6,

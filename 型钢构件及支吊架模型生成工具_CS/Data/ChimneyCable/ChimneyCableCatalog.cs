@@ -155,13 +155,13 @@ namespace SteelSectionProbe
             2.5 * RopeDiameterMm + 1.0 * RopeDiameterMm + ClipSeatLengthMm / 2.0;
 
         // ---------------------------------------------------------------
-        // 上端与筒身的连接环板 + U 形吊筋（2026-11-15 用户要求新增）
-        // 环板比筒身半径宽 150，板上开 φ40 孔，孔心距环板外缘 50；
-        // 吊筋穿两孔、弯钩挂在环板下方，鸡心环挂在弯钩最低点上。
+        // 上端与筒身的连接环板 + U 形吊筋（2026-11-15 用户要求新增，同日二次调整）
+        // 环板比筒身半径宽 100，板上开 φ24 孔，孔心距环板外缘 50；
+        // U 形吊筋穿两孔，板下弯钩吊住鸡心环，板面用两个 M20 螺母压紧。
         // ---------------------------------------------------------------
 
-        /// <summary>环板外半径比筒身半径大出的宽度（mm），用户指定 150。</summary>
-        internal const double CollarWidthMm = 150.0;
+        /// <summary>环板外半径比筒身半径大出的宽度（mm），用户第二次改为 100。</summary>
+        internal const double CollarWidthMm = 100.0;
 
         /// <summary>环板厚度（mm）。</summary>
         internal const double CollarThicknessMm = 20.0;
@@ -169,38 +169,47 @@ namespace SteelSectionProbe
         /// <summary>环板内缘嵌入筒壁的深度（mm）：避免与筒身外圆柱面同面导致闪现/布尔异常。</summary>
         internal const double CollarEmbedMm = 3.0;
 
-        /// <summary>环板穿孔直径（mm）：用户指定 φ40，用来穿吊筋。</summary>
-        internal const double CollarHoleDiameterMm = 40.0;
+        /// <summary>
+        /// 环板穿孔直径（mm）：用户第二次要求“不用那么大的洞”，按 M20 吊筋取 φ24
+        /// （单边间隙 2 mm，足够穿装；也小于 M20 螺母对边 30，螺母才能压住孔口）。
+        /// </summary>
+        internal const double CollarHoleDiameterMm = 24.0;
 
         /// <summary>孔中心距环板外边缘的距离（mm）：用户指定 50。</summary>
         internal const double CollarHoleEdgeOffsetMm = 50.0;
 
         /// <summary>
         /// 同一根拉索两个孔的中心距（mm）：两孔对称于拉索竖直面，同时等于 U 形吊筋的弯曲直径，
-        /// 使吊筋弯钩正好落在两孔之间的板下。φ40 孔在 ±50 处互不相交（孔边距 20）。
+        /// 使吊筋弯钩正好落在两孔之间的板下。φ24 孔在 ±50 处不相交（孔边距 76）。
         /// </summary>
         internal const double CollarHoleSpacingMm = 100.0;
 
-        /// <summary>吊筋直径（mm）：φ20 穿 φ40 孔，两侧各留 10 mm 焊接间隙。</summary>
+        /// <summary>吊筋（U 形螺栓）直径（mm）：M20，穿 φ24 孔两侧各留 2 mm 间隙。</summary>
         internal const double RebarDiameterMm = 20.0;
 
-        /// <summary>吊筋高出环板上表面的长度（mm），用于与环板焊接。</summary>
+        /// <summary>吊筋两腿高出环板上表面的长度（mm）：螺母 16 + 外露螺纹 14。</summary>
         internal const double RebarAboveCollarMm = 30.0;
+
+        /// <summary>U 形吊筋螺母对边尺寸（mm）：M20 六角螺母 GB/T 41，s = 30。</summary>
+        internal const double CollarNutAcrossFlatsMm = 30.0;
+
+        /// <summary>U 形吊筋螺母厚度（mm）：M20 螺母 m = 16。</summary>
+        internal const double CollarNutHeightMm = 16.0;
 
         /// <summary>
         /// 吊筋两腿下端（弯钩肩部）相对环板上表面的下移（mm）：仍在孔内（板厚 20）。
-        /// 与弯钩半径 50 一起决定弯钩最低点；取 10 使绳眼最高点距板底约 10 mm。
+        /// 与弯钩半径 50 一起决定弯钩最低点；取 10 使绳眼最高点距板底约 11 mm。
         /// </summary>
         internal const double RebarShoulderBelowTopMm = 10.0;
 
-        /// <summary>孔中心半径（mm）= 筒身半径 + 150 − 50 = R + 100。</summary>
+        /// <summary>孔中心半径（mm）= 筒身半径 + 100 − 50 = R + 50。</summary>
         internal static double CollarHoleRadiusMm(double chimneyRadiusMm)
         {
             return chimneyRadiusMm + CollarWidthMm - CollarHoleEdgeOffsetMm;
         }
 
         /// <summary>
-        /// 同一拉索两个孔相对拉索竖直面的角偏移（rad）。两个孔心都落在半径 R+100 的圆上，
+        /// 同一拉索两个孔相对拉索竖直面的角偏移（rad）。两个孔心都落在半径 R+50 的圆上，
         /// 由弦长 = 孔距 100 反解，因此每个孔心到环板外缘的距离都正好 50。
         /// </summary>
         internal static double CollarHoleAngleOffset(double chimneyRadiusMm)
@@ -217,7 +226,7 @@ namespace SteelSectionProbe
 
         /// <summary>
         /// 吊筋弯钩最低点相对环板上表面的下移（mm）= 肩部 10 + 弯曲半径（孔距/2）= 60。
-        /// 由此绳眼顶落在板下约 46，绳眼最高点距板底仍有约 10 mm 净距。
+        /// 由此绳眼顶落在板下约 46，绳眼最高点距板底仍有约 11 mm 净距。
         /// </summary>
         internal const double RebarBendDepthMm = RebarShoulderBelowTopMm + CollarHoleSpacingMm / 2.0;
 
