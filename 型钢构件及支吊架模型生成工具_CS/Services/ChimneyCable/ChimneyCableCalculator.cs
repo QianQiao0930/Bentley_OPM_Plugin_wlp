@@ -320,13 +320,22 @@ namespace SteelSectionProbe
 
         /// <summary>
         /// 单根拉索：拉索过短（长度 ≤ 2×TerminalSpan+200）时退化为整根普通圆柱（CAD 行为），
-        /// 否则主体自上端 top+unit·span 到下端 ground−unit·span，两端各加一套绳眼装配；
-        /// 下端绳眼挂在锚墩上 U 形钢筋的弯拱顶点上（<see cref="GroundEyeHardPoint"/>）。
+        /// 否则主体自上端 top+unit·span 到下端 bottom−unit·span，两端各加一套绳眼装配；
+        /// 下端绳眼挂在锚墩上 U 形钢筋的弯拱顶点上，因此绳轴取“上端挂点 → 下端挂点”，
+        /// 不能再用地面锚点，否则下端绳眼会与主绳错开一个横向距离。
         /// </summary>
         private static void AddStrand(
             EngineeringPlan plan, EngineeringPoint top, EngineeringPoint ground, string name)
         {
-            EngineeringPoint axis = Subtract(ground, top);
+            // 下端挂点与绳方向互相依赖（挂点偏移量沿绳方向），迭代 4 次收敛。
+            EngineeringPoint bottom = ground;
+            for (int iteration = 0; iteration < 4; iteration++)
+            {
+                EngineeringPoint direction = Normalize(Subtract(bottom, top));
+                bottom = GroundEyeHardPoint(ground, direction);
+            }
+
+            EngineeringPoint axis = Subtract(bottom, top);
             double length = Length(axis);
             if (length <= 1e-6 || double.IsNaN(length) || double.IsInfinity(length))
             {
@@ -348,11 +357,11 @@ namespace SteelSectionProbe
             double span = ChimneyCableCatalog.TerminalSpanMm;
             body.Add.Add(EngineeringShape.Cylinder(
                 Offset(top, unit, span),
-                Offset(ground, unit, -span),
+                Offset(bottom, unit, -span),
                 ropeRadius));
 
             AddRopeEye(body, plan, top, unit, true, name + " 上端绳眼");
-            AddRopeEye(body, plan, GroundEyeHardPoint(ground, unit), unit, false, name + " 下端绳眼");
+            AddRopeEye(body, plan, bottom, unit, false, name + " 下端绳眼");
         }
 
         /// <summary>
@@ -372,31 +381,114 @@ namespace SteelSectionProbe
         }
 
         /// <summary>
-        /// 地面端 U 形钢筋：∩ 形 φ20，两腿埋入锚墩、弯拱顶点作为吊点；
-        /// 两腿在拉索竖直面两侧对称，弯拱半径 = 腿距/2，绳眼挂在弯拱顶点上。
+        /// 地面端 U 形钢筋：∩ 形 φ20，腿距 100、弯拱顶点在地面上 50，两腿直段下到地面以下 200，
+        /// 底端向两侧外撇 90°、再上翘一个小钩，便于预埋/浇筑到混凝土里；
+        /// 绳眼挂在弯拱顶点上。两腿在拉索竖直面两侧对称，整根钢筋为平面形状。
         /// </summary>
         private static void AddGroundRebar(
             EngineeringPlan plan, double radians, double radiusMm, string name)
         {
-            double step = ChimneyCableCatalog.GroundRebarAngleOffset(radiusMm);
-            double shoulder = ChimneyCableCatalog.GroundRebarCrownMm -
-                ChimneyCableCatalog.GroundRebarLegSpacingMm / 2.0;
-            double bottom = ChimneyCableCatalog.GroundRebarLegBottomMm;
+            double half = ChimneyCableCatalog.GroundRebarLegSpacingMm / 2.0;
+            double crown = ChimneyCableCatalog.GroundRebarCrownMm;
+            double shoulder = crown - half;
+            double legBottom = ChimneyCableCatalog.GroundRebarLegBottomMm;
+            double bend = ChimneyCableCatalog.GroundRebarHookRadiusMm;
+            double run = ChimneyCableCatalog.GroundRebarHookRunMm;
+            double curl = ChimneyCableCatalog.GroundRebarHookCurlRadiusMm;
+            double up = ChimneyCableCatalog.GroundRebarHookCurlUpMm;
 
-            var path = new[]
+            double hookZ = legBottom - bend;              // 水平段高度
+            double hookEnd = half + bend + run;           // 水平段外端
+            double tipY = hookEnd + curl;                 // 端头上翘处的切向位置
+            double tipZ = hookZ + curl;                   // 端头上翘起点
+
+            var plane = new List<EngineeringPoint>
             {
-                CollarPoint(radians + step, radiusMm, bottom),
-                CollarPoint(radians + step, radiusMm, shoulder),
-                CollarPoint(radians - step, radiusMm, shoulder),
-                CollarPoint(radians - step, radiusMm, bottom)
+                new EngineeringPoint(tipY, 0.0, tipZ + up),
+                new EngineeringPoint(tipY, 0.0, tipZ),
+                new EngineeringPoint(hookEnd, 0.0, hookZ),
+                new EngineeringPoint(half + bend, 0.0, hookZ),
+                new EngineeringPoint(half, 0.0, legBottom),
+                new EngineeringPoint(half, 0.0, shoulder),
+                new EngineeringPoint(-half, 0.0, shoulder),
+                new EngineeringPoint(-half, 0.0, legBottom),
+                new EngineeringPoint(-(half + bend), 0.0, hookZ),
+                new EngineeringPoint(-hookEnd, 0.0, hookZ),
+                new EngineeringPoint(-tipY, 0.0, tipZ),
+                new EngineeringPoint(-tipY, 0.0, tipZ + up)
             };
-            var middles = new EngineeringPoint?[4];
-            middles[1] = CollarPoint(radians, radiusMm, ChimneyCableCatalog.GroundRebarCrownMm);
+
+            var path = new EngineeringPoint[plane.Count];
+            for (int index = 0; index < plane.Count; index++)
+            {
+                path[index] = GroundPoint(radians, radiusMm, plane[index].X, plane[index].Z);
+            }
+
+            double diagonal = Math.Sqrt(0.5);
+            var middles = new EngineeringPoint?[plane.Count];
+            middles[1] = GroundPoint(radians, radiusMm, hookEnd + curl * diagonal, hookZ + curl * diagonal);
+            middles[3] = GroundPoint(radians, radiusMm, half + bend - bend * diagonal, hookZ + bend * diagonal);
+            middles[5] = GroundPoint(radians, radiusMm, 0.0, crown);
+            middles[7] = GroundPoint(radians, radiusMm, -(half + bend - bend * diagonal),
+                hookZ + bend * diagonal);
+            middles[9] = GroundPoint(radians, radiusMm, -(hookEnd + curl * diagonal),
+                hookZ + curl * diagonal);
 
             var body = plan.Add(name);
             body.Color(BoltRed, BoltGreen, BoltBlue);
             body.Add.Add(EngineeringShape.Sweep(
                 path, ChimneyCableCatalog.RebarDiameterMm / 2.0, middles));
+        }
+
+        /// <summary>
+        /// 地面端点上的一点：方位角 <paramref name="radians"/>、半径 <paramref name="radiusMm"/>，
+        /// 沿切向偏移 <paramref name="tangential"/>、高度 <paramref name="z"/>。
+        /// </summary>
+        private static EngineeringPoint GroundPoint(
+            double radians, double radiusMm, double tangential, double z)
+        {
+            double cosine = Math.Cos(radians);
+            double sine = Math.Sin(radians);
+            return new EngineeringPoint(
+                radiusMm * cosine - tangential * sine,
+                radiusMm * sine + tangential * cosine,
+                z);
+        }
+
+        /// <summary>
+        /// 去掉路径两端累计长度不足 <paramref name="trim"/> 的点（至少保留 3 点）。
+        /// 用于把鸡心环环带的两端缩进绳圈转折点以内。
+        /// </summary>
+        private static List<EngineeringPoint> TrimPath(List<EngineeringPoint> path, double trim)
+        {
+            if (path == null || path.Count < 5 || trim <= 0.0)
+            {
+                return path == null ? new List<EngineeringPoint>() : new List<EngineeringPoint>(path);
+            }
+
+            int start = 0;
+            double travelled = 0.0;
+            while (start + 3 < path.Count && travelled < trim)
+            {
+                travelled += Length(Subtract(path[start + 1], path[start]));
+                start++;
+            }
+
+            int end = path.Count - 1;
+            travelled = 0.0;
+            while (end - start > 2 && travelled < trim)
+            {
+                travelled += Length(Subtract(path[end], path[end - 1]));
+                end--;
+            }
+
+            var result = new List<EngineeringPoint>(end - start + 1);
+            for (int index = start; index <= end; index++)
+            {
+                result.Add(path[index]);
+            }
+
+            return result;
         }
 
         /// <summary>
@@ -450,9 +542,13 @@ namespace SteelSectionProbe
 
             // ---- 鸡心环：内径 φ38、带宽 17、壁厚 1.316 的环带；
             //      内外边界均为真圆弧链，沿带宽方向拉伸。
+            //      两端向绳眼口内缩 ThimbleEndTrimMm：环带端面必须缩进绳圈转折点以内，
+            //      否则 1.3 厚的薄带端面会从两股绳之间穿出来。
+            List<EngineeringPoint> bandInner = TrimPath(inner, ChimneyCableCatalog.ThimbleEndTrimMm);
+            List<EngineeringPoint> bandNormals = OutwardNormals(bandInner);
             var innerKnots = new List<int>();
             var innerMidIndices = new List<int>();
-            ArcChain(inner, innerKnots, innerMidIndices);
+            ArcChain(bandInner, innerKnots, innerMidIndices);
             var bandPoints = new EngineeringPoint[2 * innerKnots.Count];
             var bandMids = new EngineeringPoint?[bandPoints.Length];
             int knotCount = innerKnots.Count - 1;
@@ -460,28 +556,28 @@ namespace SteelSectionProbe
             {
                 int knot = innerKnots[index];
                 bandPoints[index] = frame.Map(
-                    inner[knot].X + normals[knot].X * ChimneyCableCatalog.ThimbleWallMm,
+                    bandInner[knot].X + bandNormals[knot].X * ChimneyCableCatalog.ThimbleWallMm,
                     0.0,
-                    inner[knot].Z + normals[knot].Z * ChimneyCableCatalog.ThimbleWallMm);
+                    bandInner[knot].Z + bandNormals[knot].Z * ChimneyCableCatalog.ThimbleWallMm);
             }
 
             for (int index = 0; index < innerKnots.Count; index++)
             {
                 int knot = innerKnots[innerKnots.Count - 1 - index];
                 bandPoints[innerKnots.Count + index] = frame.Map(
-                    inner[knot].X, 0.0, inner[knot].Z);
+                    bandInner[knot].X, 0.0, bandInner[knot].Z);
             }
 
             for (int index = 0; index < knotCount; index++)
             {
                 int mid = innerMidIndices[index];
                 bandMids[index] = frame.Map(
-                    inner[mid].X + normals[mid].X * ChimneyCableCatalog.ThimbleWallMm,
+                    bandInner[mid].X + bandNormals[mid].X * ChimneyCableCatalog.ThimbleWallMm,
                     0.0,
-                    inner[mid].Z + normals[mid].Z * ChimneyCableCatalog.ThimbleWallMm);
+                    bandInner[mid].Z + bandNormals[mid].Z * ChimneyCableCatalog.ThimbleWallMm);
                 int reversed = innerMidIndices[knotCount - 1 - index];
                 bandMids[innerKnots.Count + index] = frame.Map(
-                    inner[reversed].X, 0.0, inner[reversed].Z);
+                    bandInner[reversed].X, 0.0, bandInner[reversed].Z);
             }
 
             var thimble = plan.Add(name + " 鸡心环");

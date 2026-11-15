@@ -202,8 +202,12 @@ namespace SteelSectionProbe
 
             Bounds bounds = Bounds.Of(plan);
             Equal(bounds.MaxZ, 30000.0, 1.0, "筒身顶高");
-            True(bounds.MinZ <= -ChimneyCableCatalog.AnchorBuriedDepthMm && bounds.MinZ > -200.0,
+            True(bounds.MinZ <= -ChimneyCableCatalog.AnchorBuriedDepthMm,
                 "锚墩埋深");
+            True(bounds.MinZ >= ChimneyCableCatalog.GroundRebarLegBottomMm -
+                 ChimneyCableCatalog.GroundRebarHookRadiusMm -
+                 ChimneyCableCatalog.RebarDiameterMm / 2.0 - 1e-6,
+                "最低点是地面 U 形钢筋底部外撇（" + bounds.MinZ + "）");
             True(-bounds.MinY >= spec.OuterRadiusMm && -bounds.MinY <= spec.OuterRadiusMm + 300.0,
                 "拉索外圆包络（outer=" + spec.OuterRadiusMm + "，minY=" + bounds.MinY + "）");
 
@@ -424,12 +428,24 @@ namespace SteelSectionProbe
                 True(rebar.Kind == EngineeringShapeKind.Sweep, label + " 地面钢筋为扫掠");
                 Equal(rebar.RadiusStart * 2.0, ChimneyCableCatalog.RebarDiameterMm, 1e-9,
                     label + " 地面钢筋 φ20");
-                Equal(LowestLegZ(rebar), ChimneyCableCatalog.GroundRebarLegBottomMm, 1e-6,
-                    label + " 两腿埋到锚墩底面");
-                Equal(PointDistance(rebar.Points[0], rebar.Points[3]),
-                    ChimneyCableCatalog.GroundRebarLegSpacingMm, 1e-6, label + " 两腿中心距 50");
                 Equal(CrownZ(rebar), ChimneyCableCatalog.GroundRebarCrownMm, 1e-6,
-                    label + " 弯拱顶点在地面以上 40");
+                    label + " 弯拱顶点在地面上 50");
+
+                // 路径顺序：钩尖 → 钩 → 直段下端 → 肩 → 肩 → 直段下端 → 钩 → 钩尖
+                Equal(PointDistance(rebar.Points[5], rebar.Points[6]),
+                    ChimneyCableCatalog.GroundRebarLegSpacingMm, 1e-6, label + " 两腿中心距 100");
+                Equal(rebar.Points[5].Z, ChimneyCableCatalog.GroundRebarCrownMm -
+                    ChimneyCableCatalog.GroundRebarLegSpacingMm / 2.0, 1e-6, label + " 弯拱肩部落在地面");
+                Equal(rebar.Points[4].Z, ChimneyCableCatalog.GroundRebarLegBottomMm, 1e-6,
+                    label + " 直段下端在地面以下 200");
+                Equal(rebar.Points[7].Z, ChimneyCableCatalog.GroundRebarLegBottomMm, 1e-6,
+                    label + " 另一条腿同样 200");
+                True(rebar.Points[5].Z - ChimneyCableCatalog.GroundRebarLegBottomMm >= 200.0 - 1e-6,
+                    label + " 直段长度不小于 200");
+                True(rebar.Points[0].Z > ChimneyCableCatalog.GroundRebarLegBottomMm + 1.0,
+                    label + " 端部上翘成钩");
+                True(PointDistance(rebar.Points[0], rebar.Points[11]) >
+                    ChimneyCableCatalog.GroundRebarLegSpacingMm + 1.0, label + " 两个钩向外撇");
             }
 
             // 逐个方位核对“绳眼挂在弯拱顶点上”和“绳眼高于锚墩顶面”

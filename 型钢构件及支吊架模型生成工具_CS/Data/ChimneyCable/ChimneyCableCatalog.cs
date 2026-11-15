@@ -102,6 +102,12 @@ namespace SteelSectionProbe
         internal const double RopeEyeClearanceMm = 0.2;
 
         /// <summary>
+        /// 鸡心环环带两端向绳眼口内缩的长度（mm）：环带端面缩进绳圈转折点以内，
+        /// 否则 1.316 厚的薄带端面会从两股绳之间穿出来（用户反馈“鸡心环露片”）。
+        /// </summary>
+        internal const double ThimbleEndTrimMm = 8.0;
+
+        /// <summary>
         /// 绳中心线相对鸡心环内背面的外偏（mm）：壁厚 + 绳半径 + 间隙 = 9.516。
         /// </summary>
         internal const double RopeEyeOffsetMm = ThimbleWallMm + RopeRadiusMm + RopeEyeClearanceMm;
@@ -249,31 +255,34 @@ namespace SteelSectionProbe
         internal const double GroundLayerOffsetMm = 150.0;
 
         /// <summary>
-        /// 地面 U 形钢筋两腿中心距（mm）：即弯拱直径，弯曲半径 20。
-        /// 取 40 是为了让两腿都埋在 φ48 锚墩以内（单边 4 mm 保护层），不再沿用上端 100 的孔距。
+        /// 地面 U 形钢筋两腿中心距（mm）：即弯拱直径，弯曲半径 50。
+        /// 用户第二次要求放大（原 40 太细），与上端 U 形螺栓同一宽度。
         /// </summary>
-        internal const double GroundRebarLegSpacingMm = 40.0;
+        internal const double GroundRebarLegSpacingMm = 100.0;
 
         /// <summary>
         /// 地面 U 形钢筋弯拱顶点（= 绳眼吊点中心）高出地面的高度（mm）。
-        /// 绳眼挂在顶点下方约 13，绳表面再低 8，取 48 时绳眼最低点仍比锚墩顶面高约 7。
+        /// 取 50 = 腿距/2，弯拱肩部正好落在地面：绳眼挂在顶点下方约 13，
+        /// 绳表面再低 8，仍比锚墩顶面高约 9。
         /// </summary>
-        internal const double GroundRebarCrownMm = 48.0;
+        internal const double GroundRebarCrownMm = 50.0;
 
-        /// <summary>地面 U 形钢筋两腿下端标高（mm）：埋到锚墩底面，与 AnchorBuriedDepth 一致。</summary>
-        internal const double GroundRebarLegBottomMm = -AnchorBuriedDepthMm;
+        /// <summary>
+        /// 地面 U 形钢筋两腿直段下端标高（mm）：地面以下 200，满足“底部至少 200”的预埋长度。
+        /// </summary>
+        internal const double GroundRebarLegBottomMm = -200.0;
 
-        /// <summary>地面 U 形钢筋两腿相对拉索竖直面的角偏移（rad）：由腿距反解，保证腿距 50。</summary>
-        internal static double GroundRebarAngleOffset(double groundRadiusMm)
-        {
-            double ratio = GroundRebarLegSpacingMm / 2.0 / groundRadiusMm;
-            if (ratio >= 1.0)
-            {
-                throw new InvalidOperationException("地面固定点半径过小，U 形钢筋两腿无法布置。");
-            }
+        /// <summary>地面 U 形钢筋底部外撇弯头半径（mm）。</summary>
+        internal const double GroundRebarHookRadiusMm = 30.0;
 
-            return Math.Asin(ratio);
-        }
+        /// <summary>底部外撇后的水平段长度（mm）。</summary>
+        internal const double GroundRebarHookRunMm = 45.0;
+
+        /// <summary>底部端头上翘半径（mm）。</summary>
+        internal const double GroundRebarHookCurlRadiusMm = 15.0;
+
+        /// <summary>底部端头上翘直段长度（mm）。</summary>
+        internal const double GroundRebarHookCurlUpMm = 20.0;
 
         /// <summary>
         /// 地面绳眼吊点：绳眼局部原点在 U 形钢筋弯拱顶点下方，沿拉索向上游 19.516、
@@ -288,8 +297,11 @@ namespace SteelSectionProbe
         // 地面锚墩与颜色无关的固定尺寸
         // ---------------------------------------------------------------
 
-        /// <summary>地面锚墩半径（mm）：3×绳半径 = 24。</summary>
-        internal const double AnchorRadiusMm = 3.0 * RopeRadiusMm;
+        /// <summary>
+        /// 地面锚墩半径（mm）：取 60 覆盖 U 形钢筋两腿（腿距 100），
+        /// 两层吊索时两块 φ120 锚墩相距 150 也不会相碰。
+        /// </summary>
+        internal const double AnchorRadiusMm = 60.0;
 
         /// <summary>地面锚墩高度（mm）：2×绳半径 = 16。</summary>
         internal const double AnchorHeightMm = 2.0 * RopeRadiusMm;
