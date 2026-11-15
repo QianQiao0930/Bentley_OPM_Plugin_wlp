@@ -48,6 +48,13 @@
                             <TextBlock Text="整组封装为一个普通模型块，可整体移动、旋转和删除；拉索上端通过环绕筒身的连接环板（外缘比筒身半径宽 100、厚 20，每根拉索 2 个 φ24 孔、孔心距外缘 50）与 M20 U 形螺栓挂接——两腿穿板后各用一个 M20 螺母压紧，板下弯钩吊住鸡心环，绳眼整体挂在环板下方、与板底留 11 以上净距；下端经埋入锚墩的 ∩ 形 φ20 钢筋固定：腿距 100、弯拱顶点在地面上 50，两腿直段下到地面以下 200，底端向两侧外撇并上翘成小钩（两层吊索时上层固定点比下层外扩 150）；绳眼为真圆弧链：φ16 绳圈放样成单一光滑管面，φ38 鸡心环为真圆弧链环带沿带宽方向拉伸；绳夹跨工作段与尾段（32×63 鞍座 + M14 U 形螺栓 + 螺母），夹距 6.5φ=104。" Margin="0,10,0,0" Foreground="#5B6B7B" FontSize="10.5" TextWrapping="Wrap"/>
                         </StackPanel>
                     </StackPanel></Border>
+                    <Border Style="{StaticResource CardStyle}" Margin="0,10,0,0" Padding="0"><StackPanel>
+                        <Border MinHeight="35" BorderBrush="#E8EDF2" BorderThickness="0,0,0,1" Padding="12,8"><TextBlock Text="03 / 材料用量" Style="{StaticResource SectionTitleStyle}" Margin="0"/></Border>
+                        <StackPanel Margin="12">
+                            <TextBlock x:Name="MaterialsText" Text="—" TextWrapping="Wrap" FontSize="11" LineHeight="17"/>
+                            <TextBlock Text="钢管按环形截面（外径×壁厚）计重，密度 7850 kg/m³；钢丝绳按 φ16 6×19+FC 名义重量 0.857 kg/m、长度取建模路径（含两端绳眼）；φ20 钢筋按 2.47 kg/m。附件只计数量，未含螺栓螺母重量。" Margin="0,8,0,0" Foreground="#5B6B7B" FontSize="10.5" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </StackPanel></Border>
                 </StackPanel>
             </ScrollViewer>
             <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,10,0,0" Padding="12"><StackPanel>

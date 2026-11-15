@@ -200,6 +200,7 @@ namespace SteelSectionProbe
             CheckCollar(plan, spec, "拉索默认");
             CheckGroundFixing(plan, spec, "拉索默认", 3);
             CheckThimble(plan, "拉索默认");
+            CheckMaterials(plan, spec, "拉索默认", 3);
 
             Bounds bounds = Bounds.Of(plan);
             Equal(bounds.MaxZ, 30000.0, 1.0, "筒身顶高");
@@ -225,6 +226,7 @@ namespace SteelSectionProbe
             Equal(extraPlan.PartCount, 111,
                 "中间层实体数 = 94 + 环板 2 + 上端吊筋 6 + 地面钢筋 6 + 锚墩加 3");
             CheckGroundFixing(extraPlan, extraSpec, "拉索中间层", 6);
+            CheckMaterials(extraPlan, extraSpec, "拉索中间层", 6);
 
             string error;
             False(ChimneyCableCatalog.Validate(
@@ -519,6 +521,68 @@ namespace SteelSectionProbe
             double planeOffset = Math.Abs((gapX * normal.X + gapY * normal.Y + gapZ * normal.Z) / normalLength);
             True(planeOffset < 0.5,
                 label + " 鸡心环与钢索中心对齐（平面偏差 " + planeOffset.ToString("0.000") + " mm）");
+        }
+
+        /// <summary>
+        /// 材料用量：排气筒钢管按环形截面、拉索按建模路径、附件按规格表。
+        /// </summary>
+        private static void CheckMaterials(
+            EngineeringPlan plan, ChimneyCableSpec spec, string label, int expectedAnchors)
+        {
+            ChimneyCableMaterials materials = ChimneyCableTakeoff.Of(spec, plan);
+
+            // 排气筒钢管：π(D−t)t 的环形截面
+            double areaSquareMeters = Math.PI * (spec.DiameterMm - spec.WallThicknessMm) *
+                spec.WallThicknessMm / 1e6;
+            Equal(materials.StackThicknessMm, spec.WallThicknessMm, 1e-9, label + " 材料壁厚一致");
+            Equal(materials.StackMassKgPerMeter, areaSquareMeters * 7850.0, 1e-6, label + " 钢管 kg/m");
+            Equal(materials.StackMassKg,
+                materials.StackMassKgPerMeter * spec.HeightMm / 1000.0, 1e-6, label + " 钢管总重");
+            Equal(materials.StackSurfaceSquareMeters,
+                Math.PI * spec.DiameterMm / 1000.0 * spec.HeightMm / 1000.0, 1e-6, label + " 筒身外表面积");
+
+            // 拉索：单根必须比两挂点直线距离长（含两端绳眼），但不会多出太多
+            double straight = 0.0;
+            foreach (EngineeringBody body in plan.Bodies)
+            {
+                if (body.Name != "拉索 1（上层）")
+                {
+                    continue;
+                }
+
+                foreach (EngineeringShape shape in body.Add)
+                {
+                    if (shape.Kind == EngineeringShapeKind.Cone)
+                    {
+                        straight = PointDistance(shape.Start, shape.End);
+                    }
+                }
+            }
+
+            True(materials.StrandLengthM > 0.0, label + " 有单根拉索长度");
+            True(materials.StrandLengthM * 1000.0 > straight, label + " 单根长度含绳眼、长于主体");
+            True(materials.StrandLengthM * 1000.0 < straight + 3000.0, label + " 单根长度没有被重复累计");
+            Equal(materials.StrandCount, spec.CableCount, label + " 拉索根数");
+            Equal(materials.RopeTotalLengthM, materials.StrandLengthM * spec.CableCount, 1e-9,
+                label + " 拉索总长");
+            Equal(materials.RopeMassKg, materials.RopeTotalLengthM * 0.857, 1e-9, label + " 拉索总重");
+
+            // 附件数量
+            Equal(materials.CollarCount, spec.CableCount, label + " 环板每根一件");
+            Equal(materials.CollarUboltCount, spec.CableCount, label + " U 形螺栓每根一套");
+            Equal(materials.CollarNutCount, spec.CableCount * 2, label + " 螺母每根两个");
+            Equal(materials.ThimbleCount, spec.CableCount * 2, label + " 鸡心环每根两个");
+            Equal(materials.ClipCount, spec.CableCount * 6, label + " 绳夹每根六套");
+            Equal(materials.AnchorCount, expectedAnchors, label + " 锚墩个数");
+            Equal(materials.GroundRebarCount, expectedAnchors, label + " 地面钢筋根数");
+            True(materials.CollarMassKg > 1.0 && materials.CollarMassKg < 2000.0,
+                label + " 单件环板重量合理（" + materials.CollarMassKg.ToString("0.#") + " kg）");
+            True(materials.AnchorMassKg > 0.1 && materials.AnchorMassKg < 20.0,
+                label + " 单件锚墩重量合理（" + materials.AnchorMassKg.ToString("0.##") + " kg）");
+            True(materials.GroundRebarLengthM > 0.5 && materials.GroundRebarLengthM < 2.0,
+                label + " 地面钢筋单根长度合理（" + materials.GroundRebarLengthM.ToString("0.###") + " m）");
+            True(materials.Lines.Count >= 6, label + " 材料用量分项齐全");
+            True(materials.Summary().Length > 20, label + " 材料摘要非空");
         }
 
         /// <summary>

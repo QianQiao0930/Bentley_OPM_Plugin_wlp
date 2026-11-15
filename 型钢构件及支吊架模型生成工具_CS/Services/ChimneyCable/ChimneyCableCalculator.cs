@@ -167,7 +167,7 @@ namespace SteelSectionProbe
                     ? "H/(2R) = " + Format(spec.ExtraCableRatio) + " > 35，含 H/3 中间层"
                     : "H/(2R) = " + Format(spec.ExtraCableRatio) + " ≤ 35，无中间层",
                 spec.AnchorCount,
-                plan.PartCount);
+                plan.PartCount) + " " + ChimneyCableTakeoff.Of(spec, plan).Summary();
         }
 
         /// <summary>

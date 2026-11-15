@@ -135,6 +135,7 @@ namespace SteelSectionProbe
                 {
                     SpecificationText.Text = error;
                     ShowSummary(null);
+                    MaterialsText.Text = "—";
                     return;
                 }
 
@@ -142,11 +143,13 @@ namespace SteelSectionProbe
                 ChimneyCableSpec spec = ChimneyCableCatalog.Resolve(parameters);
                 SpecificationText.Text = ChimneyCableCalculator.Describe(plan, parameters);
                 ShowSummary(spec);
+                ShowMaterials(plan, spec);
             }
             catch (Exception exception)
             {
                 SpecificationText.Text = exception.Message;
                 ShowSummary(null);
+                MaterialsText.Text = "—";
             }
         }
 
@@ -166,6 +169,20 @@ namespace SteelSectionProbe
             ExtraLayerText.Text = spec.NeedsExtraCable
                 ? "需要：H/(2R) = " + spec.ExtraCableRatio.ToString("0.###", CultureInfo.CurrentCulture) + " > 35"
                 : "不需要：H/(2R) = " + spec.ExtraCableRatio.ToString("0.###", CultureInfo.CurrentCulture);
+        }
+
+        /// <summary>材料用量：排气筒钢管、拉索、附件的用量与数量；非法输入时清空。</summary>
+        private void ShowMaterials(EngineeringPlan plan, ChimneyCableSpec spec)
+        {
+            try
+            {
+                ChimneyCableMaterials materials = ChimneyCableTakeoff.Of(spec, plan);
+                MaterialsText.Text = string.Join(Environment.NewLine, materials.Lines.ToArray());
+            }
+            catch (Exception exception)
+            {
+                MaterialsText.Text = "材料用量计算失败：" + exception.Message;
+            }
         }
 
         private void Pick_Click(object sender, RoutedEventArgs e)

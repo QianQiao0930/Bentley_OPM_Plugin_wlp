@@ -17,6 +17,7 @@
     <Compile Include="../../Data/ChimneyBase/ChimneyBaseCatalog.cs" Link="ChimneyBaseCatalog.cs" />
     <Compile Include="../../Services/ChimneyBase/ChimneyBaseCalculator.cs" Link="ChimneyBaseCalculator.cs" />
     <Compile Include="../../Domain/ChimneyCable/ChimneyCableModels.cs" Link="ChimneyCableModels.cs" />
+    <Compile Include="../../Domain/ChimneyCable/ChimneyCableTakeoff.cs" Link="ChimneyCableTakeoff.cs" />
     <Compile Include="../../Data/ChimneyCable/ChimneyCableCatalog.cs" Link="ChimneyCableCatalog.cs" />
     <Compile Include="../../Services/ChimneyCable/ChimneyCableCalculator.cs" Link="ChimneyCableCalculator.cs" />
   </ItemGroup>
