@@ -422,31 +422,37 @@ namespace SteelSectionProbe
             True(thimble != null, label + " 有鸡心环");
             Equal(thimble.Add.Count, 1, label + " 鸡心环为单个实体");
             EngineeringShape band = thimble.Add[0];
-            True(band.Kind == EngineeringShapeKind.ProfileSweep, label + " 鸡心环为槽形截面扫掠");
-            True(band.Points.Length >= 10, label + " 泪滴路径点足够");
-            True(band.Profile.Length >= 20, label + " 槽形截面点足够");
+            True(band.Kind == EngineeringShapeKind.Extrude, label + " 鸡心环为普通拉伸");
+            True(band.Points.Length >= 20, label + " 环带轮廓点足够（内外两条圆弧链）");
+            True(band.Points.Length % 2 == 0, label + " 环带轮廓内外点数相等");
             True(band.ArcMiddles != null && band.ArcMiddles.Length >= band.Points.Length - 1,
-                label + " 路径圆弧中点齐全");
+                label + " 环带轮廓圆弧中点齐全");
 
-            double maxDepth = 0.0;
-            double minDepth = double.MaxValue;
-            double maxWidth = 0.0;
-            foreach (EngineeringPoint point in band.Profile)
+            double minX = double.MaxValue;
+            double maxX = double.MinValue;
+            double minY = double.MaxValue;
+            double maxY = double.MinValue;
+            double minZ = double.MaxValue;
+            double maxZ = double.MinValue;
+            foreach (EngineeringPoint point in band.Points)
             {
-                maxDepth = Math.Max(maxDepth, point.X);
-                minDepth = Math.Min(minDepth, point.X);
-                maxWidth = Math.Max(maxWidth, Math.Abs(point.Z));
-                True(Finite(point), label + " 截面点有限");
+                True(Finite(point), label + " 环带点有限");
+                minX = Math.Min(minX, point.X);
+                maxX = Math.Max(maxX, point.X);
+                minY = Math.Min(minY, point.Y);
+                maxY = Math.Max(maxY, point.Y);
+                minZ = Math.Min(minZ, point.Z);
+                maxZ = Math.Max(maxZ, point.Z);
             }
 
-            Equal(maxWidth, ChimneyCableCatalog.ThimbleWidthMm / 2.0, 1e-9, label + " 截面带宽 17");
-            Equal(maxDepth, 0.1 + ChimneyCableCatalog.ThimbleDepthMm, 1e-9, label + " 唇壁高 4.7");
-            Equal(minDepth, 0.1, 1e-9, label + " 背面贴在路径上");
-            True(ChimneyCableCatalog.ThimbleDepthMm < ChimneyCableCatalog.RopeEyeOffsetMm,
-                label + " 唇壁低于绳中心，绳坐在槽内");
-            True(ChimneyCableCatalog.RopeEyeOffsetMm - ChimneyCableCatalog.RopeRadiusMm >
-                0.1 + ChimneyCableCatalog.ThimbleWallMm,
-                label + " 槽底与绳内缘留间隙");
+            double diagonal = Math.Sqrt(
+                (maxX - minX) * (maxX - minX) + (maxY - minY) * (maxY - minY) +
+                (maxZ - minZ) * (maxZ - minZ));
+            True(diagonal > 40.0 && diagonal < 130.0,
+                label + " 环带包住泪滴、不是退化成一条线（对角 " + diagonal.ToString("0.0") + "）");
+            Equal(ChimneyCableCatalog.ThimbleWidthMm, 17.0, 1e-9, label + " 鸡心环带宽 17");
+            True(ChimneyCableCatalog.ThimbleWallMm < ChimneyCableCatalog.RopeEyeOffsetMm,
+                label + " 环带厚度小于绳中心外偏");
 
             // 绳眼工作段与主体圆柱的搭接必须够长：改成短搭接时放样截面间距只有 0.8，
             // 放样体退化，宿主报“相并失败”。
@@ -700,16 +706,6 @@ namespace SteelSectionProbe
                 True(shape.RadiusStart > 0, label + " 扫掠半径正值");
             }
 
-            if (shape.Kind == EngineeringShapeKind.ProfileSweep)
-            {
-                True(shape.Points.Length >= 2, label + " 截面扫掠路径点足够");
-                True(shape.Profile.Length >= 3, label + " 截面点足够");
-                True(Math.Abs(shape.AxisX.X) + Math.Abs(shape.AxisX.Y) + Math.Abs(shape.AxisX.Z) > 1e-6,
-                    label + " 截面宽度方向非零");
-                True(Math.Abs(shape.AxisY.X) + Math.Abs(shape.AxisY.Y) + Math.Abs(shape.AxisY.Z) > 1e-6,
-                    label + " 截面深度方向非零");
-            }
-
             if (shape.Kind == EngineeringShapeKind.Loft)
             {
                 True(shape.Points.Length >= 2, label + " 放样路径点足够");
@@ -909,23 +905,6 @@ namespace SteelSectionProbe
                         }
 
                         break;
-                    case EngineeringShapeKind.ProfileSweep:
-                    {
-                        double extent = 0.0;
-                        foreach (EngineeringPoint point in shape.Profile)
-                        {
-                            extent = Math.Max(extent, Math.Abs(point.X));
-                            extent = Math.Max(extent, Math.Abs(point.Z));
-                        }
-
-                        foreach (EngineeringPoint point in shape.Points)
-                        {
-                            bounds.Include(point.Offset(-extent, -extent, -extent));
-                            bounds.Include(point.Offset(extent, extent, extent));
-                        }
-
-                        break;
-                    }
                 }
 
                 return bounds;

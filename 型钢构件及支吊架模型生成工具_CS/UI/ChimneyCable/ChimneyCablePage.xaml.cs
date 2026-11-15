@@ -224,8 +224,9 @@ namespace SteelSectionProbe
                 elapsed = WriteDuration.Format(watch.Elapsed.TotalMilliseconds);
                 ConfirmButton.IsEnabled = true;
                 PreviewUpdateHint.Set(UpdateButton, false);
-                PreviewText.Text = "预览已生成，共 " + plan.PartCount + " 个实体；用时 " + elapsed + "。";
-                Status("烟囱拉索预览已更新。", false);
+                PreviewText.Text = "预览已生成，共 " + plan.PartCount + " 个实体；" +
+                    EngineeringTiming.Report() + "（含预览写入共 " + elapsed + "）。";
+                Status(EngineeringTiming.Report(), false);
             }
             catch (Exception exception)
             {

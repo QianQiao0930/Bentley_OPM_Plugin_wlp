@@ -381,10 +381,10 @@ namespace SteelSectionProbe
         }
 
         /// <summary>
-        /// 鸡心环的备用几何：旧做法——内外边界都是真圆弧链的环带拉伸（1.316×17 平板）。
-        /// 平板在绳圈里会挡住绳子（用户误认为断绳），只在槽形截面扫掠被内核拒绝时使用。
+        /// 鸡心环：内外边界都是真圆弧链的环带（1.316×17），沿带宽方向普通拉伸。
+        /// 用户 2026-11-15 明确要求用这个做法（槽形截面扫掠在宿主里被内核拒绝，反复走后备更慢）。
         /// </summary>
-        private static EngineeringShape ThimbleBandFallback(
+        private static EngineeringShape ThimbleBand(
             EyeFrame frame, List<EngineeringPoint> path, List<EngineeringPoint> normals,
             List<int> knots, List<int> mids)
         {
@@ -422,40 +422,6 @@ namespace SteelSectionProbe
                 points,
                 frame.Direction(0.0, ChimneyCableCatalog.ThimbleWidthMm, 0.0),
                 arcMids);
-        }
-
-        /// <summary>
-        /// 鸡心环槽形截面（对应 CAD <c>BuildThimble</c> 的 profile）：
-        /// 第一坐标 = 相对内背面路径的外偏（mm），第三坐标 = 带宽方向（mm）。
-        /// 槽底为抛物线托住钢丝绳内缘、两侧为唇壁，材料全部在路径外侧（朝绳一侧）。
-        /// </summary>
-        private static EngineeringPoint[] ThimbleChannelProfile()
-        {
-            double halfWidth = ChimneyCableCatalog.ThimbleWidthMm / 2.0;
-            double halfChannel = (ChimneyCableCatalog.ThimbleWidthMm -
-                2.0 * ChimneyCableCatalog.ThimbleWallMm) / 2.0;
-            double lip = ChimneyCableCatalog.ThimbleDepthMm;
-            double floor = ChimneyCableCatalog.ThimbleWallMm;
-            const double offset = 0.1;
-
-            var points = new List<EngineeringPoint>
-            {
-                new EngineeringPoint(offset, 0.0, -halfWidth),
-                new EngineeringPoint(offset + lip, 0.0, -halfWidth),
-                new EngineeringPoint(offset + lip, 0.0, -halfChannel)
-            };
-
-            for (int index = 0; index <= 24; index++)
-            {
-                double width = -halfChannel + 2.0 * halfChannel * index / 24.0;
-                double depth = offset + floor +
-                    (lip - floor) * (width / halfChannel) * (width / halfChannel);
-                points.Add(new EngineeringPoint(depth, 0.0, width));
-            }
-
-            points.Add(new EngineeringPoint(offset + lip, 0.0, halfWidth));
-            points.Add(new EngineeringPoint(offset, 0.0, halfWidth));
-            return points.ToArray();
         }
 
         /// <summary>
@@ -618,9 +584,9 @@ namespace SteelSectionProbe
                 world, ChimneyCableCatalog.RopeRadiusMm, worldMids,
                 frame.Direction(0.0, 1.0, 0.0)));
 
-            // ---- 鸡心环：按 CAD 的**开口槽形截面**沿泪滴内背面路径扫掠：
-            //      槽底（抛物线）托住钢丝绳内缘、两侧唇壁高 C、带宽 B=17、壁厚 1.316；
-            //      截面材料在路径外侧（朝绳子一侧），绳坐在槽里，不会像扁带那样挡住绳子。
+            // ---- 鸡心环：内径 φ38、带宽 17、壁厚 1.316 的**环带**，内外边界均为真圆弧链，
+            //      沿带宽方向普通拉伸（用户 2026-11-15 明确要求用拉伸，不做槽形截面扫掠：
+            //      槽形扫掠在宿主里被内核拒绝，反复退回后备反而更慢）。
             //      两端向绳眼口内缩 ThimbleEndTrimMm，避免端面从两股绳之间穿出。
             List<EngineeringPoint> bandPath = TrimPath(inner, ChimneyCableCatalog.ThimbleEndTrimMm);
             List<EngineeringPoint> bandNormals = OutwardNormals(bandPath);
@@ -628,27 +594,9 @@ namespace SteelSectionProbe
             var innerMidIndices = new List<int>();
             ArcChain(bandPath, innerKnots, innerMidIndices);
 
-            var bandWorld = new EngineeringPoint[innerKnots.Count];
-            var bandMids = new EngineeringPoint?[innerKnots.Count];
-            for (int index = 0; index < innerKnots.Count; index++)
-            {
-                int knot = innerKnots[index];
-                bandWorld[index] = frame.Map(bandPath[knot].X, 0.0, bandPath[knot].Z);
-                bandMids[index] = index < innerMidIndices.Count
-                    ? frame.Map(bandPath[innerMidIndices[index]].X, 0.0, bandPath[innerMidIndices[index]].Z)
-                    : (EngineeringPoint?)null;
-            }
-
             var thimble = plan.Add(name + " 鸡心环");
             thimble.Color(FittingRed, FittingGreen, FittingBlue);
-            EngineeringShape thimbleShape = EngineeringShape.ProfileSweep(
-                bandWorld,
-                ThimbleChannelProfile(),
-                bandMids,
-                frame.Direction(0.0, 1.0, 0.0),
-                frame.Direction(bandNormals[innerKnots[0]].X, 0.0, bandNormals[innerKnots[0]].Z));
-            thimbleShape.Fallback = ThimbleBandFallback(frame, bandPath, bandNormals, innerKnots, innerMidIndices);
-            thimble.Add.Add(thimbleShape);
+            thimble.Add.Add(ThimbleBand(frame, bandPath, bandNormals, innerKnots, innerMidIndices));
 
             // ---- 3 只绳夹：首只中心距绳眼口 72，其后每 104 等距。
             for (int index = 0; index < ChimneyCableCatalog.ClipCount; index++)

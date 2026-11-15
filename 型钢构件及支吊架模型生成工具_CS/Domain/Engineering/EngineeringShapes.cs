@@ -60,9 +60,6 @@ namespace SteelSectionProbe
         /// <summary>圆截面沿折线路径扫掠。</summary>
         Sweep,
 
-        /// <summary>任意闭合截面（见 <see cref="EngineeringShape.Profile"/>）沿路径扫掠。</summary>
-        ProfileSweep,
-
         /// <summary>
         /// 圆截面沿路径逐段放样成**单一**光滑管面（不产生逐段横向棱线）；
         /// 内核拒绝放样时自动退回 <see cref="Sweep"/>。
@@ -108,19 +105,8 @@ namespace SteelSectionProbe
         /// <summary>圆环平面基向量（TorusArc 使用；扫掠朝 AxisY 方向）。</summary>
         internal EngineeringPoint AxisY;
 
-        /// <summary>
-        /// 备用几何：主几何被内核拒绝时改用它（目前只用于鸡心环槽形截面 → 环带拉伸）。
-        /// </summary>
-        internal EngineeringShape Fallback;
-
         /// <summary>回转/拉伸/扫掠轮廓，或扫掠路径点。</summary>
         internal EngineeringPoint[] Points = new EngineeringPoint[0];
-
-        /// <summary>
-        /// 扫掠截面 2D 点（仅 <see cref="EngineeringShapeKind.ProfileSweep"/> 使用）：
-        /// X = 沿 <see cref="AxisY"/>（截面深度方向）、Z = 沿 <see cref="AxisX"/>（宽度方向），单位 mm。
-        /// </summary>
-        internal EngineeringPoint[] Profile = new EngineeringPoint[0];
 
         /// <summary>
         /// 与 <see cref="Points"/> 等长的圆弧中间点：元素 i 非空表示 Points[i]→Points[i+1]
@@ -251,27 +237,6 @@ namespace SteelSectionProbe
                 RadiusStart = radius,
                 ArcMiddles = arcMiddles,
                 AxisX = outOfPlane
-            };
-        }
-
-        /// <summary>
-        /// 任意闭合截面沿路径扫掠：<paramref name="profile"/> 为截面 2D 点（第一坐标沿
-        /// <paramref name="depthAxis"/>、第二坐标沿 <paramref name="widthAxis"/>，单位 mm），
-        /// 截面放在路径起点、垂直于起点切向。<paramref name="arcMiddles"/> 与路径点等长，
-        /// 用真圆弧描述路径。用于鸡心环一类的开口槽形截面。
-        /// </summary>
-        internal static EngineeringShape ProfileSweep(
-            EngineeringPoint[] path, EngineeringPoint[] profile, EngineeringPoint?[] arcMiddles,
-            EngineeringPoint widthAxis, EngineeringPoint depthAxis)
-        {
-            return new EngineeringShape
-            {
-                Kind = EngineeringShapeKind.ProfileSweep,
-                Points = path,
-                Profile = profile,
-                ArcMiddles = arcMiddles,
-                AxisX = widthAxis,
-                AxisY = depthAxis
             };
         }
 

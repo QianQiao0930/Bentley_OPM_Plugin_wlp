@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -43,17 +44,23 @@ namespace SteelSectionProbe
             }
 
             var children = new List<Element>();
+            EngineeringTiming.Reset();
+            var watch = Stopwatch.StartNew();
             foreach (EngineeringBody body in plan.Bodies)
             {
                 try
                 {
                     children.Add(BuildBody(body, modelRef, model, scale));
+                    EngineeringTiming.AddBody();
                 }
                 catch (Exception error)
                 {
                     throw new InvalidOperationException("“" + body.Name + "”生成失败：" + error.Message, error);
                 }
             }
+
+            watch.Stop();
+            EngineeringTiming.SetTotal(watch.Elapsed.TotalMilliseconds);
 
             if (children.Count == 0)
             {
@@ -65,7 +72,13 @@ namespace SteelSectionProbe
             var tilt = DTransform3d.Rotation(0, Angle.FromRadians(plan.RotateXDegrees * Math.PI / 180.0));
             var placement = DTransform3d.Multiply(DTransform3d.FromTranslation(origin), DTransform3d.Multiply(heading, tilt));
             cell.ApplyTransform(new TransformInfo(placement));
+            EngineeringLog.Write(EngineeringTiming.Report());
             return cell;
+        }
+
+        private static T Timed<T>(EngineeringTimingPhase phase, Func<T> action)
+        {
+            return EngineeringTiming.Measure(phase, action);
         }
 
         private static Element BuildBody(EngineeringBody body, DgnModelRef modelRef, DgnModel model, double scale)
@@ -76,16 +89,20 @@ namespace SteelSectionProbe
                 throw new InvalidOperationException("没有基体形状。");
             }
 
-            target = Shape(body.Add[0], modelRef, scale);
+            target = Timed(EngineeringTimingPhase.Shape, () => Shape(body.Add[0], modelRef, scale));
+            EngineeringTiming.ShapeCount++;
             if (body.UnionAdd && body.Add.Count > 1)
             {
                 var tools = new SolidKernelEntity[body.Add.Count - 1];
                 for (int index = 1; index < body.Add.Count; index++)
                 {
-                    tools[index - 1] = Shape(body.Add[index], modelRef, scale);
+                    tools[index - 1] = Timed(EngineeringTimingPhase.Shape,
+                        () => Shape(body.Add[index], modelRef, scale));
+                    EngineeringTiming.ShapeCount++;
                 }
 
-                var status = Modify.BooleanUnion(ref target, ref tools, tools.Length);
+                var status = Timed(EngineeringTimingPhase.Union,
+                    () => Modify.BooleanUnion(ref target, ref tools, tools.Length));
                 if (status != BentleyStatus.Success)
                 {
                     throw new InvalidOperationException("相并失败：" + status);
@@ -94,8 +111,11 @@ namespace SteelSectionProbe
 
             foreach (EngineeringShape cutter in body.Cut)
             {
-                var tools = new[] { Shape(cutter, modelRef, scale) };
-                var status = Modify.BooleanSubtract(ref target, ref tools, 1);
+                EngineeringShape current = cutter;
+                var tools = new[] { Timed(EngineeringTimingPhase.Shape, () => Shape(current, modelRef, scale)) };
+                EngineeringTiming.ShapeCount++;
+                var status = Timed(EngineeringTimingPhase.Cut,
+                    () => Modify.BooleanSubtract(ref target, ref tools, 1));
                 if (status != BentleyStatus.Success)
                 {
                     if (body.BestEffortCut)
@@ -107,8 +127,9 @@ namespace SteelSectionProbe
                 }
             }
 
-            Element element;
-            var convert = Convert1.BodyToElement(out element, target, null, modelRef);
+            Element element = null;
+            var convert = Timed(EngineeringTimingPhase.Element,
+                () => Convert1.BodyToElement(out element, target, null, modelRef));
             if (convert != BentleyStatus.Success || element == null)
             {
                 throw new InvalidOperationException("实体转 DGN 元素失败：" + convert);
@@ -151,18 +172,6 @@ namespace SteelSectionProbe
                     break;
                 case EngineeringShapeKind.Sweep:
                     return SweepBody(shape, modelRef, scale);
-                case EngineeringShapeKind.ProfileSweep:
-                    try
-                    {
-                        return ProfileSweepBody(shape, modelRef, scale);
-                    }
-                    catch (Exception exception) when (shape.Fallback != null)
-                    {
-                        // 槽形截面扫掠被内核拒绝时退回环带拉伸，至少保住整套模型；
-                        // 环带是三片平板，视觉上会挡住绳子（见 2026-11-15 记录）。
-                        EngineeringLog.Write("鸡心环槽形截面扫掠失败，退回环带拉伸：" + exception.Message);
-                        return Shape(shape.Fallback, modelRef, scale);
-                    }
                 case EngineeringShapeKind.Loft:
                     return LoftBody(shape, modelRef, scale);
                 case EngineeringShapeKind.SplineSweep:
@@ -451,10 +460,14 @@ namespace SteelSectionProbe
         }
 
         /// <summary>放样的截面目标间距（mm）：越小越贴合路径，放样行数越多。</summary>
-        private const double LoftStepMm = 2.5;
+        /// <summary>放样截面的目标间距（mm）：5 mm 已足够贴合圆弧链，越密内核越慢。</summary>
+        private const double LoftStepMm = 5.0;
 
-        /// <summary>单段路径最多细分出的行数，避免长直线段产生上百行。</summary>
-        private const int LoftMaxSubSteps = 24;
+        /// <summary>
+        /// 单段路径最多细分出的截面数。圆弧链本身已经是很短的段（大多 1 段 1 个截面），
+        /// 长直线段才需要细分；早期取 24 会让整套模型产生近千个截面，建模时间被内核吃掉。
+        /// </summary>
+        private const int LoftMaxSubSteps = 6;
 
         /// <summary>
         /// 圆截面沿路径放样：每个截面都是真圆，坐标架由路径平面法向显式定死，
@@ -741,82 +754,6 @@ namespace SteelSectionProbe
         }
 
         /// <summary>
-        /// 任意闭合截面沿路径扫掠：截面轮廓建在路径起点、垂直于起点切向，
-        /// 深度方向取形状的 <see cref="EngineeringShape.AxisY"/>、宽度方向取 <see cref="EngineeringShape.AxisX"/>。
-        /// 用于鸡心环的开口槽形截面（绳坐在槽里），避免用扁带遮挡绳子。
-        /// </summary>
-        private static SolidKernelEntity ProfileSweepBody(
-            EngineeringShape shape, DgnModelRef modelRef, double scale)
-        {
-            if (shape.Points == null || shape.Points.Length < 2 ||
-                shape.Profile == null || shape.Profile.Length < 3)
-            {
-                throw new InvalidOperationException("截面扫掠的路径或截面点不足。");
-            }
-
-            // 截面轮廓自带尺寸，不需要 RadiusStart；带零半径校验会把它直接挡掉。
-
-            DPoint3d first = P(shape.Points[0], scale);
-            DVector3d tangent;
-            if (shape.ArcMiddles != null && shape.ArcMiddles[0].HasValue)
-            {
-                tangent = ArcStartTangent(
-                    first, P(shape.ArcMiddles[0].Value, scale), P(shape.Points[1], scale));
-            }
-            else
-            {
-                DPoint3d second = P(shape.Points[1], scale);
-                tangent = Normalize(new DVector3d(
-                    second.X - first.X, second.Y - first.Y, second.Z - first.Z));
-            }
-
-            DVector3d width = Normalize(new DVector3d(
-                shape.AxisX.X, shape.AxisX.Y, shape.AxisX.Z));
-            DVector3d depth = Normalize(new DVector3d(
-                shape.AxisY.X, shape.AxisY.Y, shape.AxisY.Z));
-
-            var profile = CurveVector.Create(CurveVector.BoundaryType.Outer);
-
-            // 截面点必须按逆时针给出（正面积），否则内核可能把它当成自交轮廓而拒绝扫掠。
-            double area = 0.0;
-            for (int index = 0; index < shape.Profile.Length; index++)
-            {
-                EngineeringPoint current = shape.Profile[index];
-                EngineeringPoint next = shape.Profile[(index + 1) % shape.Profile.Length];
-                area += current.X * next.Z - next.X * current.Z;
-            }
-
-            int count = shape.Profile.Length;
-            var points = new DPoint3d[count];
-            for (int index = 0; index < count; index++)
-            {
-                EngineeringPoint item = shape.Profile[area < 0.0 ? count - 1 - index : index];
-                points[index] = Combine(first, depth, item.X, width, item.Z);
-            }
-
-            for (int index = 0; index < points.Length; index++)
-            {
-                profile.Add(CurvePrimitive.CreateLine(new DSegment3d(
-                    points[index], points[(index + 1) % points.Length])));
-            }
-
-            var path = CurveVector.Create(CurveVector.BoundaryType.Open);
-            for (int index = 0; index + 1 < shape.Points.Length; index++)
-            {
-                EngineeringPoint? middle = shape.ArcMiddles == null ? null : shape.ArcMiddles[index];
-                AddSegment(path, shape.Points[index], shape.Points[index + 1], middle, scale);
-            }
-
-            SolidKernelEntity body;
-            var status = Create.BodyFromSweep(out body, profile, path, modelRef,
-                false, true, false, width, null, null, null);
-            if (status != BentleyStatus.Success || body == null)
-            {
-                throw new InvalidOperationException("截面扫掠失败：" + status);
-            }
-
-            return body;
-        }
 
         private static bool Finite(double value)
         {
