@@ -151,6 +151,8 @@ namespace SteelSectionProbe
                     break;
                 case EngineeringShapeKind.Sweep:
                     return SweepBody(shape, modelRef, scale);
+                case EngineeringShapeKind.ProfileSweep:
+                    return ProfileSweepBody(shape, modelRef, scale);
                 case EngineeringShapeKind.Loft:
                     return LoftBody(shape, modelRef, scale);
                 case EngineeringShapeKind.SplineSweep:
@@ -715,6 +717,76 @@ namespace SteelSectionProbe
             double y = a.Y - b.Y;
             double z = a.Z - b.Z;
             return Math.Sqrt(x * x + y * y + z * z);
+        }
+
+        /// <summary>
+        /// 任意闭合截面沿路径扫掠：截面轮廓建在路径起点、垂直于起点切向，
+        /// 深度方向取形状的 <see cref="EngineeringShape.AxisY"/>、宽度方向取 <see cref="EngineeringShape.AxisX"/>。
+        /// 用于鸡心环的开口槽形截面（绳坐在槽里），避免用扁带遮挡绳子。
+        /// </summary>
+        private static SolidKernelEntity ProfileSweepBody(
+            EngineeringShape shape, DgnModelRef modelRef, double scale)
+        {
+            if (shape.Points == null || shape.Points.Length < 2 ||
+                shape.Profile == null || shape.Profile.Length < 3)
+            {
+                throw new InvalidOperationException("截面扫掠的路径或截面点不足。");
+            }
+
+            double radius = shape.RadiusStart * scale;
+            if (!(radius > 0))
+            {
+                throw new InvalidOperationException("截面扫掠的截面半径无效。");
+            }
+
+            DPoint3d first = P(shape.Points[0], scale);
+            DVector3d tangent;
+            if (shape.ArcMiddles != null && shape.ArcMiddles[0].HasValue)
+            {
+                tangent = ArcStartTangent(
+                    first, P(shape.ArcMiddles[0].Value, scale), P(shape.Points[1], scale));
+            }
+            else
+            {
+                DPoint3d second = P(shape.Points[1], scale);
+                tangent = Normalize(new DVector3d(
+                    second.X - first.X, second.Y - first.Y, second.Z - first.Z));
+            }
+
+            DVector3d width = Normalize(new DVector3d(
+                shape.AxisX.X, shape.AxisX.Y, shape.AxisX.Z));
+            DVector3d depth = Normalize(new DVector3d(
+                shape.AxisY.X, shape.AxisY.Y, shape.AxisY.Z));
+
+            var profile = CurveVector.Create(CurveVector.BoundaryType.Outer);
+            var points = new DPoint3d[shape.Profile.Length];
+            for (int index = 0; index < shape.Profile.Length; index++)
+            {
+                points[index] = Combine(first, depth, shape.Profile[index].X, width, shape.Profile[index].Z);
+            }
+
+            for (int index = 0; index < points.Length; index++)
+            {
+                profile.Add(CurvePrimitive.CreateLine(new DSegment3d(
+                    points[index], points[(index + 1) % points.Length])));
+            }
+
+            var path = CurveVector.Create(CurveVector.BoundaryType.Open);
+            for (int index = 0; index + 1 < shape.Points.Length; index++)
+            {
+                EngineeringPoint? middle = shape.ArcMiddles == null ? null : shape.ArcMiddles[index];
+                AddSegment(path, shape.Points[index], shape.Points[index + 1], middle, scale);
+            }
+
+            SolidKernelEntity body;
+            var status = Create.BodyFromSweep(out body, profile, path, modelRef,
+                false, true, false, width, null, null, null);
+            if (status != BentleyStatus.Success || body == null)
+            {
+                throw new InvalidOperationException("截面扫掠失败：" + status);
+            }
+
+            return body;
         }
 
         private static bool Finite(double value)

@@ -245,6 +245,17 @@ namespace SteelSectionProbe
             get { return RopeEyeOffsetMm + RebarDiameterMm / 2.0; }
         }
 
+        /// <summary>
+        /// 绳眼弯段工作段伸入绳轴的长度（mm）：绳眼只画到这一处，再往上由主体圆柱承担，
+        /// 两者只搭接约 12 mm（CAD 也是直段与弯段各自成体、搭接 4 mm）。
+        /// 早期把工作段一直画到 525 与主体同轴重叠 195 mm，同轴同径面片相互重叠，
+        /// 布尔后管面容易出破面，看起来像“绳子断了”。
+        /// </summary>
+        internal const double RopeEyeStubMm = 150.0;
+
+        /// <summary>主体圆柱端头距绳眼挂点的距离（mm）：比绳眼伸入量少 12，形成短搭接。</summary>
+        internal const double RopeEyeJointMm = RopeEyeStubMm - 12.0;
+
         // ---------------------------------------------------------------
         // 地面端 U 形钢筋（2026-11-15 用户要求新增）
         // 锚墩上埋一根 ∩ 形 φ20 钢筋，弯拱顶点即吊点，绳眼挂在上面；

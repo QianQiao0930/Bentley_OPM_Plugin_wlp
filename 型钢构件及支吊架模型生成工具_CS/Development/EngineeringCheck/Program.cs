@@ -199,6 +199,7 @@ namespace SteelSectionProbe
             Equal(plan.PartCount, 56, "默认实体数 = 49 + 上端环板 1 + 上端吊筋 3 + 地面 U 形钢筋 3");
             CheckCollar(plan, spec, "拉索默认");
             CheckGroundFixing(plan, spec, "拉索默认", 3);
+            CheckThimble(plan, "拉索默认");
 
             Bounds bounds = Bounds.Of(plan);
             Equal(bounds.MaxZ, 30000.0, 1.0, "筒身顶高");
@@ -400,6 +401,52 @@ namespace SteelSectionProbe
         private static string Format(double value)
         {
             return value.ToString("0.###", CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>
+        /// 鸡心环：CAD 的开口槽形截面沿泪滴路径扫掠（不是扁带），
+        /// 槽底托住绳内缘、唇壁低于绳中心外偏，绳坐在槽里，不会像扁带那样挡住绳子。
+        /// </summary>
+        private static void CheckThimble(EngineeringPlan plan, string label)
+        {
+            EngineeringBody thimble = null;
+            foreach (EngineeringBody body in plan.Bodies)
+            {
+                if (body.Name.IndexOf("上端绳眼 鸡心环", StringComparison.Ordinal) >= 0)
+                {
+                    thimble = body;
+                    break;
+                }
+            }
+
+            True(thimble != null, label + " 有鸡心环");
+            Equal(thimble.Add.Count, 1, label + " 鸡心环为单个实体");
+            EngineeringShape band = thimble.Add[0];
+            True(band.Kind == EngineeringShapeKind.ProfileSweep, label + " 鸡心环为槽形截面扫掠");
+            True(band.Points.Length >= 10, label + " 泪滴路径点足够");
+            True(band.Profile.Length >= 20, label + " 槽形截面点足够");
+            True(band.ArcMiddles != null && band.ArcMiddles.Length >= band.Points.Length - 1,
+                label + " 路径圆弧中点齐全");
+
+            double maxDepth = 0.0;
+            double minDepth = double.MaxValue;
+            double maxWidth = 0.0;
+            foreach (EngineeringPoint point in band.Profile)
+            {
+                maxDepth = Math.Max(maxDepth, point.X);
+                minDepth = Math.Min(minDepth, point.X);
+                maxWidth = Math.Max(maxWidth, Math.Abs(point.Z));
+                True(Finite(point), label + " 截面点有限");
+            }
+
+            Equal(maxWidth, ChimneyCableCatalog.ThimbleWidthMm / 2.0, 1e-9, label + " 截面带宽 17");
+            Equal(maxDepth, 0.1 + ChimneyCableCatalog.ThimbleDepthMm, 1e-9, label + " 唇壁高 4.7");
+            Equal(minDepth, 0.1, 1e-9, label + " 背面贴在路径上");
+            True(ChimneyCableCatalog.ThimbleDepthMm < ChimneyCableCatalog.RopeEyeOffsetMm,
+                label + " 唇壁低于绳中心，绳坐在槽内");
+            True(ChimneyCableCatalog.RopeEyeOffsetMm - ChimneyCableCatalog.RopeRadiusMm >
+                0.1 + ChimneyCableCatalog.ThimbleWallMm,
+                label + " 槽底与绳内缘留间隙");
         }
 
         /// <summary>
@@ -648,6 +695,16 @@ namespace SteelSectionProbe
                 True(shape.RadiusStart > 0, label + " 扫掠半径正值");
             }
 
+            if (shape.Kind == EngineeringShapeKind.ProfileSweep)
+            {
+                True(shape.Points.Length >= 2, label + " 截面扫掠路径点足够");
+                True(shape.Profile.Length >= 3, label + " 截面点足够");
+                True(Math.Abs(shape.AxisX.X) + Math.Abs(shape.AxisX.Y) + Math.Abs(shape.AxisX.Z) > 1e-6,
+                    label + " 截面宽度方向非零");
+                True(Math.Abs(shape.AxisY.X) + Math.Abs(shape.AxisY.Y) + Math.Abs(shape.AxisY.Z) > 1e-6,
+                    label + " 截面深度方向非零");
+            }
+
             if (shape.Kind == EngineeringShapeKind.Loft)
             {
                 True(shape.Points.Length >= 2, label + " 放样路径点足够");
@@ -847,6 +904,23 @@ namespace SteelSectionProbe
                         }
 
                         break;
+                    case EngineeringShapeKind.ProfileSweep:
+                    {
+                        double extent = 0.0;
+                        foreach (EngineeringPoint point in shape.Profile)
+                        {
+                            extent = Math.Max(extent, Math.Abs(point.X));
+                            extent = Math.Max(extent, Math.Abs(point.Z));
+                        }
+
+                        foreach (EngineeringPoint point in shape.Points)
+                        {
+                            bounds.Include(point.Offset(-extent, -extent, -extent));
+                            bounds.Include(point.Offset(extent, extent, extent));
+                        }
+
+                        break;
+                    }
                 }
 
                 return bounds;
