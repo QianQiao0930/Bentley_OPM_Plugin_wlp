@@ -79,7 +79,7 @@ namespace SteelSectionProbe
             ChimneyCableSpec spec = ChimneyCableCatalog.Resolve(parameters);
             var plan = new EngineeringPlan
             {
-                CellName = "CHIMNEY_CABLE_H" + Math.Round(
+                CellName = "CHIMNEY_H" + Math.Round(
                     parameters.HeightMeters, MidpointRounding.AwayFromZero)
                     .ToString("0", CultureInfo.InvariantCulture),
                 HeadingDegrees = parameters.HeadingDegrees,
@@ -87,6 +87,19 @@ namespace SteelSectionProbe
             };
 
             AddShell(plan, spec);
+
+            // 底座（混凝土基础 + 环形预埋板 + 加劲肋 + 地脚螺栓 + 检修门）直接复用底座模块，
+            // 不画它自带的 1500 高风管与断管台阶：这里筒身从预埋板顶面一直画到总高。
+            if (spec.GenerateBase)
+            {
+                ChimneyBaseCalculator.AppendTo(
+                    plan, ChimneyCableCatalog.ToBaseParameters(parameters), false);
+            }
+
+            if (!spec.GenerateCables)
+            {
+                return plan;
+            }
 
             double[] azimuths = ChimneyCableCatalog.CableAzimuthDegrees;
             double upperHeight = 2.0 * spec.HeightMm / 3.0;
@@ -104,9 +117,10 @@ namespace SteelSectionProbe
                 string label = "拉索 " + (index + 1).ToString(CultureInfo.InvariantCulture);
                 string anchorLabel = "地面锚墩 " + (index + 1).ToString(CultureInfo.InvariantCulture);
 
-                // 单层：地面固定点就在拉索外圆上；两层：上层比下层外扩 150（两个 U 形钢筋间隔 150）。
+                // 单层：地面固定点就在拉索外圆上；两层：上层比下层外扩 300，
+                // 即同一方位的两个 φ30 吊环沿拉索方向相距 300（四腿平行、互不干涉）。
                 double upperGroundRadius = spec.OuterRadiusMm +
-                    (spec.NeedsExtraCable ? ChimneyCableCatalog.GroundLayerOffsetMm : 0.0);
+                    (spec.NeedsExtraCable ? ChimneyCableCatalog.GroundRingSpacingMm : 0.0);
                 var upperGround = new EngineeringPoint(
                     upperGroundRadius * cosine, upperGroundRadius * sine, 0.0);
 
@@ -117,19 +131,19 @@ namespace SteelSectionProbe
                 {
                     var middleGround = new EngineeringPoint(
                         spec.OuterRadiusMm * cosine, spec.OuterRadiusMm * sine, 0.0);
-                    AddGroundRebar(plan, angle, upperGroundRadius, label + " 下端吊筋（上层）");
+                    AddGroundRebar(plan, angle, upperGroundRadius, label + " 地面吊环（上层）");
                     AddAnchor(plan, upperGround, anchorLabel + "（上层）");
 
                     double middleHeight = spec.HeightMm / 3.0;
                     AddRebar(plan, spec, angle, middleHeight, label + " 中间层吊筋");
                     AddStrand(plan, EyeHardPoint(spec, angle, middleHeight, middleGround), middleGround,
                         label + "（中间层）");
-                    AddGroundRebar(plan, angle, spec.OuterRadiusMm, label + " 下端吊筋（中间层）");
+                    AddGroundRebar(plan, angle, spec.OuterRadiusMm, label + " 地面吊环（中间层）");
                     AddAnchor(plan, middleGround, anchorLabel + "（中间层）");
                 }
                 else
                 {
-                    AddGroundRebar(plan, angle, upperGroundRadius, label + " 下端吊筋");
+                    AddGroundRebar(plan, angle, upperGroundRadius, label + " 地面吊环");
                     AddAnchor(plan, upperGround, anchorLabel);
                 }
             }
@@ -138,8 +152,8 @@ namespace SteelSectionProbe
         }
 
         /// <summary>
-        /// 中文摘要：H、D、R、拉索外圆半径、拉索根数、是否中间层与实体数；
-        /// 同时点明绳眼为简化示意。
+        /// 中文摘要：H、D、R、是否带基础/拉索、拉索外圆半径与根数、实体数；
+        /// 同时点明绳眼为简化示意。自立式（不生成拉索）时改为说明自立与基础构成。
         /// </summary>
         internal static string Describe(EngineeringPlan plan, ChimneyCableParameters parameters)
         {
@@ -154,25 +168,50 @@ namespace SteelSectionProbe
             }
 
             ChimneyCableSpec spec = ChimneyCableCatalog.Resolve(parameters);
-            return string.Format(CultureInfo.CurrentCulture,
-                "H {0:0.###} m、D {1:0.###} mm（R {2:0.###}、壁厚 {3:0.###}）；拉索外圆半径 {4:0.###} mm；" +
-                "拉索 {5} 根（{6}）、地面锚墩 {7} 个；共 {8} 个实体；上端经连接环板（比筒身半径宽 100、板上 φ24 孔）与 M20 U 形螺栓（两腿各一个螺母）挂接，下端经埋入锚墩的 ∩ 形 φ20 钢筋固定（两层时上层固定点比下层外扩 150），绳眼为真圆弧链放样示意、绳夹跨两段绳。",
-                spec.HeightMm / 1000.0,
-                spec.DiameterMm,
-                spec.RadiusMm,
-                spec.WallThicknessMm,
-                spec.OuterRadiusMm,
-                spec.CableCount,
-                spec.NeedsExtraCable
-                    ? "H/(2R) = " + Format(spec.ExtraCableRatio) + " > 35，含 H/3 中间层"
-                    : "H/(2R) = " + Format(spec.ExtraCableRatio) + " ≤ 35，无中间层",
-                spec.AnchorCount,
-                plan.PartCount) + " " + ChimneyCableTakeoff.Of(spec, plan).Summary();
+            string head = string.Format(CultureInfo.CurrentCulture,
+                "H {0:0.###} m、D {1:0.###} mm（R {2:0.###}、壁厚 {3:0.###}）；共 {4} 个实体；",
+                spec.HeightMm / 1000.0, spec.DiameterMm, spec.RadiusMm, spec.WallThicknessMm,
+                plan.PartCount);
+
+            string body;
+            if (spec.GenerateCables)
+            {
+                body = string.Format(CultureInfo.CurrentCulture,
+                    "拉索外圆半径 {0:0.###} mm；拉索 {1} 根（{2}）、地面锚墩 {3} 个；" +
+                    "上端经连接环板（比筒身半径宽 100、板上 φ24 孔）与 M20 U 形螺栓（两腿各一个螺母）挂接，" +
+                    "下端经埋入锚墩的 φ30 吊环固定（两腿净距 100、外露 100、埋深 900、底部 180° 回钩；" +
+                    "两层时两个吊环沿拉索方向相距 300），绳眼为真圆弧链放样示意、绳夹跨两段绳。",
+                    spec.OuterRadiusMm, spec.CableCount,
+                    spec.NeedsExtraCable
+                        ? "H/(2R) = " + Format(spec.ExtraCableRatio) + " > 35，含 H/3 中间层"
+                        : "H/(2R) = " + Format(spec.ExtraCableRatio) + " ≤ 35，无中间层",
+                    spec.AnchorCount);
+            }
+            else
+            {
+                body = "自立式（不生成拉索）：只有筒身与基础，无拉索、环板、绳眼与地面吊环。";
+            }
+
+            if (spec.GenerateBase)
+            {
+                body += string.Format(CultureInfo.CurrentCulture,
+                    "基础：混凝土 {0:0}×{0:0}×{1:0} mm、环形预埋板 φ{2:0}、地脚螺栓 {3} 颗（露出板面 {4:0.##} mm）、" +
+                    "+Y 面 400×600 弧形检修门（门框/密封垫/门板/两组合页/两把压紧锁）。",
+                    spec.FoundationSideMm, spec.FoundationThicknessMm,
+                    spec.EmbeddedPlateDiameterMm, spec.BoltCount, parameters.AbovePlateMm);
+            }
+            else
+            {
+                body += "未生成基础（筒身自地面起）。";
+            }
+
+            return head + body + " " + ChimneyCableTakeoff.Of(spec, plan).Summary();
         }
 
         /// <summary>
-        /// 筒身：Revolve 矩形 (R−壁厚,0)-(R,0)-(R,H)-(R−壁厚,H)，
-        /// 得到上下环形端面保留的空心筒壁；壁厚 = min(max(5, R×0.04), R×0.5)。
+        /// 筒身：Revolve 矩形 (R−壁厚, 底)-(R, 底)-(R, H)-(R−壁厚, H)，
+        /// 得到上下环形端面保留的空心筒壁；壁厚由用户输入（默认 10 mm），必须小于筒身半径。
+        /// 底标高：生成基础时为预埋板顶面（10），否则为 0——即筒身坐在基础预埋板上而不是穿进去。
         /// </summary>
         private static void AddShell(EngineeringPlan plan, ChimneyCableSpec spec)
         {
@@ -183,10 +222,17 @@ namespace SteelSectionProbe
                 throw new InvalidOperationException("筒身壁厚不小于筒身半径，无法生成空心筒壁。");
             }
 
+            double bottom = spec.ShellBottomMm;
+            if (spec.HeightMm <= bottom)
+            {
+                throw new InvalidOperationException(
+                    "排气筒总高必须大于基础预埋板顶面标高（10 mm）。");
+            }
+
             var profile = new[]
             {
-                new EngineeringPoint(inner, 0.0, 0.0),
-                new EngineeringPoint(radius, 0.0, 0.0),
+                new EngineeringPoint(inner, 0.0, bottom),
+                new EngineeringPoint(radius, 0.0, bottom),
                 new EngineeringPoint(radius, 0.0, spec.HeightMm),
                 new EngineeringPoint(inner, 0.0, spec.HeightMm)
             };
@@ -365,14 +411,14 @@ namespace SteelSectionProbe
         }
 
         /// <summary>
-        /// 地面绳眼挂点：绳眼挂在 U 形钢筋弯拱顶点上，局部原点（绳眼顶）在弯拱顶点
+        /// 地面绳眼挂点：绳眼挂在 φ30 吊环的环顶上，局部原点（绳眼顶）在环顶中心线
         /// 沿拉索向上游 19.516 mm、沿绳眼平面内法向偏出 8 mm；下端绳眼朝上，
-        /// 因此方向与上端相反，直接加在弯拱顶点上。
+        /// 因此方向与上端相反，直接加在环顶中心线上。
         /// </summary>
         private static EngineeringPoint GroundEyeHardPoint(EngineeringPoint ground, EngineeringPoint unit)
         {
             var crown = new EngineeringPoint(
-                ground.X, ground.Y, ChimneyCableCatalog.GroundRebarCrownMm);
+                ground.X, ground.Y, ChimneyCableCatalog.GroundRingCrownMm);
             EngineeringPoint side = Normalize(Cross(new EngineeringPoint(0.0, 0.0, 1.0), unit));
             EngineeringPoint inPlane = Normalize(Cross(unit, side));
             return Sum(crown, Sum(
@@ -428,41 +474,34 @@ namespace SteelSectionProbe
         }
 
         /// <summary>
-        /// 地面端 U 形钢筋：∩ 形 φ20，腿距 100、弯拱顶点在地面上 50，两腿直段下到地面以下 200，
-        /// 底端向两侧外撇 90°、再上翘一个小钩，便于预埋/浇筑到混凝土里；
-        /// 绳眼挂在弯拱顶点上。两腿在拉索竖直面两侧对称，整根钢筋为平面形状。
+        /// 地面端 φ30 吊环（用户 2026-11-17 按“φ30 吊环大样图”要求重做）：
+        /// 一根 φ30 圆钢弯成细长 U 形——环宽 100（两腿外缘）、露出混凝土面 100、
+        /// 埋深 900；两条腿底端各弯一个 180° 回钩（中心线半径 37.5、两肢中心距 75、
+        /// 自最低点向上 90）。整根钢筋是平面形状，位于**垂直于拉索**的竖直面内，
+        /// 因此俯视图上两条腿是两个点，绳眼正好从两腿之间吊在环顶上。
+        /// 两层拉索时每个方位有两根，沿拉索方向相距 <see cref="ChimneyCableCatalog.GroundRingSpacingMm"/>。
         /// </summary>
         private static void AddGroundRebar(
             EngineeringPlan plan, double radians, double radiusMm, string name)
         {
-            double half = ChimneyCableCatalog.GroundRebarLegSpacingMm / 2.0;
-            double crown = ChimneyCableCatalog.GroundRebarCrownMm;
+            double half = ChimneyCableCatalog.GroundRingHalfMm;
+            double crown = ChimneyCableCatalog.GroundRingCrownMm;
             double shoulder = crown - half;
-            double legBottom = ChimneyCableCatalog.GroundRebarLegBottomMm;
-            double bend = ChimneyCableCatalog.GroundRebarHookRadiusMm;
-            double run = ChimneyCableCatalog.GroundRebarHookRunMm;
-            double curl = ChimneyCableCatalog.GroundRebarHookCurlRadiusMm;
-            double up = ChimneyCableCatalog.GroundRebarHookCurlUpMm;
-
-            double hookZ = legBottom - bend;              // 水平段高度
-            double hookEnd = half + bend + run;           // 水平段外端
-            double tipY = hookEnd + curl;                 // 端头上翘处的切向位置
-            double tipZ = hookZ + curl;                   // 端头上翘起点
+            double legBottom = ChimneyCableCatalog.GroundRingLegBottomMm;
+            double hook = ChimneyCableCatalog.GroundRingHookRadiusMm;
+            double returnX = ChimneyCableCatalog.GroundRingHookReturnMm;
+            double tip = ChimneyCableCatalog.GroundRingHookTipMm;
 
             var plane = new List<EngineeringPoint>
             {
-                new EngineeringPoint(tipY, 0.0, tipZ + up),
-                new EngineeringPoint(tipY, 0.0, tipZ),
-                new EngineeringPoint(hookEnd, 0.0, hookZ),
-                new EngineeringPoint(half + bend, 0.0, hookZ),
-                new EngineeringPoint(half, 0.0, legBottom),
-                new EngineeringPoint(half, 0.0, shoulder),
-                new EngineeringPoint(-half, 0.0, shoulder),
-                new EngineeringPoint(-half, 0.0, legBottom),
-                new EngineeringPoint(-(half + bend), 0.0, hookZ),
-                new EngineeringPoint(-hookEnd, 0.0, hookZ),
-                new EngineeringPoint(-tipY, 0.0, tipZ),
-                new EngineeringPoint(-tipY, 0.0, tipZ + up)
+                new EngineeringPoint(-returnX, 0.0, tip),          // 左回钩端头
+                new EngineeringPoint(-returnX, 0.0, legBottom),    // 左回钩竖直切点
+                new EngineeringPoint(-half, 0.0, legBottom),       // 左腿底
+                new EngineeringPoint(-half, 0.0, shoulder),        // 左腿肩
+                new EngineeringPoint(half, 0.0, shoulder),         // 右腿肩
+                new EngineeringPoint(half, 0.0, legBottom),        // 右腿底
+                new EngineeringPoint(returnX, 0.0, legBottom),     // 右回钩竖直切点
+                new EngineeringPoint(returnX, 0.0, tip)            // 右回钩端头
             };
 
             var path = new EngineeringPoint[plane.Count];
@@ -471,20 +510,16 @@ namespace SteelSectionProbe
                 path[index] = GroundPoint(radians, radiusMm, plane[index].X, plane[index].Z);
             }
 
-            double diagonal = Math.Sqrt(0.5);
+            // 三段真圆弧：两个 180° 回钩（中点即最低点）与环顶半圆（中点即环顶）。
             var middles = new EngineeringPoint?[plane.Count];
-            middles[1] = GroundPoint(radians, radiusMm, hookEnd + curl * diagonal, hookZ + curl * diagonal);
-            middles[3] = GroundPoint(radians, radiusMm, half + bend - bend * diagonal, hookZ + bend * diagonal);
-            middles[5] = GroundPoint(radians, radiusMm, 0.0, crown);
-            middles[7] = GroundPoint(radians, radiusMm, -(half + bend - bend * diagonal),
-                hookZ + bend * diagonal);
-            middles[9] = GroundPoint(radians, radiusMm, -(hookEnd + curl * diagonal),
-                hookZ + curl * diagonal);
+            middles[1] = GroundPoint(radians, radiusMm, -(half + hook), legBottom - hook);
+            middles[3] = GroundPoint(radians, radiusMm, 0.0, crown);
+            middles[5] = GroundPoint(radians, radiusMm, half + hook, legBottom - hook);
 
             var body = plan.Add(name);
             body.Color(BoltRed, BoltGreen, BoltBlue);
             body.Add.Add(EngineeringShape.Sweep(
-                path, ChimneyCableCatalog.RebarDiameterMm / 2.0, middles));
+                path, ChimneyCableCatalog.GroundRingBarMm / 2.0, middles));
         }
 
         /// <summary>

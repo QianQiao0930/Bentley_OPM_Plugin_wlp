@@ -167,10 +167,11 @@ namespace SteelSectionProbe
                 "拉索外圆半径公式");
             False(ChimneyCableCatalog.NeedsExtraCable(30000.0, 500.0), "H/(2R)=30 不加中间层");
             True(ChimneyCableCatalog.NeedsExtraCable(60000.0, 500.0), "H/(2R)=60 加中间层");
-            Equal(ChimneyCableCatalog.WallThickness(500.0), 20.0, "筒壁厚 max(5, 4%R)");
+            Equal(new ChimneyCableParameters().WallThicknessMm, 10.0, 1e-9, "筒壁厚默认 10 mm");
 
             var parameters = new ChimneyCableParameters();
             ChimneyCableSpec spec = ChimneyCableCatalog.Resolve(parameters);
+            Equal(spec.WallThicknessMm, 10.0, 1e-9, "筒壁厚取自输入参数");
             Equal(spec.CableCount, 3, "默认拉索根数");
             Equal(spec.AnchorCount, 3, "默认锚墩个数");
 
@@ -196,20 +197,33 @@ namespace SteelSectionProbe
             }
 
             Equal(loftCount, 6, "默认拉索 3 根 × 两端绳眼 = 6 个绳圈放样");
-            Equal(plan.PartCount, 56, "默认实体数 = 49 + 上端环板 1 + 上端吊筋 3 + 地面 U 形钢筋 3");
+
+            // 并入底座：合并后的实体数 = 拉索部分 56 + 底座模块实体数 − 底座自带风管 1
+            int baseBodies = ChimneyBaseCalculator.Calculate(
+                ChimneyCableCatalog.ToBaseParameters(parameters)).PartCount;
+            Equal(plan.PartCount, 56 + baseBodies - 1,
+                "默认实体数 = 拉索 56 + 并入底座 " + baseBodies + "（不含底座自带风管）");
             CheckCollar(plan, spec, "拉索默认");
             CheckGroundFixing(plan, spec, "拉索默认", 3);
             CheckThimble(plan, "拉索默认");
             CheckMaterials(plan, spec, "拉索默认", 3);
 
+            // 底座确实并进来了：基础、预埋板、加劲肋、地脚螺栓、检修门都在
+            Equal(CountBodies(plan, "混凝土基础"), 1, "并入 1 块混凝土基础");
+            Equal(CountBodies(plan, "环形预埋钢板"), 1, "并入 1 块环形预埋板");
+            Equal(CountBodies(plan, "加劲肋"), parameters.BoltCount, "加劲肋与地脚螺栓同数");
+            Equal(CountBodies(plan, "清扫口门板"), 1, "并入 +Y 面弧形检修门");
+            Equal(CountBodies(plan, "排气筒风管"), 0, "不再画底座自带的风管（避免断管台阶）");
+
             Bounds bounds = Bounds.Of(plan);
             Equal(bounds.MaxZ, 30000.0, 1.0, "筒身顶高");
             True(bounds.MinZ <= -ChimneyCableCatalog.AnchorBuriedDepthMm,
                 "锚墩埋深");
-            True(bounds.MinZ >= ChimneyCableCatalog.GroundRebarLegBottomMm -
-                 ChimneyCableCatalog.GroundRebarHookRadiusMm -
-                 ChimneyCableCatalog.RebarDiameterMm / 2.0 - 1e-6,
-                "最低点是地面 U 形钢筋底部外撇（" + bounds.MinZ + "）");
+            // 说明：Bounds.Of 只按路径**控制点**加半径，不含圆弧中点，
+            // 所以这里核对的是腿底外缘 −862.5；回钩弧顶的真最低点 −900 由 CheckGroundFixing 单独核对。
+            Equal(bounds.MinZ, ChimneyCableCatalog.GroundRingLegBottomMm -
+                ChimneyCableCatalog.GroundRingBarMm / 2.0, 1.0,
+                "最低点：φ30 吊环腿底外缘");
             True(-bounds.MinY >= spec.OuterRadiusMm && -bounds.MinY <= spec.OuterRadiusMm + 300.0,
                 "拉索外圆包络（outer=" + spec.OuterRadiusMm + "，minY=" + bounds.MinY + "）");
 
@@ -221,12 +235,59 @@ namespace SteelSectionProbe
             CheckShapes(extraPlan, "拉索中间层");
             Equal(CountBodies(extraPlan, "环板"), 2, "中间层 2 圈连接环板");
             Equal(CountUpperRebars(extraPlan), 6, "中间层 6 根上端吊筋");
-            Equal(CountBodies(extraPlan, "下端吊筋"), 6, "中间层 6 根地面 U 形钢筋");
+            Equal(CountBodies(extraPlan, "地面吊环"), 6, "中间层 6 个地面 φ30 吊环");
             Equal(CountBodies(extraPlan, "地面锚墩"), 6, "中间层 6 个锚墩（上下层各一）");
-            Equal(extraPlan.PartCount, 111,
-                "中间层实体数 = 94 + 环板 2 + 上端吊筋 6 + 地面钢筋 6 + 锚墩加 3");
+            Equal(extraPlan.PartCount, 111 + baseBodies - 1,
+                "中间层实体数 = 拉索 111 + 并入底座 " + baseBodies + "（不含底座自带风管）");
             CheckGroundFixing(extraPlan, extraSpec, "拉索中间层", 6);
             CheckMaterials(extraPlan, extraSpec, "拉索中间层", 6);
+
+            // 自立式：关掉拉索后不应再有任何拉索/环板/绳眼/地面吊环，只剩筒身与基础
+            var selfStanding = new ChimneyCableParameters { GenerateCables = false };
+            ChimneyCableSpec selfSpec = ChimneyCableCatalog.Resolve(selfStanding);
+            Equal(selfSpec.CableCount, 0, "自立式拉索根数 0");
+            Equal(selfSpec.AnchorCount, 0, "自立式锚墩 0");
+            EngineeringPlan selfPlan = ChimneyCableCalculator.Calculate(selfStanding);
+            CheckShapes(selfPlan, "自立式");
+            Equal(CountBodies(selfPlan, "拉索 "), 0, "自立式没有拉索与绳眼");
+            Equal(CountBodies(selfPlan, "地面吊环"), 0, "自立式没有地面吊环");
+            Equal(CountBodies(selfPlan, "地面锚墩"), 0, "自立式没有锚墩");
+            Equal(CountBodies(selfPlan, "环板"), 0, "自立式没有连接环板");
+            Equal(CountBodies(selfPlan, "筒身"), 1, "自立式仍有筒身");
+            Equal(CountBodies(selfPlan, "混凝土基础"), 1, "自立式仍有基础");
+            Equal(CountBodies(selfPlan, "清扫口门板"), 1, "自立式仍有检修门");
+            Equal(selfPlan.PartCount, 1 + baseBodies - 1, "自立式实体数 = 筒身 1 + 底座（不含风管）");
+            CheckMaterials(selfPlan, selfSpec, "自立式", 0);
+
+            // 自立式没有拉索，包络可以直接核对基础与总高
+            Bounds selfBounds = Bounds.Of(selfPlan);
+            Equal(selfBounds.MaxZ, 30000.0, 1.0, "自立式筒顶标高 = 总高");
+            Equal(selfBounds.MaxX, selfSpec.FoundationSideMm / 2.0, 1.0, "自立式包络 = 基础边长的一半");
+            Equal(selfBounds.MinZ, -selfSpec.FoundationThicknessMm, 1.0, "自立式最低点 = 基础底面");
+            Equal(selfSpec.ShellBottomMm, ChimneyBaseConstants.BasePlateThickness, 1e-12,
+                "生成基础时筒身从预埋板顶面起");
+
+            // 关掉基础：没有混凝土/预埋板/加劲肋/地脚螺栓，筒身从 z = 0 起
+            var noBase = new ChimneyCableParameters { GenerateBase = false };
+            ChimneyCableSpec noBaseSpec = ChimneyCableCatalog.Resolve(noBase);
+            Equal(noBaseSpec.ShellBottomMm, 0.0, 1e-12, "不生成基础时筒身从 0 起");
+            EngineeringPlan noBasePlan = ChimneyCableCalculator.Calculate(noBase);
+            CheckShapes(noBasePlan, "无基础");
+            Equal(CountBodies(noBasePlan, "混凝土基础"), 0, "无基础时没有混凝土基础");
+            Equal(CountBodies(noBasePlan, "环形预埋钢板"), 0, "无基础时没有预埋板");
+            Equal(CountBodies(noBasePlan, "地面吊环"), 3, "无基础时拉索与地面吊环仍在");
+            CheckMaterials(noBasePlan, noBaseSpec, "无基础", 3);
+
+            // 壁厚可调：默认 10，自定义值必须贯穿几何与材料
+            var thick = new ChimneyCableParameters { WallThicknessMm = 25.0 };
+            ChimneyCableSpec thickSpec = ChimneyCableCatalog.Resolve(thick);
+            Equal(thickSpec.WallThicknessMm, 25.0, 1e-9, "自定义壁厚 25 生效");
+            EngineeringPlan thickPlan = ChimneyCableCalculator.Calculate(thick);
+            CheckShapes(thickPlan, "拉索壁厚25");
+            ChimneyCableMaterials thickMaterials = ChimneyCableTakeoff.Of(thickSpec, thickPlan);
+            Equal(thickMaterials.StackThicknessMm, 25.0, 1e-9, "材料壁厚跟随参数");
+            True(thickMaterials.StackMassKg > ChimneyCableTakeoff.Of(spec, plan).StackMassKg,
+                "壁厚加大后钢管更重");
 
             string error;
             False(ChimneyCableCatalog.Validate(
@@ -235,6 +296,13 @@ namespace SteelSectionProbe
                 new ChimneyCableParameters { DiameterMm = 5.0 }, out error), "拒绝拉索 D<10 mm");
             False(ChimneyCableCatalog.Validate(
                 new ChimneyCableParameters { CableAngleDegrees = 90.0 }, out error), "拒绝拉索角度 90°");
+            False(ChimneyCableCatalog.Validate(
+                new ChimneyCableParameters { WallThicknessMm = 0.5 }, out error), "拒绝壁厚 <1 mm");
+            False(ChimneyCableCatalog.Validate(
+                new ChimneyCableParameters { WallThicknessMm = 1200.0 }, out error), "拒绝壁厚 >1000 mm");
+            False(ChimneyCableCatalog.Validate(
+                new ChimneyCableParameters { DiameterMm = 10.0, WallThicknessMm = 10.0 }, out error),
+                "拒绝壁厚不小于筒身半径");
         }
 
         private static int CountBodies(EngineeringPlan plan, string fragment)
@@ -531,15 +599,16 @@ namespace SteelSectionProbe
         {
             ChimneyCableMaterials materials = ChimneyCableTakeoff.Of(spec, plan);
 
-            // 排气筒钢管：π(D−t)t 的环形截面
+            // 排气筒钢管：π(D−t)t 的环形截面；长度 = 总高 − 基础预埋板顶面
             double areaSquareMeters = Math.PI * (spec.DiameterMm - spec.WallThicknessMm) *
                 spec.WallThicknessMm / 1e6;
+            double shellMeters = (spec.HeightMm - spec.ShellBottomMm) / 1000.0;
             Equal(materials.StackThicknessMm, spec.WallThicknessMm, 1e-9, label + " 材料壁厚一致");
             Equal(materials.StackMassKgPerMeter, areaSquareMeters * 7850.0, 1e-6, label + " 钢管 kg/m");
-            Equal(materials.StackMassKg,
-                materials.StackMassKgPerMeter * spec.HeightMm / 1000.0, 1e-6, label + " 钢管总重");
+            Equal(materials.StackMassKg, materials.StackMassKgPerMeter * shellMeters, 1e-6,
+                label + " 钢管总重（长度扣除基础顶面）");
             Equal(materials.StackSurfaceSquareMeters,
-                Math.PI * spec.DiameterMm / 1000.0 * spec.HeightMm / 1000.0, 1e-6, label + " 筒身外表面积");
+                Math.PI * spec.DiameterMm / 1000.0 * shellMeters, 1e-6, label + " 筒身外表面积");
 
             // 拉索：单根必须比两挂点直线距离长（含两端绳眼），但不会多出太多
             double straight = 0.0;
@@ -559,6 +628,23 @@ namespace SteelSectionProbe
                 }
             }
 
+            if (!spec.GenerateCables)
+            {
+                // 自立式：拉索与地面固定全部为 0，材料行里不应出现拉索分项
+                Equal(materials.StrandCount, 0, label + " 无拉索");
+                Equal(materials.StrandLengthM, 0.0, 1e-12, label + " 无单根长度");
+                Equal(materials.RopeMassKg, 0.0, 1e-12, label + " 无钢丝绳重量");
+                Equal(materials.CollarCount, 0, label + " 无连接环板");
+                Equal(materials.ThimbleCount, 0, label + " 无鸡心环");
+                Equal(materials.ClipCount, 0, label + " 无绳夹");
+                Equal(materials.AnchorCount, 0, label + " 无锚墩");
+                Equal(materials.GroundRebarCount, 0, label + " 无地面吊环");
+                True(materials.Lines.Count >= 2, label + " 材料用量分项齐全");
+                True(materials.Summary().Length > 20, label + " 材料摘要非空");
+                CheckMaterialRows(materials, spec, label);
+                return;
+            }
+
             True(materials.StrandLengthM > 0.0, label + " 有单根拉索长度");
             True(materials.StrandLengthM * 1000.0 > straight, label + " 单根长度含绳眼、长于主体");
             True(materials.StrandLengthM * 1000.0 < straight + 3000.0, label + " 单根长度没有被重复累计");
@@ -574,61 +660,148 @@ namespace SteelSectionProbe
             Equal(materials.ThimbleCount, spec.CableCount * 2, label + " 鸡心环每根两个");
             Equal(materials.ClipCount, spec.CableCount * 6, label + " 绳夹每根六套");
             Equal(materials.AnchorCount, expectedAnchors, label + " 锚墩个数");
-            Equal(materials.GroundRebarCount, expectedAnchors, label + " 地面钢筋根数");
+            Equal(materials.GroundRebarCount, expectedAnchors, label + " 地面吊环个数");
             True(materials.CollarMassKg > 1.0 && materials.CollarMassKg < 2000.0,
                 label + " 单件环板重量合理（" + materials.CollarMassKg.ToString("0.#") + " kg）");
             True(materials.AnchorMassKg > 0.1 && materials.AnchorMassKg < 20.0,
                 label + " 单件锚墩重量合理（" + materials.AnchorMassKg.ToString("0.##") + " kg）");
-            True(materials.GroundRebarLengthM > 0.5 && materials.GroundRebarLengthM < 2.0,
-                label + " 地面钢筋单根长度合理（" + materials.GroundRebarLengthM.ToString("0.###") + " m）");
+            True(materials.GroundRebarLengthM > 2.0 && materials.GroundRebarLengthM < 2.5,
+                label + " φ30 吊环展开长度合理（" + materials.GroundRebarLengthM.ToString("0.###") + " m）");
+            Equal(materials.GroundRebarMassKg, materials.GroundRebarLengthM * 5.55, 1e-6,
+                label + " 吊环重量按 φ30 5.55 kg/m");
             True(materials.Lines.Count >= 6, label + " 材料用量分项齐全");
             True(materials.Summary().Length > 20, label + " 材料摘要非空");
+            CheckMaterialRows(materials, spec, label);
         }
 
         /// <summary>
-        /// 地面端固定：∩ 形 U 钢筋埋入锚墩，弯拱顶点作吊点，绳眼挂在其上；
-        /// 两层吊索时上层固定点比下层外扩 150（两个 U 形钢筋间隔 150）。
+        /// 材料统计表（页面“材料统计”页签）：行数、钢材小计、合计与逐行自洽。
+        /// 基础与拉索各自按开关出现，行数 = 1 行钢管 + 5 行基础 + 8 行拉索。
+        /// </summary>
+        private static void CheckMaterialRows(
+            ChimneyCableMaterials materials, ChimneyCableSpec spec, string label)
+        {
+            Equal(materials.Rows.Count,
+                1 + (spec.GenerateBase ? 5 : 0) + (spec.GenerateCables ? 8 : 0),
+                label + " 材料统计表行数");
+            Equal(materials.SteelMassKg,
+                materials.StackMassKg + materials.PlateMassKg * materials.PlateCount +
+                materials.RibMassKg * materials.RibCount +
+                materials.CollarMassKg * materials.CollarCount +
+                materials.AnchorMassKg * materials.AnchorCount +
+                materials.GroundRebarMassKg * materials.GroundRebarCount,
+                1e-6, label + " 钢材小计");
+            Equal(materials.TotalMassKg,
+                materials.SteelMassKg + materials.RopeMassKg + materials.FoundationMassKg, 1e-6,
+                label + " 材料合计 = 钢材 + 钢丝绳 + 混凝土基础");
+            if (spec.GenerateBase)
+            {
+                Equal(materials.FoundationMassKg,
+                    materials.FoundationVolumeM3 * 2400.0, 1e-6, label + " 混凝土按 2400 kg/m³");
+                Equal(materials.FoundationVolumeM3,
+                    spec.FoundationSideMm * spec.FoundationSideMm * spec.FoundationThicknessMm / 1e9,
+                    1e-9, label + " 基础方量");
+                Equal(materials.RibCount, spec.BoltCount, label + " 加劲肋与地脚螺栓同数");
+                True(materials.PlateMassKg > 1.0, label + " 预埋板重量为正");
+                True(materials.RibMassKg > 0.1 && materials.RibMassKg < 100.0,
+                    label + " 单块加劲肋重量合理（" + materials.RibMassKg.ToString("0.##") + " kg）");
+            }
+            else
+            {
+                Equal(materials.FoundationVolumeM3, 0.0, 1e-12, label + " 不生成基础时无混凝土");
+                Equal(materials.RibCount, 0, label + " 不生成基础时无加劲肋");
+            }
+
+            foreach (ChimneyCableMaterialRow row in materials.Rows)
+            {
+                True(!string.IsNullOrEmpty(row.Item) && !string.IsNullOrEmpty(row.Unit),
+                    label + " 材料行项目/单位齐全");
+                True(row.Quantity > 0.0, label + " 材料行数量为正（" + row.Item + "）");
+                if (row.Weighed)
+                {
+                    True(row.UnitMassKg > 0.0 && row.TotalMassKg > 0.0,
+                        label + " 计重行重量为正（" + row.Item + "）");
+                    Equal(row.TotalMassKg, row.UnitMassKg * row.Quantity, 1e-6,
+                        label + " 行总重 = 单重×数量（" + row.Item + "）");
+                }
+                else
+                {
+                    Equal(row.UnitMassText, "—", label + " 不计重行显示短横线（" + row.Item + "）");
+                }
+            }
+        }
+
+        /// <summary>
+        /// 地面端固定：φ30 吊环埋入锚墩，环顶作吊点，绳眼挂在其上；
+        /// 两层吊索时同一方位的两个吊环沿拉索方向相距 300（四腿平行、互不干涉）。
         /// </summary>
         private static void CheckGroundFixing(
             EngineeringPlan plan, ChimneyCableSpec spec, string label, int expectedRebars)
         {
-            Equal(CountBodies(plan, "下端吊筋"), expectedRebars, label + " 地面 U 形钢筋数量");
-            Equal(CountBodies(plan, "地面锚墩"), expectedRebars, label + " 锚墩数量与钢筋一致");
-            True(ChimneyCableCatalog.GroundRebarLegSpacingMm / 2.0 < ChimneyCableCatalog.AnchorRadiusMm,
-                label + " 两腿落在锚墩以内（埋入而非悬空）");
-            True(ChimneyCableCatalog.GroundRebarLegSpacingMm / 2.0 -
-                 ChimneyCableCatalog.RebarDiameterMm / 2.0 > ChimneyCableCatalog.RopeDiameterMm / 2.0,
+            Equal(CountBodies(plan, "地面吊环"), expectedRebars, label + " 地面 φ30 吊环数量");
+            Equal(CountBodies(plan, "地面锚墩"), expectedRebars, label + " 锚墩数量与吊环一致");
+            True(ChimneyCableCatalog.GroundRingHalfMm + ChimneyCableCatalog.GroundRingBarMm / 2.0 <
+                 ChimneyCableCatalog.AnchorRadiusMm,
+                label + " 吊环落在锚墩以内（埋入而非悬空）");
+            True(ChimneyCableCatalog.GroundRingHalfMm - ChimneyCableCatalog.GroundRingBarMm / 2.0 >
+                 ChimneyCableCatalog.RopeDiameterMm / 2.0,
                 label + " 绳眼能从两腿之间通过");
 
             foreach (EngineeringBody body in plan.Bodies)
             {
-                if (body.Name.IndexOf("下端吊筋", StringComparison.Ordinal) < 0)
+                if (body.Name.IndexOf("地面吊环", StringComparison.Ordinal) < 0)
                 {
                     continue;
                 }
 
                 EngineeringShape rebar = body.Add[0];
-                True(rebar.Kind == EngineeringShapeKind.Sweep, label + " 地面钢筋为扫掠");
-                Equal(rebar.RadiusStart * 2.0, ChimneyCableCatalog.RebarDiameterMm, 1e-9,
-                    label + " 地面钢筋 φ20");
-                Equal(CrownZ(rebar), ChimneyCableCatalog.GroundRebarCrownMm, 1e-6,
-                    label + " 弯拱顶点在地面上 50");
+                True(rebar.Kind == EngineeringShapeKind.Sweep, label + " 吊环为扫掠");
+                Equal(rebar.RadiusStart * 2.0, ChimneyCableCatalog.GroundRingBarMm, 1e-9,
+                    label + " 吊环 φ30");
+                Equal(CrownZ(rebar), ChimneyCableCatalog.GroundRingCrownMm, 1e-6,
+                    label + " 环顶中心线在地上 85（外露 100）");
 
-                // 路径顺序：钩尖 → 钩 → 直段下端 → 肩 → 肩 → 直段下端 → 钩 → 钩尖
-                Equal(PointDistance(rebar.Points[5], rebar.Points[6]),
-                    ChimneyCableCatalog.GroundRebarLegSpacingMm, 1e-6, label + " 两腿中心距 100");
-                Equal(rebar.Points[5].Z, ChimneyCableCatalog.GroundRebarCrownMm -
-                    ChimneyCableCatalog.GroundRebarLegSpacingMm / 2.0, 1e-6, label + " 弯拱肩部落在地面");
-                Equal(rebar.Points[4].Z, ChimneyCableCatalog.GroundRebarLegBottomMm, 1e-6,
-                    label + " 直段下端在地面以下 200");
-                Equal(rebar.Points[7].Z, ChimneyCableCatalog.GroundRebarLegBottomMm, 1e-6,
-                    label + " 另一条腿同样 200");
-                True(rebar.Points[5].Z - ChimneyCableCatalog.GroundRebarLegBottomMm >= 200.0 - 1e-6,
-                    label + " 直段长度不小于 200");
-                True(rebar.Points[0].Z > ChimneyCableCatalog.GroundRebarLegBottomMm + 1.0,
-                    label + " 端部上翘成钩");
-                True(PointDistance(rebar.Points[0], rebar.Points[11]) >
-                    ChimneyCableCatalog.GroundRebarLegSpacingMm + 1.0, label + " 两个钩向外撇");
+                // 路径顺序：左钩尖 → 左钩切点 → 左腿底 → 左肩 → 右肩 → 右腿底 → 右钩切点 → 右钩尖
+                Equal(PointDistance(rebar.Points[3], rebar.Points[4]),
+                    ChimneyCableCatalog.GroundRingHalfMm * 2.0, 1e-6, label + " 两腿中心距 130（净距 100）");
+                Equal(rebar.Points[3].Z, ChimneyCableCatalog.GroundRingCrownMm -
+                    ChimneyCableCatalog.GroundRingHalfMm, 1e-6, label + " 环顶半圆肩部标高");
+                Equal(rebar.Points[2].Z, ChimneyCableCatalog.GroundRingLegBottomMm, 1e-6,
+                    label + " 左腿直段下端");
+                Equal(rebar.Points[5].Z, ChimneyCableCatalog.GroundRingLegBottomMm, 1e-6,
+                    label + " 右腿直段下端");
+                Equal(rebar.Points[0].Z, ChimneyCableCatalog.GroundRingHookTipMm, 1e-6,
+                    label + " 左回钩端头 −810");
+                Equal(rebar.Points[7].Z, ChimneyCableCatalog.GroundRingHookTipMm, 1e-6,
+                    label + " 右回钩端头 −810");
+                Equal(PointDistance(rebar.Points[0], rebar.Points[1]),
+                    ChimneyCableCatalog.GroundRingHookTipMm - ChimneyCableCatalog.GroundRingLegBottomMm,
+                    1e-6, label + " 回钩直肢长 37.5");
+                True(PointDistance(rebar.Points[0], rebar.Points[7]) >
+                     ChimneyCableCatalog.GroundRingHalfMm * 2.0 + 1.0, label + " 两个回钩向外弯");
+                Equal(Math.Abs(rebar.Points[0].X - CrownPoint(rebar).X),
+                    Math.Abs(rebar.Points[7].X - CrownPoint(rebar).X), 1e-6, label + " 吊环左右对称");
+
+                // 最低点（回钩外缘）必须正好落到埋深 900
+                double lowest = double.MaxValue;
+                foreach (EngineeringPoint point in rebar.Points)
+                {
+                    lowest = Math.Min(lowest, point.Z);
+                }
+
+                if (rebar.ArcMiddles != null)
+                {
+                    foreach (EngineeringPoint? middle in rebar.ArcMiddles)
+                    {
+                        if (middle.HasValue)
+                        {
+                            lowest = Math.Min(lowest, middle.Value.Z);
+                        }
+                    }
+                }
+
+                Equal(lowest - ChimneyCableCatalog.GroundRingBarMm / 2.0,
+                    -ChimneyCableCatalog.GroundRingEmbeddedMm, 1e-6, label + " 埋深 900（最低外缘 −900）");
             }
 
             // 逐个方位核对“绳眼挂在弯拱顶点上”和“绳眼高于锚墩顶面”
@@ -645,9 +818,9 @@ namespace SteelSectionProbe
                         continue;
                     }
 
-                    EngineeringBody rebar = FindBody(plan, "拉索 " + index + " 下端吊筋" +
+                    EngineeringBody rebar = FindBody(plan, "拉索 " + index + " 地面吊环" +
                         (expectedRebars > 3 ? layer : ""));
-                    True(rebar != null, label + " 拉索 " + index + layer + " 有地面 U 形钢筋");
+                    True(rebar != null, label + " 拉索 " + index + layer + " 有地面 φ30 吊环");
 
                     EngineeringShape loft = null;
                     double loftLowest = double.MaxValue;
@@ -683,8 +856,9 @@ namespace SteelSectionProbe
                         lowest = Math.Min(lowest, point.Z);
                     }
 
-                    True(nearest > 19.0 && nearest < 20.2,
-                        label + " 拉索 " + index + layer + " 绳眼挂在弯拱顶点（轴距 " + Format(nearest) + "）");
+                    True(nearest > ChimneyCableCatalog.GroundEyeOffsetMm - 0.6 &&
+                         nearest < ChimneyCableCatalog.GroundEyeOffsetMm + 0.8,
+                        label + " 拉索 " + index + layer + " 绳眼挂在环顶上（轴距 " + Format(nearest) + "）");
                     True(lowest - ChimneyCableCatalog.RopeRadiusMm > padTop + 3.0,
                         label + " 拉索 " + index + layer + " 绳眼高于锚墩顶面");
 
@@ -700,7 +874,7 @@ namespace SteelSectionProbe
                     }
 
                     double expected = layer == "（上层）" && expectedRebars > 3
-                        ? spec.OuterRadiusMm + ChimneyCableCatalog.GroundLayerOffsetMm
+                        ? spec.OuterRadiusMm + ChimneyCableCatalog.GroundRingSpacingMm
                         : spec.OuterRadiusMm;
                     Equal(radius, expected, 1e-6, label + " 固定点半径");
                 }
@@ -708,8 +882,8 @@ namespace SteelSectionProbe
 
             if (expectedRebars > 3)
             {
-                Equal(upperRadius - lowerRadius, ChimneyCableCatalog.GroundLayerOffsetMm, 1e-6,
-                    label + " 上层固定点比下层外扩 150（两个 U 形钢筋间隔 150）");
+                Equal(upperRadius - lowerRadius, ChimneyCableCatalog.GroundRingSpacingMm, 1e-6,
+                    label + " 两层两个吊环沿拉索方向相距 300");
             }
         }
 
@@ -719,7 +893,7 @@ namespace SteelSectionProbe
             foreach (EngineeringBody body in plan.Bodies)
             {
                 if (body.Name.IndexOf("吊筋", StringComparison.Ordinal) >= 0 &&
-                    body.Name.IndexOf("下端吊筋", StringComparison.Ordinal) < 0)
+                    body.Name.IndexOf("地面吊环", StringComparison.Ordinal) < 0)
                 {
                     count++;
                 }

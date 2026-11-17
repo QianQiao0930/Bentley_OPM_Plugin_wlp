@@ -46,13 +46,49 @@ namespace SteelSectionProbe
                 RotateXDegrees = 0.0
             };
 
+            AppendTo(plan, parameters, true);
+            return plan;
+        }
+
+        /// <summary>
+        /// 把底座几何追加进一个既有计划（烟囱拉索模块并入底座时复用同一套业务逻辑）：
+        /// 混凝土基础、环形预埋板、加劲肋、地脚螺栓、检修门。
+        /// <paramref name="includeDuct"/> 为 true 时再画本模块自带的 1500 高风管与顶部断管台阶；
+        /// 烟囱拉索模块从预埋板顶面一直画到总高，因此传 false，避免出现断管台阶。
+        /// 局部原点仍是预埋板底面中心，与烟囱拉索模块的地面 z = 0 一致。
+        /// </summary>
+        internal static void AppendTo(
+            EngineeringPlan plan, ChimneyBaseParameters parameters, bool includeDuct)
+        {
+            if (plan == null)
+            {
+                throw new ArgumentNullException("plan");
+            }
+
+            if (parameters == null)
+            {
+                throw new ArgumentNullException("parameters");
+            }
+
+            string error;
+            if (!ChimneyBaseCatalog.Validate(parameters, out error))
+            {
+                throw new InvalidOperationException(error);
+            }
+
+            double d1, d2, d3;
+            ChimneyBaseCatalog.ResolveDiameters(parameters, out d1, out d2, out d3);
+
             AddFoundation(plan, parameters, d3);
             AddRingPlate(plan, d1, d3);
-            AddDuct(plan, d1);
+            if (includeDuct)
+            {
+                AddDuct(plan, d1);
+            }
+
             AddRibs(plan, d1, parameters.BoltCount);
             AddAnchorBolts(plan, d2, parameters);
             AddCleanout(plan, d1);
-            return plan;
         }
 
         /// <summary>中文摘要：三个直径、螺栓数、基础尺寸与实体数。</summary>

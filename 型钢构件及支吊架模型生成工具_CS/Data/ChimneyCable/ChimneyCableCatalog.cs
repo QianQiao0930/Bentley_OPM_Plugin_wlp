@@ -25,11 +25,8 @@ namespace SteelSectionProbe
         // 筒身
         // ---------------------------------------------------------------
 
-        /// <summary>筒身最小壁厚（mm）：壁厚 = min(max(5, R×0.04), R×0.5)。</summary>
-        internal const double MinWallThicknessMm = 5.0;
-
-        /// <summary>筒身壁厚相对筒身半径的比例系数：R×0.04。</summary>
-        internal const double WallThicknessRatio = 0.04;
+        // 壁厚自 2026-11-17 起由用户直接输入（默认 10 mm），
+        // 不再按 min(max(5, R×0.04), R×0.5) 自动推算；仅保留“必须小于筒身半径”的硬约束。
 
         // ---------------------------------------------------------------
         // φ16 钢丝绳与绳眼装配轴向长度
@@ -257,51 +254,97 @@ namespace SteelSectionProbe
         internal const double RopeEyeJointMm = RopeEyeStubMm - 195.0;
 
         // ---------------------------------------------------------------
-        // 地面端 U 形钢筋（2026-11-15 用户要求新增）
-        // 锚墩上埋一根 ∩ 形 φ20 钢筋，弯拱顶点即吊点，绳眼挂在上面；
-        // 两根吊索时上层固定点比下层外扩 150（两个 U 形钢筋间隔 150）。
+        // 地面端 φ30 吊环（2026-11-17 用户按“φ30 吊环大样图”要求重做）
+        // 一根 φ30 圆钢弯成细长 U 形：环宽 100、露出混凝土面 100、埋深 900，
+        // 两条腿底端各弯一个 180° 回钩（中心线半径 37.5、两肢中心距 75、上翘 90）；
+        // 绳眼挂在环顶。两层拉索时每个方位两个吊环，沿拉索方向相距 300（四腿平行、互不干涉）。
         // ---------------------------------------------------------------
 
-        /// <summary>两层吊索时上层地面固定点相对下层的外扩量（mm）：两个 U 形钢筋间隔 150。</summary>
-        internal const double GroundLayerOffsetMm = 150.0;
-
         /// <summary>
-        /// 地面 U 形钢筋两腿中心距（mm）：即弯拱直径，弯曲半径 50。
-        /// 用户第二次要求放大（原 40 太细），与上端 U 形螺栓同一宽度。
+        /// 两层吊索时两个吊环沿拉索方向（径向）的中心距（mm）。
+        /// 用户 2026-11-17 明确：大样图 100 宽不变，300 是两个吊环之间的距离。
         /// </summary>
-        internal const double GroundRebarLegSpacingMm = 100.0;
+        internal const double GroundRingSpacingMm = 300.0;
+
+        /// <summary>吊环圆钢直径（mm）：大样图 φ30（HPB300 或 Q235B，禁止冷加工、须热弯）。</summary>
+        internal const double GroundRingBarMm = 30.0;
 
         /// <summary>
-        /// 地面 U 形钢筋弯拱顶点（= 绳眼吊点中心）高出地面的高度（mm）。
-        /// 取 50 = 腿距/2，弯拱肩部正好落在地面：绳眼挂在顶点下方约 13，
-        /// 绳表面再低 8，仍比锚墩顶面高约 9。
+        /// 吊环两条腿之间的**净距**（mm）：大样图 100（按像素比例核对：净距 100、
+        /// 中心距 130、环外宽 160）。因此两腿中心距 = 100 + 30 = 130。
         /// </summary>
-        internal const double GroundRebarCrownMm = 50.0;
+        internal const double GroundRingClearMm = 100.0;
 
         /// <summary>
-        /// 地面 U 形钢筋两腿直段下端标高（mm）：地面以下 200，满足“底部至少 200”的预埋长度。
+        /// 吊环露出混凝土面的高度（mm）：大样图 100，量到环顶外缘。
+        /// 环顶中心线标高 = 100 − 15 = 85。
         /// </summary>
-        internal const double GroundRebarLegBottomMm = -200.0;
-
-        /// <summary>地面 U 形钢筋底部外撇弯头半径（mm）。</summary>
-        internal const double GroundRebarHookRadiusMm = 30.0;
-
-        /// <summary>底部外撇后的水平段长度（mm）。</summary>
-        internal const double GroundRebarHookRunMm = 45.0;
-
-        /// <summary>底部端头上翘半径（mm）。</summary>
-        internal const double GroundRebarHookCurlRadiusMm = 15.0;
-
-        /// <summary>底部端头上翘直段长度（mm）。</summary>
-        internal const double GroundRebarHookCurlUpMm = 20.0;
+        internal const double GroundRingExposedMm = 100.0;
 
         /// <summary>
-        /// 地面绳眼吊点：绳眼局部原点在 U 形钢筋弯拱顶点下方，沿拉索向上游 19.516、
-        /// 沿绳眼平面内法向偏出 8（与上端同一个推导，只是下端绳眼朝上）。
+        /// 吊环埋入混凝土的深度（mm）：大样图 900，量到回钩最低点外缘（即最低点 z = −900）。
+        /// </summary>
+        internal const double GroundRingEmbeddedMm = 900.0;
+
+        /// <summary>底部回钩的**内**半径（mm）：大样图 37.5；回钩净宽即 2×37.5 = 75。</summary>
+        internal const double GroundRingHookInnerRadiusMm = 37.5;
+
+        /// <summary>底部回钩的净宽（mm）：大样图 75，等于 2×内半径。</summary>
+        internal const double GroundRingHookClearMm = 2.0 * GroundRingHookInnerRadiusMm;
+
+        /// <summary>底部回钩中心线弯曲半径（mm）：内半径 + 半个钢筋直径 = 37.5 + 15 = 52.5。</summary>
+        internal static double GroundRingHookRadiusMm
+        {
+            get { return GroundRingHookInnerRadiusMm + GroundRingBarMm / 2.0; }
+        }
+
+        /// <summary>底部回钩自最低点向上到端头的高度（mm）：大样图 90。</summary>
+        internal const double GroundRingHookRiseMm = 90.0;
+
+        /// <summary>吊环两腿中心距的一半（mm）：(100 + 30)/2 = 65。</summary>
+        internal static double GroundRingHalfMm
+        {
+            get { return (GroundRingClearMm + GroundRingBarMm) / 2.0; }
+        }
+
+        /// <summary>吊环环顶中心线标高（mm）：100 − 15 = 85，绳眼就挂在这里。</summary>
+        internal static double GroundRingCrownMm
+        {
+            get { return GroundRingExposedMm - GroundRingBarMm / 2.0; }
+        }
+
+        /// <summary>
+        /// 吊环两条腿直段的下端标高（mm）：最低点 −900 再往上让出回钩中心线半径与半个钢筋直径，
+        /// 即 −900 + 52.5 + 15 = −832.5，回钩的最低外缘正好落在 −900。
+        /// </summary>
+        internal static double GroundRingLegBottomMm
+        {
+            get
+            {
+                return -(GroundRingEmbeddedMm - GroundRingHookRadiusMm - GroundRingBarMm / 2.0);
+            }
+        }
+
+        /// <summary>回钩回程肢的中心线横向位置（mm）：65 + 2×52.5 = 170。</summary>
+        internal static double GroundRingHookReturnMm
+        {
+            get { return GroundRingHalfMm + 2.0 * GroundRingHookRadiusMm; }
+        }
+
+        /// <summary>回钩端头标高（mm）：最低点 −900 上翘 90 = −810。</summary>
+        internal static double GroundRingHookTipMm
+        {
+            get { return -GroundRingEmbeddedMm + GroundRingHookRiseMm; }
+        }
+
+        /// <summary>
+        /// 地面绳眼吊点：绳眼局部原点（环顶中心线上方）沿拉索向上游
+        /// 鸡心环内顶点 9.516 + φ30 吊环半径 15 = 24.516 mm、沿绳眼平面内法向偏出 8 mm
+        /// （与上端同一个推导，只是下端绳眼朝上、吊环直径由 φ20 改 φ30 后多让 5 mm）。
         /// </summary>
         internal static double GroundEyeOffsetMm
         {
-            get { return RebarToEyeOffsetMm; }
+            get { return RopeEyeOffsetMm + GroundRingBarMm / 2.0; }
         }
 
         // ---------------------------------------------------------------
@@ -309,10 +352,10 @@ namespace SteelSectionProbe
         // ---------------------------------------------------------------
 
         /// <summary>
-        /// 地面锚墩半径（mm）：取 60 覆盖 U 形钢筋两腿（腿距 100），
-        /// 两层吊索时两块 φ120 锚墩相距 150 也不会相碰。
+        /// 地面锚墩半径（mm）：取 90 覆盖 φ30 吊环的环体（净距 100、外侧到 ±80），
+        /// 两层吊索时两块 φ180 锚墩相距 300 也不会相碰（净距 120）。
         /// </summary>
-        internal const double AnchorRadiusMm = 60.0;
+        internal const double AnchorRadiusMm = 90.0;
 
         /// <summary>地面锚墩高度（mm）：2×绳半径 = 16。</summary>
         internal const double AnchorHeightMm = 2.0 * RopeRadiusMm;
@@ -345,15 +388,6 @@ namespace SteelSectionProbe
             return heightMm / (2.0 * radiusMm) > ExtraCableRatioThreshold;
         }
 
-        /// <summary>
-        /// 筒身壁厚（mm）：壁厚 = min(max(5, R×0.04), R×0.5)，
-        /// 保证小筒径也能抽出内孔，同时不越过筒身半径。
-        /// </summary>
-        internal static double WallThickness(double radiusMm)
-        {
-            return Math.Min(Math.Max(MinWallThicknessMm, radiusMm * WallThicknessRatio), radiusMm * 0.5);
-        }
-
         /// <summary>解析派生几何量；尺寸关系见 <see cref="OuterRadius"/> 与 <see cref="NeedsExtraCable"/>。</summary>
         internal static ChimneyCableSpec Resolve(ChimneyCableParameters parameters)
         {
@@ -371,14 +405,53 @@ namespace SteelSectionProbe
                 RadiusMm = radius,
                 CableAngleDegrees = parameters.CableAngleDegrees,
                 OuterRadiusMm = OuterRadius(height, radius, parameters.CableAngleDegrees),
-                WallThicknessMm = WallThickness(radius),
+                WallThicknessMm = parameters.WallThicknessMm,
                 NeedsExtraCable = NeedsExtraCable(height, radius),
-                AnchorCount = CableAzimuthDegrees.Length * (NeedsExtraCable(height, radius) ? 2 : 1)
+                GenerateCables = parameters.GenerateCables,
+                GenerateBase = parameters.GenerateBase,
+                ShellBottomMm = parameters.GenerateBase ? ChimneyBaseConstants.BasePlateThickness : 0.0
             };
 
             spec.ExtraCableRatio = radius > 0.0 ? height / (2.0 * radius) : 0.0;
-            spec.CableCount = CableAzimuthDegrees.Length * (spec.NeedsExtraCable ? 2 : 1);
+
+            // 拉索与地面吊环：关掉时整组不生成（排气筒自立）。
+            int layers = spec.NeedsExtraCable ? 2 : 1;
+            spec.CableCount = parameters.GenerateCables ? CableAzimuthDegrees.Length * layers : 0;
+            spec.AnchorCount = spec.CableCount;
+
+            // 基础：只有生成时才带出地脚螺栓与基础尺寸，供摘要与材料用量使用。
+            if (parameters.GenerateBase)
+            {
+                ChimneyBaseParameters baseParameters = ToBaseParameters(parameters);
+                double d1, d2, d3;
+                ChimneyBaseCatalog.ResolveDiameters(baseParameters, out d1, out d2, out d3);
+                spec.BoltCount = parameters.BoltCount;
+                spec.FoundationThicknessMm = parameters.FoundationThicknessMm;
+                spec.FoundationSideMm = ChimneyBaseCatalog.FoundationSide(baseParameters, d3);
+                spec.EmbeddedPlateDiameterMm = d3;
+                spec.BoltCircleDiameterMm = d2;
+            }
+
             return spec;
+        }
+
+        /// <summary>
+        /// 把烟囱拉索参数映射成底座参数（复用底座模块的业务逻辑）：
+        /// 风管直径取筒身直径，D2/D3 与基础尺寸原样透传（0 仍表示自动）。
+        /// </summary>
+        internal static ChimneyBaseParameters ToBaseParameters(ChimneyCableParameters parameters)
+        {
+            return new ChimneyBaseParameters
+            {
+                ExhaustDiameterMm = parameters.DiameterMm,
+                BoltCircleDiameterMm = parameters.BoltCircleDiameterMm,
+                EmbeddedPlateDiameterMm = parameters.EmbeddedPlateDiameterMm,
+                BoltCount = parameters.BoltCount,
+                AbovePlateMm = parameters.AbovePlateMm,
+                FoundationThicknessMm = parameters.FoundationThicknessMm,
+                FoundationWidthMm = 0.0,
+                HeadingDegrees = 0.0
+            };
         }
 
         /// <summary>输入校核，返回中文原因；通过时 error 为空。</summary>
@@ -409,9 +482,20 @@ namespace SteelSectionProbe
                 return false;
             }
 
-            if (!Finite(parameters.CableAngleDegrees) ||
-                parameters.CableAngleDegrees < ChimneyCableConstants.MinAngleDegrees ||
-                parameters.CableAngleDegrees > ChimneyCableConstants.MaxAngleDegrees)
+            if (!Finite(parameters.WallThicknessMm) ||
+                parameters.WallThicknessMm < ChimneyCableConstants.MinWallThicknessMm ||
+                parameters.WallThicknessMm > ChimneyCableConstants.MaxWallThicknessMm)
+            {
+                error = "筒身壁厚 t 需在 " + ChimneyCableConstants.MinWallThicknessMm + "～" +
+                    ChimneyCableConstants.MaxWallThicknessMm + " mm 之间。";
+                return false;
+            }
+
+            // 拉索角度只在不自立（生成拉索）时才参与建模与校核。
+            if (parameters.GenerateCables &&
+                (!Finite(parameters.CableAngleDegrees) ||
+                 parameters.CableAngleDegrees < ChimneyCableConstants.MinAngleDegrees ||
+                 parameters.CableAngleDegrees > ChimneyCableConstants.MaxAngleDegrees))
             {
                 error = "拉索角度需在 " + ChimneyCableConstants.MinAngleDegrees + "～" +
                     ChimneyCableConstants.MaxAngleDegrees + "° 之间。";
@@ -425,11 +509,29 @@ namespace SteelSectionProbe
             }
 
             double radius = parameters.RadiusMm;
-            double innerRadius = radius - WallThickness(radius);
+            double innerRadius = radius - parameters.WallThicknessMm;
             if (innerRadius <= 0.0)
             {
-                error = "筒身直径过小：壁厚 " + Format(WallThickness(radius)) + " mm 后内腔不足。";
+                error = "筒身直径过小：壁厚 " + Format(parameters.WallThicknessMm) + " mm 后内腔不足，壁厚须小于筒身半径 " +
+                    Format(radius) + " mm。";
                 return false;
+            }
+
+            // 生成基础时，底盘（预埋板/加劲肋/地脚螺栓/检修门）直接复用底座模块的校核：
+            // 直径下限 100、螺栓个数、露出长度、基础厚度等都由它负责。
+            if (parameters.GenerateBase)
+            {
+                string baseError;
+                if (!ChimneyBaseCatalog.Validate(ToBaseParameters(parameters), out baseError))
+                {
+                    error = "底座：" + baseError;
+                    return false;
+                }
+            }
+
+            if (!parameters.GenerateCables)
+            {
+                return true;
             }
 
             double outerRadius = OuterRadius(parameters.HeightMm, radius, parameters.CableAngleDegrees);

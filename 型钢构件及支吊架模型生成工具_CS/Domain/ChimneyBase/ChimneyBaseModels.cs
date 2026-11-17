@@ -19,13 +19,13 @@ namespace SteelSectionProbe
         internal double EmbeddedPlateDiameterMm;
 
         /// <summary>地脚螺栓个数（沿圆周均布）。</summary>
-        internal int BoltCount = 12;
+        internal int BoltCount = ChimneyBaseConstants.DefaultBoltCount;
 
         /// <summary>地脚螺栓露出预埋板顶面的长度（mm），含螺母与丝扣。</summary>
-        internal double AbovePlateMm = 30.0;
+        internal double AbovePlateMm = ChimneyBaseConstants.DefaultAbovePlateMm;
 
         /// <summary>混凝土基础厚度（mm），自预埋板底面向下。</summary>
-        internal double FoundationThicknessMm = 200.0;
+        internal double FoundationThicknessMm = ChimneyBaseConstants.DefaultFoundationThicknessMm;
 
         /// <summary>混凝土基础边长（mm）；0 表示自动取 D3 + 200。</summary>
         internal double FoundationWidthMm;
@@ -178,6 +178,15 @@ namespace SteelSectionProbe
 
         /// <summary>螺栓露出长度上限（mm）。</summary>
         internal const double MaxAbovePlateMm = 500.0;
+
+        /// <summary>混凝土基础厚度默认值（mm）。</summary>
+        internal const double DefaultFoundationThicknessMm = 200.0;
+
+        /// <summary>地脚螺栓个数默认值（烟囱拉索模块并入底座时共用）。</summary>
+        internal const int DefaultBoltCount = 12;
+
+        /// <summary>地脚螺栓露出预埋板顶面的默认长度（mm）。</summary>
+        internal const double DefaultAbovePlateMm = 30.0;
 
         /// <summary>混凝土基础厚度下限（mm）。</summary>
         internal const double MinFoundationThicknessMm = 160.0;
